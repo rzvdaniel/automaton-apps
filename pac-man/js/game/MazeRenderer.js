@@ -107,6 +107,12 @@ export class MazeRenderer {
         const size = this.tileSize;
         const x = ghost.position.x * size + size / 2;
         const y = ghost.position.y * size + size / 2;
+
+        if (ghost.mode === 'respawn' || ghost.isEaten) {
+            this.drawGhostEyes(x, y, size);
+            return;
+        }
+
         const frightenedColor = '#8fc9ff';
         const fill = ghost.mode === 'frightened' ? frightenedColor : (GHOST_COLORS[ghost.id] || '#ff5b6b');
 
@@ -132,6 +138,24 @@ export class MazeRenderer {
         context.beginPath();
         context.arc(x - size * 0.08, y - size * 0.03, size * 0.035, 0, Math.PI * 2);
         context.arc(x + size * 0.12, y - size * 0.03, size * 0.035, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+    }
+
+    drawGhostEyes(x, y, size) {
+        const context = this.context;
+
+        context.save();
+        context.fillStyle = '#ffffff';
+        context.beginPath();
+        context.arc(x - size * 0.1, y - size * 0.03, size * 0.09, 0, Math.PI * 2);
+        context.arc(x + size * 0.1, y - size * 0.03, size * 0.09, 0, Math.PI * 2);
+        context.fill();
+
+        context.fillStyle = '#2d7ff9';
+        context.beginPath();
+        context.arc(x - size * 0.07, y - size * 0.01, size * 0.045, 0, Math.PI * 2);
+        context.arc(x + size * 0.13, y - size * 0.01, size * 0.045, 0, Math.PI * 2);
         context.fill();
         context.restore();
     }
