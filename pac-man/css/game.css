@@ -1,0 +1,74 @@
+.play-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+    align-items: start;
+}
+
+.play-stage-panel {
+    display: grid;
+    gap: 1rem;
+}
+
+.play-stage-panel__header,
+.play-stage-panel__actions,
+.mobile-controls__row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.play-stage-panel__header {
+    justify-content: space-between;
+    align-items: center;
+}
+
+.play-stage-wrap {
+    position: relative;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background:
+        radial-gradient(circle at top, rgba(46, 88, 255, 0.2), transparent 32%),
+        rgba(3, 7, 18, 0.9);
+    padding: 1rem;
+}
+
+.play-canvas {
+    width: 100%;
+    max-width: 760px;
+    display: block;
+    margin: 0 auto;
+    aspect-ratio: 19 / 21;
+    border-radius: 18px;
+}
+
+.play-sidebar {
+    display: grid;
+    gap: 1rem;
+}
+
+.feature-card--play {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.mobile-controls {
+    display: none;
+    justify-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.mobile-controls__button {
+    min-width: 96px;
+    font-weight: 700;
+}
+
+@media (max-width: 1080px) {
+    .play-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (hover: none), (pointer: coarse) {
+    .mobile-controls {
+        display: grid;
+    }
+}

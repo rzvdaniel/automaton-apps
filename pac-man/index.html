@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pac-Man Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/app.css">
+    <link rel="stylesheet" href="./css/editor.css">
+    <link rel="stylesheet" href="./css/game.css">
+    <link rel="stylesheet" href="./css/themes/classic-pixel.css">
+</head>
+<body>
+    <div id="app" class="app-shell min-h-screen">
+        <header class="shell-header border-b border-white/10 backdrop-blur-xl">
+            <div class="shell-header__inner">
+                <button class="brand-mark" data-action="go-home" type="button">
+                    <span class="brand-mark__title">Pac-Man Studio</span>
+                    <span class="brand-mark__subtitle">Editor and arcade runtime</span>
+                </button>
+                <nav class="shell-nav" aria-label="Primary">
+                    <button class="shell-nav__button is-active" data-action="show-screen" data-screen="home" type="button">Home</button>
+                    <button class="shell-nav__button" data-action="show-screen" data-screen="editor" type="button">Editor</button>
+                    <button class="shell-nav__button" data-action="show-screen" data-screen="play" type="button">Play</button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="shell-main">
+            <section class="screen screen--home is-active" data-screen="home">
+                <div class="hero-panel">
+                    <div class="hero-panel__copy">
+                        <p class="eyebrow">1980 arcade ideas, modern browser tooling</p>
+                        <h1 class="hero-title">Build the maze. Test the chase. Switch the look.</h1>
+                        <p class="hero-text">
+                            Create compact Pac-Man levels, save them locally, and launch them directly into a responsive arcade runtime with classic pellets, ghosts, tunnels, and touch controls.
+                        </p>
+                        <div class="hero-actions">
+                            <button class="cta-button" data-action="show-screen" data-screen="editor" type="button">Open Level Editor</button>
+                            <button class="ghost-button" data-action="play-current-level" type="button">Play Starter Level</button>
+                        </div>
+                    </div>
+                    <div class="hero-panel__visual">
+                        <div class="marquee-card">
+                            <div class="marquee-card__hud">
+                                <span>1UP</span>
+                                <span>HIGH SCORE</span>
+                                <span>READY!</span>
+                            </div>
+                            <div class="marquee-card__board">
+                                <div class="orb orb--yellow"></div>
+                                <div class="orb orb--red"></div>
+                                <div class="orb orb--pink"></div>
+                                <div class="orb orb--blue"></div>
+                                <div class="orb orb--orange"></div>
+                            </div>
+                            <div class="marquee-card__footer">Theme-ready rendering and mobile-first controls</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="home-grid">
+                    <article class="feature-card">
+                        <h2>Editor workflow</h2>
+                        <p>Paint walls, dots, power pellets, Pac-Man spawn, and four ghost spawns. Save drafts, export JSON, import levels, and launch instant playtests.</p>
+                    </article>
+                    <article class="feature-card">
+                        <h2>Runtime goals</h2>
+                        <p>Small screen-fitting maze, queued turns, tunnel wrap, frightened ghosts, score/lives, and clean object-oriented modules instead of a monolithic script.</p>
+                    </article>
+                    <article class="feature-card">
+                        <h2>Theme templates</h2>
+                        <p>Start with a pixel-classic theme and keep the renderer theme-aware so alternate visual templates can be added without rewriting gameplay.</p>
+                        <label class="theme-picker" for="theme-select">
+                            <span>Current theme</span>
+                            <select id="theme-select" data-role="theme-select"></select>
+                        </label>
+                    </article>
+                </div>
+            </section>
+
+            <section class="screen screen--editor" data-screen="editor">
+                <div class="editor-layout">
+                    <aside class="editor-sidebar editor-sidebar--tools">
+                        <div class="panel-header">
+                            <h2>Tools</h2>
+                            <p>Paint your level directly on the grid.</p>
+                        </div>
+                        <div data-role="tool-palette"></div>
+                        <div class="panel-header panel-header--compact">
+                            <h3>Level</h3>
+                        </div>
+                        <form class="level-form" data-role="level-form">
+                            <label>
+                                <span>Name</span>
+                                <input data-field="name" name="name" type="text" maxlength="40" placeholder="Compact Chase">
+                            </label>
+                            <label>
+                                <span>Author</span>
+                                <input data-field="author" name="author" type="text" maxlength="40" placeholder="Player 1">
+                            </label>
+                        </form>
+                        <div class="editor-actions">
+                            <button class="control-button" data-action="new-level" type="button">New</button>
+                            <button class="control-button" data-action="clear-level" type="button">Clear</button>
+                            <button class="control-button" data-action="undo" type="button">Undo</button>
+                            <button class="control-button" data-action="redo" type="button">Redo</button>
+                        </div>
+                    </aside>
+
+                    <section class="editor-canvas-panel">
+                        <div class="editor-canvas-panel__header">
+                            <div>
+                                <h2>Maze Grid</h2>
+                                <p>19 x 21 compact board sized for full-screen play on desktop and mobile.</p>
+                            </div>
+                            <div class="editor-canvas-panel__actions">
+                                <button class="control-button control-button--accent" data-action="test-level" type="button">Test Level</button>
+                                <button class="control-button" data-action="save-level" type="button">Save</button>
+                                <button class="control-button" data-action="export-level" type="button">Export JSON</button>
+                            </div>
+                        </div>
+                        <div class="editor-canvas-wrap">
+                            <div class="editor-grid" data-role="editor-grid" aria-label="Pac-Man level editor grid"></div>
+                        </div>
+                        <div class="editor-import-row">
+                            <label class="file-button">
+                                <span>Import JSON</span>
+                                <input data-action="import-level" type="file" accept="application/json">
+                            </label>
+                            <button class="control-button" data-action="load-level" type="button">Load Saved</button>
+                            <button class="control-button" data-action="save-draft" type="button">Save Draft</button>
+                            <span class="status-pill" data-role="editor-status">No changes yet.</span>
+                        </div>
+                    </section>
+
+                    <aside class="editor-sidebar editor-sidebar--inspector">
+                        <div class="panel-header">
+                            <h2>Validation</h2>
+                            <p>Level health, tile totals, and save readiness.</p>
+                        </div>
+                        <div data-role="validation-panel"></div>
+                        <div class="panel-header panel-header--compact">
+                            <h3>Saved levels</h3>
+                        </div>
+                        <div class="saved-levels" data-role="saved-levels"></div>
+                    </aside>
+                </div>
+            </section>
+
+            <section class="screen screen--play" data-screen="play">
+                <div class="play-layout">
+                    <div class="play-stage-panel">
+                        <div class="play-stage-panel__header">
+                            <div>
+                                <p class="eyebrow">Arcade run</p>
+                                <h2 data-role="play-title">Starter Level</h2>
+                            </div>
+                            <div class="play-stage-panel__actions">
+                                <button class="control-button" data-action="restart-game" type="button">Restart</button>
+                                <button class="control-button" data-action="pause-game" type="button">Pause</button>
+                                <button class="control-button" data-action="show-screen" data-screen="editor" type="button">Back to Editor</button>
+                            </div>
+                        </div>
+                        <div class="play-stage-wrap">
+                            <canvas class="play-canvas" data-role="game-canvas" width="760" height="840"></canvas>
+                            <div class="play-overlay is-hidden" data-role="play-overlay"></div>
+                        </div>
+                        <div class="mobile-controls" data-role="mobile-controls">
+                            <button class="mobile-controls__button" data-action="move" data-direction="up" type="button">Up</button>
+                            <div class="mobile-controls__row">
+                                <button class="mobile-controls__button" data-action="move" data-direction="left" type="button">Left</button>
+                                <button class="mobile-controls__button" data-action="move" data-direction="down" type="button">Down</button>
+                                <button class="mobile-controls__button" data-action="move" data-direction="right" type="button">Right</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="play-sidebar">
+                        <div class="panel-header">
+                            <h2>Session</h2>
+                            <p>Classic-inspired scoring, lives, and chase states.</p>
+                        </div>
+                        <div class="hud-list">
+                            <div class="hud-item"><span>Score</span><strong data-role="score-value">0</strong></div>
+                            <div class="hud-item"><span>Lives</span><strong data-role="lives-value">3</strong></div>
+                            <div class="hud-item"><span>Pellets left</span><strong data-role="pellets-value">0</strong></div>
+                            <div class="hud-item"><span>Ghost mode</span><strong data-role="mode-value">Scatter</strong></div>
+                        </div>
+                        <div class="feature-card feature-card--play">
+                            <h3>Controls</h3>
+                            <p>Desktop uses arrows or WASD. Mobile uses the on-screen pad. Inputs are queued so turns trigger when Pac-Man reaches the center of the next junction.</p>
+                        </div>
+                        <div class="feature-card feature-card--play">
+                            <h3>Theme engine</h3>
+                            <p>The active theme changes maze colors, backdrop treatment, and entity styling without changing collision or movement code.</p>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>

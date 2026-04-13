@@ -1,0 +1,25 @@
+body[data-theme='classic-pixel'] {
+    --theme-maze: #2140e8;
+    --theme-wall-shadow: #10217f;
+    --theme-bg: #040713;
+    --theme-pellet: #f4efe1;
+    --theme-power: #ffd25f;
+    --theme-pacman: #f8d84e;
+    --theme-red: #ff5b6b;
+    --theme-pink: #ff90c0;
+    --theme-blue: #51c9ff;
+    --theme-orange: #ffae4a;
+}
+
+body[data-theme='sunset-arcade'] {
+    --theme-maze: #ff8b3d;
+    --theme-wall-shadow: #7c2c00;
+    --theme-bg: #1b0820;
+    --theme-pellet: #f5e8ff;
+    --theme-power: #fff388;
+    --theme-pacman: #ffe874;
+    --theme-red: #ff6574;
+    --theme-pink: #ff9dd5;
+    --theme-blue: #7be0ff;
+    --theme-orange: #ffc06e;
+}
