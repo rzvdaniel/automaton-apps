@@ -36,11 +36,11 @@
                         <p class="eyebrow">1980 arcade ideas, modern browser tooling</p>
                         <h1 class="hero-title">Build the maze. Test the chase. Switch the look.</h1>
                         <p class="hero-text">
-                            Create compact Pac-Man levels, save them locally, and launch them directly into a responsive arcade runtime with classic pellets, ghosts, tunnels, and touch controls.
+                            Play a featured shared maze, switch between curated variations, or jump into a random run. The built-in editor still lets you prototype locally and export JSON for the published rotation.
                         </p>
                         <div class="hero-actions">
                             <button class="cta-button" data-action="show-screen" data-screen="editor" type="button">Open Level Editor</button>
-                            <button class="ghost-button" data-action="play-current-level" type="button">Play Starter Level</button>
+                            <button class="ghost-button" data-action="play-featured-level" type="button">Play Featured Maze</button>
                         </div>
                     </div>
                     <div class="hero-panel__visual">
@@ -64,16 +64,40 @@
 
                 <div class="home-grid">
                     <article class="feature-card">
-                        <h2>Editor workflow</h2>
-                        <p>Paint walls, dots, power pellets, Pac-Man spawn, and four ghost spawns. Save drafts, export JSON, import levels, and launch instant playtests.</p>
+                        <h2>Published maze rotation</h2>
+                        <p>Every player starts with the default opening maze, can jump to the featured pick, switch to any listed maze, or roll a random run from the approved collection.</p>
+                        <div class="published-level-panel">
+                            <label class="theme-picker" for="published-level-select">
+                                <span>Choose a maze</span>
+                                <select id="published-level-select" data-role="published-level-select"></select>
+                            </label>
+                            <div class="published-level-summary">
+                                <div class="published-level-summary__row">
+                                    <strong data-role="published-level-name">Loading published mazes...</strong>
+                                    <span class="published-level-badge" data-role="published-level-difficulty">Loading</span>
+                                </div>
+                                <p data-role="published-level-description">The app is loading the shared maze catalog.</p>
+                                <div class="published-level-flags" data-role="published-level-flags"></div>
+                                <div class="published-level-meta">
+                                    <span data-role="published-level-count">0 listed · 0 random pool</span>
+                                    <span data-role="published-level-status">Loading published mazes...</span>
+                                </div>
+                            </div>
+                            <div class="hero-actions hero-actions--stacked">
+                                <button class="control-button control-button--accent" data-action="play-selected-level" type="button">Play Selected</button>
+                                <button class="control-button" data-action="play-featured-level" type="button">Play Featured</button>
+                                <button class="control-button" data-action="play-default-level" type="button">Play Default</button>
+                                <button class="control-button" data-action="play-random-level" type="button">Random Maze</button>
+                            </div>
+                        </div>
                     </article>
                     <article class="feature-card">
                         <h2>Runtime goals</h2>
                         <p>Small screen-fitting maze, queued turns, tunnel wrap, frightened ghosts, score/lives, and clean object-oriented modules instead of a monolithic script.</p>
                     </article>
                     <article class="feature-card">
-                        <h2>Theme templates</h2>
-                        <p>Start with a pixel-classic theme and keep the renderer theme-aware so alternate visual templates can be added without rewriting gameplay.</p>
+                        <h2>Editor workflow</h2>
+                        <p>Paint walls, dots, power pellets, Pac-Man spawn, and four ghost spawns. Saved drafts stay local to this browser, while exported JSON can be promoted into the shared maze catalog.</p>
                         <label class="theme-picker" for="theme-select">
                             <span>Current theme</span>
                             <select id="theme-select" data-role="theme-select"></select>
@@ -145,6 +169,7 @@
                         <div data-role="validation-panel"></div>
                         <div class="panel-header panel-header--compact">
                             <h3>Saved levels</h3>
+                            <p>These saves stay local. Export JSON to publish a maze into the shared rotation.</p>
                         </div>
                         <div class="saved-levels" data-role="saved-levels"></div>
                     </aside>

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "columns": 19,
+  "rows": 21,
+  "metadata": {
+    "name": "Orbital Garden",
+    "author": "Pac-Man Studio",
+    "createdAt": "2026-04-13T00:00:00.000Z",
+    "updatedAt": "2026-04-13T00:00:00.000Z"
+  },
+  "grid": [
+    ["wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall"],
+    ["wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "power-pellet", "dot", "dot", "dot", "wall", "wall", "dot", "dot", "dot", "wall", "wall", "dot", "dot", "dot", "power-pellet", "dot", "wall"],
+    ["wall", "dot", "wall", "wall", "wall", "dot", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "dot", "wall", "wall", "wall", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "wall", "dot", "wall", "wall", "dot", "wall", "dot", "wall", "wall", "dot", "wall", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "dot", "wall"],
+    ["wall", "dot", "wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall", "dot", "wall"],
+    ["wall", "dot", "wall", "wall", "wall", "dot", "wall", "ghost-red", "ghost-pink", "dot", "ghost-blue", "ghost-orange", "wall", "dot", "wall", "wall", "wall", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "wall"],
+    ["dot", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "dot", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "dot"],
+    ["wall", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "wall", "wall", "wall", "dot", "wall", "wall", "dot", "dot", "dot", "wall", "wall", "dot", "wall", "wall", "wall", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "pacman-spawn", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall"],
+    ["wall", "dot", "power-pellet", "dot", "dot", "dot", "wall", "wall", "dot", "dot", "dot", "wall", "wall", "dot", "dot", "dot", "power-pellet", "dot", "wall"],
+    ["wall", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "dot", "wall"],
+    ["wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall"]
+  ]
+}

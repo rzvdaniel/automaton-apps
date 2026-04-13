@@ -4,6 +4,7 @@ export const MAX_HISTORY = 80;
 export const LOCAL_STORAGE_KEYS = {
     draft: 'pacman-studio.draft',
     savedLevels: 'pacman-studio.saved-levels',
+    selectedPublishedLevel: 'pacman-studio.selected-published-level',
     theme: 'pacman-studio.theme'
 };
 
