@@ -122,7 +122,8 @@ export class GameEngine {
     checkGhostCollisions() {
         let ghostMultiplier = 1;
         for (const ghost of this.ghosts) {
-            if (distanceBetween(this.pacman.position, ghost.position) > 0.52) {
+            const collisionDistance = this.pacman.radius + ghost.radius;
+            if (distanceBetween(this.pacman.position, ghost.position) > collisionDistance) {
                 continue;
             }
 
