@@ -3,9 +3,73 @@
     align-items: start;
 }
 
+.play-shell {
+    width: min(100%, 1120px);
+    margin: 0 auto;
+}
+
 .play-stage-panel {
     display: grid;
     gap: 1rem;
+}
+
+.play-stage-panel--immersive {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.play-hud-overlay,
+.play-quick-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.play-hud-banner {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.play-hud-banner strong {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+}
+
+.play-hud-strip {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.play-hud-chip {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 110px;
+    padding: 0.8rem 0.95rem;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(8, 13, 30, 0.82);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+
+.play-hud-chip span {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+}
+
+.play-hud-chip strong {
+    font-size: 1rem;
+}
+
+.play-quick-actions {
+    justify-content: flex-end;
 }
 
 .play-stage-panel__header,
@@ -28,6 +92,10 @@
     background:
         radial-gradient(circle at top, rgba(46, 88, 255, 0.2), transparent 32%),
         rgba(3, 7, 18, 0.9);
+    padding: 1rem;
+}
+
+.play-stage-wrap--immersive {
     padding: 1rem;
 }
 
@@ -64,6 +132,12 @@
 @media (max-width: 1080px) {
     .play-layout {
         grid-template-columns: 1fr;
+    }
+
+    .play-hud-overlay,
+    .play-quick-actions,
+    .play-hud-strip {
+        justify-content: center;
     }
 }
 

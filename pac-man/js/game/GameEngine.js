@@ -33,16 +33,16 @@ export class GameEngine {
     loadLevel(level) {
         this.level = level.clone();
         this.session = new GameSession(this.level);
+        this.pauseRequested = false;
         this.ghostDirector = new GhostDirector();
         this.createActors();
         this.title.textContent = this.level.metadata.name;
-        this.overlay.classList.remove('is-hidden');
-        this.overlay.textContent = 'Ready!';
+        this.showOverlay('Ready!', { state: 'ready' });
         this.lastTimestamp = 0;
         cancelAnimationFrame(this.animationFrame);
         this.animationFrame = requestAnimationFrame((timestamp) => this.loop(timestamp));
         window.setTimeout(() => {
-            if (this.overlay.textContent === 'Ready!') {
+            if (this.overlay.dataset.state === 'ready') {
                 this.overlay.classList.add('is-hidden');
             }
         }, 900);
@@ -111,7 +111,14 @@ export class GameEngine {
 
         if (this.level.getPelletCount() === 0) {
             this.session.win();
-            this.showOverlay('Stage Clear');
+            this.showOverlay('Stage Clear', {
+                state: 'won',
+                subtitle: 'The maze is clear. Run it again or head back home.',
+                actions: [
+                    { label: 'Play Again', action: 'restart-game', variant: 'primary' },
+                    { label: 'Home', action: 'show-screen', screen: 'home' }
+                ]
+            });
         }
 
         if (this.session.status === 'resetting') {
@@ -137,7 +144,14 @@ export class GameEngine {
             if (!ghost.isEaten) {
                 this.session.loseLife();
                 if (this.session.status === 'game-over') {
-                    this.showOverlay('Game Over');
+                    this.showOverlay('Game Over', {
+                        state: 'game-over',
+                        subtitle: 'Jump back into the maze or return to the home screen.',
+                        actions: [
+                            { label: 'Play Again', action: 'restart-game', variant: 'primary' },
+                            { label: 'Home', action: 'show-screen', screen: 'home' }
+                        ]
+                    });
                 }
                 break;
             }
@@ -148,7 +162,7 @@ export class GameEngine {
         this.pacman.reset();
         this.ghosts.forEach((ghost) => ghost.reset());
         this.session.status = 'ready';
-        this.showOverlay(this.session.lastMessage);
+        this.showOverlay(this.session.lastMessage, { state: 'message' });
         window.setTimeout(() => {
             this.overlay.classList.add('is-hidden');
         }, 900);
@@ -164,8 +178,22 @@ export class GameEngine {
         this.modeElement.textContent = this.pauseRequested ? 'Paused' : this.ghostDirector.mode;
     }
 
-    showOverlay(message) {
-        this.overlay.textContent = message;
+    showOverlay(message, options = {}) {
+        const { state = 'message', subtitle = '', actions = [] } = options;
+        const actionsMarkup = actions.length
+            ? `<div class="play-overlay__actions">${actions.map((item) => `
+                <button class="${item.variant === 'primary' ? 'cta-button' : 'control-button'}" data-action="${item.action}"${item.screen ? ` data-screen="${item.screen}"` : ''} type="button">${item.label}</button>
+            `).join('')}</div>`
+            : '';
+
+        this.overlay.dataset.state = state;
+        this.overlay.innerHTML = `
+            <div class="play-overlay__card">
+                <strong class="play-overlay__title">${message}</strong>
+                ${subtitle ? `<p class="play-overlay__subtitle">${subtitle}</p>` : ''}
+                ${actionsMarkup}
+            </div>
+        `;
         this.overlay.classList.remove('is-hidden');
     }
 

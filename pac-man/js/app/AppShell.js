@@ -68,7 +68,7 @@ export class AppShell {
         }
 
         if (action === 'play-current-level') {
-            this.playLevel(this.editor.level.clone(), true);
+            this.playLevel(this.currentLevel.clone(), true);
         }
 
         if (action === 'play-default-level') {

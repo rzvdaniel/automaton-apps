@@ -119,22 +119,28 @@
             </section>
 
             <section class="screen screen--play" data-screen="play">
-                <div class="play-layout">
-                    <div class="play-stage-panel">
-                        <div class="play-stage-panel__header">
-                            <div>
-                                <p class="eyebrow">Arcade run</p>
-                                <h2 data-role="play-title">Starter Level</h2>
+                <div class="play-shell">
+                    <div class="play-stage-panel play-stage-panel--immersive">
+                        <div class="play-hud-overlay">
+                            <div class="play-hud-banner">
+                                <span class="eyebrow">Arcade run</span>
+                                <strong data-role="play-title">Starter Level</strong>
                             </div>
-                            <div class="play-stage-panel__actions">
-                                <button class="control-button" data-action="restart-game" type="button">Restart</button>
-                                <button class="control-button" data-action="pause-game" type="button">Pause</button>
-                                <button class="control-button" data-action="show-screen" data-screen="editor" type="button">Back to Editor</button>
+                            <div class="play-hud-strip">
+                                <div class="play-hud-chip"><span>Score</span><strong data-role="score-value">0</strong></div>
+                                <div class="play-hud-chip"><span>Lives</span><strong data-role="lives-value">3</strong></div>
+                                <div class="play-hud-chip"><span>Pellets</span><strong data-role="pellets-value">0</strong></div>
+                                <div class="play-hud-chip"><span>Mode</span><strong data-role="mode-value">Scatter</strong></div>
                             </div>
                         </div>
-                        <div class="play-stage-wrap">
+                        <div class="play-quick-actions">
+                            <button class="control-button" data-action="restart-game" type="button">Restart</button>
+                            <button class="control-button" data-action="pause-game" type="button">Pause</button>
+                            <button class="control-button" data-action="show-screen" data-screen="home" type="button">Home</button>
+                        </div>
+                        <div class="play-stage-wrap play-stage-wrap--immersive">
                             <canvas class="play-canvas" data-role="game-canvas" width="760" height="840"></canvas>
-                            <div class="play-overlay is-hidden" data-role="play-overlay"></div>
+                            <div class="play-overlay is-hidden" data-role="play-overlay" aria-live="polite"></div>
                         </div>
                         <div class="mobile-controls" data-role="mobile-controls">
                             <button class="mobile-controls__button" data-action="move" data-direction="up" type="button">Up</button>
@@ -145,27 +151,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <aside class="play-sidebar">
-                        <div class="panel-header">
-                            <h2>Session</h2>
-                            <p>Classic-inspired scoring, lives, and chase states.</p>
-                        </div>
-                        <div class="hud-list">
-                            <div class="hud-item"><span>Score</span><strong data-role="score-value">0</strong></div>
-                            <div class="hud-item"><span>Lives</span><strong data-role="lives-value">3</strong></div>
-                            <div class="hud-item"><span>Pellets left</span><strong data-role="pellets-value">0</strong></div>
-                            <div class="hud-item"><span>Ghost mode</span><strong data-role="mode-value">Scatter</strong></div>
-                        </div>
-                        <div class="feature-card feature-card--play">
-                            <h3>Controls</h3>
-                            <p>Desktop uses arrows or WASD. Mobile uses the on-screen pad. Inputs are queued so turns trigger when Pac-Man reaches the center of the next junction.</p>
-                        </div>
-                        <div class="feature-card feature-card--play">
-                            <h3>Theme engine</h3>
-                            <p>The active theme changes maze colors, backdrop treatment, and entity styling without changing collision or movement code.</p>
-                        </div>
-                    </aside>
                 </div>
             </section>
         </main>
