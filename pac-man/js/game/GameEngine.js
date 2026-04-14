@@ -11,12 +11,15 @@ export class GameEngine {
     constructor({ root }) {
         this.root = root;
         this.canvas = root.querySelector('[data-role="game-canvas"]');
-        this.overlay = root.querySelector('[data-role="play-overlay"]');
         this.title = root.querySelector('[data-role="play-title"]');
         this.scoreElement = root.querySelector('[data-role="score-value"]');
         this.livesElement = root.querySelector('[data-role="lives-value"]');
         this.pelletsElement = root.querySelector('[data-role="pellets-value"]');
         this.modeElement = root.querySelector('[data-role="mode-value"]');
+        this.message = root.querySelector('[data-role="play-message"]');
+        this.messageTitle = root.querySelector('[data-role="play-message-title"]');
+        this.messageSubtitle = root.querySelector('[data-role="play-message-subtitle"]');
+        this.messageActions = root.querySelector('[data-role="play-message-actions"]');
         this.renderer = new MazeRenderer(this.canvas);
         this.input = new InputController(root, (direction) => this.pacman?.setNextDirection(direction));
         this.input.attach();
@@ -28,6 +31,8 @@ export class GameEngine {
         this.pacman = null;
         this.ghosts = [];
         this.pauseRequested = false;
+        this.freezeGameplay = false;
+        this.resumeTimer = null;
     }
 
     loadLevel(level) {
@@ -37,15 +42,10 @@ export class GameEngine {
         this.ghostDirector = new GhostDirector();
         this.createActors();
         this.title.textContent = this.level.metadata.name;
-        this.showOverlay('Ready!', { state: 'ready' });
+        this.pauseForMessage('Ready!', { state: 'ready' });
         this.lastTimestamp = 0;
         cancelAnimationFrame(this.animationFrame);
         this.animationFrame = requestAnimationFrame((timestamp) => this.loop(timestamp));
-        window.setTimeout(() => {
-            if (this.overlay.dataset.state === 'ready') {
-                this.overlay.classList.add('is-hidden');
-            }
-        }, 900);
         this.updateHud();
     }
 
@@ -83,7 +83,7 @@ export class GameEngine {
         const deltaSeconds = Math.min((timestamp - this.lastTimestamp) / 1000, 0.033);
         this.lastTimestamp = timestamp;
 
-        if (!this.pauseRequested && this.session.status !== 'game-over' && this.session.status !== 'won') {
+        if (!this.pauseRequested && !this.freezeGameplay && this.session.status !== 'game-over' && this.session.status !== 'won') {
             this.update(deltaSeconds);
         }
 
@@ -111,7 +111,7 @@ export class GameEngine {
 
         if (this.level.getPelletCount() === 0) {
             this.session.win();
-            this.showOverlay('Stage Clear', {
+            this.showMessage('Stage Clear', {
                 state: 'won',
                 subtitle: 'The maze is clear. Run it again or head back home.',
                 actions: [
@@ -144,7 +144,7 @@ export class GameEngine {
             if (!ghost.isEaten) {
                 this.session.loseLife();
                 if (this.session.status === 'game-over') {
-                    this.showOverlay('Game Over', {
+                    this.showMessage('Game Over', {
                         state: 'game-over',
                         subtitle: 'Jump back into the maze or return to the home screen.',
                         actions: [
@@ -162,10 +162,7 @@ export class GameEngine {
         this.pacman.reset();
         this.ghosts.forEach((ghost) => ghost.reset());
         this.session.status = 'ready';
-        this.showOverlay(this.session.lastMessage, { state: 'message' });
-        window.setTimeout(() => {
-            this.overlay.classList.add('is-hidden');
-        }, 900);
+        this.pauseForMessage(this.session.lastMessage, { state: 'message' });
     }
 
     updateHud() {
@@ -178,23 +175,44 @@ export class GameEngine {
         this.modeElement.textContent = this.pauseRequested ? 'Paused' : this.ghostDirector.mode;
     }
 
-    showOverlay(message, options = {}) {
+    showMessage(message, options = {}) {
         const { state = 'message', subtitle = '', actions = [] } = options;
+        if (!this.message || !this.messageTitle || !this.messageSubtitle || !this.messageActions) {
+            return;
+        }
+
         const actionsMarkup = actions.length
-            ? `<div class="play-overlay__actions">${actions.map((item) => `
+            ? actions.map((item) => `
                 <button class="${item.variant === 'primary' ? 'cta-button' : 'control-button'}" data-action="${item.action}"${item.screen ? ` data-screen="${item.screen}"` : ''} type="button">${item.label}</button>
-            `).join('')}</div>`
+            `).join('')
             : '';
 
-        this.overlay.dataset.state = state;
-        this.overlay.innerHTML = `
-            <div class="play-overlay__card">
-                <strong class="play-overlay__title">${message}</strong>
-                ${subtitle ? `<p class="play-overlay__subtitle">${subtitle}</p>` : ''}
-                ${actionsMarkup}
-            </div>
-        `;
-        this.overlay.classList.remove('is-hidden');
+        this.message.dataset.state = state;
+        this.messageTitle.textContent = message;
+        this.messageSubtitle.textContent = subtitle;
+        this.messageSubtitle.classList.toggle('is-hidden', !subtitle);
+        this.messageActions.innerHTML = actionsMarkup;
+        this.messageActions.classList.toggle('is-hidden', !actions.length);
+        this.message.classList.remove('is-hidden');
+    }
+
+    hideMessage() {
+        if (!this.message) {
+            return;
+        }
+
+        this.message.classList.add('is-hidden');
+        this.message.dataset.state = '';
+    }
+
+    pauseForMessage(message, options = {}, durationMs = 1000) {
+        window.clearTimeout(this.resumeTimer);
+        this.freezeGameplay = true;
+        this.showMessage(message, options);
+        this.resumeTimer = window.setTimeout(() => {
+            this.freezeGameplay = false;
+            this.hideMessage();
+        }, durationMs);
     }
 
     restart() {
@@ -206,9 +224,14 @@ export class GameEngine {
     togglePause() {
         this.pauseRequested = !this.pauseRequested;
         if (this.pauseRequested) {
-            this.showOverlay('Paused');
+            this.showMessage('Paused', {
+                state: 'paused',
+                subtitle: 'Press Pause again to resume.'
+            });
         } else {
-            this.overlay.classList.add('is-hidden');
+            if (!this.freezeGameplay) {
+                this.hideMessage();
+            }
         }
     }
 }
