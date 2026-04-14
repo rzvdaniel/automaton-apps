@@ -146,26 +146,26 @@ export class AppShell {
     }
 
     renderPublishedLevelOptions() {
-        if (!this.publishedLevelSelect) {
-            return;
-        }
-
         if (!this.publishedLevels.length) {
-            this.publishedLevelSelect.innerHTML = '<option value="">No published mazes available</option>';
-            this.publishedLevelSelect.disabled = true;
+            if (this.publishedLevelSelect) {
+                this.publishedLevelSelect.innerHTML = '<option value="">No published mazes available</option>';
+                this.publishedLevelSelect.disabled = true;
+            }
             if (this.publishedLevelCount) {
                 this.publishedLevelCount.textContent = '0 published mazes';
             }
             return;
         }
 
-        this.publishedLevelSelect.disabled = false;
-        this.publishedLevelSelect.innerHTML = this.publishedLevels.map((entry) => `
-            <option value="${entry.id}">${entry.title}</option>
-        `).join('');
+        if (this.publishedLevelSelect) {
+            this.publishedLevelSelect.disabled = false;
+            this.publishedLevelSelect.innerHTML = this.publishedLevels.map((entry) => `
+                <option value="${entry.id}">${entry.title}</option>
+            `).join('');
 
-        if (this.selectedPublishedLevelId) {
-            this.publishedLevelSelect.value = this.selectedPublishedLevelId;
+            if (this.selectedPublishedLevelId) {
+                this.publishedLevelSelect.value = this.selectedPublishedLevelId;
+            }
         }
 
         if (this.publishedLevelCount) {

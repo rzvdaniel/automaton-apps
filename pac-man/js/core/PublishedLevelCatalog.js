@@ -8,6 +8,38 @@ export class PublishedLevelCatalog {
         this.levelCache = new Map();
     }
 
+    shuffleEntries(entries) {
+        const shuffled = [...entries];
+
+        for (let index = shuffled.length - 1; index > 0; index -= 1) {
+            const swapIndex = Math.floor(Math.random() * (index + 1));
+            [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+        }
+
+        return shuffled;
+    }
+
+    async loadFirstAvailableEntry(entries) {
+        let lastError = null;
+
+        for (const entry of entries) {
+            if (!entry) {
+                continue;
+            }
+
+            try {
+                return {
+                    entry,
+                    level: await this.loadLevelById(entry.id)
+                };
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError ?? new Error('No published levels are currently available.');
+    }
+
     async loadCatalog() {
         if (this.catalog) {
             return this.catalog;
@@ -48,15 +80,17 @@ export class PublishedLevelCatalog {
     }
 
     async loadFeaturedLevel() {
+        const catalog = await this.loadCatalog();
         const entry = await this.getFeaturedEntry();
-        if (!entry) {
+        if (!entry && !catalog.levels.length) {
             throw new Error('No featured published level is configured.');
         }
 
-        return {
+        return this.loadFirstAvailableEntry([
             entry,
-            level: await this.loadLevelById(entry.id)
-        };
+            catalog.levels.find((item) => item.id === catalog.defaultLevelId),
+            ...catalog.levels.filter((item) => item.id !== entry?.id && item.id !== catalog.defaultLevelId)
+        ]);
     }
 
     async loadLevelById(levelId) {
@@ -94,11 +128,7 @@ export class PublishedLevelCatalog {
             throw new Error('No published levels are available for random play.');
         }
 
-        const selected = pool[Math.floor(Math.random() * pool.length)];
-        return {
-            entry: selected,
-            level: await this.loadLevelById(selected.id)
-        };
+        return this.loadFirstAvailableEntry(this.shuffleEntries(pool));
     }
 
     async loadSafeDefaultLevel() {

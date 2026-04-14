@@ -31,73 +31,34 @@
 
         <main class="shell-main">
             <section class="screen screen--home is-active" data-screen="home">
-                <div class="hero-panel">
-                    <div class="hero-panel__copy">
-                        <p class="eyebrow">1980 arcade ideas, modern browser tooling</p>
-                        <h1 class="hero-title">Build the maze. Test the chase. Switch the look.</h1>
-                        <p class="hero-text">
-                            Play a featured shared maze, switch between curated variations, or jump into a random run. The built-in editor still lets you prototype locally and export JSON for the published rotation.
-                        </p>
-                        <div class="hero-actions">
-                            <button class="cta-button" data-action="show-screen" data-screen="editor" type="button">Open Level Editor</button>
-                            <button class="ghost-button" data-action="play-featured-level" type="button">Play Featured Maze</button>
-                        </div>
-                    </div>
-                    <div class="hero-panel__visual">
-                        <div class="marquee-card">
-                            <div class="marquee-card__hud">
-                                <span>1UP</span>
-                                <span>HIGH SCORE</span>
-                                <span>READY!</span>
-                            </div>
-                            <div class="marquee-card__board">
-                                <div class="orb orb--yellow"></div>
-                                <div class="orb orb--red"></div>
-                                <div class="orb orb--pink"></div>
-                                <div class="orb orb--blue"></div>
-                                <div class="orb orb--orange"></div>
-                            </div>
-                            <div class="marquee-card__footer">Theme-ready rendering and mobile-first controls</div>
-                        </div>
+                <div class="hero-center">
+                    <p class="eyebrow hero-center__eyebrow">Free browser arcade</p>
+                    <h1 class="hero-title hero-title--centered">
+                        <span>PAC-MAN</span>
+                        <span>Studio</span>
+                    </h1>
+                    <p class="hero-text hero-text--centered">
+                        Play instantly in the default maze, jump into the featured run, or launch a random challenge from the curated rotation.
+                    </p>
+                    <div class="hero-actions hero-actions--landing hero-actions--centered hero-actions--primary">
+                        <button class="cta-button" data-action="play-current-level" type="button">Play</button>
+                        <button class="control-button" data-action="play-featured-level" type="button">Featured</button>
+                        <button class="ghost-button" data-action="play-random-level" type="button">Random Maze</button>
                     </div>
                 </div>
 
-                <div class="home-grid">
-                    <article class="feature-card">
-                        <h2>Published maze rotation</h2>
-                        <p>Every player starts with the default opening maze, can jump to the featured pick, switch to any listed maze, or roll a random run from the approved collection.</p>
-                        <div class="published-level-panel">
-                            <label class="theme-picker" for="published-level-select">
-                                <span>Choose a maze</span>
-                                <select id="published-level-select" data-role="published-level-select"></select>
-                            </label>
-                            <div class="published-level-summary">
-                                <div class="published-level-summary__row">
-                                    <strong data-role="published-level-name">Loading published mazes...</strong>
-                                    <span class="published-level-badge" data-role="published-level-difficulty">Loading</span>
-                                </div>
-                                <p data-role="published-level-description">The app is loading the shared maze catalog.</p>
-                                <div class="published-level-flags" data-role="published-level-flags"></div>
-                                <div class="published-level-meta">
-                                    <span data-role="published-level-count">0 listed · 0 random pool</span>
-                                    <span data-role="published-level-status">Loading published mazes...</span>
-                                </div>
-                            </div>
-                            <div class="hero-actions hero-actions--stacked">
-                                <button class="control-button control-button--accent" data-action="play-selected-level" type="button">Play Selected</button>
-                                <button class="control-button" data-action="play-featured-level" type="button">Play Featured</button>
-                                <button class="control-button" data-action="play-default-level" type="button">Play Default</button>
-                                <button class="control-button" data-action="play-random-level" type="button">Random Maze</button>
-                            </div>
-                        </div>
+                <div class="home-grid home-grid--landing">
+                    <article class="feature-card feature-card--compact">
+                        <h2>Easy Start</h2>
+                        <p>The default run is the safest first click. Featured gives you the hand-picked showcase. Random throws you into the live rotation.</p>
                     </article>
-                    <article class="feature-card">
-                        <h2>Runtime goals</h2>
-                        <p>Small screen-fitting maze, queued turns, tunnel wrap, frightened ghosts, score/lives, and clean object-oriented modules instead of a monolithic script.</p>
+                    <article class="feature-card feature-card--compact">
+                        <h2>Make Mazes Later</h2>
+                        <p>Players are not forced through creator tools first. When you want to build, the editor is still one click away in the header.</p>
                     </article>
-                    <article class="feature-card">
-                        <h2>Editor workflow</h2>
-                        <p>Paint walls, dots, power pellets, Pac-Man spawn, and four ghost spawns. Saved drafts stay local to this browser, while exported JSON can be promoted into the shared maze catalog.</p>
+                    <article class="feature-card feature-card--compact">
+                        <h2>Theme</h2>
+                        <p>Keep the look punchy without adding friction before gameplay.</p>
                         <label class="theme-picker" for="theme-select">
                             <span>Current theme</span>
                             <select id="theme-select" data-role="theme-select"></select>
