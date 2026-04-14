@@ -5,7 +5,8 @@ export const LOCAL_STORAGE_KEYS = {
     draft: 'pacman-studio.draft',
     savedLevels: 'pacman-studio.saved-levels',
     selectedPublishedLevel: 'pacman-studio.selected-published-level',
-    theme: 'pacman-studio.theme'
+    theme: 'pacman-studio.theme',
+    difficulty: 'pacman-studio.difficulty'
 };
 
 export const TILE_TYPES = {
@@ -69,7 +70,8 @@ export const SCORE_VALUES = {
 export const GHOST_MODE_TIMINGS = {
     scatter: 7,
     chase: 20,
-    frightened: 8
+    frightened: 8,
+    frightenedFlashStart: 2
 };
 
 export const GAME_DEFAULTS = {
@@ -78,4 +80,28 @@ export const GAME_DEFAULTS = {
     ghostSpeed: 4.8,
     frightenedGhostSpeed: 3.3,
     ghostRespawnSpeed: 6.1
+};
+
+export const DIFFICULTY_SETTINGS = {
+    easy: {
+        label: 'Easy',
+        ghostSpeed: 4.2,
+        frightenedGhostSpeed: 2.9,
+        ghostRespawnSpeed: 5.5,
+        frightenedDuration: 10
+    },
+    normal: {
+        label: 'Normal',
+        ghostSpeed: GAME_DEFAULTS.ghostSpeed,
+        frightenedGhostSpeed: GAME_DEFAULTS.frightenedGhostSpeed,
+        ghostRespawnSpeed: GAME_DEFAULTS.ghostRespawnSpeed,
+        frightenedDuration: GHOST_MODE_TIMINGS.frightened
+    },
+    hard: {
+        label: 'Hard',
+        ghostSpeed: 5.3,
+        frightenedGhostSpeed: 3.8,
+        ghostRespawnSpeed: 6.7,
+        frightenedDuration: 6
+    }
 };

@@ -1,10 +1,10 @@
-import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-7';
-import { Level } from '../core/Level.js?v=20260414-7';
-import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-7';
-import { EditorController } from '../editor/EditorController.js?v=20260414-7';
-import { GameEngine } from '../game/GameEngine.js?v=20260414-7';
-import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-7';
-import { ScreenController } from './ScreenController.js?v=20260414-7';
+import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-10';
+import { Level } from '../core/Level.js?v=20260414-10';
+import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-10';
+import { EditorController } from '../editor/EditorController.js?v=20260414-10';
+import { GameEngine } from '../game/GameEngine.js?v=20260414-10';
+import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-10';
+import { ScreenController } from './ScreenController.js?v=20260414-10';
 
 export class AppShell {
     constructor(root) {
@@ -99,6 +99,10 @@ export class AppShell {
 
         if (action === 'pause-game') {
             this.game.togglePause();
+        }
+
+        if (action === 'toggle-difficulty') {
+            this.game.toggleDifficulty();
         }
     }
 

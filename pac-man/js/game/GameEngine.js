@@ -1,8 +1,8 @@
-import { GAME_DEFAULTS, GHOST_IDS, TILE_TYPES } from '../core/constants.js';
+import { DIFFICULTY_SETTINGS, GAME_DEFAULTS, GHOST_IDS, LOCAL_STORAGE_KEYS, TILE_TYPES } from '../core/constants.js';
 import { distanceBetween } from '../core/GridMath.js';
 import { GameSession } from './GameSession.js';
 import { Ghost } from './Ghost.js';
-import { GhostDirector } from './GhostDirector.js';
+import { GhostDirector } from './GhostDirector.js?v=20260414-10';
 import { InputController } from './InputController.js';
 import { MazeRenderer } from './MazeRenderer.js';
 import { PacMan } from './PacMan.js';
@@ -14,7 +14,7 @@ export class GameEngine {
         this.scoreElement = root.querySelector('[data-role="score-value"]');
         this.livesElement = root.querySelector('[data-role="lives-value"]');
         this.pelletsElement = root.querySelector('[data-role="pellets-value"]');
-        this.modeElement = root.querySelector('[data-role="mode-value"]');
+        this.difficultyElement = root.querySelector('[data-role="difficulty-value"]');
         this.message = root.querySelector('[data-role="play-message"]');
         this.messageTitle = root.querySelector('[data-role="play-message-title"]');
         this.messageSubtitle = root.querySelector('[data-role="play-message-subtitle"]');
@@ -33,6 +33,16 @@ export class GameEngine {
         this.pauseRequested = false;
         this.freezeGameplay = false;
         this.resumeTimer = null;
+        this.currentDifficultyId = this.resolveStoredDifficulty();
+    }
+
+    resolveStoredDifficulty() {
+        const storedDifficulty = localStorage.getItem(LOCAL_STORAGE_KEYS.difficulty);
+        return storedDifficulty && DIFFICULTY_SETTINGS[storedDifficulty] ? storedDifficulty : 'normal';
+    }
+
+    getDifficultySettings() {
+        return DIFFICULTY_SETTINGS[this.currentDifficultyId] ?? DIFFICULTY_SETTINGS.normal;
     }
 
     loadLevel(level) {
@@ -40,7 +50,7 @@ export class GameEngine {
         this.level = this.sourceLevel.clone();
         this.session = new GameSession(this.level);
         this.pauseRequested = false;
-        this.ghostDirector = new GhostDirector();
+        this.ghostDirector = new GhostDirector({ frightenedDuration: this.getDifficultySettings().frightenedDuration });
         this.createActors();
         this.pauseForMessage('Ready!', { state: 'ready' });
         this.lastTimestamp = 0;
@@ -50,23 +60,26 @@ export class GameEngine {
     }
 
     createActors() {
+        const difficulty = this.getDifficultySettings();
         const pacmanSpawn = this.level.getPacmanSpawn() ?? { x: 1, y: this.level.rows - 2 };
         this.pacman = new PacMan({ x: pacmanSpawn.x, y: pacmanSpawn.y, speed: GAME_DEFAULTS.pacmanSpeed, direction: 'left' });
         this.ghosts = this.level.getGhostSpawns().map((spawn) => new Ghost({
             x: spawn.x,
             y: spawn.y,
-            speed: GAME_DEFAULTS.ghostSpeed,
+            speed: difficulty.ghostSpeed,
             direction: 'left',
-            id: spawn.type
+            id: spawn.type,
+            speedProfile: difficulty
         }));
 
         if (this.ghosts.length === 0) {
             this.ghosts = GHOST_IDS.slice(0, 1).map((ghostId) => new Ghost({
                 x: Math.floor(this.level.columns / 2),
                 y: Math.floor(this.level.rows / 2),
-                speed: GAME_DEFAULTS.ghostSpeed,
+                speed: difficulty.ghostSpeed,
                 direction: 'left',
-                id: ghostId
+                id: ghostId,
+                speedProfile: difficulty
             }));
         }
     }
@@ -87,13 +100,13 @@ export class GameEngine {
             this.update(deltaSeconds);
         }
 
-        this.renderer.render(this.level, this.pacman, this.ghosts);
+        this.renderer.render(this.level, this.pacman, this.ghosts, this.ghostDirector);
         this.updateHud();
         this.animationFrame = requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
     }
 
     update(deltaSeconds) {
-        const mode = this.ghostDirector.update(deltaSeconds);
+        this.ghostDirector.update(deltaSeconds);
         this.pacman.update(this.level, deltaSeconds);
         const consumedTile = this.pacman.consume(this.level);
         if (consumedTile) {
@@ -104,7 +117,7 @@ export class GameEngine {
         }
 
         for (const ghost of this.ghosts) {
-            ghost.update(this.level, deltaSeconds, this.pacman, this.ghostDirector.mode);
+            ghost.update(this.level, deltaSeconds, this.pacman, this.ghosts, this.ghostDirector);
         }
 
         this.checkGhostCollisions();
@@ -172,7 +185,7 @@ export class GameEngine {
         this.scoreElement.textContent = String(this.session.score);
         this.livesElement.textContent = String(this.session.lives);
         this.pelletsElement.textContent = String(this.level.getPelletCount());
-        this.modeElement.textContent = this.pauseRequested ? 'Paused' : this.ghostDirector.mode;
+        this.difficultyElement.textContent = this.getDifficultySettings().label;
     }
 
     showMessage(message, options = {}) {
@@ -233,5 +246,26 @@ export class GameEngine {
                 this.hideMessage();
             }
         }
+    }
+
+    toggleDifficulty() {
+        const difficultyIds = ['easy', 'normal', 'hard'];
+        const currentIndex = difficultyIds.indexOf(this.currentDifficultyId);
+        this.currentDifficultyId = difficultyIds[(currentIndex + 1) % difficultyIds.length];
+        localStorage.setItem(LOCAL_STORAGE_KEYS.difficulty, this.currentDifficultyId);
+
+        if (this.ghostDirector) {
+            this.ghostDirector.updateDifficulty({ frightenedDuration: this.getDifficultySettings().frightenedDuration });
+        }
+
+        if (this.sourceLevel) {
+            this.loadLevel(this.sourceLevel);
+        }
+
+        this.showMessage(`Difficulty: ${this.getDifficultySettings().label}`, {
+            state: 'message',
+            subtitle: 'Ghost speed and frightened duration have been updated.'
+        }, 700);
+        this.updateHud();
     }
 }

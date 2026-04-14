@@ -68,6 +68,16 @@
     white-space: nowrap;
 }
 
+.play-hud-chip--toggle {
+    cursor: pointer;
+}
+
+.play-hud-chip--toggle:hover,
+.play-hud-chip--toggle:focus-visible {
+    color: var(--accent);
+    outline: none;
+}
+
 .play-hud-chip span {
     font-size: 0.72rem;
     text-transform: uppercase;
