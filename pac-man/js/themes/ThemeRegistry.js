@@ -8,6 +8,10 @@ export class ThemeRegistry {
     }
 
     hydrateSelect(selectElement, onChange) {
+        if (!selectElement) {
+            return;
+        }
+
         selectElement.innerHTML = this.themes.map((theme) => `<option value="${theme.id}">${theme.label}</option>`).join('');
         selectElement.value = this.activeTheme;
         selectElement.addEventListener('change', () => {

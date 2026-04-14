@@ -338,13 +338,13 @@ button {
 
 .hero-center {
     width: min(860px, 100%);
-    margin: 0 auto 2rem;
+    margin: 3rem auto 0;
     position: relative;
     z-index: 2;
     display: grid;
     justify-items: center;
     text-align: center;
-    gap: 1rem;
+    gap: 1.2rem;
 }
 
 .hero-center__eyebrow {
@@ -353,6 +353,12 @@ button {
 
 .hero-text--centered {
     max-width: 52ch;
+}
+
+.screen--home.is-active {
+    min-height: calc(100vh - 8rem);
+    display: grid;
+    align-items: start;
 }
 
 .hero-panel__copy--arcade,

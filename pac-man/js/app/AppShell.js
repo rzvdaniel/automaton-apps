@@ -35,7 +35,8 @@ export class AppShell {
     }
 
     async initialize() {
-        this.themeRegistry.hydrateSelect(this.root.querySelector('[data-role="theme-select"]'));
+        const themeSelect = this.root.querySelector('[data-role="theme-select"]');
+        this.themeRegistry.hydrateSelect(themeSelect);
         await this.hydratePublishedLevels();
     }
 
