@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/app.css">
     <link rel="stylesheet" href="./css/editor.css">
-    <link rel="stylesheet" href="./css/game.css">
+    <link rel="stylesheet" href="./css/game.css?v=20260414-6">
     <link rel="stylesheet" href="./css/themes/classic-pixel.css">
 </head>
 <body>
@@ -133,21 +133,37 @@
                                 </div>
                             </div>
                             <div class="mobile-controls" data-role="mobile-controls">
-                                <button class="mobile-controls__button" data-action="move" data-direction="up" type="button">Up</button>
+                                <button class="mobile-controls__button mobile-controls__button--up" data-action="move" data-direction="up" type="button" aria-label="Move up">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M12 6l-6 7h4v5h4v-5h4z" fill="currentColor" />
+                                    </svg>
+                                </button>
                                 <div class="mobile-controls__row">
-                                    <button class="mobile-controls__button" data-action="move" data-direction="left" type="button">Left</button>
-                                    <button class="mobile-controls__button" data-action="move" data-direction="down" type="button">Down</button>
-                                    <button class="mobile-controls__button" data-action="move" data-direction="right" type="button">Right</button>
+                                    <button class="mobile-controls__button" data-action="move" data-direction="left" type="button" aria-label="Move left">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M6 12l7 6v-4h5v-4h-5V6z" fill="currentColor" />
+                                        </svg>
+                                    </button>
+                                    <button class="mobile-controls__button" data-action="move" data-direction="down" type="button" aria-label="Move down">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M12 18l6-7h-4V6h-4v5H6z" fill="currentColor" />
+                                        </svg>
+                                    </button>
+                                    <button class="mobile-controls__button" data-action="move" data-direction="right" type="button" aria-label="Move right">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M18 12l-7-6v4H6v4h5v4z" fill="currentColor" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         <aside class="play-rail">
                             <div class="play-hud-strip play-hud-strip--rail">
-                                <div class="play-hud-chip play-hud-chip--stacked"><span>Score</span><strong data-role="score-value">0</strong></div>
-                                <div class="play-hud-chip play-hud-chip--stacked"><span>Lives</span><strong data-role="lives-value">3</strong></div>
-                                <div class="play-hud-chip play-hud-chip--stacked"><span>Pellets</span><strong data-role="pellets-value">0</strong></div>
-                                <div class="play-hud-chip play-hud-chip--stacked"><span>Mode</span><strong data-role="mode-value">Scatter</strong></div>
+                                <div class="play-hud-chip play-hud-chip--inline"><span>Score:</span><strong data-role="score-value">0</strong></div>
+                                <div class="play-hud-chip play-hud-chip--inline"><span>Lives:</span><strong data-role="lives-value">3</strong></div>
+                                <div class="play-hud-chip play-hud-chip--inline"><span>Pellets:</span><strong data-role="pellets-value">0</strong></div>
+                                <div class="play-hud-chip play-hud-chip--inline"><span>Mode:</span><strong data-role="mode-value">Scatter</strong></div>
                                 <div class="play-hud-actions" aria-label="Game controls">
                                     <button class="play-hud-action" data-action="pause-game" type="button" aria-label="Pause game">
                                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

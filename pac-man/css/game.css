@@ -31,10 +31,10 @@
     width: min(100%, 760px);
     margin: 0 auto;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: nowrap;
-    justify-content: space-between;
-    gap: 0.7rem;
+    justify-content: center;
+    gap: 0.85rem;
     overflow-x: auto;
     padding: 0.15rem 0.1rem 0.3rem;
     scrollbar-width: none;
@@ -55,14 +55,17 @@
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
 }
 
-.play-hud-chip--stacked {
-    display: grid;
-    gap: 0.18rem;
-    min-width: 68px;
+.play-hud-chip--inline {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    min-width: 0;
     padding: 0;
     border: 0;
     background: transparent;
     box-shadow: none;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .play-hud-chip span {
@@ -72,7 +75,7 @@
     color: var(--muted);
 }
 
-.play-hud-chip--stacked span {
+.play-hud-chip--inline span {
     font-size: 0.7rem;
     letter-spacing: 0.05em;
 }
@@ -81,23 +84,23 @@
     font-size: 1rem;
 }
 
-.play-hud-chip--stacked strong {
-    font-size: 1rem;
+.play-hud-chip--inline strong {
+    font-size: 0.98rem;
     text-transform: none;
 }
 
 .play-rail {
     width: 100%;
     justify-self: center;
+    order: -1;
 }
 
 .play-hud-actions {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    margin-left: auto;
-    padding-left: 0.2rem;
     flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .play-hud-action {
@@ -216,11 +219,37 @@
     display: none;
 }
 
+.mobile-controls {
+    display: none;
+    justify-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.mobile-controls__button {
+    min-width: 0;
+    width: 2.9rem;
+    height: 2.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.mobile-controls__button svg {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.mobile-controls__button--up {
+    width: 3.1rem;
+}
+
 @media (max-width: 1080px) {
     .play-rail {
         width: min(100%, 760px);
         margin: 0 auto;
-        order: -1;
     }
 
     .play-stage-wrap--immersive {
@@ -242,15 +271,11 @@
         justify-content: flex-start;
     }
 
-    .play-hud-chip--stacked {
-        min-width: 56px;
-    }
-
-    .play-hud-chip--stacked span {
+    .play-hud-chip--inline span {
         font-size: 0.63rem;
     }
 
-    .play-hud-chip--stacked strong {
+    .play-hud-chip--inline strong {
         font-size: 0.88rem;
     }
 
@@ -272,12 +297,56 @@
     .play-canvas {
         width: 100%;
         height: auto;
-        max-height: min(calc(100vh - 230px), 70vh);
+        max-height: min(calc(100vh - 330px), 66vh);
     }
 }
 
 @media (hover: none), (pointer: coarse) {
+    .app-shell[data-active-screen="play"] .shell-main {
+        padding-bottom: calc(8.25rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .play-stage-panel--immersive {
+        padding-bottom: 0.5rem;
+    }
+
+    .play-stage-wrap--immersive {
+        min-height: auto;
+    }
+
     .mobile-controls {
         display: grid;
+        position: fixed;
+        left: 50%;
+        bottom: calc(0.45rem + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        width: min(calc(100vw - 1.4rem), 220px);
+        margin-top: 0;
+        padding: 0.45rem 0.55rem 0.55rem;
+        border: 1px solid rgba(148, 176, 255, 0.18);
+        border-radius: 18px;
+        background: rgba(6, 10, 24, 0.76);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(8px);
+        z-index: 12;
+    }
+
+    .play-canvas {
+        max-height: min(calc(100vh - 325px), 68vh);
+    }
+
+    .mobile-controls__row {
+        width: 100%;
+        justify-content: center;
+        gap: 0.4rem;
+        flex-wrap: nowrap;
+    }
+
+    .mobile-controls__button {
+        flex: 0 0 auto;
+    }
+
+    .mobile-controls > .mobile-controls__button {
+        width: 3.1rem;
     }
 }
