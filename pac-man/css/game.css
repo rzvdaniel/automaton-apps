@@ -9,9 +9,9 @@
 }
 
 .play-layout--immersive {
-    grid-template-columns: minmax(0, 1fr) 184px;
+    grid-template-columns: 1fr;
     align-items: start;
-    gap: 0.2rem;
+    gap: 0.55rem;
 }
 
 .play-stage-panel {
@@ -27,45 +27,21 @@
     justify-items: center;
 }
 
-.play-quick-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.play-hud-banner {
-    display: grid;
-    gap: 0.45rem;
-}
-
-.play-hud-banner--rail {
-    margin-bottom: 0;
-}
-
-.play-hud-banner strong {
-    font-family: var(--font-display);
-    font-size: 0.8rem;
-}
-
-.play-rail-head {
-    display: grid;
-    gap: 0.5rem;
-}
-
-.play-hud-strip {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-}
-
 .play-hud-strip--rail {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-content: stretch;
-    gap: 0.3rem;
+    width: min(100%, 760px);
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 0.7rem;
+    overflow-x: auto;
+    padding: 0.15rem 0.1rem 0.3rem;
+    scrollbar-width: none;
+}
+
+.play-hud-strip--rail::-webkit-scrollbar {
+    display: none;
 }
 
 .play-hud-chip {
@@ -79,12 +55,10 @@
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
 }
 
-.play-hud-chip--plain {
-    display: flex;
-    align-items: baseline;
-    justify-content: flex-start;
-    gap: 0.45rem;
-    min-width: 0;
+.play-hud-chip--stacked {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 68px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -98,7 +72,7 @@
     color: var(--muted);
 }
 
-.play-hud-chip--plain span {
+.play-hud-chip--stacked span {
     font-size: 0.7rem;
     letter-spacing: 0.05em;
 }
@@ -107,33 +81,52 @@
     font-size: 1rem;
 }
 
-.play-hud-chip--plain strong {
-    font-size: 0.92rem;
-    text-transform: lowercase;
-}
-
-.play-quick-actions {
-    justify-content: flex-end;
-}
-
-.play-quick-actions--rail {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-start;
-    margin-top: 0;
-}
-
-.play-quick-actions--rail .control-button {
-    min-width: 0;
-    padding: 0.72rem 0.95rem;
+.play-hud-chip--stacked strong {
+    font-size: 1rem;
+    text-transform: none;
 }
 
 .play-rail {
-    display: grid;
-    gap: 0.6rem;
-    align-content: start;
-    padding-top: 0.15rem;
-    justify-self: start;
+    width: 100%;
+    justify-self: center;
+}
+
+.play-hud-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+    padding-left: 0.2rem;
+    flex: 0 0 auto;
+}
+
+.play-hud-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(7, 11, 26, 0.64);
+    color: var(--text);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(6px);
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    flex: 0 0 auto;
+}
+
+.play-hud-action svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.play-hud-action:hover,
+.play-hud-action:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(248, 216, 78, 0.45);
+    background: rgba(15, 22, 44, 0.86);
+    outline: none;
 }
 
 .play-stage-panel__header,
@@ -224,31 +217,10 @@
 }
 
 @media (max-width: 1080px) {
-    .play-layout--immersive {
-        grid-template-columns: 1fr;
-    }
-
     .play-rail {
         width: min(100%, 760px);
         margin: 0 auto;
         order: -1;
-        gap: 0.55rem;
-    }
-
-    .play-rail-head {
-        grid-template-columns: 1fr auto;
-        align-items: end;
-    }
-
-    .play-hud-strip--rail {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.75rem 1rem;
-    }
-
-    .play-quick-actions--rail {
-        justify-content: flex-end;
     }
 
     .play-stage-wrap--immersive {
@@ -261,18 +233,40 @@
 }
 
 @media (max-width: 720px) {
-    .play-rail-head {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-    }
-
-    .play-quick-actions--rail {
-        justify-content: center;
-    }
-
     .play-stage-wrap--immersive {
         min-height: auto;
+    }
+
+    .play-hud-strip--rail {
+        gap: 0.55rem;
+        justify-content: flex-start;
+    }
+
+    .play-hud-chip--stacked {
+        min-width: 56px;
+    }
+
+    .play-hud-chip--stacked span {
+        font-size: 0.63rem;
+    }
+
+    .play-hud-chip--stacked strong {
+        font-size: 0.88rem;
+    }
+
+    .play-hud-actions {
+        gap: 0.35rem;
+        padding-left: 0.05rem;
+    }
+
+    .play-hud-action {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .play-hud-action svg {
+        width: 0.9rem;
+        height: 0.9rem;
     }
 
     .play-canvas {

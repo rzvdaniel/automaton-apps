@@ -114,6 +114,14 @@ button {
     padding: 0;
 }
 
+.app-shell[data-active-screen="play"] .brand-mark__title {
+    order: 2;
+}
+
+.app-shell[data-active-screen="play"] .brand-mark__subtitle {
+    order: 1;
+}
+
 .brand-mark__title,
 .hero-title,
 .panel-header h2,

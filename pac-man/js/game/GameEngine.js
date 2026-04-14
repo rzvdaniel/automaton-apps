@@ -11,7 +11,6 @@ export class GameEngine {
     constructor({ root }) {
         this.root = root;
         this.canvas = root.querySelector('[data-role="game-canvas"]');
-        this.title = root.querySelector('[data-role="play-title"]');
         this.scoreElement = root.querySelector('[data-role="score-value"]');
         this.livesElement = root.querySelector('[data-role="lives-value"]');
         this.pelletsElement = root.querySelector('[data-role="pellets-value"]');
@@ -41,7 +40,6 @@ export class GameEngine {
         this.pauseRequested = false;
         this.ghostDirector = new GhostDirector();
         this.createActors();
-        this.title.textContent = this.level.metadata.name;
         this.pauseForMessage('Ready!', { state: 'ready' });
         this.lastTimestamp = 0;
         cancelAnimationFrame(this.animationFrame);

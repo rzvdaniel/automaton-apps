@@ -18,8 +18,8 @@
         <header class="shell-header border-b border-white/10 backdrop-blur-xl">
             <div class="shell-header__inner">
                 <button class="brand-mark" data-action="go-home" type="button">
-                    <span class="brand-mark__title">Pac-Man Studio</span>
-                    <span class="brand-mark__subtitle">Editor and arcade runtime</span>
+                    <span class="brand-mark__title" data-role="brand-title">Pac-Man Studio</span>
+                    <span class="brand-mark__subtitle" data-role="brand-subtitle">Editor and arcade runtime</span>
                 </button>
                 <nav class="shell-nav" aria-label="Primary">
                     <button class="shell-nav__button is-active" data-action="show-screen" data-screen="home" type="button">Home</button>
@@ -143,21 +143,24 @@
                         </div>
 
                         <aside class="play-rail">
-                            <div class="play-rail-head">
-                                <div class="play-hud-banner play-hud-banner--rail">
-                                    <span class="eyebrow">Arcade run</span>
-                                    <strong data-role="play-title">Starter Level</strong>
-                                </div>
-                                <div class="play-quick-actions play-quick-actions--rail">
-                                    <button class="control-button" data-action="restart-game" type="button">Restart</button>
-                                    <button class="control-button" data-action="pause-game" type="button">Pause</button>
-                                </div>
-                            </div>
                             <div class="play-hud-strip play-hud-strip--rail">
-                                <div class="play-hud-chip play-hud-chip--plain"><span>Score:</span><strong data-role="score-value">0</strong></div>
-                                <div class="play-hud-chip play-hud-chip--plain"><span>Lives:</span><strong data-role="lives-value">3</strong></div>
-                                <div class="play-hud-chip play-hud-chip--plain"><span>Pellets:</span><strong data-role="pellets-value">0</strong></div>
-                                <div class="play-hud-chip play-hud-chip--plain"><span>Mode:</span><strong data-role="mode-value">Scatter</strong></div>
+                                <div class="play-hud-chip play-hud-chip--stacked"><span>Score</span><strong data-role="score-value">0</strong></div>
+                                <div class="play-hud-chip play-hud-chip--stacked"><span>Lives</span><strong data-role="lives-value">3</strong></div>
+                                <div class="play-hud-chip play-hud-chip--stacked"><span>Pellets</span><strong data-role="pellets-value">0</strong></div>
+                                <div class="play-hud-chip play-hud-chip--stacked"><span>Mode</span><strong data-role="mode-value">Scatter</strong></div>
+                                <div class="play-hud-actions" aria-label="Game controls">
+                                    <button class="play-hud-action" data-action="pause-game" type="button" aria-label="Pause game">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor" />
+                                        </svg>
+                                    </button>
+                                    <button class="play-hud-action" data-action="restart-game" type="button" aria-label="Restart game">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M12 5a7 7 0 1 1-6.22 10.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M7 5v4h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </aside>
                     </div>
@@ -166,6 +169,6 @@
         </main>
     </div>
 
-    <script type="module" src="./js/main.js?v=20260414-4"></script>
+    <script type="module" src="./js/main.js?v=20260414-5"></script>
 </body>
 </html>

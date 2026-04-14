@@ -1,10 +1,10 @@
-import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-4';
-import { Level } from '../core/Level.js?v=20260414-4';
-import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-4';
-import { EditorController } from '../editor/EditorController.js?v=20260414-4';
-import { GameEngine } from '../game/GameEngine.js?v=20260414-4';
-import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-4';
-import { ScreenController } from './ScreenController.js?v=20260414-4';
+import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-5';
+import { Level } from '../core/Level.js?v=20260414-5';
+import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-5';
+import { EditorController } from '../editor/EditorController.js?v=20260414-5';
+import { GameEngine } from '../game/GameEngine.js?v=20260414-5';
+import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-5';
+import { ScreenController } from './ScreenController.js?v=20260414-5';
 
 export class AppShell {
     constructor(root) {
@@ -24,6 +24,8 @@ export class AppShell {
         this.publishedLevelFlags = root.querySelector('[data-role="published-level-flags"]');
         this.publishedLevelCount = root.querySelector('[data-role="published-level-count"]');
         this.publishedLevelStatus = root.querySelector('[data-role="published-level-status"]');
+        this.brandTitle = root.querySelector('[data-role="brand-title"]');
+        this.brandSubtitle = root.querySelector('[data-role="brand-subtitle"]');
         const editorScreen = root.querySelector('.screen[data-screen="editor"]');
         const playScreen = root.querySelector('.screen[data-screen="play"]');
         this.editor = new EditorController({
@@ -38,6 +40,7 @@ export class AppShell {
         const themeSelect = this.root.querySelector('[data-role="theme-select"]');
         this.themeRegistry.hydrateSelect(themeSelect);
         await this.hydratePublishedLevels();
+        this.updateHeaderBrand();
     }
 
     bindShellEvents() {
@@ -61,10 +64,12 @@ export class AppShell {
 
         if (action === 'show-screen') {
             this.screenController.show(target.dataset.screen);
+            this.updateHeaderBrand();
         }
 
         if (action === 'go-home') {
             this.screenController.show('home');
+            this.updateHeaderBrand();
         }
 
         if (action === 'play-current-level') {
@@ -102,6 +107,22 @@ export class AppShell {
         if (jumpToPlay) {
             this.screenController.show('play');
         }
+        this.updateHeaderBrand();
+    }
+
+    updateHeaderBrand() {
+        if (!this.brandTitle || !this.brandSubtitle) {
+            return;
+        }
+
+        if (this.root.dataset.activeScreen === 'play') {
+            this.brandTitle.textContent = this.currentLevel?.metadata?.name ?? 'Arcade Run';
+            this.brandSubtitle.textContent = 'Arcade run';
+            return;
+        }
+
+        this.brandTitle.textContent = 'Pac-Man Studio';
+        this.brandSubtitle.textContent = 'Editor and arcade runtime';
     }
 
     async hydratePublishedLevels() {
