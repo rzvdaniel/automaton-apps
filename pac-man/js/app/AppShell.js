@@ -1,10 +1,10 @@
-import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-5';
-import { Level } from '../core/Level.js?v=20260414-5';
-import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-5';
-import { EditorController } from '../editor/EditorController.js?v=20260414-5';
-import { GameEngine } from '../game/GameEngine.js?v=20260414-5';
-import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-5';
-import { ScreenController } from './ScreenController.js?v=20260414-5';
+import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-7';
+import { Level } from '../core/Level.js?v=20260414-7';
+import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-7';
+import { EditorController } from '../editor/EditorController.js?v=20260414-7';
+import { GameEngine } from '../game/GameEngine.js?v=20260414-7';
+import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-7';
+import { ScreenController } from './ScreenController.js?v=20260414-7';
 
 export class AppShell {
     constructor(root) {
@@ -14,6 +14,7 @@ export class AppShell {
         this.catalogData = null;
         this.publishedLevels = [];
         this.randomPoolLevels = [];
+        this.lastRandomLevelId = null;
         this.selectedPublishedLevelId = null;
         this.screenController = new ScreenController(root);
         this.themeRegistry = new ThemeRegistry();
@@ -294,7 +295,9 @@ export class AppShell {
 
     async playRandomPublishedLevel() {
         try {
-            const { entry, level } = await this.catalog.loadRandomLevel();
+            const excludeLevelIds = [this.lastRandomLevelId, this.selectedPublishedLevelId].filter(Boolean);
+            const { entry, level } = await this.catalog.loadRandomLevel(excludeLevelIds);
+            this.lastRandomLevelId = entry.id;
             this.setSelectedPublishedLevelId(entry.id);
             this.renderPublishedLevelSummary(`Random pick: ${entry.title}.`);
             this.playLevel(level, true);

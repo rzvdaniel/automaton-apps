@@ -24,6 +24,7 @@ export class GameEngine {
         this.input.attach();
         this.animationFrame = null;
         this.lastTimestamp = 0;
+        this.sourceLevel = null;
         this.level = null;
         this.session = null;
         this.ghostDirector = null;
@@ -35,7 +36,8 @@ export class GameEngine {
     }
 
     loadLevel(level) {
-        this.level = level.clone();
+        this.sourceLevel = level.clone();
+        this.level = this.sourceLevel.clone();
         this.session = new GameSession(this.level);
         this.pauseRequested = false;
         this.ghostDirector = new GhostDirector();
@@ -214,8 +216,8 @@ export class GameEngine {
     }
 
     restart() {
-        if (this.level) {
-            this.loadLevel(this.level);
+        if (this.sourceLevel) {
+            this.loadLevel(this.sourceLevel);
         }
     }
 

@@ -121,14 +121,18 @@ export class PublishedLevelCatalog {
         return level.clone();
     }
 
-    async loadRandomLevel() {
+    async loadRandomLevel(excludeLevelIds = []) {
         const catalog = await this.loadCatalog();
         const pool = catalog.levels.filter((entry) => entry.includeInRandom !== false);
         if (!pool.length) {
             throw new Error('No published levels are available for random play.');
         }
 
-        return this.loadFirstAvailableEntry(this.shuffleEntries(pool));
+        const excluded = new Set(excludeLevelIds.filter(Boolean));
+        const preferredPool = pool.filter((entry) => !excluded.has(entry.id));
+        const candidatePool = preferredPool.length ? preferredPool : pool;
+
+        return this.loadFirstAvailableEntry(this.shuffleEntries(candidatePool));
     }
 
     async loadSafeDefaultLevel() {
