@@ -1,4 +1,4 @@
-import { AppShell } from './app/AppShell.js?v=20260414-11';
+import { AppShell } from './app/AppShell.js';
 
 const root = document.querySelector('#app');
 
