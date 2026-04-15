@@ -1,10 +1,10 @@
-import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-10';
-import { Level } from '../core/Level.js?v=20260414-10';
-import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-10';
-import { EditorController } from '../editor/EditorController.js?v=20260414-10';
-import { GameEngine } from '../game/GameEngine.js?v=20260414-10';
-import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-10';
-import { ScreenController } from './ScreenController.js?v=20260414-10';
+import { LOCAL_STORAGE_KEYS } from '../core/constants.js?v=20260414-11';
+import { Level } from '../core/Level.js?v=20260414-11';
+import { PublishedLevelCatalog } from '../core/PublishedLevelCatalog.js?v=20260414-11';
+import { EditorController } from '../editor/EditorController.js?v=20260414-11';
+import { GameEngine } from '../game/GameEngine.js?v=20260414-11';
+import { ThemeRegistry } from '../themes/ThemeRegistry.js?v=20260414-11';
+import { ScreenController } from './ScreenController.js?v=20260414-11';
 
 export class AppShell {
     constructor(root) {

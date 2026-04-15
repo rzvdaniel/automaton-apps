@@ -1,4 +1,4 @@
-import { GHOST_MODE_TIMINGS } from '../core/constants.js';
+import { GHOST_MODE_TIMINGS } from '../core/constants.js?v=20260414-11';
 
 export class GhostDirector {
     constructor(options = {}) {

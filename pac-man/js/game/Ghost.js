@@ -1,4 +1,4 @@
-import { GAME_DEFAULTS, OPPOSITE_DIRECTIONS, TILE_TYPES } from '../core/constants.js';
+import { GAME_DEFAULTS, OPPOSITE_DIRECTIONS, TILE_TYPES } from '../core/constants.js?v=20260414-11';
 import { distanceBetween, getTurnOptions, wrapColumn } from '../core/GridMath.js';
 import { Entity } from './Entity.js';
 

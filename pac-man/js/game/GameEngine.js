@@ -1,8 +1,8 @@
-import { DIFFICULTY_SETTINGS, GAME_DEFAULTS, GHOST_IDS, LOCAL_STORAGE_KEYS, TILE_TYPES } from '../core/constants.js';
+import { DIFFICULTY_SETTINGS, GAME_DEFAULTS, GHOST_IDS, LOCAL_STORAGE_KEYS, TILE_TYPES } from '../core/constants.js?v=20260414-11';
 import { distanceBetween } from '../core/GridMath.js';
 import { GameSession } from './GameSession.js';
-import { Ghost } from './Ghost.js';
-import { GhostDirector } from './GhostDirector.js?v=20260414-10';
+import { Ghost } from './Ghost.js?v=20260414-11';
+import { GhostDirector } from './GhostDirector.js?v=20260414-11';
 import { InputController } from './InputController.js';
 import { MazeRenderer } from './MazeRenderer.js';
 import { PacMan } from './PacMan.js';
