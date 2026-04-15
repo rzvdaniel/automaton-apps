@@ -1,5 +1,7 @@
 # Pac-Man App
 
+- Repository-wide operational guidance for agents and automation lives in `../AGENTS.md`.
+
 - Automaton app root: `c:\Work\automaton-apps\pac-man` with existing appId `044fa195-b5e5-4cc9-9c11-5d5733dcdbb0`.
 - Current implementation is a static front-end app: `index.html`, `css/`, `js/`, `assets/`.
 - Front-end build now uses Vite. Source files stay in the existing folders, and production output is generated into `dist/` with hashed JS/CSS assets.
@@ -13,3 +15,22 @@
 	- `npm run dev` for local development
 	- `npm run build` to create the deployable `dist/` bundle
 	- Upload the contents of `dist/` to Automaton instead of the raw source files
+- Local deploy workflow:
+	- This is the primary deployment path today because Automaton is only reachable on your local machine
+	- Copy `.env.example` to `.env.local` and set `AUTOMATON_API_KEY`
+	- Optional: override `AUTOMATON_SERVER` and `AUTOMATON_APP_ID`; otherwise the script reads them from `automaton.json`
+	- Run `npm run deploy` to zip and upload the local `dist/` bundle
+	- Run `npm run deploy:build` to build and deploy in one command
+	- On Windows, you can also run `./scripts/deploy-local.ps1`
+	- Run `npm run deploy -- --bundle <path>` to upload a different bundle directory or a downloaded `.zip` artifact
+	- This is the deterministic script-based path for local development, separate from MCP uploads
+- CI workflow:
+	- GitHub Actions workflow lives at `.github/workflows/pac-man-build.yml`
+	- It runs on pushes and pull requests that touch `pac-man/**`, plus manual dispatch
+	- Successful runs upload a `pac-man-dist` artifact containing the built `dist/` bundle
+	- You can download that artifact from GitHub Actions and upload it to Automaton
+	- Direct deployment workflow lives at `.github/workflows/pac-man-deploy.yml`
+	- Treat this as a future-facing option for when Automaton is publicly reachable
+	- It requires repository secrets: `AUTOMATON_SERVER`, `AUTOMATON_APP_ID`, and `AUTOMATON_API_KEY`
+	- It is intended for the public Automaton phase, not for current local-only development
+	- Important: GitHub-hosted runners cannot reach `http://localhost:5091`, so do not use this workflow until your Automaton server has a public endpoint
