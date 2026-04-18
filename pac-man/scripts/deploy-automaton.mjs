@@ -64,7 +64,7 @@ async function createZipFromDirectory(directoryPath) {
 
 function resolveUploadUrl(server, appId) {
     const baseUrl = server.endsWith('/') ? server : `${server}/`;
-    return new URL(`api/apps/${appId}/upload`, baseUrl).toString();
+    return new URL(`api/apps/${appId}/upload?clean=true`, baseUrl).toString();
 }
 
 async function main() {
