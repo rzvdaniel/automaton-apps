@@ -1,0 +1,12 @@
+{
+  "appId": "ff5d070e-fd09-4296-bfe0-39fb723cfdcb",
+  "name": "todo-list",
+  "server": "https://localhost:7091",
+  "frontend": {
+    "build": "cd frontend \u0026\u0026 npm install \u0026\u0026 npm run build",
+    "deployDir": "frontend/dist"
+  },
+  "backend": {
+    "deployDir": "backend"
+  }
+}

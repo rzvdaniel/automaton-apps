@@ -1,5 +1,7 @@
 {
   "appId": "044fa195-b5e5-4cc9-9c11-5d5733dcdbb0",
   "name": "Pac-Man Editor and Game",
-  "server": "http://localhost:5091"
+  "server": "http://localhost:5091",
+  "build": "npm run build",
+  "deployDir": "dist"
 }

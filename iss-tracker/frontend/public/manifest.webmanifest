@@ -1,0 +1,17 @@
+{
+  "name": "ISS Tracker",
+  "short_name": "ISS",
+  "description": "Live International Space Station tracking with map telemetry and orbital trail.",
+  "display": "standalone",
+  "background_color": "#050816",
+  "theme_color": "#050816",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Patterns excluded by automaton deploy
+# Add one pattern per line. Use a trailing / for directories.
+# Blank lines and lines starting with # are ignored.
+
+.automaton/
+.git/
+node_modules/
+obj/
+bin/
+.vs/
+.idea/
+automaton.json
+.automatonignore
