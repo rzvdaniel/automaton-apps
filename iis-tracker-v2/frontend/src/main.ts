@@ -499,7 +499,7 @@ function drawOrbit(sample: IssSample | null, camera: Camera) {
 
 function drawIssMarker(sample: IssSample, time: number, camera: Camera) {
   const point = projectPoint(sample.latitude, sample.longitude, camera);
-  const pulse = 0.55 + Math.sin(time * 0.005) * 0.25;
+  const pulse = 0.58 + Math.sin(time * 0.0034) * 0.14;
   const radius = (isMobileViewport() ? 34 : 28) + pulse * 10;
 
   mapCtx.save();
