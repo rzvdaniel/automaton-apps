@@ -1074,7 +1074,7 @@ function updateTelemetry(sample: IssSample) {
   el.orbitDesktop.textContent = `#${formatNumber(orbitNumber)}`;
   el.orbitDetailDesktop.textContent = 'Around Earth';
   el.distanceTodayDesktop.textContent = `${distanceToday} km`;
-  el.distanceDetailDesktop.textContent = 'Ground distance since 00:00 UTC';
+  el.distanceDetailDesktop.textContent = 'Since 00:00 UTC';
   el.speedMobile.textContent = speed;
   el.altMobile.textContent = altitude;
   el.latMobile.textContent = latitude;
