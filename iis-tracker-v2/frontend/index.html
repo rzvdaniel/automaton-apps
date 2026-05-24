@@ -46,9 +46,15 @@
           </div>
           <div class="debug-overlay" id="debugOverlay" aria-label="Projection debug" hidden>
             <div class="debug-panel">
-              <small>Projection debug</small>
+              <small>ISS debug</small>
+              <p>API time <strong id="debugApiTime">--</strong></p>
+              <p>UTC now <strong id="debugUtcNow">--</strong></p>
+              <p>Data age <strong id="debugDataAge">--</strong></p>
               <p>Raw <strong id="debugRawCoords">--</strong></p>
               <p>Projected <strong id="debugProjectedCoords">--</strong></p>
+              <p>Projected % <strong id="debugProjectedPercent">--</strong></p>
+              <p>Map size <strong id="debugMapSize">--</strong></p>
+              <p class="debug-cities">Cities <strong id="debugCityChecks">--</strong></p>
             </div>
           </div>
           <div id="mapError" class="map-error" hidden>Telemetry link degraded. Retrying automatically.</div>

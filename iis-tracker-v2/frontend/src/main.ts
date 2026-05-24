@@ -26,6 +26,12 @@ type CrewMember = AstronautMeta & {
   name: string;
 };
 
+type ReferenceCity = {
+  lat: number;
+  lon: number;
+  name: string;
+};
+
 type RenderPoint = { x: number; y: number; lat: number; lon: number };
 
 type Camera = {
@@ -54,6 +60,8 @@ const DEBUG_TOGGLE_KEY = 'iss-tracker-v2-debug';
 const OBSERVED_TRAIL_MIN_POINTS = 4;
 const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
 const GEOCODE_REFRESH_MS = 5 * 60 * 1000;
+const GEOCODE_LABEL_STALE_MOVE = 2.5;
+const GEOCODE_FETCH_MOVE = 6;
 const ISS_FIRST_ORBIT_EPOCH_MS = Date.UTC(1998, 10, 20, 6, 40, 0);
 const CURRENT_EXPEDITION = 'Expedition 73';
 const CREW_COUNT_LABEL = '7 Astronauts';
@@ -69,6 +77,12 @@ const CREW_FALLBACK_NAMES = [
   'Jonny Kim',
   'Oleg Platonov',
   'Kimiya Yui',
+];
+const REFERENCE_CITIES: ReferenceCity[] = [
+  { name: 'London', lat: 51.5, lon: -0.1 },
+  { name: 'Cairo', lat: 30.0, lon: 31.2 },
+  { name: 'Sydney', lat: -33.9, lon: 151.2 },
+  { name: 'New York', lat: 40.7, lon: -74.0 },
 ];
 
 const mapCanvas = document.querySelector<HTMLCanvasElement>('#mapCanvas')!;
@@ -111,8 +125,14 @@ const ids = [
   'sunState',
   'crewCountMobile',
   'crewDetailMobile',
+  'debugApiTime',
+  'debugUtcNow',
+  'debugDataAge',
   'debugRawCoords',
   'debugProjectedCoords',
+  'debugProjectedPercent',
+  'debugMapSize',
+  'debugCityChecks',
 ] as const;
 
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)!])) as Record<
@@ -130,6 +150,8 @@ const chartCtx = trailChart.getContext('2d')!;
 
 const dayTexture = new Image();
 dayTexture.src = DAY_TEXTURE_URL;
+const dayNightMaskCanvas = document.createElement('canvas');
+const dayNightMaskCtx = dayNightMaskCanvas.getContext('2d')!;
 
 let currentSample: IssSample | null = null;
 let previousSample: IssSample | null = null;
@@ -139,12 +161,14 @@ let trail: IssSample[] = [];
 let stars: Array<{ x: number; y: number; r: number; a: number; drift: number }> = [];
 let lastGeocodeAt = 0;
 let lastGeocodeCoords: { lat: number; lon: number } | null = null;
+let lastResolvedCoords: { lat: number; lon: number } | null = null;
 let geocodeRequestId = 0;
 let astronautDirectory: AstronautDirectory = {};
 let crewMembers: CrewMember[] = [];
 let crewLoaded = false;
 let crewRefreshTimer: number | null = null;
 let telemetryLoaded = false;
+let lastIssTimestamp = 0;
 
 function formatCoord(value: number, positive: string, negative: string) {
   const suffix = value >= 0 ? positive : negative;
@@ -161,6 +185,15 @@ function formatTime(timestamp: number) {
 
 function formatNumber(value: number) {
   return Math.round(value).toLocaleString();
+}
+
+function formatDebugUtc(timestampMs: number) {
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(timestampMs));
 }
 
 function escapeHtml(value: string) {
@@ -475,16 +508,32 @@ function describeCurrentOver(data: Record<string, unknown>, lat: number, lon: nu
 function shouldRefreshGeocode(sample: IssSample) {
   if (!lastGeocodeCoords) return true;
   const moved = Math.abs(sample.latitude - lastGeocodeCoords.lat) + Math.abs(sample.longitude - lastGeocodeCoords.lon);
-  return moved > 8 || Date.now() - lastGeocodeAt > GEOCODE_REFRESH_MS;
+  return moved > GEOCODE_FETCH_MOVE || Date.now() - lastGeocodeAt > GEOCODE_REFRESH_MS;
+}
+
+function shouldRefreshCurrentOverLabel(sample: IssSample) {
+  if (!lastResolvedCoords) return true;
+  const moved =
+    Math.abs(sample.latitude - lastResolvedCoords.lat) + Math.abs(sample.longitude - lastResolvedCoords.lon);
+  return moved > GEOCODE_LABEL_STALE_MOVE;
+}
+
+function setCurrentOverLabel(label: string) {
+  el.nextPassDesktop.textContent = label;
+  el.nextPassMobile.textContent = label;
 }
 
 async function updateCurrentOver(sample: IssSample) {
+  const fallback = getOceanFallback(sample.latitude, sample.longitude);
+  if (shouldRefreshCurrentOverLabel(sample)) {
+    setCurrentOverLabel(fallback);
+  }
+
   if (!shouldRefreshGeocode(sample)) return;
 
   const requestId = ++geocodeRequestId;
   lastGeocodeAt = Date.now();
   lastGeocodeCoords = { lat: sample.latitude, lon: sample.longitude };
-  const fallback = getOceanFallback(sample.latitude, sample.longitude);
 
   try {
     const url = `${REVERSE_GEOCODE_URL}?latitude=${sample.latitude}&longitude=${sample.longitude}&localityLanguage=en`;
@@ -493,12 +542,12 @@ async function updateCurrentOver(sample: IssSample) {
     const data = (await response.json()) as Record<string, unknown>;
     if (requestId !== geocodeRequestId) return;
     const label = describeCurrentOver(data, sample.latitude, sample.longitude);
-    el.nextPassDesktop.textContent = label;
-    el.nextPassMobile.textContent = label;
+    lastResolvedCoords = { lat: sample.latitude, lon: sample.longitude };
+    setCurrentOverLabel(label);
   } catch {
     if (requestId !== geocodeRequestId) return;
-    el.nextPassDesktop.textContent = fallback;
-    el.nextPassMobile.textContent = fallback;
+    lastResolvedCoords = { lat: sample.latitude, lon: sample.longitude };
+    setCurrentOverLabel(fallback);
   }
 }
 
@@ -664,40 +713,47 @@ function drawTextureMap(camera: Camera) {
 function drawDayNightOverlay(camera: Camera, timestampMs: number) {
   const width = mapCanvas.clientWidth;
   const height = mapCanvas.clientHeight;
-  const cols = Math.max(28, Math.ceil(width / 26));
-  const rows = Math.max(18, Math.ceil(height / 22));
-  const cellWidth = width / cols;
-  const cellHeight = height / rows;
+  const maskWidth = Math.max(160, Math.round(width / 2));
+  const maskHeight = Math.max(90, Math.round(height / 2));
   const world = getWorldDimensions();
   const subsolar = getSubsolarPoint(timestampMs);
   const sunLatRad = (subsolar.latitude * Math.PI) / 180;
   const sunLonRad = (subsolar.longitude * Math.PI) / 180;
+  dayNightMaskCanvas.width = maskWidth;
+  dayNightMaskCanvas.height = maskHeight;
 
-  mapCtx.save();
-  for (let row = 0; row < rows; row += 1) {
-    const y = row * cellHeight;
-    const worldY = camera.sourceY + ((y + cellHeight * 0.5) / height) * camera.sourceHeight;
+  const imageData = dayNightMaskCtx.createImageData(maskWidth, maskHeight);
+  const pixels = imageData.data;
+
+  for (let row = 0; row < maskHeight; row += 1) {
+    const worldY = camera.sourceY + ((row + 0.5) / maskHeight) * camera.sourceHeight;
     const lat = latFromWorldY(worldY, world.height);
     const latRad = (lat * Math.PI) / 180;
     const sinLat = Math.sin(latRad);
     const cosLat = Math.cos(latRad);
 
-    for (let col = 0; col < cols; col += 1) {
-      const x = col * cellWidth;
-      const worldX = camera.sourceX + ((x + cellWidth * 0.5) / width) * camera.sourceWidth;
+    for (let col = 0; col < maskWidth; col += 1) {
+      const worldX = camera.sourceX + ((col + 0.5) / maskWidth) * camera.sourceWidth;
       const wrappedWorldX = ((worldX % world.width) + world.width) % world.width;
       const lon = lonFromWorldX(wrappedWorldX, world.width);
       const lonRad = (lon * Math.PI) / 180;
       const solarCos =
         sinLat * Math.sin(sunLatRad) + cosLat * Math.cos(sunLatRad) * Math.cos(lonRad - sunLonRad);
-      const normalized = Math.max(0, Math.min(1, (0.12 - solarCos) / 0.24));
-      if (normalized <= 0) continue;
-
-      mapCtx.fillStyle = `rgba(3, 9, 20, ${0.18 + normalized * 0.42})`;
-      mapCtx.fillRect(x, y, cellWidth + 1, cellHeight + 1);
+      const normalized = Math.max(0, Math.min(1, (0.14 - solarCos) / 0.28));
+      const alpha = Math.round((0.1 + normalized * 0.42) * 255);
+      const index = (row * maskWidth + col) * 4;
+      pixels[index] = 3;
+      pixels[index + 1] = 9;
+      pixels[index + 2] = 20;
+      pixels[index + 3] = normalized <= 0 ? 0 : alpha;
     }
   }
 
+  dayNightMaskCtx.putImageData(imageData, 0, 0);
+
+  mapCtx.save();
+  mapCtx.imageSmoothingEnabled = true;
+  mapCtx.drawImage(dayNightMaskCanvas, 0, 0, width, height);
   const glow = mapCtx.createRadialGradient(width * 0.5, height * 0.2, 0, width * 0.5, height * 0.5, width * 0.72);
   glow.addColorStop(0, 'rgba(255, 214, 112, 0.05)');
   glow.addColorStop(1, 'rgba(255, 214, 112, 0)');
@@ -924,9 +980,22 @@ function drawIssMarker(sample: IssSample, time: number, camera: Camera) {
 
 function updateDebugOverlay(sample: IssSample, camera: Camera) {
   const point = projectPoint(sample.latitude, sample.longitude, camera);
+  const timestampMs = lastIssTimestamp ? lastIssTimestamp * 1000 : sample.timestamp * 1000;
+  const ageSeconds = Math.max(0, Math.round(Date.now() / 1000 - (lastIssTimestamp || sample.timestamp)));
+  const cityChecks = REFERENCE_CITIES.map((city) => {
+    const cityPoint = projectPoint(city.lat, city.lon, camera);
+    return `${city.name}:${Math.round(cityPoint.x)},${Math.round(cityPoint.y)}`;
+  }).join(' • ');
   el.debugRawCoords.textContent = `${sample.latitude.toFixed(2)}°, ${sample.longitude.toFixed(2)}°`;
   el.debugProjectedCoords.textContent = `${Math.round(point.x)}px, ${Math.round(point.y)}px`;
+  el.debugApiTime.textContent = `${formatDebugUtc(timestampMs)} UTC`;
+  el.debugUtcNow.textContent = `${formatDebugUtc(Date.now())} UTC`;
+  el.debugDataAge.textContent = ageSeconds > 10 ? `${ageSeconds}s stale` : `${ageSeconds}s`;
+  el.debugProjectedPercent.textContent = `${((point.x / mapCanvas.clientWidth) * 100).toFixed(1)}%, ${((point.y / mapCanvas.clientHeight) * 100).toFixed(1)}%`;
+  el.debugMapSize.textContent = `${mapCanvas.clientWidth}x${mapCanvas.clientHeight}`;
+  el.debugCityChecks.textContent = cityChecks;
   debugOverlay.hidden = !getDebugEnabled();
+  debugOverlay.classList.toggle('warning', ageSeconds > 10);
 }
 
 function drawAmbientOverlay(camera: Camera) {
@@ -951,7 +1020,9 @@ function render(time = 0) {
   mapCtx.clearRect(0, 0, width, height);
   drawTextureMap(camera);
   drawDayNightOverlay(camera, Date.now());
-  drawGrid(camera);
+  if (getDebugEnabled()) {
+    drawGrid(camera);
+  }
 
   if (previousSample && currentSample) {
     const amount = Math.min(1, (Date.now() - lastFetchAt) / REFRESH_MS);
@@ -1054,6 +1125,7 @@ async function fetchIssPosition() {
       visibility: data.visibility,
       timestamp: data.timestamp,
     };
+    lastIssTimestamp = data.timestamp;
     lastFetchAt = Date.now();
     trail = pruneTrail([...trail, currentSample]);
     saveTrail(trail);
