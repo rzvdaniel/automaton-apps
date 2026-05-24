@@ -44,7 +44,6 @@ type Camera = {
 
 const API_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
 const DAY_TEXTURE_URL = './maps/day-map.png';
-const NIGHT_TEXTURE_URL = './maps/night-map.png';
 const REFRESH_MS = 5000;
 const ORBIT_INCLINATION = 51.64;
 const ORBIT_PERIOD_MIN = 92.68;
@@ -131,8 +130,6 @@ const chartCtx = trailChart.getContext('2d')!;
 
 const dayTexture = new Image();
 dayTexture.src = DAY_TEXTURE_URL;
-const nightTexture = new Image();
-nightTexture.src = NIGHT_TEXTURE_URL;
 
 let currentSample: IssSample | null = null;
 let previousSample: IssSample | null = null;
@@ -147,6 +144,7 @@ let astronautDirectory: AstronautDirectory = {};
 let crewMembers: CrewMember[] = [];
 let crewLoaded = false;
 let crewRefreshTimer: number | null = null;
+let telemetryLoaded = false;
 
 function formatCoord(value: number, positive: string, negative: string) {
   const suffix = value >= 0 ? positive : negative;
@@ -185,6 +183,12 @@ function setLiveState(state: 'live' | 'reconnecting') {
   el.liveBadge.classList.toggle('offline', !isLive);
 }
 
+function setTelemetryReady() {
+  if (telemetryLoaded) return;
+  telemetryLoaded = true;
+  document.body.classList.remove('app-loading');
+}
+
 function titleCase(value: string) {
   return value
     .toLowerCase()
@@ -220,6 +224,24 @@ function renderCrewPanel() {
   crewModalSubtitle.textContent = crewLoaded
     ? `${CURRENT_EXPEDITION} • ${countLabel} onboard`
     : `Loading roster • ${CURRENT_EXPEDITION}`;
+
+  if (!crewLoaded) {
+    crewGrid.innerHTML = Array.from({ length: 4 }, () => `
+      <article class="crew-member-card crew-member-skeleton" aria-hidden="true">
+        <div class="crew-member-top">
+          <span class="crew-avatar"></span>
+          <div class="crew-lines">
+            <span class="crew-line crew-line-title"></span>
+            <span class="crew-line crew-line-subtitle"></span>
+          </div>
+        </div>
+        <span class="crew-line crew-line-meta"></span>
+        <span class="crew-line crew-line-bio"></span>
+        <span class="crew-line crew-line-bio crew-line-bio-short"></span>
+      </article>
+    `).join('');
+    return;
+  }
 
   if (!crewMembers.length) {
     crewGrid.innerHTML = `
@@ -377,6 +399,15 @@ function worldYFromLat(lat: number, worldHeight: number) {
   return worldHeight / 2 - (worldHeight / (2 * Math.PI)) * mercator;
 }
 
+function lonFromWorldX(worldX: number, worldWidth: number) {
+  return (worldX / worldWidth) * 360 - 180;
+}
+
+function latFromWorldY(worldY: number, worldHeight: number) {
+  const mercator = (worldHeight / 2 - worldY) * ((2 * Math.PI) / worldHeight);
+  return (Math.atan(Math.sinh(mercator)) * 180) / Math.PI;
+}
+
 function interpolateAngle(start: number, end: number, amount: number) {
   let delta = end - start;
   if (delta > 180) delta -= 360;
@@ -490,12 +521,33 @@ function isMobileViewport() {
   return window.innerWidth <= MOBILE_BREAKPOINT;
 }
 
-function getTimeBlend() {
-  const hour = new Date().getHours() + new Date().getMinutes() / 60;
-  if (hour < 5 || hour >= 19) return 0;
-  if (hour >= 7 && hour < 17) return 1;
-  if (hour >= 5 && hour < 7) return (hour - 5) / 2;
-  return 1 - (hour - 17) / 2;
+function getSubsolarPoint(timestampMs: number) {
+  const date = new Date(timestampMs);
+  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = (timestampMs - startOfYear) / 86_400_000;
+  const utcHours =
+    date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600 + date.getUTCMilliseconds() / 3_600_000;
+  const gamma = (2 * Math.PI / 365) * (dayOfYear - 1 + (utcHours - 12) / 24);
+  const declination =
+    0.006918 -
+    0.399912 * Math.cos(gamma) +
+    0.070257 * Math.sin(gamma) -
+    0.006758 * Math.cos(2 * gamma) +
+    0.000907 * Math.sin(2 * gamma) -
+    0.002697 * Math.cos(3 * gamma) +
+    0.00148 * Math.sin(3 * gamma);
+  const equationOfTime =
+    229.18 *
+    (0.000075 +
+      0.001868 * Math.cos(gamma) -
+      0.032077 * Math.sin(gamma) -
+      0.014615 * Math.cos(2 * gamma) -
+      0.040849 * Math.sin(2 * gamma));
+  const subsolarLongitude = ((720 - utcHours * 60 - equationOfTime) / 4 + 540) % 360 - 180;
+  return {
+    latitude: (declination * 180) / Math.PI,
+    longitude: subsolarLongitude,
+  };
 }
 
 function resizeCanvases() {
@@ -535,7 +587,7 @@ function drawStars(time: number) {
 }
 
 function getWorldDimensions() {
-  const texture = nightTexture.naturalWidth > 0 ? nightTexture : dayTexture;
+  const texture = dayTexture;
   return {
     width: texture.naturalWidth || 4096,
     height: texture.naturalHeight || 2048,
@@ -546,14 +598,12 @@ function updateTextureLayer(camera: Camera) {
   const viewportWidth = mapCanvas.clientWidth;
   const viewportHeight = mapCanvas.clientHeight;
   const world = getWorldDimensions();
-  const dayBlend = getTimeBlend();
-  const activeTexture = dayBlend >= 0.5 ? DAY_TEXTURE_URL : NIGHT_TEXTURE_URL;
   const scaledWidth = (world.width / camera.sourceWidth) * viewportWidth;
   const scaledHeight = (world.height / camera.sourceHeight) * viewportHeight;
   const offsetX = -(camera.sourceX / camera.sourceWidth) * viewportWidth;
   const offsetY = -(camera.sourceY / camera.sourceHeight) * viewportHeight;
 
-  mapTexture.style.backgroundImage = `url("${activeTexture}")`;
+  mapTexture.style.backgroundImage = `url("${DAY_TEXTURE_URL}")`;
   mapTexture.style.backgroundSize = `${scaledWidth}px ${scaledHeight}px`;
   mapTexture.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
 }
@@ -609,6 +659,51 @@ function drawTextureMap(camera: Camera) {
   shade.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
   mapCtx.fillStyle = shade;
   mapCtx.fillRect(0, 0, width, height);
+}
+
+function drawDayNightOverlay(camera: Camera, timestampMs: number) {
+  const width = mapCanvas.clientWidth;
+  const height = mapCanvas.clientHeight;
+  const cols = Math.max(28, Math.ceil(width / 26));
+  const rows = Math.max(18, Math.ceil(height / 22));
+  const cellWidth = width / cols;
+  const cellHeight = height / rows;
+  const world = getWorldDimensions();
+  const subsolar = getSubsolarPoint(timestampMs);
+  const sunLatRad = (subsolar.latitude * Math.PI) / 180;
+  const sunLonRad = (subsolar.longitude * Math.PI) / 180;
+
+  mapCtx.save();
+  for (let row = 0; row < rows; row += 1) {
+    const y = row * cellHeight;
+    const worldY = camera.sourceY + ((y + cellHeight * 0.5) / height) * camera.sourceHeight;
+    const lat = latFromWorldY(worldY, world.height);
+    const latRad = (lat * Math.PI) / 180;
+    const sinLat = Math.sin(latRad);
+    const cosLat = Math.cos(latRad);
+
+    for (let col = 0; col < cols; col += 1) {
+      const x = col * cellWidth;
+      const worldX = camera.sourceX + ((x + cellWidth * 0.5) / width) * camera.sourceWidth;
+      const wrappedWorldX = ((worldX % world.width) + world.width) % world.width;
+      const lon = lonFromWorldX(wrappedWorldX, world.width);
+      const lonRad = (lon * Math.PI) / 180;
+      const solarCos =
+        sinLat * Math.sin(sunLatRad) + cosLat * Math.cos(sunLatRad) * Math.cos(lonRad - sunLonRad);
+      const normalized = Math.max(0, Math.min(1, (0.12 - solarCos) / 0.24));
+      if (normalized <= 0) continue;
+
+      mapCtx.fillStyle = `rgba(3, 9, 20, ${0.18 + normalized * 0.42})`;
+      mapCtx.fillRect(x, y, cellWidth + 1, cellHeight + 1);
+    }
+  }
+
+  const glow = mapCtx.createRadialGradient(width * 0.5, height * 0.2, 0, width * 0.5, height * 0.5, width * 0.72);
+  glow.addColorStop(0, 'rgba(255, 214, 112, 0.05)');
+  glow.addColorStop(1, 'rgba(255, 214, 112, 0)');
+  mapCtx.fillStyle = glow;
+  mapCtx.fillRect(0, 0, width, height);
+  mapCtx.restore();
 }
 
 function projectPoint(lat: number, lon: number, camera: Camera): RenderPoint {
@@ -855,6 +950,7 @@ function render(time = 0) {
   updateTextureLayer(camera);
   mapCtx.clearRect(0, 0, width, height);
   drawTextureMap(camera);
+  drawDayNightOverlay(camera, Date.now());
   drawGrid(camera);
 
   if (previousSample && currentSample) {
@@ -905,6 +1001,7 @@ function updateTelemetry(sample: IssSample) {
   el.lastUpdateMobile.textContent = updateTime;
   el.sunState.textContent = visibility === 'Daylight' ? 'Station is sunlit' : 'Station is in orbital night';
   setLiveState('live');
+  setTelemetryReady();
 }
 
 function drawTrailChart() {
@@ -968,6 +1065,7 @@ async function fetchIssPosition() {
     console.error(error);
     mapError.hidden = false;
     setLiveState('reconnecting');
+    setTelemetryReady();
   }
 }
 
@@ -975,6 +1073,7 @@ function setLocationButtonsState(label: string, disabled: boolean) {
   for (const button of locationButtons) {
     button.textContent = label;
     button.disabled = disabled;
+    button.classList.toggle('enabled', disabled && label.includes('Location On'));
   }
 }
 
@@ -996,16 +1095,16 @@ function requestLocationPrediction() {
     el.passDetailMobile.textContent = 'Location unavailable in this browser.';
     return;
   }
-  setLocationButtonsState('Locating', true);
+  setLocationButtonsState('◎ Locating', true);
   navigator.geolocation.getCurrentPosition(
     (position) => {
       estimateNextPass(position.coords.latitude, position.coords.longitude);
-      setLocationButtonsState('Location enabled', true);
+      setLocationButtonsState('✓ Location On', true);
     },
     () => {
-      el.passDetailDesktop.textContent = 'Enable location for local pass predictions.';
-      el.passDetailMobile.textContent = 'Enable location for local pass predictions.';
-      setLocationButtonsState('Enable location', false);
+      el.passDetailDesktop.textContent = 'Enable location to see local pass predictions.';
+      el.passDetailMobile.textContent = 'Enable location to see local pass predictions.';
+      setLocationButtonsState('◎ Enable Passes', false);
     },
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
   );
