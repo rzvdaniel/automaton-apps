@@ -9,7 +9,7 @@
   --bg-soft: #06111d;
   --panel: rgba(5, 18, 34, 0.78);
   --panel-heavy: rgba(4, 14, 28, 0.9);
-  --line: rgba(119, 162, 214, 0.2);
+  --line: rgba(119, 162, 214, 0.12);
   --line-strong: rgba(56, 209, 255, 0.2);
   --cyan: #18e7ff;
   --cyan-glow: rgba(24, 231, 255, 0.34);
@@ -137,7 +137,7 @@ time {
   position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) minmax(212px, 33dvh);
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   height: 100dvh;
   padding: 8px;
@@ -186,8 +186,8 @@ time {
 .map-error,
 .hud-card {
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(7, 22, 41, 0.74), rgba(3, 11, 24, 0.82));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 44px rgba(0, 0, 0, 0.28);
+  background: linear-gradient(180deg, rgba(7, 22, 41, 0.54), rgba(3, 11, 24, 0.68));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 12px 32px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(18px);
 }
 
@@ -304,7 +304,7 @@ time {
   display: grid;
   grid-template-columns: repeat(6, minmax(120px, 1fr));
   grid-auto-rows: minmax(0, 1fr);
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   height: 100%;
   padding: 0 6px;
@@ -314,7 +314,7 @@ time {
   position: relative;
   min-height: 0;
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 14px 16px;
   overflow: hidden;
 }
 
@@ -354,7 +354,7 @@ time {
 .hud-card strong {
   display: block;
   color: #ffffff;
-  font-size: clamp(1.2rem, 1.7vw, 1.8rem);
+  font-size: clamp(1.1rem, 1.55vw, 1.6rem);
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0;
@@ -381,19 +381,33 @@ time {
 .pass-card p,
 .visibility-card p,
 .crew-card p {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #b5c7dc;
+  font-size: 0.86rem;
 }
 
 .pass-card button {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: 16px;
+  bottom: 14px;
   border: 1px solid rgba(24, 231, 255, 0.28);
   border-radius: 8px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   background: rgba(24, 231, 255, 0.08);
   color: #dffcff;
+}
+
+.pass-card,
+.visibility-card,
+.crew-card,
+.chart-card {
+  min-height: 92px;
+}
+
+.pass-card strong,
+.visibility-card strong,
+.crew-card strong {
+  margin-top: 4px;
 }
 
 .chart-card canvas {
@@ -601,26 +615,26 @@ time {
 
   .mobile-wide,
   .mobile-status {
-    min-height: 104px;
-    padding: 16px;
+    min-height: 88px;
+    padding: 14px 15px;
   }
 
   .mobile-wide strong {
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 0.96rem;
   }
 
   .mobile-wide p {
-    margin: 8px 0 0;
+    margin: 6px 0 0;
     color: var(--text-soft);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
   }
 
   .mobile-status p {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 8px 0 0;
+    margin: 6px 0 0;
     color: var(--text-mid);
   }
 
