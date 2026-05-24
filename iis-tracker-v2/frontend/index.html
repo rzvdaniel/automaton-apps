@@ -6,14 +6,15 @@
     <meta name="theme-color" content="#020712" />
     <meta name="description" content="A premium real-time ISS mission-control tracker." />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./icons/iss-icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
     <title>ISS Tracker</title>
   </head>
   <body class="app-loading">
     <div id="app">
       <header class="top-bar" aria-label="Mission status">
         <div class="brand">
-          <span class="station-glyph" aria-hidden="true">✦</span>
+          <img class="station-glyph" id="brandIcon" alt="" />
           <span>ISS Tracker</span>
         </div>
         <div class="status-strip">

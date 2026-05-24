@@ -1,6 +1,6 @@
 {
   "appId": "03bb0874-46f5-466b-84d5-4d2738c47e1a",
-  "name": "ISS Tracker V2",
+  "name": "ISS Tracker",
   "server": "https://api.automaton.monster",
   "frontend": {
     "build": "cd frontend \u0026\u0026 npm install \u0026\u0026 npm run build",

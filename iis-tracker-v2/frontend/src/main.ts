@@ -1,4 +1,5 @@
 import './styles.css';
+import appIconUrl from './assets/app-icon.png';
 
 type IssSample = {
   latitude: number;
@@ -90,6 +91,7 @@ const starCanvas = document.querySelector<HTMLCanvasElement>('#starCanvas')!;
 const mapTexture = document.querySelector<HTMLDivElement>('#mapTexture')!;
 const mapError = document.querySelector<HTMLDivElement>('#mapError')!;
 const debugOverlay = document.querySelector<HTMLDivElement>('#debugOverlay')!;
+const brandIcon = document.querySelector<HTMLImageElement>('#brandIcon')!;
 const crewTriggerDesktop = document.querySelector<HTMLButtonElement>('#crewTriggerDesktop')!;
 const crewTriggerMobile = document.querySelector<HTMLButtonElement>('#crewTriggerMobile')!;
 const crewModal = document.querySelector<HTMLDivElement>('#crewModal')!;
@@ -588,6 +590,16 @@ function isMobileViewport() {
 function updateInstallButton() {
   const shouldShow = Boolean(deferredInstallPrompt) && isMobileViewport();
   installAppButton.hidden = !shouldShow;
+}
+
+function syncAppIcons() {
+  brandIcon.src = appIconUrl;
+  const iconSelectors = ['link[rel="icon"]', 'link[rel="apple-touch-icon"]'];
+  for (const selector of iconSelectors) {
+    const link = document.querySelector<HTMLLinkElement>(selector);
+    if (!link) continue;
+    link.href = appIconUrl;
+  }
 }
 
 function getSubsolarPoint(timestampMs: number) {
@@ -1262,6 +1274,7 @@ installAppButton.addEventListener('click', async () => {
 });
 
 resizeCanvases();
+syncAppIcons();
 trail = loadStoredTrail();
 debugOverlay.hidden = !getDebugEnabled();
 renderCrewPanel();

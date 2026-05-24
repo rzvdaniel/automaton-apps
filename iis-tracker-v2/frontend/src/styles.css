@@ -78,14 +78,14 @@ button {
 }
 
 .station-glyph {
-  display: grid;
+  display: block;
   width: 38px;
   height: 38px;
-  place-items: center;
   border: 1px solid rgba(188, 232, 255, 0.2);
   border-radius: 10px;
   background: rgba(5, 18, 34, 0.54);
-  color: var(--cyan);
+  object-fit: cover;
+  object-position: center;
 }
 
 .status-strip {
@@ -942,7 +942,6 @@ time {
     width: 28px;
     height: 28px;
     border-radius: 8px;
-    font-size: 0.9rem;
   }
 
   .status-strip {
