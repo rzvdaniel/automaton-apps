@@ -32,12 +32,17 @@ const REFRESH_MS = 5000;
 const ORBIT_INCLINATION = 51.64;
 const ORBIT_PERIOD_MIN = 92.68;
 const MOBILE_BREAKPOINT = 900;
+const TRAIL_STORAGE_KEY = 'iss-tracker-v2-trail';
+const TRAIL_MAX_AGE_MS = 90 * 60 * 1000;
+const DEBUG_TOGGLE_KEY = 'iss-tracker-v2-debug';
+const OBSERVED_TRAIL_MIN_POINTS = 4;
 
 const mapCanvas = document.querySelector<HTMLCanvasElement>('#mapCanvas')!;
 const starCanvas = document.querySelector<HTMLCanvasElement>('#starCanvas')!;
 const mapTexture = document.querySelector<HTMLDivElement>('#mapTexture')!;
 const trailChart = document.querySelector<HTMLCanvasElement>('#trailChart')!;
 const mapError = document.querySelector<HTMLDivElement>('#mapError')!;
+const debugOverlay = document.querySelector<HTMLDivElement>('#debugOverlay')!;
 
 const ids = [
   'lastUpdate',
@@ -62,6 +67,8 @@ const ids = [
   'lastUpdateMobile',
   'sunState',
   'trackingStatusMobile',
+  'debugRawCoords',
+  'debugProjectedCoords',
 ] as const;
 
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)!])) as Record<
@@ -104,6 +111,45 @@ function formatNumber(value: number) {
   return Math.round(value).toLocaleString();
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function pruneTrail(samples: IssSample[]) {
+  const cutoff = Math.floor((Date.now() - TRAIL_MAX_AGE_MS) / 1000);
+  return samples.filter((sample) => sample.timestamp >= cutoff).slice(-110);
+}
+
+function loadStoredTrail() {
+  try {
+    const raw = window.localStorage.getItem(TRAIL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return pruneTrail(
+      parsed.filter(
+        (sample): sample is IssSample =>
+          typeof sample?.latitude === 'number' &&
+          typeof sample?.longitude === 'number' &&
+          typeof sample?.altitude === 'number' &&
+          typeof sample?.velocity === 'number' &&
+          typeof sample?.timestamp === 'number' &&
+          typeof sample?.visibility === 'string',
+      ),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveTrail(samples: IssSample[]) {
+  try {
+    window.localStorage.setItem(TRAIL_STORAGE_KEY, JSON.stringify(pruneTrail(samples)));
+  } catch {
+    // Ignore storage failures; the live trail still works for this session.
+  }
+}
+
 function worldXFromLon(lon: number, worldWidth: number) {
   return ((lon + 180) / 360) * worldWidth;
 }
@@ -128,6 +174,18 @@ function wrapValue(value: number, min: number, max: number) {
   let wrapped = (value - min) % range;
   if (wrapped < 0) wrapped += range;
   return wrapped + min;
+}
+
+function getDebugEnabled() {
+  return window.localStorage.getItem(DEBUG_TOGGLE_KEY) === '1';
+}
+
+function setDebugEnabled(enabled: boolean) {
+  try {
+    window.localStorage.setItem(DEBUG_TOGGLE_KEY, enabled ? '1' : '0');
+  } catch {
+    return;
+  }
 }
 
 function shortestWorldDelta(value: number, center: number, worldWidth: number) {
@@ -313,12 +371,66 @@ function drawGrid(camera: Camera) {
   mapCtx.restore();
 }
 
-function orbitLatitude(lon: number, phase: number) {
-  return ORBIT_INCLINATION * Math.sin(((lon + phase) * Math.PI) / 180);
+function drawWrappedPath(points: RenderPoint[], style: 'solid' | 'dashed', camera: Camera) {
+  mapCtx.save();
+  mapCtx.lineWidth = style === 'solid' ? camera.orbitWidth : camera.groundWidth;
+  mapCtx.strokeStyle = style === 'solid' ? '#18e7ff' : 'rgba(180, 247, 255, 0.88)';
+  mapCtx.shadowColor = style === 'solid' ? '#18e7ff' : 'transparent';
+  mapCtx.shadowBlur = style === 'solid' ? 16 * camera.glowScale : 0;
+  if (style === 'dashed') mapCtx.setLineDash(isMobileViewport() ? [8, 7] : [10, 8]);
+
+  let started = false;
+  for (let i = 0; i < points.length; i += 1) {
+    const point = points[i];
+    const last = points[i - 1];
+    if (!started || (last && Math.abs(point.x - last.x) > mapCanvas.clientWidth * 0.45)) {
+      if (started) mapCtx.stroke();
+      mapCtx.beginPath();
+      mapCtx.moveTo(point.x, point.y);
+      started = true;
+    } else {
+      mapCtx.lineTo(point.x, point.y);
+    }
+  }
+  mapCtx.stroke();
+  mapCtx.restore();
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
+function drawObservedTrail(points: RenderPoint[], camera: Camera) {
+  if (points.length < 2) return;
+
+  mapCtx.save();
+  mapCtx.lineWidth = isMobileViewport() ? 3.2 : 2.8;
+  mapCtx.lineCap = 'round';
+  mapCtx.lineJoin = 'round';
+
+  for (let i = 1; i < points.length; i += 1) {
+    const prev = points[i - 1];
+    const point = points[i];
+    if (Math.abs(point.x - prev.x) > mapCanvas.clientWidth * 0.45) {
+      continue;
+    }
+
+    const age = i / (points.length - 1);
+    const alpha = 0.18 + age * 0.78;
+    mapCtx.strokeStyle = `rgba(24, 231, 255, ${alpha})`;
+    mapCtx.shadowColor = age > 0.75 ? 'rgba(24, 231, 255, 0.3)' : 'transparent';
+    mapCtx.shadowBlur = age > 0.75 ? 8 : 0;
+    mapCtx.beginPath();
+    mapCtx.moveTo(prev.x, prev.y);
+    mapCtx.lineTo(point.x, point.y);
+    mapCtx.stroke();
+  }
+
+  mapCtx.restore();
+}
+
+function buildTrailPath(samples: IssSample[], camera: Camera) {
+  return samples.map((sample) => projectPoint(sample.latitude, sample.longitude, camera));
+}
+
+function orbitLatitude(lon: number, phase: number) {
+  return ORBIT_INCLINATION * Math.sin(((lon + phase) * Math.PI) / 180);
 }
 
 function getOrbitPhase(sample: IssSample, previous: IssSample | null) {
@@ -347,46 +459,42 @@ function getOrbitPhase(sample: IssSample, previous: IssSample | null) {
   return bestPhase;
 }
 
-function drawWrappedPath(points: RenderPoint[], style: 'solid' | 'dashed', camera: Camera) {
-  mapCtx.save();
-  mapCtx.lineWidth = style === 'solid' ? camera.orbitWidth : camera.groundWidth;
-  mapCtx.strokeStyle = style === 'solid' ? '#18e7ff' : 'rgba(190, 221, 255, 0.42)';
-  mapCtx.shadowColor = style === 'solid' ? '#18e7ff' : 'transparent';
-  mapCtx.shadowBlur = style === 'solid' ? 16 * camera.glowScale : 0;
-  if (style === 'dashed') mapCtx.setLineDash(isMobileViewport() ? [4, 9] : [6, 9]);
-
-  let started = false;
-  for (let i = 0; i < points.length; i += 1) {
-    const point = points[i];
-    const last = points[i - 1];
-    if (!started || (last && Math.abs(point.x - last.x) > mapCanvas.clientWidth * 0.45)) {
-      if (started) mapCtx.stroke();
-      mapCtx.beginPath();
-      mapCtx.moveTo(point.x, point.y);
-      started = true;
-    } else {
-      mapCtx.lineTo(point.x, point.y);
-    }
-  }
-  mapCtx.stroke();
-  mapCtx.restore();
+function buildEstimatedOrbitPath(sample: IssSample, previous: IssSample | null, camera: Camera) {
+  const phase = getOrbitPhase(sample, previous);
+  return Array.from({ length: 721 }, (_, index) => {
+    const lon = -180 + index * 0.5;
+    return projectPoint(orbitLatitude(lon, phase), lon, camera);
+  });
 }
 
 function drawOrbit(sample: IssSample | null, camera: Camera) {
-  const phase = sample ? getOrbitPhase(sample, previousSample) : 24;
-  const points = Array.from({ length: 721 }, (_, index) => {
-    const lon = -180 + index * 0.5;
-    const lat = orbitLatitude(lon, phase);
-    return projectPoint(lat, lon, camera);
-  });
-  const ground = Array.from({ length: 721 }, (_, index) => {
-    const lon = -180 + index * 0.5;
-    const lat = orbitLatitude(lon, phase) * 0.12;
-    return projectPoint(lat, lon, camera);
-  });
+  if (!sample) return;
 
-  drawWrappedPath(ground, 'dashed', camera);
-  drawWrappedPath(points, 'solid', camera);
+  const observedPoints = buildTrailPath(trail, camera);
+  const hasObservedTrail = observedPoints.length >= OBSERVED_TRAIL_MIN_POINTS;
+  const estimatedOpacity = hasObservedTrail ? 0.62 : 0.94;
+  const estimatedWidth = hasObservedTrail ? Math.max(1.5, camera.groundWidth + 0.35) : Math.max(2.2, camera.groundWidth + 1);
+
+  mapCtx.save();
+  mapCtx.globalAlpha = estimatedOpacity;
+  const previousWidth = camera.groundWidth;
+  drawWrappedPath(buildEstimatedOrbitPath(sample, previousSample, camera), 'dashed', {
+    ...camera,
+    groundWidth: estimatedWidth,
+  });
+  mapCtx.restore();
+
+  if (observedPoints.length > 1) {
+    drawObservedTrail(observedPoints, camera);
+  } else {
+    const markerPoint = projectPoint(sample.latitude, sample.longitude, camera);
+    mapCtx.save();
+    mapCtx.fillStyle = 'rgba(24, 231, 255, 0.42)';
+    mapCtx.beginPath();
+    mapCtx.arc(markerPoint.x, markerPoint.y, isMobileViewport() ? 5 : 4, 0, Math.PI * 2);
+    mapCtx.fill();
+    mapCtx.restore();
+  }
 }
 
 function drawIssMarker(sample: IssSample, time: number, camera: Camera) {
@@ -426,6 +534,13 @@ function drawIssMarker(sample: IssSample, time: number, camera: Camera) {
   mapCtx.strokeRect(-24, -6, 9, 12);
   mapCtx.strokeRect(15, -6, 9, 12);
   mapCtx.restore();
+}
+
+function updateDebugOverlay(sample: IssSample, camera: Camera) {
+  const point = projectPoint(sample.latitude, sample.longitude, camera);
+  el.debugRawCoords.textContent = `${sample.latitude.toFixed(2)}°, ${sample.longitude.toFixed(2)}°`;
+  el.debugProjectedCoords.textContent = `${Math.round(point.x)}px, ${Math.round(point.y)}px`;
+  debugOverlay.hidden = !getDebugEnabled();
 }
 
 function drawAmbientOverlay(camera: Camera) {
@@ -471,7 +586,10 @@ function render(time = 0) {
 
   const activeCamera = buildCamera(renderSample, width, height);
   drawOrbit(renderSample, activeCamera);
-  if (renderSample) drawIssMarker(renderSample, time, activeCamera);
+  if (renderSample) {
+    drawIssMarker(renderSample, time, activeCamera);
+    updateDebugOverlay(renderSample, activeCamera);
+  }
   drawAmbientOverlay(activeCamera);
 }
 
@@ -555,7 +673,8 @@ async function fetchIssPosition() {
       timestamp: data.timestamp,
     };
     lastFetchAt = Date.now();
-    trail = [...trail, currentSample].slice(-110);
+    trail = pruneTrail([...trail, currentSample]);
+    saveTrail(trail);
     updateTelemetry(currentSample);
     drawTrailChart();
     mapError.hidden = true;
@@ -611,8 +730,16 @@ if ('serviceWorker' in navigator) {
 }
 
 window.addEventListener('resize', resizeCanvases);
+window.addEventListener('keydown', (event) => {
+  if (!event.shiftKey || event.key.toLowerCase() !== 'd') return;
+  const next = !getDebugEnabled();
+  setDebugEnabled(next);
+  debugOverlay.hidden = !next;
+});
 
 resizeCanvases();
+trail = loadStoredTrail();
+debugOverlay.hidden = !getDebugEnabled();
 fetchIssPosition();
 setInterval(fetchIssPosition, REFRESH_MS);
 render();
