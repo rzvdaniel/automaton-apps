@@ -1,0 +1,74 @@
+{
+  "jonny kim": {
+    "country": "United States",
+    "role": "Flight Engineer",
+    "agency": "NASA",
+    "daysInSpace": 0,
+    "bio": "Former Navy flight surgeon and pilot on his first long-duration ISS mission.",
+    "accent": "#46d8ff"
+  },
+  "oleg platonov": {
+    "country": "Russia",
+    "role": "Flight Engineer",
+    "agency": "Roscosmos",
+    "daysInSpace": 0,
+    "bio": "Roscosmos cosmonaut beginning his first expedition aboard the station.",
+    "accent": "#6aa8ff"
+  },
+  "kimiya yui": {
+    "country": "Japan",
+    "role": "Flight Engineer",
+    "agency": "JAXA",
+    "daysInSpace": 142,
+    "bio": "JAXA astronaut and former test pilot returning to orbit for another ISS increment.",
+    "accent": "#8be36b"
+  },
+  "anne mcclain": {
+    "country": "United States",
+    "role": "Commander",
+    "agency": "NASA",
+    "daysInSpace": 204,
+    "bio": "Army engineer and NASA astronaut with prior ISS spacewalk and expedition experience.",
+    "accent": "#ffb84d"
+  },
+  "nichole ayers": {
+    "country": "United States",
+    "role": "Pilot",
+    "agency": "NASA",
+    "daysInSpace": 0,
+    "bio": "NASA astronaut and Air Force major on her first spaceflight assignment.",
+    "accent": "#ff7c90"
+  },
+  "takuya onishi": {
+    "country": "Japan",
+    "role": "Flight Engineer",
+    "agency": "JAXA",
+    "daysInSpace": 113,
+    "bio": "Former airline pilot and JAXA astronaut supporting science operations in orbit.",
+    "accent": "#62f0d2"
+  },
+  "kirill peskov": {
+    "country": "Russia",
+    "role": "Flight Engineer",
+    "agency": "Roscosmos",
+    "daysInSpace": 0,
+    "bio": "Roscosmos cosmonaut on a first expedition with station systems and research duties.",
+    "accent": "#9a8cff"
+  },
+  "sergey ryzhikov": {
+    "country": "Russia",
+    "role": "Commander",
+    "agency": "Roscosmos",
+    "daysInSpace": 358,
+    "bio": "Veteran Soyuz commander with multiple long-duration stays on the ISS.",
+    "accent": "#4db6ff"
+  },
+  "alexey zubritskiy": {
+    "country": "Russia",
+    "role": "Flight Engineer",
+    "agency": "Roscosmos",
+    "daysInSpace": 0,
+    "bio": "Roscosmos crew member on an early-career station assignment.",
+    "accent": "#7297ff"
+  }
+}

@@ -9,6 +9,23 @@ type IssSample = {
   timestamp: number;
 };
 
+type AstronautMeta = {
+  accent?: string;
+  agency?: string;
+  bio?: string;
+  country?: string;
+  daysInSpace?: number;
+  role?: string;
+};
+
+type AstronautDirectory = Record<string, AstronautMeta>;
+
+type CrewMember = AstronautMeta & {
+  initials: string;
+  isFallback: boolean;
+  name: string;
+};
+
 type RenderPoint = { x: number; y: number; lat: number; lon: number };
 
 type Camera = {
@@ -36,6 +53,24 @@ const TRAIL_STORAGE_KEY = 'iss-tracker-v2-trail';
 const TRAIL_MAX_AGE_MS = 90 * 60 * 1000;
 const DEBUG_TOGGLE_KEY = 'iss-tracker-v2-debug';
 const OBSERVED_TRAIL_MIN_POINTS = 4;
+const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+const GEOCODE_REFRESH_MS = 5 * 60 * 1000;
+const ISS_FIRST_ORBIT_EPOCH_MS = Date.UTC(1998, 10, 20, 6, 40, 0);
+const CURRENT_EXPEDITION = 'Expedition 73';
+const CREW_COUNT_LABEL = '7 Astronauts';
+const CREW_METADATA_URL = './data/astronauts.json';
+const CREW_ROSTER_URL = 'https://api.open-notify.org/astros.json';
+const CREW_REFRESH_MS = 10 * 60 * 1000;
+const CREW_FETCH_TIMEOUT_MS = 4000;
+const CREW_FALLBACK_NAMES = [
+  'Anne McClain',
+  'Nichole Ayers',
+  'Takuya Onishi',
+  'Kirill Peskov',
+  'Jonny Kim',
+  'Oleg Platonov',
+  'Kimiya Yui',
+];
 
 const mapCanvas = document.querySelector<HTMLCanvasElement>('#mapCanvas')!;
 const starCanvas = document.querySelector<HTMLCanvasElement>('#starCanvas')!;
@@ -43,30 +78,40 @@ const mapTexture = document.querySelector<HTMLDivElement>('#mapTexture')!;
 const trailChart = document.querySelector<HTMLCanvasElement>('#trailChart')!;
 const mapError = document.querySelector<HTMLDivElement>('#mapError')!;
 const debugOverlay = document.querySelector<HTMLDivElement>('#debugOverlay')!;
+const crewTriggerDesktop = document.querySelector<HTMLButtonElement>('#crewTriggerDesktop')!;
+const crewTriggerMobile = document.querySelector<HTMLButtonElement>('#crewTriggerMobile')!;
+const crewModal = document.querySelector<HTMLDivElement>('#crewModal')!;
+const crewBackdrop = document.querySelector<HTMLDivElement>('#crewBackdrop')!;
+const crewGrid = document.querySelector<HTMLDivElement>('#crewGrid')!;
+const crewModalSubtitle = document.querySelector<HTMLParagraphElement>('#crewModalSubtitle')!;
+const crewCloseButton = document.querySelector<HTMLButtonElement>('#crewCloseButton')!;
 
 const ids = [
+  'liveBadge',
+  'liveBadgeText',
   'lastUpdate',
   'latDesktop',
   'lonDesktop',
   'speedDesktop',
   'altDesktop',
   'periodDesktop',
-  'visibilityDesktop',
   'visibilityLarge',
-  'trackingStatus',
+  'orbitDesktop',
+  'orbitDetailDesktop',
   'nextPassDesktop',
   'passDetailDesktop',
   'passDetailMobile',
-  'crewCount',
+  'crewCountDesktop',
+  'crewDetailDesktop',
   'speedMobile',
   'altMobile',
   'latMobile',
   'lonMobile',
-  'visibilityMobile',
   'nextPassMobile',
   'lastUpdateMobile',
   'sunState',
-  'trackingStatusMobile',
+  'crewCountMobile',
+  'crewDetailMobile',
   'debugRawCoords',
   'debugProjectedCoords',
 ] as const;
@@ -76,8 +121,10 @@ const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)!]
   HTMLElement
 >;
 
-const locationButton = document.querySelector<HTMLButtonElement>('#locationButton')!;
-const statusOrb = document.querySelector<HTMLSpanElement>('#statusOrb')!;
+const locationButtons = [
+  document.querySelector<HTMLButtonElement>('#locationButton')!,
+  document.querySelector<HTMLButtonElement>('#locationButtonMobile')!,
+];
 const mapCtx = mapCanvas.getContext('2d')!;
 const starCtx = starCanvas.getContext('2d')!;
 const chartCtx = trailChart.getContext('2d')!;
@@ -93,6 +140,13 @@ let renderSample: IssSample | null = null;
 let lastFetchAt = 0;
 let trail: IssSample[] = [];
 let stars: Array<{ x: number; y: number; r: number; a: number; drift: number }> = [];
+let lastGeocodeAt = 0;
+let lastGeocodeCoords: { lat: number; lon: number } | null = null;
+let geocodeRequestId = 0;
+let astronautDirectory: AstronautDirectory = {};
+let crewMembers: CrewMember[] = [];
+let crewLoaded = false;
+let crewRefreshTimer: number | null = null;
 
 function formatCoord(value: number, positive: string, negative: string) {
   const suffix = value >= 0 ? positive : negative;
@@ -109,6 +163,168 @@ function formatTime(timestamp: number) {
 
 function formatNumber(value: number) {
   return Math.round(value).toLocaleString();
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getOrbitNumber(timestamp: number) {
+  const orbitLengthMs = ORBIT_PERIOD_MIN * 60 * 1000;
+  return Math.max(1, Math.floor((timestamp * 1000 - ISS_FIRST_ORBIT_EPOCH_MS) / orbitLengthMs) + 1);
+}
+
+function setLiveState(state: 'live' | 'reconnecting') {
+  const isLive = state === 'live';
+  el.liveBadgeText.textContent = isLive ? 'Live' : 'Reconnecting';
+  el.liveBadge.classList.toggle('offline', !isLive);
+}
+
+function titleCase(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function normalizeCrewKey(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getInitials(name: string) {
+  const parts = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'IS';
+}
+
+function getCrewCountLabel(count: number) {
+  return `${count} Astronaut${count === 1 ? '' : 's'}`;
+}
+
+function renderCrewPanel() {
+  const count = crewMembers.length || CREW_FALLBACK_NAMES.length;
+  const countLabel = getCrewCountLabel(count);
+  el.crewCountDesktop.textContent = countLabel;
+  el.crewCountMobile.textContent = countLabel;
+  el.crewDetailDesktop.textContent = CURRENT_EXPEDITION;
+  el.crewDetailMobile.textContent = CURRENT_EXPEDITION;
+  crewModalSubtitle.textContent = crewLoaded
+    ? `${CURRENT_EXPEDITION} • ${countLabel} onboard`
+    : `Loading roster • ${CURRENT_EXPEDITION}`;
+
+  if (!crewMembers.length) {
+    crewGrid.innerHTML = `
+      <article class="crew-empty">
+        <strong>Crew roster syncing</strong>
+        <p>Profile cards will populate as soon as the live station roster responds.</p>
+      </article>
+    `;
+    return;
+  }
+
+  crewGrid.innerHTML = crewMembers
+    .map((member) => {
+      const accent = member.accent ?? '#18e7ff';
+      const subtitle = [member.role, member.agency].filter(Boolean).join(' • ') || 'ISS crew';
+      const meta = [
+        member.country ?? 'Country pending',
+        typeof member.daysInSpace === 'number' ? `${formatNumber(member.daysInSpace)} days in space` : '',
+      ]
+        .filter(Boolean)
+        .join(' • ');
+      return `
+        <article class="crew-member-card">
+          <div class="crew-member-top">
+            <span class="crew-avatar" style="--crew-accent: ${escapeHtml(accent)}">${escapeHtml(member.initials)}</span>
+            <div>
+              <strong>${escapeHtml(member.name)}</strong>
+              <p>${escapeHtml(subtitle)}</p>
+            </div>
+          </div>
+          <p class="crew-meta">${escapeHtml(meta || 'ISS crew profile')}</p>
+          <p class="crew-bio">${escapeHtml(member.bio ?? 'Live roster confirmed. Enriched biography will appear as local metadata grows.')}</p>
+          ${member.isFallback ? '<span class="crew-chip">Partial profile</span>' : ''}
+        </article>
+      `;
+    })
+    .join('');
+}
+
+function openCrewModal() {
+  crewModal.hidden = false;
+  document.body.classList.add('crew-modal-open');
+}
+
+function closeCrewModal() {
+  crewModal.hidden = true;
+  document.body.classList.remove('crew-modal-open');
+}
+
+async function loadAstronautDirectory() {
+  const response = await fetch(CREW_METADATA_URL, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Crew metadata returned ${response.status}`);
+  astronautDirectory = (await response.json()) as AstronautDirectory;
+}
+
+async function fetchJsonWithTimeout<T>(url: string, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    return (await response.json()) as T;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function buildCrewMembers(names: string[]) {
+  return names.map((name) => {
+    const metadata = astronautDirectory[normalizeCrewKey(name)] ?? {};
+    return {
+      ...metadata,
+      initials: getInitials(name),
+      isFallback: Object.keys(metadata).length === 0,
+      name,
+    } satisfies CrewMember;
+  });
+}
+
+async function refreshCrewRoster() {
+  try {
+    if (!Object.keys(astronautDirectory).length) {
+      await loadAstronautDirectory();
+    }
+    const payload = await fetchJsonWithTimeout<{ people?: Array<{ craft?: string; name?: string }> }>(
+      CREW_ROSTER_URL,
+      CREW_FETCH_TIMEOUT_MS,
+    );
+    const names = (payload.people ?? [])
+      .filter((person) => person.craft === 'ISS' && typeof person.name === 'string')
+      .map((person) => person.name as string);
+    crewMembers = buildCrewMembers(names.length ? names : CREW_FALLBACK_NAMES);
+    crewLoaded = true;
+  } catch {
+    if (!Object.keys(astronautDirectory).length) {
+      try {
+        await loadAstronautDirectory();
+      } catch {
+        astronautDirectory = {};
+      }
+    }
+    crewMembers = buildCrewMembers(CREW_FALLBACK_NAMES);
+    crewLoaded = true;
+  }
+  renderCrewPanel();
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -178,6 +394,81 @@ function wrapValue(value: number, min: number, max: number) {
 
 function getDebugEnabled() {
   return window.localStorage.getItem(DEBUG_TOGGLE_KEY) === '1';
+}
+
+function getOceanFallback(lat: number, lon: number) {
+  if (lat < -45 && lon > -130 && lon < -70) return 'Southern Pacific Ocean';
+  if (lat < -35 && lon >= -70 && lon <= 20) return 'South Atlantic Ocean';
+  if (lat < -35 && lon > 20 && lon < 150) return 'Southern Indian Ocean';
+  if (lat > 45 && lon > -80 && lon < 20) return 'North Atlantic Ocean';
+  if (lat > 35 && lon >= 120) return 'North Pacific Ocean';
+  if (lat > 25 && lon > 30 && lon < 150) return 'Northern Asia';
+  if (lat > 20 && lon > -20 && lon < 55) return 'North Africa';
+  if (lat > -10 && lat < 20 && lon > -30 && lon < 55) return 'Equatorial Africa';
+  if (lat > -20 && lat < 15 && lon > 110 && lon < 180) return 'Western Pacific Ocean';
+  if (lat > -20 && lat < 20 && lon > -110 && lon < -10) return 'Eastern Pacific Ocean';
+  if (lat > -25 && lat < 15 && lon >= -80 && lon <= -35) return 'Northern South America';
+  if (lat < -15 && lat > -50 && lon >= -80 && lon <= -35) return 'Southern South America';
+  if (lat > 35 && lon >= -130 && lon <= -60) return 'North America';
+  if (lat < -10 && lon > 110 && lon < 180) return 'Eastern Australia';
+  return 'Open Ocean';
+}
+
+function describeCurrentOver(data: Record<string, unknown>, lat: number, lon: number) {
+  const locality = typeof data.locality === 'string' ? data.locality : '';
+  const city = typeof data.city === 'string' ? data.city : '';
+  const principalSubdivision =
+    typeof data.principalSubdivision === 'string' ? data.principalSubdivision : '';
+  const countryName = typeof data.countryName === 'string' ? data.countryName : '';
+  const continent = typeof data.continent === 'string' ? data.continent : '';
+  const parts = [locality, city, principalSubdivision, countryName]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part, index, list) => list.indexOf(part) === index);
+
+  if (parts.length >= 2) {
+    return titleCase(`${parts[0]}, ${parts[parts.length - 1]}`);
+  }
+  if (parts.length === 1) {
+    return titleCase(parts[0]);
+  }
+  if (countryName) {
+    return titleCase(countryName);
+  }
+  if (continent) {
+    return titleCase(continent);
+  }
+  return getOceanFallback(lat, lon);
+}
+
+function shouldRefreshGeocode(sample: IssSample) {
+  if (!lastGeocodeCoords) return true;
+  const moved = Math.abs(sample.latitude - lastGeocodeCoords.lat) + Math.abs(sample.longitude - lastGeocodeCoords.lon);
+  return moved > 8 || Date.now() - lastGeocodeAt > GEOCODE_REFRESH_MS;
+}
+
+async function updateCurrentOver(sample: IssSample) {
+  if (!shouldRefreshGeocode(sample)) return;
+
+  const requestId = ++geocodeRequestId;
+  lastGeocodeAt = Date.now();
+  lastGeocodeCoords = { lat: sample.latitude, lon: sample.longitude };
+  const fallback = getOceanFallback(sample.latitude, sample.longitude);
+
+  try {
+    const url = `${REVERSE_GEOCODE_URL}?latitude=${sample.latitude}&longitude=${sample.longitude}&localityLanguage=en`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Geocode returned ${response.status}`);
+    const data = (await response.json()) as Record<string, unknown>;
+    if (requestId !== geocodeRequestId) return;
+    const label = describeCurrentOver(data, sample.latitude, sample.longitude);
+    el.nextPassDesktop.textContent = label;
+    el.nextPassMobile.textContent = label;
+  } catch {
+    if (requestId !== geocodeRequestId) return;
+    el.nextPassDesktop.textContent = fallback;
+    el.nextPassMobile.textContent = fallback;
+  }
 }
 
 function setDebugEnabled(enabled: boolean) {
@@ -552,11 +843,6 @@ function drawAmbientOverlay(camera: Camera) {
   overlay.addColorStop(1, isMobileViewport() ? 'rgba(0, 6, 18, 0.34)' : 'rgba(0, 6, 18, 0.24)');
   mapCtx.fillStyle = overlay;
   mapCtx.fillRect(0, 0, width, height);
-
-  if (isMobileViewport()) {
-    mapCtx.fillStyle = 'rgba(0, 0, 0, 0.16)';
-    mapCtx.fillRect(width * 0.74, 0, width * 0.26, height);
-  }
 }
 
 function render(time = 0) {
@@ -601,25 +887,24 @@ function updateTelemetry(sample: IssSample) {
   const visibility =
     sample.visibility === 'daylight' ? 'Daylight' : sample.visibility === 'eclipsed' ? 'Eclipsed' : 'Unknown';
   const updateTime = formatTime(sample.timestamp);
+  const orbitNumber = getOrbitNumber(sample.timestamp);
 
   el.latDesktop.textContent = latitude;
   el.lonDesktop.textContent = longitude;
   el.speedDesktop.textContent = speed;
   el.altDesktop.textContent = altitude;
   el.periodDesktop.textContent = ORBIT_PERIOD_MIN.toFixed(2);
-  el.visibilityDesktop.textContent = visibility;
   el.visibilityLarge.textContent = visibility;
-  el.trackingStatus.textContent = 'Tracking';
-  el.trackingStatusMobile.textContent = 'Tracking';
+  el.orbitDesktop.textContent = `#${formatNumber(orbitNumber)}`;
+  el.orbitDetailDesktop.textContent = 'Around Earth';
   el.speedMobile.textContent = speed;
   el.altMobile.textContent = altitude;
   el.latMobile.textContent = latitude;
   el.lonMobile.textContent = longitude;
-  el.visibilityMobile.textContent = visibility;
   el.lastUpdate.textContent = updateTime;
   el.lastUpdateMobile.textContent = updateTime;
   el.sunState.textContent = visibility === 'Daylight' ? 'Station is sunlit' : 'Station is in orbital night';
-  statusOrb.classList.toggle('eclipsed', visibility !== 'Daylight');
+  setLiveState('live');
 }
 
 function drawTrailChart() {
@@ -676,13 +961,20 @@ async function fetchIssPosition() {
     trail = pruneTrail([...trail, currentSample]);
     saveTrail(trail);
     updateTelemetry(currentSample);
+    void updateCurrentOver(currentSample);
     drawTrailChart();
     mapError.hidden = true;
   } catch (error) {
     console.error(error);
     mapError.hidden = false;
-    el.trackingStatus.textContent = 'Reconnecting';
-    el.trackingStatusMobile.textContent = 'Reconnecting';
+    setLiveState('reconnecting');
+  }
+}
+
+function setLocationButtonsState(label: string, disabled: boolean) {
+  for (const button of locationButtons) {
+    button.textContent = label;
+    button.disabled = disabled;
   }
 }
 
@@ -694,34 +986,41 @@ function estimateNextPass(latitude: number, longitude: number) {
   );
   const passDate = new Date(Date.now() + minutesAway * 60_000);
   const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(passDate);
-  el.nextPassDesktop.textContent = `Today ${time}`;
-  el.passDetailDesktop.textContent = 'Approximate local overflight window';
-  el.nextPassMobile.textContent = `Today ${time}`;
-  el.passDetailMobile.textContent = 'Approximate local overflight window';
+  el.passDetailDesktop.textContent = `Local pass around ${time}`;
+  el.passDetailMobile.textContent = `Local pass around ${time}`;
 }
 
-locationButton.addEventListener('click', () => {
+function requestLocationPrediction() {
   if (!navigator.geolocation) {
-    el.passDetailDesktop.textContent = 'Location is unavailable in this browser.';
-    el.passDetailMobile.textContent = 'Location is unavailable in this browser.';
+    el.passDetailDesktop.textContent = 'Location unavailable in this browser.';
+    el.passDetailMobile.textContent = 'Location unavailable in this browser.';
     return;
   }
-  locationButton.disabled = true;
-  locationButton.textContent = 'Locating';
+  setLocationButtonsState('Locating', true);
   navigator.geolocation.getCurrentPosition(
     (position) => {
       estimateNextPass(position.coords.latitude, position.coords.longitude);
-      locationButton.textContent = 'Location active';
+      setLocationButtonsState('Location enabled', true);
     },
     () => {
-      el.passDetailDesktop.textContent = 'Location permission was not granted.';
-      el.passDetailMobile.textContent = 'Location permission was not granted.';
-      locationButton.disabled = false;
-      locationButton.textContent = 'Use location';
+      el.passDetailDesktop.textContent = 'Enable location for local pass predictions.';
+      el.passDetailMobile.textContent = 'Enable location for local pass predictions.';
+      setLocationButtonsState('Enable location', false);
     },
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
   );
-});
+}
+
+for (const button of locationButtons) {
+  button.addEventListener('click', requestLocationPrediction);
+}
+
+for (const button of [crewTriggerDesktop, crewTriggerMobile]) {
+  button.addEventListener('click', openCrewModal);
+}
+
+crewBackdrop.addEventListener('click', closeCrewModal);
+crewCloseButton.addEventListener('click', closeCrewModal);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -731,6 +1030,10 @@ if ('serviceWorker' in navigator) {
 
 window.addEventListener('resize', resizeCanvases);
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !crewModal.hidden) {
+    closeCrewModal();
+    return;
+  }
   if (!event.shiftKey || event.key.toLowerCase() !== 'd') return;
   const next = !getDebugEnabled();
   setDebugEnabled(next);
@@ -740,6 +1043,11 @@ window.addEventListener('keydown', (event) => {
 resizeCanvases();
 trail = loadStoredTrail();
 debugOverlay.hidden = !getDebugEnabled();
+renderCrewPanel();
+void refreshCrewRoster();
+crewRefreshTimer = window.setInterval(() => {
+  void refreshCrewRoster();
+}, CREW_REFRESH_MS);
 fetchIssPosition();
 setInterval(fetchIssPosition, REFRESH_MS);
 render();

@@ -22,7 +22,7 @@
           <span>ISS Tracker</span>
         </div>
         <div class="status-strip">
-          <span class="live-badge"><span></span>Live</span>
+          <span class="live-badge" id="liveBadge"><span class="live-dot"></span><span id="liveBadgeText">Live</span></span>
           <div class="last-update">
             <small>Last update</small>
             <time id="lastUpdate">Acquiring signal</time>
@@ -43,11 +43,6 @@
             <span><i class="line observed"></i>Observed trail</span>
             <span><i class="line estimated"></i>Estimated orbit</span>
             <span><i class="dot"></i>ISS position</span>
-          </div>
-          <div class="map-controls" aria-hidden="true">
-            <button>⌖</button>
-            <button>＋</button>
-            <button>−</button>
           </div>
           <div class="debug-overlay" id="debugOverlay" aria-label="Projection debug" hidden>
             <div class="debug-panel">
@@ -86,28 +81,28 @@
             <strong><span id="periodDesktop">92.68</span><em> min</em></strong>
           </article>
           <article class="hud-card metric primary-metric status-card">
-            <span class="status-orb" id="statusOrb"></span>
-            <small>Status</small>
-            <strong id="trackingStatus">Tracking</strong>
-            <em id="visibilityDesktop">--</em>
+            <span class="icon">◌</span>
+            <small>Orbit</small>
+            <strong id="orbitDesktop">--</strong>
+            <em id="orbitDetailDesktop">Around Earth</em>
           </article>
 
-          <article class="hud-card pass-card secondary-panel">
-            <small>Next pass over you</small>
-            <strong id="nextPassDesktop">Location needed</strong>
-            <p id="passDetailDesktop">Use location for a local pass window.</p>
-            <button id="locationButton" type="button">Use location</button>
+          <article class="hud-card pass-card">
+            <small>Currently over</small>
+            <strong id="nextPassDesktop">Resolving position</strong>
+            <p id="passDetailDesktop">Enable location for local pass predictions.</p>
+            <button id="locationButton" type="button">Enable location</button>
           </article>
           <article class="hud-card visibility-card">
             <small>Visibility</small>
             <strong id="visibilityLarge">--</strong>
             <p id="sunState">Awaiting light state</p>
           </article>
-          <article class="hud-card crew-card secondary-panel">
+          <button class="hud-card crew-card secondary-panel crew-trigger" id="crewTriggerDesktop" type="button">
             <small>Crew onboard</small>
-            <strong id="crewCount">7 people</strong>
-            <p>Expedition live</p>
-          </article>
+            <strong id="crewCountDesktop">7 Astronauts</strong>
+            <p id="crewDetailDesktop">Expedition 73</p>
+          </button>
           <article class="hud-card chart-card">
             <small>Orbital trail (last 90 min)</small>
             <canvas id="trailChart" width="420" height="170"></canvas>
@@ -139,16 +134,17 @@
             </article>
           </div>
           <div class="mobile-secondary">
-            <article class="hud-card mobile-wide secondary-panel">
-              <small>Next pass over you</small>
-              <strong id="nextPassMobile">Location needed</strong>
-              <p id="passDetailMobile">Use location for a local pass window.</p>
+            <article class="hud-card mobile-wide">
+              <small>Currently over</small>
+              <strong id="nextPassMobile">Resolving position</strong>
+              <p id="passDetailMobile">Enable location for local pass predictions.</p>
+              <button id="locationButtonMobile" type="button">Enable location</button>
             </article>
-            <article class="hud-card mobile-status primary-metric">
-              <small>Status</small>
-              <strong id="trackingStatusMobile">Tracking</strong>
-              <p><span class="status-inline"></span><span id="visibilityMobile">--</span></p>
-            </article>
+            <button class="hud-card mobile-status primary-metric crew-trigger" id="crewTriggerMobile" type="button">
+              <small>Crew onboard</small>
+              <strong id="crewCountMobile">7 Astronauts</strong>
+              <p id="crewDetailMobile">Expedition 73</p>
+            </button>
           </div>
           <footer class="mobile-footer">
             <p>Last update <strong id="lastUpdateMobile">--</strong></p>
@@ -156,6 +152,22 @@
           </footer>
         </section>
       </main>
+
+      <div class="crew-modal" id="crewModal" hidden>
+        <div class="crew-backdrop" id="crewBackdrop"></div>
+        <section class="crew-sheet" aria-labelledby="crewModalTitle" aria-modal="true" role="dialog">
+          <div class="crew-sheet-handle"></div>
+          <div class="crew-sheet-header">
+            <div>
+              <small>Crew onboard</small>
+              <h2 id="crewModalTitle">ISS crew</h2>
+              <p id="crewModalSubtitle">Loading live roster</p>
+            </div>
+            <button class="crew-close" id="crewCloseButton" type="button" aria-label="Close crew panel">×</button>
+          </div>
+          <div class="crew-grid" id="crewGrid"></div>
+        </section>
+      </div>
     </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
