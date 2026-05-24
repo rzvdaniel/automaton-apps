@@ -40,14 +40,21 @@
           <canvas id="mapCanvas" class="map-canvas"></canvas>
           <div class="map-vignette"></div>
           <div class="map-legend" aria-label="Map legend">
-            <span><i class="line cyan"></i>Orbital path</span>
-            <span><i class="line dashed"></i>Ground track</span>
+            <span><i class="line observed"></i>Observed trail</span>
+            <span><i class="line estimated"></i>Estimated orbit</span>
             <span><i class="dot"></i>ISS position</span>
           </div>
           <div class="map-controls" aria-hidden="true">
             <button>⌖</button>
             <button>＋</button>
             <button>−</button>
+          </div>
+          <div class="debug-overlay" id="debugOverlay" aria-label="Projection debug" hidden>
+            <div class="debug-panel">
+              <small>Projection debug</small>
+              <p>Raw <strong id="debugRawCoords">--</strong></p>
+              <p>Projected <strong id="debugProjectedCoords">--</strong></p>
+            </div>
           </div>
           <div id="mapError" class="map-error" hidden>Telemetry link degraded. Retrying automatically.</div>
         </section>

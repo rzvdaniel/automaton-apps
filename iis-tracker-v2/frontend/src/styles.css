@@ -182,6 +182,7 @@ time {
 
 .map-legend,
 .map-controls,
+.debug-panel,
 .map-error,
 .hud-card {
   border: 1px solid var(--line);
@@ -215,9 +216,13 @@ time {
   border-top: 2px solid var(--cyan);
 }
 
-.line.dashed {
+.line.observed {
+  border-color: rgba(24, 231, 255, 0.95);
+}
+
+.line.estimated {
   border-top-style: dashed;
-  border-color: rgba(207, 232, 255, 0.66);
+  border-color: rgba(24, 231, 255, 0.5);
 }
 
 .dot {
@@ -246,6 +251,40 @@ time {
   background: rgba(8, 24, 42, 0.62);
   color: #dff4ff;
   font-size: 1.22rem;
+}
+
+.debug-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.debug-overlay[hidden] {
+  display: none;
+}
+
+.debug-panel {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  display: grid;
+  gap: 8px;
+  min-width: 208px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #dff4ff;
+}
+
+.debug-panel p {
+  margin: 0;
+  color: var(--text-mid);
+  font-size: 0.84rem;
+}
+
+.debug-panel strong {
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .map-error {
@@ -488,6 +527,13 @@ time {
   .map-controls,
   .map-legend {
     display: none;
+  }
+
+  .debug-panel {
+    top: 72px;
+    left: 12px;
+    min-width: 182px;
+    padding: 10px 12px;
   }
 
   .desktop-hud {
