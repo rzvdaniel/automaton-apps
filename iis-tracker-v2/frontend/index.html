@@ -12,11 +12,6 @@
   <body class="app-loading">
     <div id="app">
       <header class="top-bar" aria-label="Mission status">
-        <button class="mobile-chrome icon-button" type="button" aria-label="Menu">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
         <div class="brand">
           <span class="station-glyph" aria-hidden="true">✦</span>
           <span>ISS Tracker</span>
@@ -28,9 +23,6 @@
             <time id="lastUpdate">Syncing</time>
           </div>
         </div>
-        <button class="mobile-chrome bell-button icon-button" type="button" aria-label="Alerts">
-          <span class="bell-arc"></span>
-        </button>
       </header>
 
       <main class="mission-shell">
@@ -94,24 +86,26 @@
           </article>
 
           <article class="hud-card pass-card">
-            <small>Currently over</small>
+            <small><span class="card-kicker-icon" aria-hidden="true">⌖</span>Currently over</small>
             <strong id="nextPassDesktop">Resolving position</strong>
-            <p id="passDetailDesktop">Waiting for the first telemetry frame.</p>
-            <button class="location-chip" id="locationButton" type="button">◎ Enable Passes</button>
+            <p id="passDetailDesktop">Open ocean context updating</p>
+            <button class="location-chip" id="locationButton" type="button">📍 Enable Location</button>
           </article>
           <article class="hud-card visibility-card">
-            <small>Visibility</small>
+            <small><span class="card-kicker-icon" aria-hidden="true">◐</span>Visibility</small>
             <strong id="visibilityLarge">Syncing</strong>
             <p id="sunState">Awaiting light state</p>
           </article>
           <button class="hud-card crew-card secondary-panel crew-trigger" id="crewTriggerDesktop" type="button">
-            <small>Crew onboard</small>
+            <small><span class="card-kicker-icon" aria-hidden="true">◌◌</span>Crew onboard</small>
             <strong id="crewCountDesktop">7 Astronauts</strong>
             <p id="crewDetailDesktop">Expedition 73</p>
+            <span class="panel-link">View crew</span>
           </button>
-          <article class="hud-card chart-card">
-            <small>Orbital trail (last 90 min)</small>
-            <canvas id="trailChart" width="420" height="170"></canvas>
+          <article class="hud-card distance-card secondary-panel">
+            <small><span class="card-kicker-icon" aria-hidden="true">⇄</span>Distance today</small>
+            <strong id="distanceTodayDesktop">Syncing</strong>
+            <p id="distanceDetailDesktop">Ground distance since 00:00 UTC</p>
           </article>
         </section>
 
@@ -141,15 +135,16 @@
           </div>
           <div class="mobile-secondary">
             <article class="hud-card mobile-wide">
-              <small>Currently over</small>
+              <small><span class="card-kicker-icon" aria-hidden="true">⌖</span>Currently over</small>
               <strong id="nextPassMobile">Resolving position</strong>
-              <p id="passDetailMobile">Waiting for the first telemetry frame.</p>
-              <button class="location-chip" id="locationButtonMobile" type="button">◎ Enable Passes</button>
+              <p id="passDetailMobile">Open ocean context updating</p>
+              <button class="location-chip" id="locationButtonMobile" type="button">📍 Enable Location</button>
             </article>
             <button class="hud-card mobile-status primary-metric crew-trigger" id="crewTriggerMobile" type="button">
-              <small>Crew onboard</small>
+              <small><span class="card-kicker-icon" aria-hidden="true">◌◌</span>Crew onboard</small>
               <strong id="crewCountMobile">7 Astronauts</strong>
               <p id="crewDetailMobile">Expedition 73</p>
+              <span class="panel-link">View crew</span>
             </button>
           </div>
           <footer class="mobile-footer">

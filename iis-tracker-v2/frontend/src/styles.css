@@ -214,7 +214,7 @@ time {
 .mission-shell {
   position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(188px, 31dvh);
+  grid-template-rows: minmax(0, 0.86fr) minmax(220px, 34dvh);
   gap: 8px;
   width: 100%;
   height: 100dvh;
@@ -487,7 +487,7 @@ time {
 }
 
 .pass-card,
-.chart-card {
+.distance-card {
   grid-column: span 2;
 }
 
@@ -497,6 +497,21 @@ time {
   margin: 6px 0 0;
   color: #b5c7dc;
   font-size: 0.86rem;
+}
+
+.card-kicker-icon {
+  display: inline-flex;
+  width: 1.2rem;
+  margin-right: 0.35rem;
+  justify-content: center;
+  color: rgba(24, 231, 255, 0.84);
+}
+
+.pass-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }
 
 .crew-card {
@@ -509,10 +524,25 @@ time {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 14px 32px rgba(0, 0, 0, 0.22);
 }
 
+.panel-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: auto;
+  color: rgba(148, 223, 247, 0.9);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel-link::after {
+  content: "›";
+  margin-left: 0.38rem;
+  font-size: 0.98rem;
+  line-height: 1;
+}
+
 .location-chip {
-  position: absolute;
-  right: 16px;
-  bottom: 14px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -528,6 +558,8 @@ time {
   box-shadow: none;
   cursor: pointer;
   transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease;
+  margin-top: auto;
+  align-self: flex-start;
 }
 
 .location-chip:hover:not(:disabled) {
@@ -549,20 +581,21 @@ time {
 .pass-card,
 .visibility-card,
 .crew-card,
-.chart-card {
-  min-height: 92px;
+.distance-card {
+  min-height: 102px;
 }
 
 .pass-card strong,
 .visibility-card strong,
-.crew-card strong {
+.crew-card strong,
+.distance-card strong {
   margin-top: 4px;
 }
 
-.chart-card canvas {
-  width: 100%;
-  height: 78px;
-  margin-top: 8px;
+.distance-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .crew-modal[hidden] {
@@ -776,7 +809,7 @@ time {
   .top-bar {
     inset: calc(env(safe-area-inset-top) + 14px) 16px auto;
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto 22px;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     column-gap: 10px;
   }
@@ -847,7 +880,10 @@ time {
   }
 
   .station-glyph {
-    display: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 0.9rem;
   }
 
   .status-strip {
@@ -916,19 +952,24 @@ time {
     flex-direction: column;
     min-height: 0;
     margin-top: -28px;
-    padding: 10px 12px calc(env(safe-area-inset-bottom) + 14px);
+    padding: 8px 10px calc(env(safe-area-inset-bottom) + 10px);
     border-top: 1px solid rgba(142, 192, 243, 0.2);
     border-radius: 26px 26px 0 0;
     background: linear-gradient(180deg, rgba(3, 10, 20, 0.84), rgba(3, 10, 20, 0.96));
     backdrop-filter: blur(20px);
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .mobile-sheet::-webkit-scrollbar {
+    display: none;
   }
 
   .sheet-handle {
     width: 42px;
     height: 4px;
-    margin: 0 auto 16px;
+    margin: 0 auto 12px;
     border-radius: 999px;
     background: rgba(199, 223, 243, 0.42);
   }
@@ -936,16 +977,16 @@ time {
   .mobile-primary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 
   .compact {
     display: grid;
     grid-template-columns: 30px 1fr;
     grid-template-rows: auto auto;
-    gap: 4px 12px;
-    min-height: 74px;
-    padding: 14px 14px 12px;
+    gap: 3px 10px;
+    min-height: 68px;
+    padding: 12px 12px 10px;
   }
 
   .compact .icon {
@@ -956,33 +997,40 @@ time {
   }
 
   .compact strong {
-    font-size: 0.98rem;
+    font-size: 0.94rem;
   }
 
   .compact em {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
   }
 
   .mobile-secondary {
     display: grid;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .mobile-wide,
   .mobile-status {
-    min-height: 88px;
-    padding: 14px 15px;
+    min-height: 82px;
+    padding: 12px 13px;
+  }
+
+  .mobile-wide small,
+  .mobile-status small {
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    color: rgba(158, 178, 202, 0.72);
   }
 
   .mobile-wide strong {
-    margin-top: 6px;
+    margin-top: 5px;
     font-size: 0.96rem;
   }
 
   .primary-metric.compact strong,
   .primary-metric.mobile-status strong {
-    font-size: 1.08rem;
+    font-size: 1.02rem;
   }
 
   .secondary-panel.mobile-wide strong {
@@ -990,13 +1038,13 @@ time {
   }
 
   .mobile-wide p {
-    margin: 6px 0 0;
+    margin: 5px 0 0;
     color: var(--text-soft);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
   }
 
   .mobile-wide .location-chip {
-    margin-top: 10px;
+    margin-top: 8px;
     position: static;
     align-self: flex-start;
   }
@@ -1005,8 +1053,15 @@ time {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 6px 0 0;
+    margin: 4px 0 0;
     color: var(--text-mid);
+    font-size: 0.84rem;
+  }
+
+  .mobile-status .panel-link {
+    margin-top: 6px;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
   }
 
   .mobile-footer {
@@ -1014,9 +1069,9 @@ time {
     justify-content: space-between;
     gap: 10px;
     margin-top: auto;
-    padding: 2px 4px 0;
+    padding: 0 2px 0;
     color: var(--text-soft);
-    font-size: 0.76rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
   }
 
@@ -1029,7 +1084,7 @@ time {
 
   .mobile-footer strong {
     color: #f2fbff;
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     font-weight: 700;
     text-transform: none;
   }
@@ -1083,7 +1138,7 @@ time {
 
 @media (max-width: 520px) {
   .mission-shell {
-    grid-template-rows: minmax(330px, 47dvh) minmax(0, 1fr);
+    grid-template-rows: minmax(338px, 48dvh) minmax(0, 1fr);
   }
 
   .brand {
@@ -1098,6 +1153,11 @@ time {
   }
 
   .mobile-footer {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
+  }
+
+  .mobile-wide .location-chip {
+    padding: 5px 9px;
+    font-size: 0.7rem;
   }
 }

@@ -88,7 +88,6 @@ const REFERENCE_CITIES: ReferenceCity[] = [
 const mapCanvas = document.querySelector<HTMLCanvasElement>('#mapCanvas')!;
 const starCanvas = document.querySelector<HTMLCanvasElement>('#starCanvas')!;
 const mapTexture = document.querySelector<HTMLDivElement>('#mapTexture')!;
-const trailChart = document.querySelector<HTMLCanvasElement>('#trailChart')!;
 const mapError = document.querySelector<HTMLDivElement>('#mapError')!;
 const debugOverlay = document.querySelector<HTMLDivElement>('#debugOverlay')!;
 const crewTriggerDesktop = document.querySelector<HTMLButtonElement>('#crewTriggerDesktop')!;
@@ -116,6 +115,8 @@ const ids = [
   'passDetailMobile',
   'crewCountDesktop',
   'crewDetailDesktop',
+  'distanceTodayDesktop',
+  'distanceDetailDesktop',
   'speedMobile',
   'altMobile',
   'latMobile',
@@ -146,7 +147,6 @@ const locationButtons = [
 ];
 const mapCtx = mapCanvas.getContext('2d')!;
 const starCtx = starCanvas.getContext('2d')!;
-const chartCtx = trailChart.getContext('2d')!;
 
 const dayTexture = new Image();
 dayTexture.src = DAY_TEXTURE_URL;
@@ -210,6 +210,13 @@ function getOrbitNumber(timestamp: number) {
   return Math.max(1, Math.floor((timestamp * 1000 - ISS_FIRST_ORBIT_EPOCH_MS) / orbitLengthMs) + 1);
 }
 
+function getDistanceTodayKm(sample: IssSample) {
+  const now = new Date(sample.timestamp * 1000);
+  const startOfUtcDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+  const secondsToday = Math.max(0, sample.timestamp - startOfUtcDay);
+  return Math.round((sample.velocity / 3600) * secondsToday);
+}
+
 function setLiveState(state: 'live' | 'reconnecting') {
   const isLive = state === 'live';
   el.liveBadgeText.textContent = isLive ? 'Live' : 'Reconnecting';
@@ -250,8 +257,9 @@ function getCrewCountLabel(count: number) {
 function renderCrewPanel() {
   const count = crewMembers.length || CREW_FALLBACK_NAMES.length;
   const countLabel = getCrewCountLabel(count);
+  const mobileCountLabel = `${countLabel} onboard`;
   el.crewCountDesktop.textContent = countLabel;
-  el.crewCountMobile.textContent = countLabel;
+  el.crewCountMobile.textContent = mobileCountLabel;
   el.crewDetailDesktop.textContent = CURRENT_EXPEDITION;
   el.crewDetailMobile.textContent = CURRENT_EXPEDITION;
   crewModalSubtitle.textContent = crewLoaded
@@ -1055,6 +1063,7 @@ function updateTelemetry(sample: IssSample) {
     sample.visibility === 'daylight' ? 'Daylight' : sample.visibility === 'eclipsed' ? 'Eclipsed' : 'Unknown';
   const updateTime = formatTime(sample.timestamp);
   const orbitNumber = getOrbitNumber(sample.timestamp);
+  const distanceToday = formatNumber(getDistanceTodayKm(sample));
 
   el.latDesktop.textContent = latitude;
   el.lonDesktop.textContent = longitude;
@@ -1064,6 +1073,8 @@ function updateTelemetry(sample: IssSample) {
   el.visibilityLarge.textContent = visibility;
   el.orbitDesktop.textContent = `#${formatNumber(orbitNumber)}`;
   el.orbitDetailDesktop.textContent = 'Around Earth';
+  el.distanceTodayDesktop.textContent = `${distanceToday} km`;
+  el.distanceDetailDesktop.textContent = 'Ground distance since 00:00 UTC';
   el.speedMobile.textContent = speed;
   el.altMobile.textContent = altitude;
   el.latMobile.textContent = latitude;
@@ -1073,42 +1084,6 @@ function updateTelemetry(sample: IssSample) {
   el.sunState.textContent = visibility === 'Daylight' ? 'Station is sunlit' : 'Station is in orbital night';
   setLiveState('live');
   setTelemetryReady();
-}
-
-function drawTrailChart() {
-  const width = trailChart.width;
-  const height = trailChart.height;
-  chartCtx.clearRect(0, 0, width, height);
-  chartCtx.strokeStyle = 'rgba(64, 223, 255, 0.11)';
-  chartCtx.lineWidth = 1;
-  for (let x = 24; x < width; x += 44) {
-    chartCtx.beginPath();
-    chartCtx.moveTo(x, 18);
-    chartCtx.lineTo(x, height - 18);
-    chartCtx.stroke();
-  }
-  for (let y = 26; y < height; y += 38) {
-    chartCtx.beginPath();
-    chartCtx.moveTo(18, y);
-    chartCtx.lineTo(width - 18, y);
-    chartCtx.stroke();
-  }
-
-  if (trail.length < 2) return;
-  chartCtx.save();
-  chartCtx.strokeStyle = '#18e7ff';
-  chartCtx.shadowColor = '#18e7ff';
-  chartCtx.shadowBlur = 12;
-  chartCtx.lineWidth = 4;
-  chartCtx.beginPath();
-  trail.forEach((sample, index) => {
-    const x = 20 + (index / Math.max(1, trail.length - 1)) * (width - 40);
-    const y = 20 + ((90 - (sample.latitude + 90)) / 180) * (height - 40);
-    if (index === 0) chartCtx.moveTo(x, y);
-    else chartCtx.lineTo(x, y);
-  });
-  chartCtx.stroke();
-  chartCtx.restore();
 }
 
 async function fetchIssPosition() {
@@ -1131,7 +1106,6 @@ async function fetchIssPosition() {
     saveTrail(trail);
     updateTelemetry(currentSample);
     void updateCurrentOver(currentSample);
-    drawTrailChart();
     mapError.hidden = true;
   } catch (error) {
     console.error(error);
@@ -1149,6 +1123,28 @@ function setLocationButtonsState(label: string, disabled: boolean) {
   }
 }
 
+function setLocationDetail(message: string) {
+  el.passDetailDesktop.textContent = message;
+  el.passDetailMobile.textContent = message;
+}
+
+function setLocationRetryState(message: string) {
+  setLocationDetail(message);
+  setLocationButtonsState('⚠ Retry Location', false);
+}
+
+async function getGeolocationPermissionState() {
+  try {
+    const permissions = (navigator as Navigator & {
+      permissions?: { query: (descriptor: { name: 'geolocation' }) => Promise<{ state: string }> };
+    }).permissions;
+    if (!permissions) return 'unknown';
+    return (await permissions.query({ name: 'geolocation' })).state;
+  } catch {
+    return 'unknown';
+  }
+}
+
 function estimateNextPass(latitude: number, longitude: number) {
   if (!currentSample) return;
   const minutesAway = Math.max(
@@ -1157,26 +1153,44 @@ function estimateNextPass(latitude: number, longitude: number) {
   );
   const passDate = new Date(Date.now() + minutesAway * 60_000);
   const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(passDate);
-  el.passDetailDesktop.textContent = `Local pass around ${time}`;
-  el.passDetailMobile.textContent = `Local pass around ${time}`;
+  setLocationDetail(`Local pass around ${time}`);
 }
 
-function requestLocationPrediction() {
+async function requestLocationPrediction() {
   if (!navigator.geolocation) {
-    el.passDetailDesktop.textContent = 'Location unavailable in this browser.';
-    el.passDetailMobile.textContent = 'Location unavailable in this browser.';
+    setLocationRetryState('This browser does not expose geolocation here.');
     return;
   }
-  setLocationButtonsState('◎ Locating', true);
+
+  const permissionState = await getGeolocationPermissionState();
+  if (permissionState === 'denied') {
+    setLocationRetryState('Location permission is blocked. Enable it in browser site settings, then retry.');
+    return;
+  }
+
+  setLocationButtonsState('📍 Locating', true);
+  setLocationDetail('Requesting browser location access...');
   navigator.geolocation.getCurrentPosition(
     (position) => {
       estimateNextPass(position.coords.latitude, position.coords.longitude);
       setLocationButtonsState('✓ Location On', true);
     },
-    () => {
-      el.passDetailDesktop.textContent = 'Enable location to see local pass predictions.';
-      el.passDetailMobile.textContent = 'Enable location to see local pass predictions.';
-      setLocationButtonsState('◎ Enable Passes', false);
+    async (error) => {
+      const permissionState = await getGeolocationPermissionState();
+
+      if (error.code === error.PERMISSION_DENIED || permissionState === 'denied') {
+        setLocationRetryState('Location permission is blocked. Enable it in browser site settings, then retry.');
+        return;
+      }
+      if (error.code === error.TIMEOUT) {
+        setLocationRetryState('Location request timed out. Retry in a stronger signal area.');
+        return;
+      }
+      if (error.code === error.POSITION_UNAVAILABLE) {
+        setLocationRetryState('Location is unavailable right now. Retry in a moment.');
+        return;
+      }
+      setLocationRetryState('Location access did not complete. Retry to request passes again.');
     },
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
   );
