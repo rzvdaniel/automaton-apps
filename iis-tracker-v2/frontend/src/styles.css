@@ -1137,12 +1137,29 @@ time {
     text-transform: uppercase;
   }
 
-  .mobile-footer p {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-  }
+.mobile-footer p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.install-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border: 1px solid rgba(24, 231, 255, 0.14);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(24, 231, 255, 0.03);
+  color: rgba(173, 233, 255, 0.84);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
 
   .mobile-footer strong {
     color: #f2fbff;

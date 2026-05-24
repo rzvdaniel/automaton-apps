@@ -97,6 +97,7 @@ const crewBackdrop = document.querySelector<HTMLDivElement>('#crewBackdrop')!;
 const crewGrid = document.querySelector<HTMLDivElement>('#crewGrid')!;
 const crewModalSubtitle = document.querySelector<HTMLParagraphElement>('#crewModalSubtitle')!;
 const crewCloseButton = document.querySelector<HTMLButtonElement>('#crewCloseButton')!;
+const installAppButton = document.querySelector<HTMLButtonElement>('#installAppButton')!;
 
 const ids = [
   'liveBadge',
@@ -169,6 +170,12 @@ let crewLoaded = false;
 let crewRefreshTimer: number | null = null;
 let telemetryLoaded = false;
 let lastIssTimestamp = 0;
+let deferredInstallPrompt:
+  | (Event & {
+      prompt: () => Promise<void>;
+      userChoice?: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+    })
+  | null = null;
 
 function formatCoord(value: number, positive: string, negative: string) {
   const suffix = value >= 0 ? positive : negative;
@@ -576,6 +583,11 @@ function shortestWorldDelta(value: number, center: number, worldWidth: number) {
 
 function isMobileViewport() {
   return window.innerWidth <= MOBILE_BREAKPOINT;
+}
+
+function updateInstallButton() {
+  const shouldShow = Boolean(deferredInstallPrompt) && isMobileViewport();
+  installAppButton.hidden = !shouldShow;
 }
 
 function getSubsolarPoint(timestampMs: number) {
@@ -1213,7 +1225,19 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event as typeof deferredInstallPrompt;
+  updateInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  updateInstallButton();
+});
+
 window.addEventListener('resize', resizeCanvases);
+window.addEventListener('resize', updateInstallButton);
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !crewModal.hidden) {
     closeCrewModal();
@@ -1225,10 +1249,23 @@ window.addEventListener('keydown', (event) => {
   debugOverlay.hidden = !next;
 });
 
+installAppButton.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  await deferredInstallPrompt.prompt();
+  try {
+    await deferredInstallPrompt.userChoice;
+  } catch {
+    // Ignore install prompt failures; the browser will preserve the state.
+  }
+  deferredInstallPrompt = null;
+  updateInstallButton();
+});
+
 resizeCanvases();
 trail = loadStoredTrail();
 debugOverlay.hidden = !getDebugEnabled();
 renderCrewPanel();
+updateInstallButton();
 void refreshCrewRoster();
 crewRefreshTimer = window.setInterval(() => {
   void refreshCrewRoster();
