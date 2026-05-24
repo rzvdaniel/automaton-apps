@@ -136,7 +136,7 @@ time {
 .mission-shell {
   position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(212px, 33dvh);
+  grid-template-rows: minmax(0, 1fr) minmax(188px, 31dvh);
   gap: 8px;
   width: 100%;
   height: 100dvh;
@@ -307,7 +307,8 @@ time {
   gap: 10px;
   width: 100%;
   height: 100%;
-  padding: 0 6px;
+  margin-top: -26px;
+  padding: 0 10px 0;
 }
 
 .hud-card {
@@ -316,6 +317,10 @@ time {
   border-radius: 12px;
   padding: 14px 16px;
   overflow: hidden;
+}
+
+.desktop-hud .hud-card {
+  background: linear-gradient(180deg, rgba(6, 19, 37, 0.62), rgba(3, 11, 24, 0.78));
 }
 
 .hud-card::after {
@@ -371,6 +376,46 @@ time {
 .status-orb.eclipsed {
   background: #8fa7c3;
   box-shadow: 0 0 16px rgba(143, 167, 195, 0.72);
+}
+
+.primary-metric {
+  background: linear-gradient(180deg, rgba(8, 24, 46, 0.7), rgba(4, 15, 31, 0.82));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 34px rgba(0, 0, 0, 0.22);
+}
+
+.primary-metric strong {
+  font-size: clamp(1.28rem, 1.85vw, 1.95rem);
+}
+
+.primary-metric small {
+  color: #b8cce4;
+}
+
+.primary-metric em,
+.primary-metric p {
+  color: #d5e6f8;
+}
+
+.secondary-metric,
+.secondary-panel {
+  background: linear-gradient(180deg, rgba(6, 18, 36, 0.44), rgba(3, 11, 24, 0.56));
+  border-color: rgba(119, 162, 214, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 22px rgba(0, 0, 0, 0.14);
+}
+
+.secondary-metric strong,
+.secondary-panel strong {
+  color: #e6f1fb;
+  font-size: clamp(1rem, 1.3vw, 1.34rem);
+}
+
+.secondary-metric small,
+.secondary-panel small {
+  color: rgba(158, 178, 202, 0.78);
+}
+
+.secondary-panel p {
+  color: rgba(191, 210, 232, 0.78);
 }
 
 .pass-card,
@@ -622,6 +667,15 @@ time {
   .mobile-wide strong {
     margin-top: 6px;
     font-size: 0.96rem;
+  }
+
+  .primary-metric.compact strong,
+  .primary-metric.mobile-status strong {
+    font-size: 1.08rem;
+  }
+
+  .secondary-panel.mobile-wide strong {
+    font-size: 0.92rem;
   }
 
   .mobile-wide p {

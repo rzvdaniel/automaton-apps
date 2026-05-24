@@ -70,29 +70,29 @@
             <small>Longitude</small>
             <strong id="lonDesktop">--</strong>
           </article>
-          <article class="hud-card metric">
+          <article class="hud-card metric primary-metric">
             <span class="icon">◴</span>
             <small>Speed</small>
             <strong><span id="speedDesktop">--</span><em> km/h</em></strong>
           </article>
-          <article class="hud-card metric">
+          <article class="hud-card metric primary-metric">
             <span class="icon">△</span>
             <small>Altitude</small>
             <strong><span id="altDesktop">--</span><em> km</em></strong>
           </article>
-          <article class="hud-card metric">
+          <article class="hud-card metric secondary-metric">
             <span class="icon">◷</span>
             <small>Orbital period</small>
             <strong><span id="periodDesktop">92.68</span><em> min</em></strong>
           </article>
-          <article class="hud-card metric status-card">
+          <article class="hud-card metric primary-metric status-card">
             <span class="status-orb" id="statusOrb"></span>
             <small>Status</small>
             <strong id="trackingStatus">Tracking</strong>
             <em id="visibilityDesktop">--</em>
           </article>
 
-          <article class="hud-card pass-card">
+          <article class="hud-card pass-card secondary-panel">
             <small>Next pass over you</small>
             <strong id="nextPassDesktop">Location needed</strong>
             <p id="passDetailDesktop">Use location for a local pass window.</p>
@@ -103,7 +103,7 @@
             <strong id="visibilityLarge">--</strong>
             <p id="sunState">Awaiting light state</p>
           </article>
-          <article class="hud-card crew-card">
+          <article class="hud-card crew-card secondary-panel">
             <small>Crew onboard</small>
             <strong id="crewCount">7 people</strong>
             <p>Expedition live</p>
@@ -117,12 +117,12 @@
         <section class="mobile-sheet" aria-label="Mobile telemetry">
           <div class="sheet-handle"></div>
           <div class="mobile-primary">
-            <article class="hud-card compact">
+            <article class="hud-card compact primary-metric">
               <span class="icon">◴</span>
               <small>Speed</small>
               <strong><span id="speedMobile">--</span><em> km/h</em></strong>
             </article>
-            <article class="hud-card compact">
+            <article class="hud-card compact primary-metric">
               <span class="icon">△</span>
               <small>Altitude</small>
               <strong><span id="altMobile">--</span><em> km</em></strong>
@@ -139,12 +139,12 @@
             </article>
           </div>
           <div class="mobile-secondary">
-            <article class="hud-card mobile-wide">
+            <article class="hud-card mobile-wide secondary-panel">
               <small>Next pass over you</small>
               <strong id="nextPassMobile">Location needed</strong>
               <p id="passDetailMobile">Use location for a local pass window.</p>
             </article>
-            <article class="hud-card mobile-status">
+            <article class="hud-card mobile-status primary-metric">
               <small>Status</small>
               <strong id="trackingStatusMobile">Tracking</strong>
               <p><span class="status-inline"></span><span id="visibilityMobile">--</span></p>
