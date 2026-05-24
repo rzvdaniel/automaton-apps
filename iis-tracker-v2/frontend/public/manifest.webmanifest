@@ -1,0 +1,17 @@
+{
+  "name": "ISS Tracker",
+  "short_name": "ISS Tracker",
+  "description": "A cinematic real-time mission-control dashboard for the International Space Station.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#020712",
+  "theme_color": "#020712",
+  "icons": [
+    {
+      "src": "./icons/iss-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

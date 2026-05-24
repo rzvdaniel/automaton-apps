@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#020712" />
+    <meta name="description" content="A premium real-time ISS mission-control tracker." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/iss-icon.svg" type="image/svg+xml" />
+    <title>ISS Tracker</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="top-bar" aria-label="Mission status">
+        <button class="mobile-chrome icon-button" type="button" aria-label="Menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="brand">
+          <span class="station-glyph" aria-hidden="true">✦</span>
+          <span>ISS Tracker</span>
+        </div>
+        <div class="status-strip">
+          <span class="live-badge"><span></span>Live</span>
+          <div class="last-update">
+            <small>Last update</small>
+            <time id="lastUpdate">Acquiring signal</time>
+          </div>
+        </div>
+        <button class="mobile-chrome bell-button icon-button" type="button" aria-label="Alerts">
+          <span class="bell-arc"></span>
+        </button>
+      </header>
+
+      <main class="mission-shell">
+        <section class="map-stage" aria-label="Live orbital map">
+          <canvas id="starCanvas" class="star-canvas"></canvas>
+          <div id="mapTexture" class="map-texture"></div>
+          <canvas id="mapCanvas" class="map-canvas"></canvas>
+          <div class="map-vignette"></div>
+          <div class="map-legend" aria-label="Map legend">
+            <span><i class="line cyan"></i>Orbital path</span>
+            <span><i class="line dashed"></i>Ground track</span>
+            <span><i class="dot"></i>ISS position</span>
+          </div>
+          <div class="map-controls" aria-hidden="true">
+            <button>⌖</button>
+            <button>＋</button>
+            <button>−</button>
+          </div>
+          <div id="mapError" class="map-error" hidden>Telemetry link degraded. Retrying automatically.</div>
+        </section>
+
+        <section class="desktop-hud" aria-label="ISS telemetry">
+          <article class="hud-card metric">
+            <span class="icon">◎</span>
+            <small>Latitude</small>
+            <strong id="latDesktop">--</strong>
+          </article>
+          <article class="hud-card metric">
+            <span class="icon">⌖</span>
+            <small>Longitude</small>
+            <strong id="lonDesktop">--</strong>
+          </article>
+          <article class="hud-card metric">
+            <span class="icon">◴</span>
+            <small>Speed</small>
+            <strong><span id="speedDesktop">--</span><em> km/h</em></strong>
+          </article>
+          <article class="hud-card metric">
+            <span class="icon">△</span>
+            <small>Altitude</small>
+            <strong><span id="altDesktop">--</span><em> km</em></strong>
+          </article>
+          <article class="hud-card metric">
+            <span class="icon">◷</span>
+            <small>Orbital period</small>
+            <strong><span id="periodDesktop">92.68</span><em> min</em></strong>
+          </article>
+          <article class="hud-card metric status-card">
+            <span class="status-orb" id="statusOrb"></span>
+            <small>Status</small>
+            <strong id="trackingStatus">Tracking</strong>
+            <em id="visibilityDesktop">--</em>
+          </article>
+
+          <article class="hud-card pass-card">
+            <small>Next pass over you</small>
+            <strong id="nextPassDesktop">Location needed</strong>
+            <p id="passDetailDesktop">Enable browser location to estimate a local pass.</p>
+            <button id="locationButton" type="button">Use location</button>
+          </article>
+          <article class="hud-card visibility-card">
+            <small>Visibility</small>
+            <strong id="visibilityLarge">--</strong>
+            <p id="sunState">Sun elevation unavailable</p>
+          </article>
+          <article class="hud-card crew-card">
+            <small>Crew onboard</small>
+            <strong id="crewCount">7 people</strong>
+            <p>Expedition crew data varies by source.</p>
+          </article>
+          <article class="hud-card chart-card">
+            <small>Orbital trail (last 90 min)</small>
+            <canvas id="trailChart" width="420" height="170"></canvas>
+          </article>
+        </section>
+
+        <section class="mobile-sheet" aria-label="Mobile telemetry">
+          <div class="sheet-handle"></div>
+          <div class="mobile-primary">
+            <article class="hud-card compact">
+              <span class="icon">◴</span>
+              <small>Speed</small>
+              <strong><span id="speedMobile">--</span><em> km/h</em></strong>
+            </article>
+            <article class="hud-card compact">
+              <span class="icon">△</span>
+              <small>Altitude</small>
+              <strong><span id="altMobile">--</span><em> km</em></strong>
+            </article>
+            <article class="hud-card compact">
+              <span class="icon">◎</span>
+              <small>Latitude</small>
+              <strong id="latMobile">--</strong>
+            </article>
+            <article class="hud-card compact">
+              <span class="icon">⌖</span>
+              <small>Longitude</small>
+              <strong id="lonMobile">--</strong>
+            </article>
+          </div>
+          <div class="mobile-secondary">
+            <article class="hud-card mobile-wide">
+              <small>Next pass over you</small>
+              <strong id="nextPassMobile">Location needed</strong>
+              <p id="passDetailMobile">Enable browser location for a local estimate.</p>
+            </article>
+            <article class="hud-card mobile-status">
+              <small>Status</small>
+              <strong id="trackingStatusMobile">Tracking</strong>
+              <p><span class="status-inline"></span><span id="visibilityMobile">--</span></p>
+            </article>
+          </div>
+          <footer class="mobile-footer">
+            <p>Last update <strong id="lastUpdateMobile">--</strong></p>
+            <p>Auto-refresh <strong>5s</strong><span class="footer-dot"></span></p>
+          </footer>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
