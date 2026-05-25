@@ -63,6 +63,7 @@ const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-c
 const GEOCODE_REFRESH_MS = 5 * 60 * 1000;
 const GEOCODE_LABEL_STALE_MOVE = 2.5;
 const GEOCODE_FETCH_MOVE = 6;
+const GEOCODE_RESPONSE_MAX_DRIFT = 2;
 const ISS_FIRST_ORBIT_EPOCH_MS = Date.UTC(1998, 10, 20, 6, 40, 0);
 const CURRENT_EXPEDITION = 'Expedition 73';
 const CREW_COUNT_LABEL = '7 Astronauts';
@@ -443,10 +444,8 @@ function worldXFromLon(lon: number, worldWidth: number) {
 }
 
 function worldYFromLat(lat: number, worldHeight: number) {
-  const clamped = Math.max(-85, Math.min(85, lat));
-  const rad = (clamped * Math.PI) / 180;
-  const mercator = Math.log(Math.tan(Math.PI / 4 + rad / 2));
-  return worldHeight / 2 - (worldHeight / (2 * Math.PI)) * mercator;
+  const clamped = Math.max(-90, Math.min(90, lat));
+  return ((90 - clamped) / 180) * worldHeight;
 }
 
 function lonFromWorldX(worldX: number, worldWidth: number) {
@@ -454,8 +453,7 @@ function lonFromWorldX(worldX: number, worldWidth: number) {
 }
 
 function latFromWorldY(worldY: number, worldHeight: number) {
-  const mercator = (worldHeight / 2 - worldY) * ((2 * Math.PI) / worldHeight);
-  return (Math.atan(Math.sinh(mercator)) * 180) / Math.PI;
+  return 90 - (worldY / worldHeight) * 180;
 }
 
 function interpolateAngle(start: number, end: number, amount: number) {
@@ -496,24 +494,15 @@ function getOceanFallback(lat: number, lon: number) {
 }
 
 function describeCurrentOver(data: Record<string, unknown>, lat: number, lon: number) {
-  const locality = typeof data.locality === 'string' ? data.locality : '';
-  const city = typeof data.city === 'string' ? data.city : '';
   const principalSubdivision =
     typeof data.principalSubdivision === 'string' ? data.principalSubdivision : '';
   const countryName = typeof data.countryName === 'string' ? data.countryName : '';
   const continent = typeof data.continent === 'string' ? data.continent : '';
-  const parts = [locality, city, principalSubdivision, countryName]
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((part, index, list) => list.indexOf(part) === index);
-
-  if (parts.length >= 2) {
-    return titleCase(`${parts[0]}, ${parts[parts.length - 1]}`);
-  }
-  if (parts.length === 1) {
-    return titleCase(parts[0]);
-  }
   if (countryName) {
+    const broadParts = [principalSubdivision.trim(), countryName.trim()].filter(Boolean);
+    if (broadParts.length >= 2) {
+      return titleCase(`${broadParts[0]}, ${broadParts[1]}`);
+    }
     return titleCase(countryName);
   }
   if (continent) {
@@ -558,6 +547,11 @@ async function updateCurrentOver(sample: IssSample) {
     if (!response.ok) throw new Error(`Geocode returned ${response.status}`);
     const data = (await response.json()) as Record<string, unknown>;
     if (requestId !== geocodeRequestId) return;
+    if (currentSample) {
+      const drift =
+        Math.abs(currentSample.latitude - sample.latitude) + Math.abs(currentSample.longitude - sample.longitude);
+      if (drift > GEOCODE_RESPONSE_MAX_DRIFT) return;
+    }
     const label = describeCurrentOver(data, sample.latitude, sample.longitude);
     lastResolvedCoords = { lat: sample.latitude, lon: sample.longitude };
     setCurrentOverLabel(label);
