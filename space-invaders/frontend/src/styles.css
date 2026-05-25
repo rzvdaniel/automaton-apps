@@ -1,9 +1,13 @@
 :root {
   color-scheme: dark;
   font-family: "Trebuchet MS", system-ui, sans-serif;
-  background: #050816;
+  background: #02050f;
   user-select: none;
   touch-action: manipulation;
+  --chrome: rgba(8, 14, 28, 0.32);
+  --line: rgba(140, 247, 255, 0.18);
+  --text: #eefcff;
+  --accent: #8cf7ff;
 }
 
 * {
@@ -16,13 +20,14 @@ body {
   min-height: 100%;
   overflow: hidden;
   background:
-    radial-gradient(circle at top, rgba(47, 92, 198, 0.3), transparent 36%),
-    linear-gradient(180deg, #091122 0%, #050816 55%, #02040b 100%);
+    radial-gradient(circle at 50% 12%, rgba(61, 111, 255, 0.24), transparent 24%),
+    radial-gradient(circle at 20% 24%, rgba(255, 79, 216, 0.12), transparent 24%),
+    linear-gradient(180deg, #081023 0%, #02050f 100%);
 }
 
-body {
+body,
+#app {
   min-height: 100dvh;
-  min-height: 100vh;
 }
 
 button,
@@ -30,30 +35,24 @@ canvas {
   -webkit-tap-highlight-color: transparent;
 }
 
-#app {
-  min-height: 100dvh;
-}
-
 .shell {
   position: relative;
-  width: 100vw;
+  width: min(100vw, 920px);
   height: 100dvh;
+  margin: 0 auto;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 20%, rgba(91, 201, 255, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 16%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 14%),
+    radial-gradient(circle at 50% 20%, rgba(140, 247, 255, 0.09), transparent 26%);
 }
 
-.shell::before {
-  content: "";
+.cabinet-glow {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 22px 22px;
-  opacity: 0.24;
   pointer-events: none;
+  box-shadow:
+    inset 0 0 120px rgba(140, 247, 255, 0.07),
+    inset 0 -30px 120px rgba(255, 79, 216, 0.08);
 }
 
 .game {
@@ -62,80 +61,96 @@ canvas {
   height: 100%;
 }
 
+.top-actions {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 3;
+}
+
+.overlay-button {
+  border: 0;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--chrome);
+  color: var(--text);
+  font: 700 0.8rem/1 monospace;
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
 .touch-controls {
   position: absolute;
-  inset: auto 0 max(env(safe-area-inset-bottom), 18px) 0;
+  inset: auto 0 max(env(safe-area-inset-bottom), 12px) 0;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
   align-items: end;
-  padding: 0 18px;
+  gap: 8px;
+  padding: 0 12px;
+  z-index: 3;
   pointer-events: none;
 }
 
-.touch {
+.touch-zone {
   pointer-events: auto;
   border: 0;
-  min-height: 64px;
-  border-radius: 18px;
-  background: rgba(10, 16, 32, 0.72);
-  color: #f8f8f2;
-  font: 700 1rem/1 "Trebuchet MS", system-ui, sans-serif;
+  min-height: 52px;
+  border-radius: 999px;
+  background: rgba(7, 12, 24, 0.18);
+  color: rgba(238, 252, 255, 0.88);
+  font: 700 0.92rem/1 monospace;
   backdrop-filter: blur(8px);
-  box-shadow:
-    inset 0 0 0 1px rgba(139, 233, 253, 0.25),
-    0 16px 32px rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.1);
 }
 
-.touch:active {
-  transform: translateY(1px) scale(0.99);
-  background: rgba(30, 48, 84, 0.9);
+.touch-zone span {
+  opacity: 0.72;
 }
 
 .touch-left,
 .touch-right {
-  max-width: 112px;
-  width: 28vw;
-}
-
-.touch-right {
-  justify-self: end;
+  min-width: 76px;
+  max-width: 96px;
 }
 
 .touch-fire {
-  min-width: 112px;
-  padding: 0 22px;
-  background: rgba(255, 104, 88, 0.82);
+  min-width: 84px;
+  padding: 0 14px;
+  justify-self: center;
 }
 
-.install {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 18px);
-  right: 18px;
-  border: 0;
-  border-radius: 999px;
-  padding: 12px 18px;
-  background: rgba(139, 233, 253, 0.18);
-  color: #f8f8f2;
-  font: 700 0.95rem/1 "Trebuchet MS", system-ui, sans-serif;
-  backdrop-filter: blur(8px);
-  box-shadow: inset 0 0 0 1px rgba(139, 233, 253, 0.28);
+.touch-zone:active {
+  background: rgba(140, 247, 255, 0.18);
+  transform: scale(0.985);
 }
 
 .hidden {
   display: none;
 }
 
-@media (min-width: 900px) and (pointer: fine) {
+@media (pointer: fine) {
   .touch-controls {
-    max-width: 460px;
-    margin: 0 auto;
-    bottom: 18px;
-    opacity: 0.34;
-    transition: opacity 180ms ease;
+    opacity: 0.15;
+    transition: opacity 140ms ease;
   }
 
-  .touch-controls:hover {
-    opacity: 1;
+  .shell:hover .touch-controls {
+    opacity: 0.45;
+  }
+}
+
+@media (min-width: 900px) {
+  body {
+    background:
+      radial-gradient(circle at 50% 12%, rgba(61, 111, 255, 0.2), transparent 20%),
+      radial-gradient(circle at 20% 24%, rgba(255, 79, 216, 0.12), transparent 18%),
+      linear-gradient(180deg, #081023 0%, #02050f 100%);
+  }
+
+  .shell {
+    height: min(100dvh, 100%);
   }
 }

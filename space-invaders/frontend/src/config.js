@@ -1,0 +1,89 @@
+export const STORAGE_KEYS = {
+  highScore: 'space-invaders-high-score',
+  muted: 'space-invaders-muted'
+}
+
+export const DPR_LIMIT = 2
+
+export const WORLD = {
+  width: 1080,
+  height: 1920
+}
+
+export const PLAYER_COOLDOWN = 0.14
+export const PLAYER_INVULNERABILITY = 1.2
+
+export const PALETTE = {
+  bgTop: '#060b1e',
+  bgBottom: '#02050f',
+  cyan: '#8cf7ff',
+  cyanSoft: '#4bc9ff',
+  magenta: '#ff4fd8',
+  magentaSoft: '#ff7fda',
+  amber: '#ffd36b',
+  red: '#ff6a7a',
+  white: '#eefcff'
+}
+
+export const ENEMY_SPRITES = {
+  elite: [
+    '00111100',
+    '11111111',
+    '11011011',
+    '11111111',
+    '00111100',
+    '01100110',
+    '11000011',
+    '10000001'
+  ],
+  eliteAlt: [
+    '00111100',
+    '11111111',
+    '11111111',
+    '11011011',
+    '00111100',
+    '01100110',
+    '10011001',
+    '01000010'
+  ],
+  mid: [
+    '00011000',
+    '00111100',
+    '01111110',
+    '11111111',
+    '11011011',
+    '11111111',
+    '01100110',
+    '11000011'
+  ],
+  midAlt: [
+    '00011000',
+    '00111100',
+    '11111111',
+    '11111111',
+    '11011011',
+    '01111110',
+    '00100100',
+    '01000010'
+  ],
+  grunt: [
+    '00111100',
+    '01111110',
+    '11111111',
+    '11011011',
+    '11111111',
+    '00111100',
+    '01100110',
+    '11000011'
+  ],
+  gruntAlt: [
+    '00111100',
+    '01111110',
+    '11111111',
+    '11011011',
+    '11111111',
+    '01111110',
+    '01011010',
+    '10000001'
+  ]
+}
