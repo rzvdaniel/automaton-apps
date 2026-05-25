@@ -1,0 +1,141 @@
+:root {
+  color-scheme: dark;
+  font-family: "Trebuchet MS", system-ui, sans-serif;
+  background: #050816;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top, rgba(47, 92, 198, 0.3), transparent 36%),
+    linear-gradient(180deg, #091122 0%, #050816 55%, #02040b 100%);
+}
+
+body {
+  min-height: 100dvh;
+  min-height: 100vh;
+}
+
+button,
+canvas {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+.shell {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(91, 201, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 16%);
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.24;
+  pointer-events: none;
+}
+
+.game {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.touch-controls {
+  position: absolute;
+  inset: auto 0 max(env(safe-area-inset-bottom), 18px) 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: end;
+  padding: 0 18px;
+  pointer-events: none;
+}
+
+.touch {
+  pointer-events: auto;
+  border: 0;
+  min-height: 64px;
+  border-radius: 18px;
+  background: rgba(10, 16, 32, 0.72);
+  color: #f8f8f2;
+  font: 700 1rem/1 "Trebuchet MS", system-ui, sans-serif;
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 0 0 1px rgba(139, 233, 253, 0.25),
+    0 16px 32px rgba(0, 0, 0, 0.28);
+}
+
+.touch:active {
+  transform: translateY(1px) scale(0.99);
+  background: rgba(30, 48, 84, 0.9);
+}
+
+.touch-left,
+.touch-right {
+  max-width: 112px;
+  width: 28vw;
+}
+
+.touch-right {
+  justify-self: end;
+}
+
+.touch-fire {
+  min-width: 112px;
+  padding: 0 22px;
+  background: rgba(255, 104, 88, 0.82);
+}
+
+.install {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 18px);
+  right: 18px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: rgba(139, 233, 253, 0.18);
+  color: #f8f8f2;
+  font: 700 0.95rem/1 "Trebuchet MS", system-ui, sans-serif;
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px rgba(139, 233, 253, 0.28);
+}
+
+.hidden {
+  display: none;
+}
+
+@media (min-width: 900px) and (pointer: fine) {
+  .touch-controls {
+    max-width: 460px;
+    margin: 0 auto;
+    bottom: 18px;
+    opacity: 0.34;
+    transition: opacity 180ms ease;
+  }
+
+  .touch-controls:hover {
+    opacity: 1;
+  }
+}

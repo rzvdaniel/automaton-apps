@@ -1,0 +1,9 @@
+{
+  "appId": "bebe6026-f3d4-48d5-94e7-1b4a46f0f128",
+  "name": "Space Invaders",
+  "server": "https://api.automaton.monster",
+  "frontend": {
+    "build": "cd frontend \u0026\u0026 npm install \u0026\u0026 npm run build",
+    "deployDir": "frontend/dist"
+  }
+}
