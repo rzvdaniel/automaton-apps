@@ -111,6 +111,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     const dpr = Math.min(window.devicePixelRatio || 1, DPR_LIMIT)
     canvas.width = Math.floor(rect.width * dpr)
     canvas.height = Math.floor(rect.height * dpr)
+    context.imageSmoothingEnabled = false
     context.setTransform(1, 0, 0, 1, 0, 0)
     context.scale(dpr, dpr)
     state.scale = Math.min(rect.width / WORLD.width, rect.height / WORLD.height)

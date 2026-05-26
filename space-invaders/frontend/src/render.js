@@ -1,15 +1,18 @@
 import { ENEMY_SPRITES, PALETTE, WORLD } from './config.js'
 
 function drawPixelSprite(context, sprite, x, y, pixelSize, color, glow = color) {
+  const unit = Math.max(1, Math.round(pixelSize))
+  const startX = Math.round(x)
+  const startY = Math.round(y)
   context.save()
   context.shadowColor = glow
-  context.shadowBlur = pixelSize * 1.6
+  context.shadowBlur = unit * 0.35
   context.fillStyle = color
   for (let row = 0; row < sprite.length; row += 1) {
     const line = sprite[row]
     for (let col = 0; col < line.length; col += 1) {
       if (line[col] === '1') {
-        context.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize)
+        context.fillRect(startX + col * unit, startY + row * unit, unit, unit)
       }
     }
   }
@@ -93,13 +96,13 @@ function drawShip(context, state, elapsed) {
 }
 
 function drawEnemy(context, enemy, elapsed) {
-  const pixelSize = enemy.width / 8
+  const pixelSize = Math.max(1, Math.round(enemy.width / 8))
   const bob = Math.sin(elapsed * 5 + enemy.phase) * 2.5
   const x = enemy.x
   const y = enemy.y + bob
   const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
   const color = enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2'
-  const glow = enemy.rank === 'elite' ? PALETTE.magenta : enemy.rank === 'mid' ? '#ffd36b' : '#40f7c4'
+  const glow = enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)'
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow)
 }
 
