@@ -3,6 +3,7 @@ import { STORAGE_KEYS } from './config.js'
 export const DEFAULT_SETTINGS = {
   spriteStyle: 'pixel-gaps',
   screenShake: 'low',
+  backgroundBlur: 'low',
   reducedMotion: false,
   controls: 'buttons',
   keyboardHint: true

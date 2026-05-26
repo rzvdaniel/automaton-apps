@@ -5,6 +5,7 @@ export function setupSettingsPanel({ game, root, shell }) {
   const restartButton = root.querySelector('.settings-restart')
   const spriteStyle = root.querySelector('#settings-sprite-style')
   const screenShake = root.querySelector('#settings-screen-shake')
+  const backgroundBlur = root.querySelector('#settings-background-blur')
   const reducedMotion = root.querySelector('#settings-reduced-motion')
   const controls = root.querySelector('#settings-controls')
   const keyboardHint = root.querySelector('#settings-keyboard-hint')
@@ -13,6 +14,7 @@ export function setupSettingsPanel({ game, root, shell }) {
   function applySettingsToUi(settings) {
     spriteStyle.value = settings.spriteStyle
     screenShake.value = settings.screenShake
+    backgroundBlur.value = settings.backgroundBlur
     reducedMotion.checked = settings.reducedMotion
     controls.value = settings.controls
     keyboardHint.checked = settings.keyboardHint
@@ -24,6 +26,7 @@ export function setupSettingsPanel({ game, root, shell }) {
     const next = {
       spriteStyle: spriteStyle.value,
       screenShake: screenShake.value,
+      backgroundBlur: backgroundBlur.value,
       reducedMotion: reducedMotion.checked,
       controls: controls.value,
       keyboardHint: keyboardHint.checked
@@ -56,7 +59,7 @@ export function setupSettingsPanel({ game, root, shell }) {
     closeDialog(true)
   })
 
-  ;[spriteStyle, screenShake, reducedMotion, controls, keyboardHint, sound].forEach((control) => {
+  ;[spriteStyle, screenShake, backgroundBlur, reducedMotion, controls, keyboardHint, sound].forEach((control) => {
     control.addEventListener('change', persistSettings)
   })
 

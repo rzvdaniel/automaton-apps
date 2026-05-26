@@ -47,6 +47,14 @@ app.innerHTML = `
             <option value="normal">Normal</option>
           </select>
         </label>
+        <label class="settings-row" for="settings-background-blur">
+          <span>Background blur</span>
+          <select class="debug-input settings-select" id="settings-background-blur">
+            <option value="off">Off</option>
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+          </select>
+        </label>
         <label class="settings-row" for="settings-controls">
           <span>Controls</span>
           <select class="debug-input settings-select" id="settings-controls">
