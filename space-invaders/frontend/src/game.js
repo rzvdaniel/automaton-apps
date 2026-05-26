@@ -1,4 +1,5 @@
 import { createAudioManager } from './audio.js'
+import { createBackgroundEffects } from './background-effects.js'
 import { DPR_LIMIT, PALETTE, PLAYER_COOLDOWN, PLAYER_INVULNERABILITY, STORAGE_KEYS, WORLD } from './config.js'
 import { renderScene } from './render.js'
 
@@ -32,20 +33,12 @@ function intersects(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 }
 
-function makeStar(speedMin, speedMax, sizeMin, sizeMax, tint = 'white') {
-  return {
-    x: Math.random() * WORLD.width,
-    y: Math.random() * WORLD.height,
-    size: random(sizeMin, sizeMax),
-    speed: random(speedMin, speedMax),
-    alpha: random(0.18, 0.92),
-    tint
-  }
-}
-
 export function createGame({ canvas, shell, installButton, muteButton, pauseButton, touchControls }) {
   const context = canvas.getContext('2d', { alpha: false })
   const audio = createAudioManager()
+  const backgroundEffects = createBackgroundEffects()
+  const backgroundImage = new Image()
+  backgroundImage.src = './images/planet-bg.jpg'
   const state = {
     scale: 1,
     offsetX: 0,
@@ -61,8 +54,6 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     muted: localStorage.getItem(STORAGE_KEYS.muted) === '1',
     overlayTimer: 999,
     message: 'INSERT COIN',
-    starsFar: Array.from({ length: 52 }, () => makeStar(18, 42, 1, 2)),
-    starsNear: Array.from({ length: 34 }, () => makeStar(46, 96, 2, 4, 'cyan')),
     particles: [],
     bullets: [],
     enemyBullets: [],
@@ -72,6 +63,8 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     pendingInstallPrompt: null,
     flash: 0,
     shake: { x: 0, y: 0, power: 0 },
+    backgroundImage,
+    backgroundEffects,
     player: {
       x: WORLD.width / 2,
       y: WORLD.height - 182,
@@ -238,19 +231,6 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     }
   }
 
-  function updateStars(stars, dt, drift = 0) {
-    for (const star of stars) {
-      star.y += star.speed * dt
-      star.x += drift * dt
-      if (star.y > WORLD.height) {
-        star.y = -star.size
-        star.x = Math.random() * WORLD.width
-      }
-      if (star.x > WORLD.width + 10) star.x = -10
-      if (star.x < -10) star.x = WORLD.width + 10
-    }
-  }
-
   function update(dt) {
     const desktopMode = window.matchMedia('(pointer:fine)').matches
     const moveLeft = state.keys.has('ArrowLeft') || state.keys.has('KeyA') || state.pointer.left
@@ -258,8 +238,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     const firing =
       state.keys.has('Space') || state.keys.has('Enter') || state.keys.has('ArrowUp') || state.pointer.fire
 
-    updateStars(state.starsFar, dt, 2)
-    updateStars(state.starsNear, dt, 8)
+    state.backgroundEffects.update(dt)
 
     state.flash = Math.max(0, state.flash - dt * 1.7)
     state.shake.power = Math.max(0, state.shake.power - dt * 22)

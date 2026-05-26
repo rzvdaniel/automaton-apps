@@ -24,26 +24,25 @@ function drawBackground(context, state) {
   context.fillStyle = gradient
   context.fillRect(0, 0, WORLD.width, WORLD.height)
 
-  const nebulaA = context.createRadialGradient(220, 260, 20, 220, 260, 380)
-  nebulaA.addColorStop(0, 'rgba(106, 63, 255, 0.14)')
-  nebulaA.addColorStop(1, 'rgba(106, 63, 255, 0)')
-  context.fillStyle = nebulaA
-  context.fillRect(0, 0, WORLD.width, WORLD.height)
+  state.backgroundEffects.renderBehindImage(context)
 
-  const nebulaB = context.createRadialGradient(850, 520, 30, 850, 520, 420)
-  nebulaB.addColorStop(0, 'rgba(0, 200, 255, 0.10)')
-  nebulaB.addColorStop(1, 'rgba(0, 200, 255, 0)')
-  context.fillStyle = nebulaB
-  context.fillRect(0, 0, WORLD.width, WORLD.height)
+  if (state.backgroundImage?.complete) {
+    context.save()
+    context.filter = 'blur(2px) saturate(0.72) brightness(0.58)'
+    context.globalAlpha = 0.36
+    context.translate(WORLD.width * 0.06, WORLD.height * 0.14)
+    context.drawImage(state.backgroundImage, 0, 0, WORLD.width, WORLD.height)
+    context.restore()
 
-  for (const star of state.starsFar) {
-    context.fillStyle = `rgba(255,255,255,${star.alpha})`
-    context.fillRect(star.x, star.y, star.size, star.size)
+    const shade = context.createLinearGradient(0, 0, 0, WORLD.height)
+    shade.addColorStop(0, 'rgba(4, 8, 18, 0.14)')
+    shade.addColorStop(0.5, 'rgba(4, 8, 18, 0.04)')
+    shade.addColorStop(1, 'rgba(2, 5, 15, 0.3)')
+    context.fillStyle = shade
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
   }
-  for (const star of state.starsNear) {
-    context.fillStyle = `rgba(140,247,255,${star.alpha})`
-    context.fillRect(star.x, star.y, star.size, star.size)
-  }
+
+  state.backgroundEffects.renderAboveImage(context)
 }
 
 function drawHud(context, state) {
