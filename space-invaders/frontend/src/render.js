@@ -1,4 +1,5 @@
 import { ENEMY_SPRITES, PALETTE, WORLD } from './config.js'
+import { getPauseMenuLayout } from './overlay-layout.js'
 
 const spriteCache = new Map()
 let scanlineCanvas = null
@@ -326,15 +327,110 @@ function drawEffects(context, state) {
 }
 
 function drawOverlay(context, state, desktopMode) {
+  if (state.shell?.dataset?.settingsOpen === 'true' && !state.paused) return
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused) return
-  const mobilePauseMenu = !desktopMode && state.paused && state.running
+  const pausedMenu = state.paused && state.running
+  const mobilePauseMenu = !desktopMode && pausedMenu
   const introOverlay = !state.started || (!state.running && !state.paused) || (!state.paused && state.overlayTimer > 0)
-  if (mobilePauseMenu) {
+  if (pausedMenu) {
     context.fillStyle = 'rgba(1, 4, 12, 0.18)'
     context.fillRect(0, 0, WORLD.width, WORLD.height)
   } else if (!introOverlay) {
     context.fillStyle = 'rgba(1, 4, 12, 0.28)'
     context.fillRect(0, 0, WORLD.width, WORLD.height)
+  }
+  if (pausedMenu) {
+    const layout = getPauseMenuLayout(desktopMode, state.muted)
+    const { panel, actions } = layout
+    const panelGradient = context.createLinearGradient(panel.x, panel.y, panel.x, panel.y + panel.height)
+    panelGradient.addColorStop(0, 'rgba(28, 78, 108, 0.2)')
+    panelGradient.addColorStop(1, 'rgba(10, 30, 50, 0.12)')
+    context.fillStyle = panelGradient
+    context.fillRect(panel.x, panel.y, panel.width, panel.height)
+
+    const panelGlow = context.createRadialGradient(
+      WORLD.width / 2,
+      panel.y + panel.height * 0.32,
+      40,
+      WORLD.width / 2,
+      panel.y + panel.height * 0.32,
+      panel.width * 0.58
+    )
+    panelGlow.addColorStop(0, 'rgba(140, 247, 255, 0.11)')
+    panelGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
+    context.fillStyle = panelGlow
+    context.fillRect(panel.x, panel.y, panel.width, panel.height)
+
+    context.save()
+    context.strokeStyle = 'rgba(0, 200, 255, 0.16)'
+    context.shadowColor = 'rgba(0, 200, 255, 0.18)'
+    context.shadowBlur = 22
+    context.lineWidth = 1
+    context.strokeRect(panel.x + 10, panel.y + 10, panel.width - 20, panel.height - 20)
+    context.restore()
+
+    const corner = 34
+    context.strokeStyle = 'rgba(140, 247, 255, 0.72)'
+    context.lineWidth = 3
+    context.beginPath()
+    context.moveTo(panel.x + 18, panel.y + corner)
+    context.lineTo(panel.x + 18, panel.y + 18)
+    context.lineTo(panel.x + corner, panel.y + 18)
+    context.moveTo(panel.x + panel.width - corner, panel.y + 18)
+    context.lineTo(panel.x + panel.width - 18, panel.y + 18)
+    context.lineTo(panel.x + panel.width - 18, panel.y + corner)
+    context.moveTo(panel.x + 18, panel.y + panel.height - corner)
+    context.lineTo(panel.x + 18, panel.y + panel.height - 18)
+    context.lineTo(panel.x + corner, panel.y + panel.height - 18)
+    context.moveTo(panel.x + panel.width - corner, panel.y + panel.height - 18)
+    context.lineTo(panel.x + panel.width - 18, panel.y + panel.height - 18)
+    context.lineTo(panel.x + panel.width - 18, panel.y + panel.height - corner)
+    context.stroke()
+
+    context.textAlign = 'center'
+    const titleGlow = context.createRadialGradient(WORLD.width / 2, panel.y + 118, 24, WORLD.width / 2, panel.y + 118, 140)
+    titleGlow.addColorStop(0, 'rgba(120, 220, 255, 0.1)')
+    titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
+    context.fillStyle = titleGlow
+    context.fillRect(panel.x, panel.y, panel.width, panel.height)
+
+    context.fillStyle = PALETTE.white
+    context.shadowColor = PALETTE.cyan
+    context.shadowBlur = 16
+    context.font = desktopMode ? '900 52px "Arial Black", Impact, sans-serif' : '900 62px "Arial Black", Impact, sans-serif'
+    context.fillText('SPACE', WORLD.width / 2, panel.y + (desktopMode ? 108 : 126))
+    context.fillText('INVADERS', WORLD.width / 2, panel.y + (desktopMode ? 164 : 186))
+
+    context.shadowBlur = 0
+    context.strokeStyle = 'rgba(140, 247, 255, 0.18)'
+    context.lineWidth = 2
+    context.beginPath()
+    context.moveTo(panel.x + 54, panel.y + (desktopMode ? 208 : 232))
+    context.lineTo(panel.x + panel.width - 54, panel.y + (desktopMode ? 208 : 232))
+    context.stroke()
+
+    context.fillStyle = PALETTE.cyan
+    context.font = desktopMode ? '600 22px monospace' : '600 30px monospace'
+    context.fillText('PAUSED', WORLD.width / 2, panel.y + (desktopMode ? 250 : 280))
+    context.fillStyle = 'rgba(140,247,255,0.58)'
+    context.font = desktopMode ? '600 12px monospace' : '600 16px monospace'
+    context.fillText('COMMAND LINK ACTIVE', WORLD.width / 2, panel.y + (desktopMode ? 282 : 318))
+
+    context.font = desktopMode ? '700 24px monospace' : '700 30px monospace'
+    for (const action of actions) {
+      const buttonGradient = context.createLinearGradient(action.x, action.y, action.x, action.y + action.height)
+      buttonGradient.addColorStop(0, 'rgba(16, 32, 54, 0.58)')
+      buttonGradient.addColorStop(1, 'rgba(8, 16, 30, 0.34)')
+      context.fillStyle = buttonGradient
+      context.fillRect(action.x, action.y, action.width, action.height)
+      context.strokeStyle = 'rgba(140, 247, 255, 0.22)'
+      context.lineWidth = 1
+      context.strokeRect(action.x, action.y, action.width, action.height)
+      context.fillStyle = PALETTE.white
+      context.fillText(action.label, WORLD.width / 2, action.y + action.height / 2 + (desktopMode ? 8 : 10))
+    }
+    context.textAlign = 'left'
+    return
   }
   const panelWidth = introOverlay ? (desktopMode ? WORLD.width - 260 : WORLD.width - 260) : WORLD.width - 160
   const panelX = (WORLD.width - panelWidth) / 2

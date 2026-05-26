@@ -100,6 +100,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     shake: { x: 0, y: 0, power: 0, duration: 0, cooldown: 0 },
     backgroundImage,
     backgroundEffects,
+    desktopMode: !isMobileViewport(),
     settings,
     player: {
       x: WORLD.width / 2,
@@ -164,6 +165,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.scale = Math.min(rect.width / WORLD.width, rect.height / WORLD.height)
     state.offsetX = (rect.width - WORLD.width * state.scale) / 2
     state.offsetY = isMobileViewport() ? 0 : (rect.height - WORLD.height * state.scale) / 2
+    state.desktopMode = !isMobileViewport()
   }
 
   function addParticles(x, y, color, count, force, gravity = 0) {
@@ -644,6 +646,14 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     },
     getWave() {
       return state.wave
+    },
+    getViewport() {
+      return {
+        scale: state.scale,
+        offsetX: state.offsetX,
+        offsetY: state.offsetY,
+        desktopMode: state.desktopMode
+      }
     }
   }
 }

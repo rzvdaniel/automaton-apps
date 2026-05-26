@@ -2,7 +2,6 @@ export function setupSettingsPanel({ game, root, shell }) {
   const dialog = root.querySelector('.settings-dialog')
   const openButton = root.querySelector('.settings-button')
   const cancelButton = root.querySelector('.settings-close')
-  const restartButton = root.querySelector('.settings-restart')
   const spriteStyle = root.querySelector('#settings-sprite-style')
   const screenShake = root.querySelector('#settings-screen-shake')
   const backgroundBlur = root.querySelector('#settings-background-blur')
@@ -37,23 +36,21 @@ export function setupSettingsPanel({ game, root, shell }) {
   }
 
   function openDialog() {
-    game.setPaused(true)
+    shell.dataset.settingsOpen = 'true'
+    if (shell.dataset.gameStarted === 'true') game.setPaused(true)
     applySettingsToUi(game.getSettings())
     dialog.showModal()
   }
 
   function closeDialog(resume = true) {
     if (!dialog.open) return
+    shell.dataset.settingsOpen = 'false'
     dialog.close()
-    if (resume) game.setPaused(false)
+    if (resume && shell.dataset.gameStarted === 'true') game.setPaused(false)
   }
 
   openButton.addEventListener('click', openDialog)
   cancelButton.addEventListener('click', () => closeDialog(true))
-  restartButton.addEventListener('click', () => {
-    closeDialog(false)
-    game.restart()
-  })
   dialog.addEventListener('cancel', (event) => {
     event.preventDefault()
     closeDialog(true)
@@ -64,6 +61,7 @@ export function setupSettingsPanel({ game, root, shell }) {
   })
 
   applySettingsToUi(game.getSettings())
+  shell.dataset.settingsOpen = 'false'
 
   return {
     open: openDialog,

@@ -1,6 +1,7 @@
 import './styles.css'
 import { createGame } from './game.js'
 import { setupDebugPanel } from './debug-panel.js'
+import { getPauseMenuLayout } from './overlay-layout.js'
 import { setupSettingsPanel } from './settings-panel.js'
 
 const app = document.querySelector('#app')
@@ -30,8 +31,12 @@ app.innerHTML = `
       </div>
     </div>
     <dialog class="settings-dialog">
+      <span class="settings-panel-corner settings-panel-corner-tl" aria-hidden="true"></span>
+      <span class="settings-panel-corner settings-panel-corner-tr" aria-hidden="true"></span>
+      <span class="settings-panel-corner settings-panel-corner-bl" aria-hidden="true"></span>
+      <span class="settings-panel-corner settings-panel-corner-br" aria-hidden="true"></span>
       <div class="settings-form">
-        <div class="debug-title">Settings</div>
+        <div class="debug-title">Space Invaders</div>
         <label class="settings-row" for="settings-sprite-style">
           <span>Sprite style</span>
           <select class="debug-input settings-select" id="settings-sprite-style">
@@ -66,7 +71,6 @@ app.innerHTML = `
         <label class="settings-toggle"><span>Reduced motion</span><input id="settings-reduced-motion" type="checkbox" /></label>
         <label class="settings-toggle"><span>Keyboard hint</span><input id="settings-keyboard-hint" type="checkbox" checked /></label>
         <div class="debug-actions">
-          <button class="overlay-button settings-restart" type="button">Restart</button>
           <button class="overlay-button settings-close" type="button">Close</button>
         </div>
       </div>
@@ -133,10 +137,28 @@ function syncPauseMenu() {
   pauseButton.textContent = isPaused ? '▶' : '⏸'
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
   pauseButton.setAttribute('title', isPaused ? 'Resume' : 'Pause')
+  positionPauseMenu()
+}
+
+function positionPauseMenu() {
+  const { scale, offsetX, offsetY, desktopMode } = game.getViewport()
+  const { panel, actions } = getPauseMenuLayout(desktopMode, game.isMuted())
+  pauseMenu.style.setProperty('--pause-panel-left', `${offsetX + panel.x * scale}px`)
+  pauseMenu.style.setProperty('--pause-panel-top', `${offsetY + panel.y * scale}px`)
+  pauseMenu.style.setProperty('--pause-panel-width', `${panel.width * scale}px`)
+  pauseMenu.style.setProperty('--pause-panel-height', `${panel.height * scale}px`)
+  actions.forEach((action) => {
+    pauseMenu.style.setProperty(`--pause-${action.id}-left`, `${offsetX + action.x * scale}px`)
+    pauseMenu.style.setProperty(`--pause-${action.id}-top`, `${offsetY + action.y * scale}px`)
+    pauseMenu.style.setProperty(`--pause-${action.id}-width`, `${action.width * scale}px`)
+    pauseMenu.style.setProperty(`--pause-${action.id}-height`, `${action.height * scale}px`)
+  })
 }
 
 window.addEventListener('resize', game.resize)
+window.addEventListener('resize', positionPauseMenu)
 window.addEventListener('orientationchange', game.resize)
+window.addEventListener('orientationchange', positionPauseMenu)
 restartButton.addEventListener('click', () => {
   game.restart()
 })
@@ -164,6 +186,7 @@ pauseSettingsButton.addEventListener('click', () => {
   syncPauseMenu()
 })
 shell.addEventListener('game-state-change', syncPauseMenu)
+positionPauseMenu()
 syncPauseMenu()
 
 if ('serviceWorker' in navigator) {
