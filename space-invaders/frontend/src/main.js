@@ -93,12 +93,14 @@ app.innerHTML = `
 const shell = document.querySelector('.shell')
 const restartButton = document.querySelector('.restart-button')
 const pauseMenu = document.querySelector('.pause-menu')
+const settingsButton = document.querySelector('.settings-button')
+const pauseButton = document.querySelector('.pause-button')
 const game = createGame({
   canvas: document.querySelector('.game'),
   shell,
   installButton: document.querySelector('.install'),
   muteButton: document.querySelector('.mute-button'),
-  pauseButton: document.querySelector('.pause-button'),
+  pauseButton,
   touchControls: {
     left: document.querySelector('.touch-left'),
     fire: document.querySelector('.touch-fire'),
@@ -114,8 +116,23 @@ const pauseSoundButton = document.querySelector('.pause-sound')
 const pauseSettingsButton = document.querySelector('.pause-settings')
 
 function syncPauseMenu() {
-  pauseMenu.setAttribute('aria-hidden', shell.dataset.gamePaused === 'true' ? 'false' : 'true')
+  const isStarted = shell.dataset.gameStarted === 'true'
+  const isPaused = shell.dataset.gamePaused === 'true'
+  pauseMenu.setAttribute('aria-hidden', isPaused ? 'false' : 'true')
   pauseSoundButton.textContent = game.isMuted() ? 'Sound Off' : 'Sound On'
+  pauseButton.classList.toggle('is-settings-proxy', !isStarted)
+  settingsButton.classList.toggle('hidden', !isStarted)
+
+  if (!isStarted) {
+    pauseButton.textContent = '⚙'
+    pauseButton.setAttribute('aria-label', 'Settings')
+    pauseButton.setAttribute('title', 'Settings')
+    return
+  }
+
+  pauseButton.textContent = isPaused ? '▶' : '⏸'
+  pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
+  pauseButton.setAttribute('title', isPaused ? 'Resume' : 'Pause')
 }
 
 window.addEventListener('resize', game.resize)
@@ -123,6 +140,13 @@ window.addEventListener('orientationchange', game.resize)
 restartButton.addEventListener('click', () => {
   game.restart()
 })
+pauseButton.addEventListener('click', (event) => {
+  if (shell.dataset.gameStarted === 'true') return
+  event.preventDefault()
+  event.stopImmediatePropagation()
+  settingsPanel.open()
+  syncPauseMenu()
+}, true)
 pauseResumeButton.addEventListener('click', () => {
   game.setPaused(false)
   syncPauseMenu()

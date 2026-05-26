@@ -163,7 +163,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     context.scale(dpr, dpr)
     state.scale = Math.min(rect.width / WORLD.width, rect.height / WORLD.height)
     state.offsetX = (rect.width - WORLD.width * state.scale) / 2
-    state.offsetY = (rect.height - WORLD.height * state.scale) / 2
+    state.offsetY = isMobileViewport() ? 0 : (rect.height - WORLD.height * state.scale) / 2
   }
 
   function addParticles(x, y, color, count, force, gravity = 0) {
