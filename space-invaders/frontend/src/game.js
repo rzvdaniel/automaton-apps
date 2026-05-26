@@ -131,8 +131,8 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   function spawnWave(wave) {
     const columns = clamp(5 + Math.floor(wave / 2), 5, 8)
     const rows = clamp(3 + Math.floor((wave + 1) / 2), 3, 6)
-    const gapX = 24
-    const gapY = 28
+    const gapX = 34
+    const gapY = 42
     const enemyWidth = 72
     const enemyHeight = 72
     const formationWidth = columns * enemyWidth + (columns - 1) * gapX
@@ -147,7 +147,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
         const rank = row === 0 ? 'elite' : row < 3 ? 'mid' : 'grunt'
         state.enemies.push({
           x: startX + col * (enemyWidth + gapX),
-          y: 180 + row * (enemyHeight + gapY),
+          y: 250 + row * (enemyHeight + gapY),
           width: enemyWidth,
           height: enemyHeight,
           rank,
@@ -160,6 +160,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.enemyDirection = 1
     state.enemyBaseSpeed = 72 + wave * 11
     state.enemyDrop = 34
+    state.enemyEdgeLock = false
     audio.wave()
   }
 
@@ -307,7 +308,16 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
       rightEdge = Math.max(rightEdge, enemy.x + enemy.width)
     }
 
-    if (leftEdge < 50 || rightEdge > WORLD.width - 50) {
+    const hitLeftEdge = leftEdge < 50
+    const hitRightEdge = rightEdge > WORLD.width - 50
+    const clearOfEdges = leftEdge > 64 && rightEdge < WORLD.width - 64
+
+    if (clearOfEdges) {
+      state.enemyEdgeLock = false
+    }
+
+    if ((hitLeftEdge || hitRightEdge) && !state.enemyEdgeLock) {
+      state.enemyEdgeLock = true
       state.enemyDirection *= -1
       for (const enemy of aliveEnemies) enemy.y += state.enemyDrop
       shake(4)
