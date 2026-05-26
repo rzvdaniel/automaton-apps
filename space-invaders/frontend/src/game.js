@@ -35,21 +35,22 @@ function intersects(a, b) {
 
 function getWaveConfig(wave) {
   const intensity = wave - 1
+  const tier = Math.floor(intensity / 2)
   return {
     columns: clamp(6 + Math.floor(intensity / 2), 6, 9),
     rows: clamp(4 + Math.floor(intensity / 2), 4, 6),
-    gapX: clamp(30 - intensity * 1.5, 18, 30),
-    gapY: clamp(40 - intensity, 26, 40),
+    gapX: clamp(30 - intensity * 1.7, 16, 30),
+    gapY: clamp(40 - intensity * 1.4, 24, 40),
     enemyWidth: clamp(72 - intensity * 2, 58, 72),
     enemyHeight: clamp(72 - intensity * 2, 58, 72),
-    startY: clamp(214 + intensity * 10, 214, 280),
-    stepInterval: Math.max(0.18, 0.62 - intensity * 0.06),
-    horizontalStep: 24 + intensity * 1.8,
-    drop: 28 + intensity * 4,
-    enemyFireRate: 0.24 + intensity * 0.085,
-    enemyBulletSpeed: 470 + intensity * 40,
-    maxEnemyBullets: clamp(2 + wave, 2, 8),
-    killSpeedBoost: 2.8 + intensity * 0.12
+    startY: clamp(224 + intensity * 18, 224, 380),
+    stepInterval: Math.max(0.11, 0.54 - intensity * 0.055 - tier * 0.025),
+    horizontalStep: 26 + intensity * 2.5 + tier * 1.5,
+    drop: 30 + intensity * 5 + tier * 3,
+    enemyFireRate: 0.34 + intensity * 0.16 + tier * 0.08,
+    enemyBulletSpeed: 500 + intensity * 55 + tier * 25,
+    maxEnemyBullets: clamp(2 + Math.ceil(wave / 2), 2, 8),
+    killSpeedBoost: 3.2 + intensity * 0.22 + tier * 0.18
   }
 }
 
