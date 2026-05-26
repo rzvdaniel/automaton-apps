@@ -82,7 +82,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     pointer: { left: false, right: false, fire: false },
     pendingInstallPrompt: null,
     flash: 0,
-    shake: { x: 0, y: 0, power: 0 },
+    shake: { x: 0, y: 0, power: 0, duration: 0, cooldown: 0 },
     backgroundImage,
     backgroundEffects,
     player: {
@@ -137,8 +137,11 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     }
   }
 
-  function shake(power) {
+  function triggerShake(power, duration) {
+    if (state.shake.cooldown > 0) return
     state.shake.power = Math.max(state.shake.power, power)
+    state.shake.duration = Math.max(state.shake.duration, duration)
+    state.shake.cooldown = 0.12
   }
 
   function spawnWave(wave) {
@@ -188,6 +191,8 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.wave = 1
     state.flash = 0
     state.shake.power = 0
+    state.shake.duration = 0
+    state.shake.cooldown = 0
     state.bullets = []
     state.enemyBullets = []
     state.particles = []
@@ -245,7 +250,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.player.lives -= 1
     state.player.invulnerability = PLAYER_INVULNERABILITY
     state.flash = 0.22
-    shake(10)
+    triggerShake(2.6, 0.09)
     addParticles(state.player.x, state.player.y, PALETTE.cyan, 24, 320, 40)
     audio.playerHit()
     if (state.player.lives <= 0) {
@@ -266,9 +271,16 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.backgroundEffects.update(dt)
 
     state.flash = Math.max(0, state.flash - dt * 1.7)
-    state.shake.power = Math.max(0, state.shake.power - dt * 22)
-    state.shake.x = random(-state.shake.power, state.shake.power)
-    state.shake.y = random(-state.shake.power, state.shake.power)
+    state.shake.cooldown = Math.max(0, state.shake.cooldown - dt)
+    state.shake.duration = Math.max(0, state.shake.duration - dt)
+    if (state.shake.duration > 0) {
+      state.shake.x = random(-state.shake.power, state.shake.power)
+      state.shake.y = random(-state.shake.power * 0.45, state.shake.power * 0.45)
+    } else {
+      state.shake.power = Math.max(0, state.shake.power - dt * 40)
+      state.shake.x = 0
+      state.shake.y = 0
+    }
 
     if (!state.started) {
       if (moveLeft || moveRight || firing) resetGame()
@@ -326,7 +338,6 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
         for (const enemy of aliveEnemies) {
           enemy.y += state.enemyDrop
         }
-        shake(4 + (1 - aliveRatio) * 3)
       } else {
         for (const enemy of aliveEnemies) {
           enemy.x += state.enemyDirection * state.enemyHorizontalStep
@@ -355,7 +366,6 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
           state.score += enemy.rank === 'elite' ? 50 : enemy.rank === 'mid' ? 30 : 15
           persistHighScore()
           state.flash = 0.12
-          shake(enemy.rank === 'elite' ? 8 : 5)
           addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.rank === 'elite' ? PALETTE.magenta : PALETTE.amber, 20, 380, 70)
           addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, 8, 220, 30)
           audio.explosion()
@@ -391,6 +401,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     if (state.enemies.length === 0) {
       state.message = 'WAVE CLEAR'
       state.overlayTimer = 0.8
+      triggerShake(1.8, 0.08)
       spawnWave(state.wave + 1)
     }
 

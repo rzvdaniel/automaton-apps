@@ -97,7 +97,7 @@ function drawEnemy(context, enemy, elapsed) {
   const bob = Math.sin(elapsed * 5 + enemy.phase) * 2.5
   const x = enemy.x
   const y = enemy.y + bob
-  const spriteKey = enemy.rank + (Math.sin(elapsed * 8 + enemy.phase) > 0 ? '' : 'Alt')
+  const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
   const color = enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2'
   const glow = enemy.rank === 'elite' ? PALETTE.magenta : enemy.rank === 'mid' ? '#ffd36b' : '#40f7c4'
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow)
