@@ -100,6 +100,18 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
 
   audio.setMuted(state.muted)
 
+  function updateMuteButton() {
+    muteButton.textContent = state.muted ? '🔇' : '🔊'
+    muteButton.setAttribute('aria-label', state.muted ? 'Sound off' : 'Sound on')
+    muteButton.setAttribute('title', state.muted ? 'Sound off' : 'Sound on')
+  }
+
+  function updatePauseButton() {
+    pauseButton.textContent = state.paused ? '▶' : '⏸'
+    pauseButton.setAttribute('aria-label', state.paused ? 'Resume' : 'Pause')
+    pauseButton.setAttribute('title', state.paused ? 'Resume' : 'Pause')
+  }
+
   function persistHighScore() {
     if (state.score > state.highScore) {
       state.highScore = state.score
@@ -214,13 +226,13 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.muted = value
     audio.setMuted(value)
     localStorage.setItem(STORAGE_KEYS.muted, value ? '1' : '0')
-    muteButton.textContent = value ? 'Unmute' : 'Mute'
+    updateMuteButton()
   }
 
   function setPaused(value) {
     if (!state.started || !state.running) return
     state.paused = value
-    pauseButton.textContent = value ? 'Resume' : 'Pause'
+    updatePauseButton()
     state.message = value ? 'PAUSED' : `WAVE ${state.wave}`
     state.overlayTimer = value ? 999 : 0.6
   }
@@ -517,7 +529,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
 
   resize()
   setMuted(state.muted)
-  pauseButton.textContent = 'Pause'
+  updatePauseButton()
   render(window.matchMedia('(pointer:fine)').matches)
   requestAnimationFrame(tick)
 

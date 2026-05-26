@@ -9,9 +9,9 @@ app.innerHTML = `
     <div class="cabinet-glow"></div>
     <canvas class="game" aria-label="Space Invaders playfield"></canvas>
     <div class="top-actions">
-      <button class="overlay-button restart-button" type="button">Restart</button>
-      <button class="overlay-button pause-button" type="button">Pause</button>
-      <button class="overlay-button mute-button" type="button">Mute</button>
+      <button class="overlay-button overlay-button-desktop restart-button" type="button" aria-label="Restart" title="Restart">↻</button>
+      <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause">⏸</button>
+      <button class="overlay-button overlay-button-icon mute-button" type="button" aria-label="Sound on" title="Sound on">🔊</button>
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
     <dialog class="debug-dialog">

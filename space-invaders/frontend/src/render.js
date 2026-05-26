@@ -18,6 +18,8 @@ function getCachedSprite(sprite, pixelSize, color, glow) {
   const width = sprite[0].length * unit
   const height = sprite.length * unit
   const padding = Math.max(2, Math.ceil(unit * 1.5))
+  const pixelInset = unit >= 8 ? 0.5 : 0
+  const pixelDrawSize = Math.max(1, unit - pixelInset * 2)
   const buffer = createBuffer(width + padding * 2, height + padding * 2)
   const bufferContext = buffer.getContext('2d')
   bufferContext.imageSmoothingEnabled = false
@@ -29,7 +31,12 @@ function getCachedSprite(sprite, pixelSize, color, glow) {
     const line = sprite[row]
     for (let col = 0; col < line.length; col += 1) {
       if (line[col] === '1') {
-        bufferContext.fillRect(padding + col * unit, padding + row * unit, unit, unit)
+        bufferContext.fillRect(
+          padding + col * unit + pixelInset,
+          padding + row * unit + pixelInset,
+          pixelDrawSize,
+          pixelDrawSize
+        )
       }
     }
   }
@@ -206,8 +213,20 @@ function drawEffects(context, state) {
 
 function drawOverlay(context, state, desktopMode) {
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused) return
-  context.fillStyle = 'rgba(1, 4, 12, 0.46)'
+  context.fillStyle = 'rgba(1, 4, 12, 0.6)'
   context.fillRect(0, 0, WORLD.width, WORLD.height)
+  const panelWidth = WORLD.width - 160
+  const panelX = 80
+  const panelY = 276
+  const panelHeight = desktopMode ? 660 : 710
+  const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
+  panelGradient.addColorStop(0, 'rgba(4, 10, 22, 0.82)')
+  panelGradient.addColorStop(1, 'rgba(2, 6, 16, 0.72)')
+  context.fillStyle = panelGradient
+  context.fillRect(panelX, panelY, panelWidth, panelHeight)
+  context.strokeStyle = 'rgba(140, 247, 255, 0.1)'
+  context.lineWidth = 2
+  context.strokeRect(panelX, panelY, panelWidth, panelHeight)
   context.textAlign = 'center'
   context.shadowColor = PALETTE.cyan
   context.shadowBlur = 18
