@@ -1,9 +1,10 @@
 import { getSettingsMenuLayout } from './overlay-layout.js'
 
-const SETTINGS_ITEMS = [
+const SETTING_DEFINITIONS = [
   {
     id: 'spriteStyle',
     label: 'Sprite Style',
+    category: 'graphics',
     options: [
       { value: 'pixel-gaps', label: 'Pixel Gaps' },
       { value: 'smooth', label: 'Smooth' }
@@ -12,6 +13,7 @@ const SETTINGS_ITEMS = [
   {
     id: 'screenShake',
     label: 'Screen Shake',
+    category: 'graphics',
     options: [
       { value: 'off', label: 'Off' },
       { value: 'low', label: 'Low' },
@@ -21,6 +23,7 @@ const SETTINGS_ITEMS = [
   {
     id: 'backgroundBlur',
     label: 'Background Blur',
+    category: 'graphics',
     options: [
       { value: 'off', label: 'Off' },
       { value: 'low', label: 'Low' },
@@ -30,6 +33,7 @@ const SETTINGS_ITEMS = [
   {
     id: 'controls',
     label: 'Controls',
+    category: 'controls',
     options: [
       { value: 'buttons', label: 'Buttons' },
       { value: 'zones', label: 'Touch Zones' }
@@ -38,6 +42,7 @@ const SETTINGS_ITEMS = [
   {
     id: 'sound',
     label: 'Sound',
+    category: 'audio',
     options: [
       { value: true, label: 'On' },
       { value: false, label: 'Off' }
@@ -46,6 +51,7 @@ const SETTINGS_ITEMS = [
   {
     id: 'reducedMotion',
     label: 'Reduced Motion',
+    category: 'accessibility',
     options: [
       { value: false, label: 'Off' },
       { value: true, label: 'On' }
@@ -54,6 +60,7 @@ const SETTINGS_ITEMS = [
   {
     id: 'keyboardHint',
     label: 'Keyboard Hint',
+    category: 'accessibility',
     options: [
       { value: true, label: 'On' },
       { value: false, label: 'Off' }
@@ -61,8 +68,43 @@ const SETTINGS_ITEMS = [
   }
 ]
 
-function clampIndex(index) {
-  return (index + SETTINGS_ITEMS.length + 1) % (SETTINGS_ITEMS.length + 1)
+const SETTINGS_SECTIONS = [
+  {
+    id: 'graphics',
+    label: 'Graphics',
+    caption: 'Visual signal and atmosphere',
+    summary(settings) {
+      return settings.spriteStyle === 'smooth' ? 'Smooth holographics' : 'Crisp pixel glow'
+    }
+  },
+  {
+    id: 'controls',
+    label: 'Controls',
+    caption: 'How you steer the ship',
+    summary(settings) {
+      return settings.controls === 'zones' ? 'Touch zones engaged' : 'Button layout engaged'
+    }
+  },
+  {
+    id: 'audio',
+    label: 'Audio',
+    caption: 'Cabinet sound output',
+    summary(_settings, isMuted) {
+      return isMuted ? 'Sound muted' : 'Sound live'
+    }
+  },
+  {
+    id: 'accessibility',
+    label: 'Accessibility',
+    caption: 'Comfort and readability',
+    summary(settings) {
+      return settings.reducedMotion ? 'Reduced motion active' : 'Full motion active'
+    }
+  }
+]
+
+function wrapIndex(index, length) {
+  return (index + length + 1) % (length + 1)
 }
 
 function isInsideRect(x, y, rect) {
@@ -78,10 +120,25 @@ function cycleOption(options, currentValue, direction) {
 export function setupSettingsPanel({ game, root, shell }) {
   const canvas = root.querySelector('.game')
   const openButton = root.querySelector('.settings-button')
+  let screen = 'main'
+  let activeSectionId = null
   let selectedIndex = 0
 
   function isOpen() {
     return game.isSettingsOpen()
+  }
+
+  function getActiveSection() {
+    return SETTINGS_SECTIONS.find((section) => section.id === activeSectionId) ?? null
+  }
+
+  function getSectionItems(sectionId) {
+    return SETTING_DEFINITIONS.filter((item) => item.category === sectionId)
+  }
+
+  function getCurrentEntries() {
+    if (screen === 'main') return SETTINGS_SECTIONS
+    return getSectionItems(activeSectionId)
   }
 
   function getItemValue(item, settings) {
@@ -89,23 +146,51 @@ export function setupSettingsPanel({ game, root, shell }) {
     return settings[item.id]
   }
 
+  function getOption(item, settings) {
+    const value = getItemValue(item, settings)
+    return item.options.find((entry) => entry.value === value) ?? item.options[0]
+  }
+
+  function resetToMainScreen() {
+    screen = 'main'
+    activeSectionId = null
+    selectedIndex = 0
+  }
+
   function updateRenderState() {
     const settings = game.getSettings()
+    const activeSection = getActiveSection()
+    const entries = screen === 'main'
+      ? SETTINGS_SECTIONS.map((section) => ({
+          kind: 'section',
+          id: section.id,
+          label: section.label,
+          caption: section.caption,
+          valueLabel: section.summary(settings, game.isMuted())
+        }))
+      : getSectionItems(activeSectionId).map((item) => {
+          const option = getOption(item, settings)
+          return {
+            kind: 'item',
+            id: item.id,
+            label: item.label,
+            caption: activeSection?.label ?? 'Setting',
+            value: option.value,
+            valueLabel: option.label
+          }
+        })
+
     shell.dataset.controlsMode = settings.controls
     game.setSettingsMenuState({
+      view: screen,
       selectedIndex,
-      closeLabel: shell.dataset.gameStarted === 'true' ? 'Resume' : 'Back',
-      footerLabel: shell.dataset.gameStarted === 'true' ? 'ARROWS MOVE  ENTER CHANGE  ESC RESUME' : 'ARROWS MOVE  ENTER CHANGE  ESC CLOSE',
-      items: SETTINGS_ITEMS.map((item) => {
-        const value = getItemValue(item, settings)
-        const option = item.options.find((entry) => entry.value === value) ?? item.options[0]
-        return {
-          id: item.id,
-          label: item.label,
-          value,
-          valueLabel: option.label
-        }
-      })
+      title: activeSection?.label ?? 'Settings',
+      subtitle: activeSection?.caption ?? 'Command Console',
+      closeLabel: screen === 'main' ? (shell.dataset.gameStarted === 'true' ? 'Resume' : 'Back') : 'Main Menu',
+      footerLabel: screen === 'main'
+        ? 'UP/DOWN SELECT  ENTER OPEN  ESC CLOSE'
+        : 'LEFT/RIGHT CHANGE  ENTER CYCLE  ESC BACK',
+      items: entries
     })
   }
 
@@ -119,23 +204,44 @@ export function setupSettingsPanel({ game, root, shell }) {
   }
 
   function changeSelectedItem(direction) {
-    if (selectedIndex === SETTINGS_ITEMS.length) return
+    if (screen === 'main') return
+    const entries = getCurrentEntries()
+    if (selectedIndex === entries.length) return
     const settings = game.getSettings()
-    const item = SETTINGS_ITEMS[selectedIndex]
+    const item = entries[selectedIndex]
     const value = getItemValue(item, settings)
     applyValue(item, cycleOption(item.options, value, direction))
   }
 
+  function openSection(sectionId) {
+    activeSectionId = sectionId
+    screen = 'detail'
+    selectedIndex = 0
+    updateRenderState()
+  }
+
   function activateSelectedItem() {
-    if (selectedIndex === SETTINGS_ITEMS.length) {
+    const entries = getCurrentEntries()
+    if (selectedIndex === entries.length) {
+      if (screen === 'detail') {
+        resetToMainScreen()
+        updateRenderState()
+        return
+      }
       closeDialog(true)
       return
     }
+
+    if (screen === 'main') {
+      openSection(entries[selectedIndex].id)
+      return
+    }
+
     changeSelectedItem(1)
   }
 
   function moveSelection(direction) {
-    selectedIndex = clampIndex(selectedIndex + direction)
+    selectedIndex = wrapIndex(selectedIndex + direction, getCurrentEntries().length)
     updateRenderState()
   }
 
@@ -151,7 +257,8 @@ export function setupSettingsPanel({ game, root, shell }) {
   function handlePointer(event) {
     if (!isOpen()) return
     const { desktopMode } = game.getViewport()
-    const layout = getSettingsMenuLayout(desktopMode, SETTINGS_ITEMS.length)
+    const entries = getCurrentEntries()
+    const layout = getSettingsMenuLayout(desktopMode, entries.length, screen)
     const point = getWorldPoint(event)
     event.preventDefault()
     event.stopImmediatePropagation()
@@ -162,9 +269,14 @@ export function setupSettingsPanel({ game, root, shell }) {
     }
 
     if (isInsideRect(point.x, point.y, layout.closeButton)) {
-      selectedIndex = SETTINGS_ITEMS.length
-      updateRenderState()
-      closeDialog(true)
+      selectedIndex = entries.length
+      if (screen === 'detail') {
+        resetToMainScreen()
+        updateRenderState()
+      } else {
+        updateRenderState()
+        closeDialog(true)
+      }
       return
     }
 
@@ -172,16 +284,23 @@ export function setupSettingsPanel({ game, root, shell }) {
     if (rowIndex === -1) return
 
     selectedIndex = rowIndex
-    const item = SETTINGS_ITEMS[rowIndex]
-    if (item.options.length === 2) {
-      const nextValue = point.x >= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.5
-        ? item.options[0].value
-        : item.options[1].value
-      applyValue(item, nextValue)
+    if (screen === 'main') {
+      openSection(entries[rowIndex].id)
       return
     }
 
-    const direction = point.x >= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.7 ? 1 : point.x <= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.42 ? -1 : 1
+    const item = entries[rowIndex]
+    if (point.x <= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.32) {
+      changeSelectedItem(-1)
+      return
+    }
+
+    if (item.options.length === 2) {
+      changeSelectedItem(1)
+      return
+    }
+
+    const direction = point.x >= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.68 ? 1 : -1
     changeSelectedItem(direction)
   }
 
@@ -196,14 +315,22 @@ export function setupSettingsPanel({ game, root, shell }) {
 
     if (event.code === 'ArrowUp' || event.code === 'KeyW') moveSelection(-1)
     if (event.code === 'ArrowDown' || event.code === 'KeyS') moveSelection(1)
-    if (event.code === 'ArrowLeft' || event.code === 'KeyA') changeSelectedItem(-1)
-    if (event.code === 'ArrowRight' || event.code === 'KeyD') changeSelectedItem(1)
+    if ((event.code === 'ArrowLeft' || event.code === 'KeyA') && screen === 'detail') changeSelectedItem(-1)
+    if ((event.code === 'ArrowRight' || event.code === 'KeyD') && screen === 'detail') changeSelectedItem(1)
     if (event.code === 'Enter' || event.code === 'Space') activateSelectedItem()
-    if (event.code === 'Escape') closeDialog(true)
+    if (event.code === 'Escape') {
+      if (screen === 'detail') {
+        resetToMainScreen()
+        updateRenderState()
+      } else {
+        closeDialog(true)
+      }
+    }
   }
 
   function openDialog() {
     if (isOpen()) return
+    resetToMainScreen()
     if (shell.dataset.gameStarted === 'true') game.setPaused(true)
     updateRenderState()
   }
