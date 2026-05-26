@@ -288,7 +288,7 @@ function drawEffects(context, state) {
 function drawOverlay(context, state, desktopMode) {
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused) return
   const mobilePauseMenu = !desktopMode && state.paused && state.running
-  context.fillStyle = 'rgba(1, 4, 12, 0.6)'
+  context.fillStyle = mobilePauseMenu ? 'rgba(1, 4, 12, 0.74)' : 'rgba(1, 4, 12, 0.6)'
   context.fillRect(0, 0, WORLD.width, WORLD.height)
   const panelWidth = WORLD.width - 160
   const panelX = 80
@@ -304,8 +304,8 @@ function drawOverlay(context, state, desktopMode) {
   context.strokeRect(panelX, panelY, panelWidth, panelHeight)
   context.textAlign = 'center'
   context.shadowColor = PALETTE.cyan
-  context.shadowBlur = 18
-  context.fillStyle = PALETTE.white
+  context.shadowBlur = mobilePauseMenu ? 8 : 18
+  context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
   context.font = desktopMode ? '700 86px monospace' : '700 98px monospace'
   context.fillText('SPACE', WORLD.width / 2, desktopMode ? 390 : 400)
   context.fillText('INVADERS', WORLD.width / 2, desktopMode ? 474 : 490)

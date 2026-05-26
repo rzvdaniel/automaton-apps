@@ -201,9 +201,10 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     const formationWidth = columns * enemyWidth + (columns - 1) * gapX
     const startX = (WORLD.width - formationWidth) / 2
     const formationYOffset = isShortViewport() ? 16 : 0
+    const immediateStart = wave === 1 && !state.started
     state.wave = wave
     state.message = wave === 1 ? 'READY' : `WAVE ${wave}`
-    state.overlayTimer = wave === 1 ? 1 : 0.9
+    state.overlayTimer = immediateStart ? 0 : wave === 1 ? 1 : 0.9
     state.enemies = []
     state.enemyBullets = []
 
@@ -239,7 +240,36 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     resetGameToWave(1)
   }
 
+  function resetToIntro() {
+    state.started = false
+    state.running = true
+    state.paused = false
+    state.score = 0
+    state.wave = 1
+    state.flash = 0
+    state.message = 'INSERT COIN'
+    state.overlayTimer = 999
+    state.bullets = []
+    state.enemyBullets = []
+    state.enemies = []
+    state.particles = []
+    state.enemyStepTimer = 0
+    state.player.x = WORLD.width / 2
+    state.player.cooldown = 0
+    state.player.lives = 3
+    state.player.invulnerability = 0
+    state.player.visualTilt = 0
+    state.player.thrust = 0
+    state.player.fireFlash = 0
+    state.shake.power = 0
+    state.shake.duration = 0
+    state.shake.cooldown = 0
+    updatePauseButton()
+    syncShellState()
+  }
+
   function resetGameToWave(startWave) {
+    const wasStarted = state.started
     state.started = true
     state.running = true
     state.paused = false
@@ -260,7 +290,9 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.player.visualTilt = 0
     state.player.thrust = 0
     state.player.fireFlash = 0
+    state.started = wasStarted
     spawnWave(startWave)
+    state.started = true
     syncShellState()
   }
 
@@ -277,7 +309,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.paused = value
     updatePauseButton()
     state.message = value ? 'PAUSED' : `WAVE ${state.wave}`
-    state.overlayTimer = value ? 999 : 0.6
+    state.overlayTimer = value ? 999 : 0
     syncShellState()
   }
 
@@ -591,7 +623,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     resize,
     clearPointer,
     restart() {
-      resetGame()
+      resetToIntro()
     },
     startAtWave(wave) {
       resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))

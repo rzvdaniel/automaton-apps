@@ -17,10 +17,17 @@ app.innerHTML = `
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
     <div class="pause-menu" aria-hidden="true">
-      <button class="pause-menu-button pause-resume" type="button">Resume</button>
-      <button class="pause-menu-button pause-restart" type="button">Restart</button>
-      <button class="pause-menu-button pause-sound" type="button">Sound On</button>
-      <button class="pause-menu-button pause-settings" type="button">Settings</button>
+      <div class="pause-menu-panel">
+        <div class="pause-menu-kicker">Command Link</div>
+        <div class="pause-menu-title">Paused</div>
+        <div class="pause-menu-status">Command Link Active</div>
+        <div class="pause-menu-actions">
+          <button class="pause-menu-button pause-resume" type="button">Resume</button>
+          <button class="pause-menu-button pause-restart" type="button">Restart</button>
+          <button class="pause-menu-button pause-sound" type="button">Sound On</button>
+          <button class="pause-menu-button pause-settings" type="button">Settings</button>
+        </div>
+      </div>
     </div>
     <dialog class="settings-dialog">
       <div class="settings-form">
