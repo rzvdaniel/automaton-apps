@@ -61,4 +61,9 @@ export function setupSettingsPanel({ game, root, shell }) {
   })
 
   applySettingsToUi(game.getSettings())
+
+  return {
+    open: openDialog,
+    close: closeDialog
+  }
 }

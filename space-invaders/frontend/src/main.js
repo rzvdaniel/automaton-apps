@@ -16,6 +16,12 @@ app.innerHTML = `
       <button class="overlay-button overlay-button-icon mute-button" type="button" aria-label="Sound on" title="Sound on">🔊</button>
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
+    <div class="pause-menu" aria-hidden="true">
+      <button class="pause-menu-button pause-resume" type="button">Resume</button>
+      <button class="pause-menu-button pause-restart" type="button">Restart</button>
+      <button class="pause-menu-button pause-sound" type="button">Sound On</button>
+      <button class="pause-menu-button pause-settings" type="button">Settings</button>
+    </div>
     <dialog class="settings-dialog">
       <div class="settings-form">
         <div class="debug-title">Settings</div>
@@ -71,6 +77,7 @@ app.innerHTML = `
 
 const shell = document.querySelector('.shell')
 const restartButton = document.querySelector('.restart-button')
+const pauseMenu = document.querySelector('.pause-menu')
 const game = createGame({
   canvas: document.querySelector('.game'),
   shell,
@@ -83,14 +90,42 @@ const game = createGame({
     right: document.querySelector('.touch-right')
   }
 })
-setupSettingsPanel({ game, root: shell, shell })
+const settingsPanel = setupSettingsPanel({ game, root: shell, shell })
 setupDebugPanel({ game, root: shell })
+
+const pauseResumeButton = document.querySelector('.pause-resume')
+const pauseRestartButton = document.querySelector('.pause-restart')
+const pauseSoundButton = document.querySelector('.pause-sound')
+const pauseSettingsButton = document.querySelector('.pause-settings')
+
+function syncPauseMenu() {
+  pauseMenu.setAttribute('aria-hidden', shell.dataset.gamePaused === 'true' ? 'false' : 'true')
+  pauseSoundButton.textContent = game.isMuted() ? 'Sound Off' : 'Sound On'
+}
 
 window.addEventListener('resize', game.resize)
 window.addEventListener('orientationchange', game.resize)
 restartButton.addEventListener('click', () => {
   game.restart()
 })
+pauseResumeButton.addEventListener('click', () => {
+  game.setPaused(false)
+  syncPauseMenu()
+})
+pauseRestartButton.addEventListener('click', () => {
+  game.restart()
+  syncPauseMenu()
+})
+pauseSoundButton.addEventListener('click', () => {
+  game.setMuted(!game.isMuted())
+  syncPauseMenu()
+})
+pauseSettingsButton.addEventListener('click', () => {
+  settingsPanel.open()
+  syncPauseMenu()
+})
+shell.addEventListener('game-state-change', syncPauseMenu)
+syncPauseMenu()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

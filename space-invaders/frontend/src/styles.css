@@ -73,6 +73,12 @@ canvas {
   z-index: 3;
 }
 
+.settings-button,
+.restart-button,
+.mute-button {
+  display: inline-flex;
+}
+
 .overlay-button {
   border: 0;
   min-width: 36px;
@@ -92,6 +98,10 @@ canvas {
   font-size: 1rem;
 }
 
+.pause-button {
+  box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.22);
+}
+
 .overlay-button-desktop {
   display: none;
 }
@@ -106,6 +116,27 @@ canvas {
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.42),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.pause-menu {
+  display: none;
+}
+
+.pause-menu-button {
+  border: 0;
+  min-width: 168px;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: rgba(7, 12, 24, 0.82);
+  color: var(--text);
+  font: 700 0.92rem/1 monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 0 0 1px rgba(140, 247, 255, 0.18),
+    inset 0 0 18px rgba(140, 247, 255, 0.08);
 }
 
 .settings-dialog {
@@ -271,6 +302,91 @@ canvas {
 
 .hidden {
   display: none;
+}
+
+@media (max-width: 768px) {
+  .top-actions {
+    top: calc(env(safe-area-inset-top) + 10px);
+    right: 12px;
+    gap: 20px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .pause-button {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    font-size: 0.98rem;
+    box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.18);
+  }
+
+  .settings-button,
+  .restart-button,
+  .mute-button,
+  .install {
+    display: none;
+  }
+
+  .pause-menu {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    z-index: 4;
+    display: none;
+    gap: 10px;
+    transform: translate(-50%, -50%);
+  }
+
+  .shell[data-game-paused="true"][data-game-started="true"][data-game-running="true"] .pause-menu {
+    display: grid;
+  }
+}
+
+@media (max-width: 420px) {
+  .top-actions {
+    right: 10px;
+    gap: 8px;
+  }
+
+  .overlay-button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0 8px;
+  }
+
+  .overlay-button-icon {
+    width: 36px;
+    font-size: 0.95rem;
+  }
+
+  .pause-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .shell[data-game-paused="false"] .top-actions {
+    right: 12px;
+  }
+
+  .touch-controls {
+    padding: 0 12px;
+  }
+
+  .touch-zone {
+    min-height: 50px;
+  }
+
+  .touch-fire {
+    min-width: 96px;
+  }
+
+  .touch-fire span {
+    font-size: 1.05rem;
+  }
 }
 
 .shell[data-controls-mode="zones"] .touch-controls {

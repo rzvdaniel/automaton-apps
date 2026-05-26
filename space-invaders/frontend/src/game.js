@@ -12,6 +12,18 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
+function isCompactViewport() {
+  return window.matchMedia('(max-width: 420px)').matches
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 768px)').matches
+}
+
+function isShortViewport() {
+  return window.matchMedia('(max-height: 700px)').matches
+}
+
 function rectFromCenter(entity) {
   return {
     left: entity.x - entity.width / 2,
@@ -106,6 +118,22 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
 
   audio.setMuted(state.muted)
 
+  function syncShellState() {
+    shell.dataset.gamePaused = state.paused ? 'true' : 'false'
+    shell.dataset.gameStarted = state.started ? 'true' : 'false'
+    shell.dataset.gameRunning = state.running ? 'true' : 'false'
+    shell.dispatchEvent(
+      new CustomEvent('game-state-change', {
+        detail: {
+          paused: state.paused,
+          started: state.started,
+          running: state.running,
+          muted: state.muted
+        }
+      })
+    )
+  }
+
   function updateMuteButton() {
     muteButton.textContent = state.muted ? '🔇' : '🔊'
     muteButton.setAttribute('aria-label', state.muted ? 'Sound off' : 'Sound on')
@@ -172,6 +200,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     const { columns, rows, gapX, gapY, enemyWidth, enemyHeight } = config
     const formationWidth = columns * enemyWidth + (columns - 1) * gapX
     const startX = (WORLD.width - formationWidth) / 2
+    const formationYOffset = isShortViewport() ? 16 : 0
     state.wave = wave
     state.message = wave === 1 ? 'READY' : `WAVE ${wave}`
     state.overlayTimer = wave === 1 ? 1 : 0.9
@@ -183,7 +212,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
         const rank = row === 0 ? 'elite' : row < 3 ? 'mid' : 'grunt'
         state.enemies.push({
           x: startX + col * (enemyWidth + gapX),
-          y: config.startY + row * (enemyHeight + gapY),
+          y: config.startY + formationYOffset + row * (enemyHeight + gapY),
           width: enemyWidth,
           height: enemyHeight,
           rank,
@@ -232,6 +261,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.player.thrust = 0
     state.player.fireFlash = 0
     spawnWave(startWave)
+    syncShellState()
   }
 
   function setMuted(value) {
@@ -239,6 +269,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     audio.setMuted(value)
     localStorage.setItem(STORAGE_KEYS.muted, value ? '1' : '0')
     updateMuteButton()
+    syncShellState()
   }
 
   function setPaused(value) {
@@ -247,6 +278,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     updatePauseButton()
     state.message = value ? 'PAUSED' : `WAVE ${state.wave}`
     state.overlayTimer = value ? 999 : 0.6
+    syncShellState()
   }
 
   function shootPlayer() {
@@ -290,11 +322,12 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
       state.message = 'GAME OVER'
       state.overlayTimer = 999
       persistHighScore()
+      syncShellState()
     }
   }
 
   function update(dt) {
-    const desktopMode = window.matchMedia('(pointer:fine)').matches
+    const desktopMode = !isMobileViewport()
     const moveLeft = state.keys.has('ArrowLeft') || state.keys.has('KeyA') || state.pointer.left
     const moveRight = state.keys.has('ArrowRight') || state.keys.has('KeyD') || state.pointer.right
     const firing =
@@ -550,7 +583,8 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   resize()
   setMuted(state.muted)
   updatePauseButton()
-  render(window.matchMedia('(pointer:fine)').matches)
+  syncShellState()
+  render(!isMobileViewport())
   requestAnimationFrame(tick)
 
   return {

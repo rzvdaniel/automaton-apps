@@ -94,11 +94,35 @@ function drawBackground(context, state) {
   state.backgroundEffects.renderAboveImage(context)
 }
 
-function drawHud(context, state) {
-  context.textAlign = 'left'
+function drawHud(context, state, desktopMode) {
+  const mobileHud = !desktopMode
+  const compactHud = mobileHud && window.matchMedia('(max-width: 380px)').matches
+
   context.fillStyle = 'rgba(6, 10, 24, 0.28)'
-  context.fillRect(24, 24, WORLD.width - 48, 86)
+  context.fillRect(24, mobileHud ? 32 : 24, WORLD.width - 48, mobileHud ? 124 : 86)
   context.fillStyle = PALETTE.white
+
+  if (mobileHud) {
+    const columns = [
+      { label: 'SCORE', value: String(state.score).padStart(6, '0'), x: 36 },
+      { label: 'WAVE', value: String(state.wave).padStart(2, '0'), x: compactHud ? 276 : 272 },
+      { label: 'LIVES', value: String(state.player.lives), x: compactHud ? 508 : 514 }
+    ]
+
+    context.textAlign = 'left'
+    context.font = compactHud ? '700 28px monospace' : '700 30px monospace'
+    for (const column of columns) {
+      context.fillText(column.label, column.x, 70)
+    }
+
+    context.font = compactHud ? '700 38px monospace' : '700 42px monospace'
+    for (const column of columns) {
+      context.fillText(column.value, column.x, 118)
+    }
+    return
+  }
+
+  context.textAlign = 'left'
   context.font = '700 26px monospace'
   context.fillText('SCORE', 42, 56)
   context.fillText(String(state.score).padStart(6, '0'), 42, 88)
@@ -263,6 +287,7 @@ function drawEffects(context, state) {
 
 function drawOverlay(context, state, desktopMode) {
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused) return
+  const mobilePauseMenu = !desktopMode && state.paused && state.running
   context.fillStyle = 'rgba(1, 4, 12, 0.6)'
   context.fillRect(0, 0, WORLD.width, WORLD.height)
   const panelWidth = WORLD.width - 160
@@ -281,24 +306,30 @@ function drawOverlay(context, state, desktopMode) {
   context.shadowColor = PALETTE.cyan
   context.shadowBlur = 18
   context.fillStyle = PALETTE.white
-  context.font = '700 86px monospace'
-  context.fillText('SPACE', WORLD.width / 2, 390)
-  context.fillText('INVADERS', WORLD.width / 2, 474)
+  context.font = desktopMode ? '700 86px monospace' : '700 98px monospace'
+  context.fillText('SPACE', WORLD.width / 2, desktopMode ? 390 : 400)
+  context.fillText('INVADERS', WORLD.width / 2, desktopMode ? 474 : 490)
   context.shadowBlur = 0
   context.fillStyle = PALETTE.cyan
-  context.font = '600 32px monospace'
-  const headline = state.paused ? 'PAUSED' : state.message
-  context.fillText(headline, WORLD.width / 2, 690)
-  if (!desktopMode || state.settings.keyboardHint) {
-    context.fillStyle = 'rgba(238,252,255,0.82)'
-    context.font = '500 24px monospace'
-    const controlHint = desktopMode
-      ? 'ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE'
-      : 'HOLD LEFT OR RIGHT   HOLD FIRE   TAP TO START'
-    context.fillText(controlHint, WORLD.width / 2, 770)
+  if (!mobilePauseMenu) {
+    context.font = desktopMode ? '600 32px monospace' : '600 36px monospace'
+    const headline = state.paused ? 'PAUSED' : state.message
+    context.fillText(headline, WORLD.width / 2, desktopMode ? 690 : 700)
   }
-  if (!state.running) {
-    context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, 822)
+  if (!mobilePauseMenu && (!desktopMode || state.settings.keyboardHint)) {
+    context.fillStyle = 'rgba(238,252,255,0.82)'
+    if (desktopMode) {
+      context.font = '500 24px monospace'
+      context.fillText('ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE', WORLD.width / 2, 770)
+    } else {
+      context.font = '700 30px monospace'
+      context.fillText('HOLD \u25c0 / \u25b6 TO MOVE', WORLD.width / 2, 760)
+      context.fillText('TAP FIRE', WORLD.width / 2, 804)
+    }
+  }
+  if (!mobilePauseMenu && !state.running) {
+    context.font = desktopMode ? '500 24px monospace' : '700 28px monospace'
+    context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, desktopMode ? 822 : 856)
   }
   context.textAlign = 'left'
 }
@@ -315,7 +346,7 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
   for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed, state.settings)
   drawProjectiles(context, state)
   drawShip(context, state, elapsed)
-  drawHud(context, state)
+  drawHud(context, state, desktopMode)
   drawOverlay(context, state, desktopMode)
   drawEffects(context, state)
   context.restore()

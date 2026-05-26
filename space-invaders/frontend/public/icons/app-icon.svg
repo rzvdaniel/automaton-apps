@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#081023" />
+      <stop offset="100%" stop-color="#02050f" />
+    </linearGradient>
+    <radialGradient id="planet" cx="50%" cy="74%" r="28%">
+      <stop offset="0%" stop-color="#783d5d" stop-opacity=".72" />
+      <stop offset="100%" stop-color="#783d5d" stop-opacity="0" />
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <circle cx="256" cy="360" r="128" fill="url(#planet)" />
+  <g opacity=".18" stroke="#8cf7ff" stroke-width="2">
+    <path d="M48 176h416" />
+    <path d="M48 192h416" />
+    <path d="M48 208h416" />
+    <path d="M48 224h416" />
+  </g>
+  <g filter="url(#glow)">
+    <g fill="#ff7fda">
+      <rect x="88" y="112" width="24" height="24" />
+      <rect x="120" y="112" width="24" height="24" />
+      <rect x="152" y="112" width="24" height="24" />
+      <rect x="104" y="144" width="56" height="24" />
+    </g>
+    <g fill="#ffd36b">
+      <rect x="96" y="188" width="24" height="24" />
+      <rect x="128" y="188" width="24" height="24" />
+      <rect x="112" y="220" width="24" height="24" />
+    </g>
+    <g fill="#8cf7ff">
+      <path d="M256 264 292 320 352 344 316 368 336 432 276 404 256 464 236 404 176 432 196 368 160 344 220 320Z" />
+    </g>
+  </g>
+  <rect x="234" y="338" width="44" height="32" rx="8" fill="#eefcff" />
+  <rect x="220" y="424" width="16" height="44" fill="#ff9a70" />
+  <rect x="248" y="432" width="16" height="48" fill="#ffd6a0" />
+  <rect x="276" y="424" width="16" height="44" fill="#ff9a70" />
+</svg>
