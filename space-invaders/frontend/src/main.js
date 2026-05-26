@@ -39,6 +39,25 @@ window.addEventListener('orientationchange', game.resize)
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    const isLocalDev =
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '::1'
+
+    if (isLocalDev) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister())
+      })
+
+      if ('caches' in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((key) => caches.delete(key))
+        })
+      }
+
+      return
+    }
+
     navigator.serviceWorker.register('./sw.js')
   })
 }

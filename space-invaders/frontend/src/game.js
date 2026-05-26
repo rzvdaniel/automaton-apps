@@ -33,6 +33,26 @@ function intersects(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 }
 
+function getWaveConfig(wave) {
+  const intensity = wave - 1
+  return {
+    columns: clamp(6 + Math.floor(intensity / 2), 6, 9),
+    rows: clamp(4 + Math.floor(intensity / 2), 4, 6),
+    gapX: clamp(30 - intensity * 1.5, 18, 30),
+    gapY: clamp(40 - intensity, 26, 40),
+    enemyWidth: clamp(72 - intensity * 2, 58, 72),
+    enemyHeight: clamp(72 - intensity * 2, 58, 72),
+    startY: clamp(214 + intensity * 10, 214, 280),
+    stepInterval: Math.max(0.18, 0.62 - intensity * 0.06),
+    horizontalStep: 24 + intensity * 1.8,
+    drop: 28 + intensity * 4,
+    enemyFireRate: 0.24 + intensity * 0.085,
+    enemyBulletSpeed: 470 + intensity * 40,
+    maxEnemyBullets: clamp(2 + wave, 2, 8),
+    killSpeedBoost: 2.8 + intensity * 0.12
+  }
+}
+
 export function createGame({ canvas, shell, installButton, muteButton, pauseButton, touchControls }) {
   const context = canvas.getContext('2d', { alpha: false })
   const audio = createAudioManager()
@@ -122,25 +142,22 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   }
 
   function spawnWave(wave) {
-    const columns = clamp(5 + Math.floor(wave / 2), 5, 8)
-    const rows = clamp(3 + Math.floor((wave + 1) / 2), 3, 6)
-    const gapX = 34
-    const gapY = 42
-    const enemyWidth = 72
-    const enemyHeight = 72
+    const config = getWaveConfig(wave)
+    const { columns, rows, gapX, gapY, enemyWidth, enemyHeight } = config
     const formationWidth = columns * enemyWidth + (columns - 1) * gapX
     const startX = (WORLD.width - formationWidth) / 2
     state.wave = wave
     state.message = wave === 1 ? 'READY' : `WAVE ${wave}`
-    state.overlayTimer = 1.2
+    state.overlayTimer = wave === 1 ? 1 : 0.9
     state.enemies = []
+    state.enemyBullets = []
 
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < columns; col += 1) {
         const rank = row === 0 ? 'elite' : row < 3 ? 'mid' : 'grunt'
         state.enemies.push({
           x: startX + col * (enemyWidth + gapX),
-          y: 250 + row * (enemyHeight + gapY),
+          y: config.startY + row * (enemyHeight + gapY),
           width: enemyWidth,
           height: enemyHeight,
           rank,
@@ -151,8 +168,14 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     }
 
     state.enemyDirection = 1
-    state.enemyBaseSpeed = 72 + wave * 11
-    state.enemyDrop = 34
+    state.enemyStepInterval = config.stepInterval
+    state.enemyHorizontalStep = config.horizontalStep
+    state.enemyStepTimer = 0
+    state.enemyDrop = config.drop
+    state.enemyFireRate = config.enemyFireRate
+    state.enemyBulletSpeed = config.enemyBulletSpeed
+    state.maxEnemyBullets = config.maxEnemyBullets
+    state.killSpeedBoost = config.killSpeedBoost
     state.enemyEdgeLock = false
     audio.wave()
   }
@@ -168,6 +191,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.bullets = []
     state.enemyBullets = []
     state.particles = []
+    state.enemyStepTimer = 0
     state.player.x = WORLD.width / 2
     state.player.cooldown = 0
     state.player.lives = 3
@@ -205,12 +229,13 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   }
 
   function shootEnemy(enemy) {
+    if (state.enemyBullets.length >= state.maxEnemyBullets) return
     state.enemyBullets.push({
       x: enemy.x + enemy.width / 2,
       y: enemy.y + enemy.height,
       width: 10,
       height: 28,
-      speed: 520 + state.wave * 20
+      speed: state.enemyBulletSpeed
     })
     audio.enemyShoot()
   }
@@ -277,32 +302,39 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
 
     const aliveEnemies = state.enemies.filter((enemy) => enemy.alive)
     const totalEnemies = state.enemies.length || 1
-    const speedBoost = 1 + (1 - aliveEnemies.length / totalEnemies) * 1.6
-    let leftEdge = Infinity
-    let rightEdge = -Infinity
+    const aliveRatio = aliveEnemies.length / totalEnemies
+    const speedBoost = 1 + (1 - aliveRatio) * state.killSpeedBoost
+    const currentStepInterval = Math.max(0.08, state.enemyStepInterval / speedBoost)
+    state.enemyStepTimer += dt
 
-    for (const enemy of aliveEnemies) {
-      enemy.x += state.enemyDirection * state.enemyBaseSpeed * speedBoost * dt
-      leftEdge = Math.min(leftEdge, enemy.x)
-      rightEdge = Math.max(rightEdge, enemy.x + enemy.width)
+    while (state.enemyStepTimer >= currentStepInterval && aliveEnemies.length > 0) {
+      state.enemyStepTimer -= currentStepInterval
+
+      let leftEdge = Infinity
+      let rightEdge = -Infinity
+      for (const enemy of aliveEnemies) {
+        leftEdge = Math.min(leftEdge, enemy.x)
+        rightEdge = Math.max(rightEdge, enemy.x + enemy.width)
+      }
+
+      const nextLeftEdge = leftEdge + state.enemyDirection * state.enemyHorizontalStep
+      const nextRightEdge = rightEdge + state.enemyDirection * state.enemyHorizontalStep
+      const hitWall = nextLeftEdge < 50 || nextRightEdge > WORLD.width - 50
+
+      if (hitWall) {
+        state.enemyDirection *= -1
+        for (const enemy of aliveEnemies) {
+          enemy.y += state.enemyDrop
+        }
+        shake(4 + (1 - aliveRatio) * 3)
+      } else {
+        for (const enemy of aliveEnemies) {
+          enemy.x += state.enemyDirection * state.enemyHorizontalStep
+        }
+      }
     }
 
-    const hitLeftEdge = leftEdge < 50
-    const hitRightEdge = rightEdge > WORLD.width - 50
-    const clearOfEdges = leftEdge > 64 && rightEdge < WORLD.width - 64
-
-    if (clearOfEdges) {
-      state.enemyEdgeLock = false
-    }
-
-    if ((hitLeftEdge || hitRightEdge) && !state.enemyEdgeLock) {
-      state.enemyEdgeLock = true
-      state.enemyDirection *= -1
-      for (const enemy of aliveEnemies) enemy.y += state.enemyDrop
-      shake(4)
-    }
-
-    if (aliveEnemies.length && Math.random() < dt * (0.34 + state.wave * 0.06)) {
+    if (aliveEnemies.length && Math.random() < dt * state.enemyFireRate) {
       const columns = new Map()
       for (const enemy of aliveEnemies) {
         const key = Math.round(enemy.x / 12)
