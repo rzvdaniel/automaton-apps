@@ -30,51 +30,6 @@ app.innerHTML = `
         </div>
       </div>
     </div>
-    <dialog class="settings-dialog">
-      <span class="settings-panel-corner settings-panel-corner-tl" aria-hidden="true"></span>
-      <span class="settings-panel-corner settings-panel-corner-tr" aria-hidden="true"></span>
-      <span class="settings-panel-corner settings-panel-corner-bl" aria-hidden="true"></span>
-      <span class="settings-panel-corner settings-panel-corner-br" aria-hidden="true"></span>
-      <div class="settings-form">
-        <div class="debug-title">Space Invaders</div>
-        <label class="settings-row" for="settings-sprite-style">
-          <span>Sprite style</span>
-          <select class="debug-input settings-select" id="settings-sprite-style">
-            <option value="pixel-gaps">Pixel gaps</option>
-            <option value="smooth">Smooth</option>
-          </select>
-        </label>
-        <label class="settings-row" for="settings-screen-shake">
-          <span>Screen shake</span>
-          <select class="debug-input settings-select" id="settings-screen-shake">
-            <option value="off">Off</option>
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-          </select>
-        </label>
-        <label class="settings-row" for="settings-background-blur">
-          <span>Background blur</span>
-          <select class="debug-input settings-select" id="settings-background-blur">
-            <option value="off">Off</option>
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-          </select>
-        </label>
-        <label class="settings-row" for="settings-controls">
-          <span>Controls</span>
-          <select class="debug-input settings-select" id="settings-controls">
-            <option value="buttons">Buttons</option>
-            <option value="zones">Touch zones</option>
-          </select>
-        </label>
-        <label class="settings-toggle"><span>Sound</span><input id="settings-sound" type="checkbox" checked /></label>
-        <label class="settings-toggle"><span>Reduced motion</span><input id="settings-reduced-motion" type="checkbox" /></label>
-        <label class="settings-toggle"><span>Keyboard hint</span><input id="settings-keyboard-hint" type="checkbox" checked /></label>
-        <div class="debug-actions">
-          <button class="overlay-button settings-close" type="button">Close</button>
-        </div>
-      </div>
-    </dialog>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
         <div class="debug-title">Debug Wave</div>
@@ -122,7 +77,8 @@ const pauseSettingsButton = document.querySelector('.pause-settings')
 function syncPauseMenu() {
   const isStarted = shell.dataset.gameStarted === 'true'
   const isPaused = shell.dataset.gamePaused === 'true'
-  pauseMenu.setAttribute('aria-hidden', isPaused ? 'false' : 'true')
+  const isSettingsOpen = shell.dataset.settingsOpen === 'true'
+  pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
   pauseSoundButton.textContent = game.isMuted() ? 'Sound Off' : 'Sound On'
   pauseButton.classList.toggle('is-settings-proxy', !isStarted)
   settingsButton.classList.toggle('hidden', !isStarted)
@@ -186,6 +142,7 @@ pauseSettingsButton.addEventListener('click', () => {
   syncPauseMenu()
 })
 shell.addEventListener('game-state-change', syncPauseMenu)
+shell.addEventListener('settings-menu-change', syncPauseMenu)
 positionPauseMenu()
 syncPauseMenu()
 

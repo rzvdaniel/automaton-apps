@@ -101,6 +101,8 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     backgroundImage,
     backgroundEffects,
     desktopMode: !isMobileViewport(),
+    settingsOpen: false,
+    settingsMenu: null,
     settings,
     player: {
       x: WORLD.width / 2,
@@ -123,16 +125,28 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     shell.dataset.gamePaused = state.paused ? 'true' : 'false'
     shell.dataset.gameStarted = state.started ? 'true' : 'false'
     shell.dataset.gameRunning = state.running ? 'true' : 'false'
+    shell.dataset.settingsOpen = state.settingsOpen ? 'true' : 'false'
     shell.dispatchEvent(
       new CustomEvent('game-state-change', {
         detail: {
           paused: state.paused,
           started: state.started,
           running: state.running,
-          muted: state.muted
+          muted: state.muted,
+          settingsOpen: state.settingsOpen
         }
       })
     )
+  }
+
+  function setSettingsMenuState(menuState) {
+    const wasOpen = state.settingsOpen
+    state.settingsMenu = menuState
+    state.settingsOpen = Boolean(menuState)
+    shell.dataset.settingsOpen = state.settingsOpen ? 'true' : 'false'
+    if (wasOpen !== state.settingsOpen) {
+      shell.dispatchEvent(new CustomEvent('settings-menu-change', { detail: { open: state.settingsOpen } }))
+    }
   }
 
   function updateMuteButton() {
@@ -654,6 +668,10 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
         offsetY: state.offsetY,
         desktopMode: state.desktopMode
       }
+    },
+    setSettingsMenuState,
+    isSettingsOpen() {
+      return state.settingsOpen
     }
   }
 }
