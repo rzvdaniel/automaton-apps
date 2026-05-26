@@ -49,23 +49,23 @@ function drawBackground(context, state) {
 function drawHud(context, state) {
   context.textAlign = 'left'
   context.fillStyle = 'rgba(6, 10, 24, 0.28)'
-  context.fillRect(24, 24, WORLD.width - 48, 74)
+  context.fillRect(24, 24, WORLD.width - 48, 86)
   context.fillStyle = PALETTE.white
-  context.font = '700 22px monospace'
-  context.fillText('SCORE', 42, 52)
-  context.fillText(String(state.score).padStart(6, '0'), 42, 80)
-  context.fillText('WAVE', 352, 52)
-  context.fillText(String(state.wave).padStart(2, '0'), 352, 80)
-  context.fillText('LIVES', 554, 52)
-  context.fillText(String(state.player.lives), 554, 80)
-  context.fillText('HI', 776, 52)
-  context.fillText(String(state.highScore).padStart(6, '0'), 776, 80)
+  context.font = '700 26px monospace'
+  context.fillText('SCORE', 42, 56)
+  context.fillText(String(state.score).padStart(6, '0'), 42, 88)
+  context.fillText('WAVE', 352, 56)
+  context.fillText(String(state.wave).padStart(2, '0'), 352, 88)
+  context.fillText('LIVES', 554, 56)
+  context.fillText(String(state.player.lives), 554, 88)
+  context.fillText('HI', 776, 56)
+  context.fillText(String(state.highScore).padStart(6, '0'), 776, 88)
 
   context.textAlign = 'right'
   context.fillStyle = state.muted ? 'rgba(255,211,107,0.88)' : 'rgba(140,247,255,0.88)'
-  context.fillText(state.muted ? 'MUTE' : 'SFX', WORLD.width - 42, 52)
+  context.fillText(state.muted ? 'MUTE' : 'SFX', WORLD.width - 42, 56)
   context.fillStyle = state.paused ? 'rgba(255,106,122,0.92)' : 'rgba(255,255,255,0.62)'
-  context.fillText(state.paused ? 'PAUSED' : 'LIVE', WORLD.width - 42, 80)
+  context.fillText(state.paused ? 'PAUSED' : 'LIVE', WORLD.width - 42, 88)
 }
 
 function drawShip(context, state, elapsed) {
