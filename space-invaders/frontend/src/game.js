@@ -186,11 +186,15 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   }
 
   function resetGame() {
+    resetGameToWave(1)
+  }
+
+  function resetGameToWave(startWave) {
     state.started = true
     state.running = true
     state.paused = false
     state.score = 0
-    state.wave = 1
+    state.wave = startWave
     state.flash = 0
     state.shake.power = 0
     state.shake.duration = 0
@@ -203,7 +207,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.player.cooldown = 0
     state.player.lives = 3
     state.player.invulnerability = 0
-    spawnWave(1)
+    spawnWave(startWave)
   }
 
   function setMuted(value) {
@@ -517,5 +521,18 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   render(window.matchMedia('(pointer:fine)').matches)
   requestAnimationFrame(tick)
 
-  return { resize, clearPointer }
+  return {
+    resize,
+    clearPointer,
+    restart() {
+      resetGame()
+    },
+    startAtWave(wave) {
+      resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))
+    },
+    setPaused,
+    getWave() {
+      return state.wave
+    }
+  }
 }
