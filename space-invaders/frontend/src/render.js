@@ -76,17 +76,46 @@ function drawBackground(context, state) {
   state.backgroundEffects.renderBehindImage(context)
 
   if (state.backgroundImage?.complete) {
+    const image = state.backgroundImage
+    const imageAspect = image.width / image.height
+    const worldAspect = WORLD.width / WORLD.height
+    let sourceWidth = image.width
+    let sourceHeight = image.height
+    let sourceX = 0
+    let sourceY = 0
+
+    if (imageAspect > worldAspect) {
+      sourceWidth = image.height * worldAspect
+      sourceX = (image.width - sourceWidth) / 2
+    } else {
+      sourceHeight = image.width / worldAspect
+      sourceY = (image.height - sourceHeight) / 2
+    }
+
     context.save()
-    context.filter = 'blur(2px) saturate(0.72) brightness(0.58)'
-    context.globalAlpha = 0.36
-    context.translate(WORLD.width * 0.06, WORLD.height * 0.14)
-    context.drawImage(state.backgroundImage, 0, 0, WORLD.width, WORLD.height)
+    context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, WORLD.width, WORLD.height)
+    context.restore()
+
+    context.save()
+    const rimGlow = context.createRadialGradient(
+      WORLD.width * 0.55,
+      WORLD.height * 0.73,
+      WORLD.width * 0.12,
+      WORLD.width * 0.55,
+      WORLD.height * 0.73,
+      WORLD.width * 0.34
+    )
+    rimGlow.addColorStop(0, 'rgba(120, 220, 255, 0)')
+    rimGlow.addColorStop(0.72, 'rgba(120, 220, 255, 0.04)')
+    rimGlow.addColorStop(1, 'rgba(120, 220, 255, 0.1)')
+    context.fillStyle = rimGlow
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
     context.restore()
 
     const shade = context.createLinearGradient(0, 0, 0, WORLD.height)
-    shade.addColorStop(0, 'rgba(4, 8, 18, 0.14)')
-    shade.addColorStop(0.5, 'rgba(4, 8, 18, 0.04)')
-    shade.addColorStop(1, 'rgba(2, 5, 15, 0.3)')
+    shade.addColorStop(0, 'rgba(4, 8, 18, 0.1)')
+    shade.addColorStop(0.5, 'rgba(4, 8, 18, 0.02)')
+    shade.addColorStop(1, 'rgba(2, 5, 15, 0.2)')
     context.fillStyle = shade
     context.fillRect(0, 0, WORLD.width, WORLD.height)
   }
@@ -288,33 +317,90 @@ function drawEffects(context, state) {
 function drawOverlay(context, state, desktopMode) {
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused) return
   const mobilePauseMenu = !desktopMode && state.paused && state.running
-  context.fillStyle = mobilePauseMenu ? 'rgba(1, 4, 12, 0.74)' : 'rgba(1, 4, 12, 0.6)'
-  context.fillRect(0, 0, WORLD.width, WORLD.height)
-  const panelWidth = WORLD.width - 160
-  const panelX = 80
-  const panelY = 276
-  const panelHeight = desktopMode ? 660 : 710
+  const introOverlay = !state.started || (!state.running && !state.paused) || (!state.paused && state.overlayTimer > 0)
+  if (mobilePauseMenu) {
+    context.fillStyle = 'rgba(1, 4, 12, 0.18)'
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
+  } else if (!introOverlay) {
+    context.fillStyle = 'rgba(1, 4, 12, 0.28)'
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
+  }
+  const panelWidth = introOverlay ? (desktopMode ? WORLD.width - 260 : WORLD.width - 260) : WORLD.width - 160
+  const panelX = (WORLD.width - panelWidth) / 2
+  const panelY = introOverlay ? (desktopMode ? 318 : 350) : 276
+  const panelHeight = introOverlay ? (desktopMode ? 564 : 552) : desktopMode ? 660 : 710
   const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
-  panelGradient.addColorStop(0, 'rgba(4, 10, 22, 0.82)')
-  panelGradient.addColorStop(1, 'rgba(2, 6, 16, 0.72)')
+  panelGradient.addColorStop(0, introOverlay ? 'rgba(18, 40, 58, 0.34)' : 'rgba(4, 10, 22, 0.82)')
+  panelGradient.addColorStop(1, introOverlay ? 'rgba(6, 16, 28, 0.18)' : 'rgba(2, 6, 16, 0.72)')
   context.fillStyle = panelGradient
   context.fillRect(panelX, panelY, panelWidth, panelHeight)
-  context.strokeStyle = 'rgba(140, 247, 255, 0.1)'
-  context.lineWidth = 2
-  context.strokeRect(panelX, panelY, panelWidth, panelHeight)
+  if (introOverlay) {
+    const glow = context.createRadialGradient(
+      WORLD.width / 2,
+      panelY + panelHeight * 0.35,
+      40,
+      WORLD.width / 2,
+      panelY + panelHeight * 0.35,
+      panelWidth * 0.7
+    )
+    glow.addColorStop(0, 'rgba(140, 247, 255, 0.1)')
+    glow.addColorStop(1, 'rgba(140, 247, 255, 0)')
+    context.fillStyle = glow
+    context.fillRect(panelX, panelY, panelWidth, panelHeight)
+
+    const corner = 34
+    context.strokeStyle = 'rgba(140, 247, 255, 0.72)'
+    context.lineWidth = 3
+    context.beginPath()
+    context.moveTo(panelX + 18, panelY + corner)
+    context.lineTo(panelX + 18, panelY + 18)
+    context.lineTo(panelX + corner, panelY + 18)
+    context.moveTo(panelX + panelWidth - corner, panelY + 18)
+    context.lineTo(panelX + panelWidth - 18, panelY + 18)
+    context.lineTo(panelX + panelWidth - 18, panelY + corner)
+    context.moveTo(panelX + 18, panelY + panelHeight - corner)
+    context.lineTo(panelX + 18, panelY + panelHeight - 18)
+    context.lineTo(panelX + corner, panelY + panelHeight - 18)
+    context.moveTo(panelX + panelWidth - corner, panelY + panelHeight - 18)
+    context.lineTo(panelX + panelWidth - 18, panelY + panelHeight - 18)
+    context.lineTo(panelX + panelWidth - 18, panelY + panelHeight - corner)
+    context.stroke()
+  } else {
+    context.strokeStyle = 'rgba(140, 247, 255, 0.1)'
+    context.lineWidth = 2
+    context.strokeRect(panelX, panelY, panelWidth, panelHeight)
+  }
   context.textAlign = 'center'
   context.shadowColor = PALETTE.cyan
   context.shadowBlur = mobilePauseMenu ? 8 : 18
   context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
-  context.font = desktopMode ? '700 86px monospace' : '700 98px monospace'
-  context.fillText('SPACE', WORLD.width / 2, desktopMode ? 390 : 400)
-  context.fillText('INVADERS', WORLD.width / 2, desktopMode ? 474 : 490)
+  if (introOverlay) {
+    const titleGlow = context.createRadialGradient(WORLD.width / 2, desktopMode ? 428 : 452, 24, WORLD.width / 2, desktopMode ? 428 : 452, 180)
+    titleGlow.addColorStop(0, 'rgba(140, 247, 255, 0.1)')
+    titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
+    context.fillStyle = titleGlow
+    context.fillRect(panelX, panelY, panelWidth, panelHeight)
+    context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
+  }
+  context.font = desktopMode ? '900 76px "Arial Black", Impact, sans-serif' : '900 88px "Arial Black", Impact, sans-serif'
+  context.fillText('SPACE', WORLD.width / 2, desktopMode ? 404 : 430)
+  context.fillText('INVADERS', WORLD.width / 2, desktopMode ? 486 : 512)
+  if (introOverlay) {
+    context.strokeStyle = 'rgba(140, 247, 255, 0.18)'
+    context.lineWidth = 2
+    context.beginPath()
+    context.moveTo(panelX + 54, desktopMode ? 540 : 566)
+    context.lineTo(panelX + panelWidth - 54, desktopMode ? 540 : 566)
+    context.stroke()
+  }
   context.shadowBlur = 0
   context.fillStyle = PALETTE.cyan
   if (!mobilePauseMenu) {
-    context.font = desktopMode ? '600 32px monospace' : '600 36px monospace'
+    const insertCoinPulse = introOverlay ? 0.72 + ((Math.sin(state.elapsed * 4.6) + 1) / 2) * 0.28 : 1
+    context.fillStyle = introOverlay ? `rgba(140,247,255,${insertCoinPulse})` : PALETTE.cyan
+    context.font = desktopMode ? '600 32px monospace' : '600 42px monospace'
     const headline = state.paused ? 'PAUSED' : state.message
-    context.fillText(headline, WORLD.width / 2, desktopMode ? 690 : 700)
+    context.fillText(headline, WORLD.width / 2, introOverlay ? (desktopMode ? 628 : 664) : desktopMode ? 690 : 700)
   }
   if (!mobilePauseMenu && (!desktopMode || state.settings.keyboardHint)) {
     context.fillStyle = 'rgba(238,252,255,0.82)'
@@ -322,9 +408,9 @@ function drawOverlay(context, state, desktopMode) {
       context.font = '500 24px monospace'
       context.fillText('ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE', WORLD.width / 2, 770)
     } else {
-      context.font = '700 30px monospace'
-      context.fillText('HOLD \u25c0 / \u25b6 TO MOVE', WORLD.width / 2, 760)
-      context.fillText('TAP FIRE', WORLD.width / 2, 804)
+      context.font = introOverlay ? '700 40px monospace' : '700 34px monospace'
+      context.fillText('\u25c0  \u25b6  MOVE', WORLD.width / 2, introOverlay ? 746 : 760)
+      context.fillText('\u25cf  FIRE', WORLD.width / 2, introOverlay ? 802 : 804)
     }
   }
   if (!mobilePauseMenu && !state.running) {

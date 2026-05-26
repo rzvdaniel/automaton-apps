@@ -72,7 +72,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   const audio = createAudioManager()
   const backgroundEffects = createBackgroundEffects()
   const backgroundImage = new Image()
-  backgroundImage.src = './images/planet-bg.jpg'
+  backgroundImage.src = './images/planet-cinematic-bg.png'
   const settings = loadSettings()
   const state = {
     scale: 1,
