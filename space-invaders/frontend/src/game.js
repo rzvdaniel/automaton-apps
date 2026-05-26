@@ -2,6 +2,7 @@ import { createAudioManager } from './audio.js'
 import { createBackgroundEffects } from './background-effects.js'
 import { DPR_LIMIT, PALETTE, PLAYER_COOLDOWN, PLAYER_INVULNERABILITY, STORAGE_KEYS, WORLD } from './config.js'
 import { renderScene } from './render.js'
+import { loadSettings, saveSettings } from './settings.js'
 
 function random(min, max) {
   return min + Math.random() * (max - min)
@@ -60,6 +61,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   const backgroundEffects = createBackgroundEffects()
   const backgroundImage = new Image()
   backgroundImage.src = './images/planet-bg.jpg'
+  const settings = loadSettings()
   const state = {
     scale: 1,
     offsetX: 0,
@@ -86,15 +88,19 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     shake: { x: 0, y: 0, power: 0, duration: 0, cooldown: 0 },
     backgroundImage,
     backgroundEffects,
+    settings,
     player: {
       x: WORLD.width / 2,
-      y: WORLD.height - 182,
-      width: 96,
-      height: 58,
+      y: WORLD.height - 236,
+      width: 98,
+      height: 64,
       speed: 760,
       cooldown: 0,
       lives: 3,
-      invulnerability: 0
+      invulnerability: 0,
+      visualTilt: 0,
+      thrust: 0,
+      fireFlash: 0
     }
   }
 
@@ -152,9 +158,12 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   }
 
   function triggerShake(power, duration) {
+    const shakeLevel = state.settings.screenShake
+    if (shakeLevel === 'off') return
+    const multiplier = shakeLevel === 'low' ? 0.45 : 1
     if (state.shake.cooldown > 0) return
-    state.shake.power = Math.max(state.shake.power, power)
-    state.shake.duration = Math.max(state.shake.duration, duration)
+    state.shake.power = Math.max(state.shake.power, power * multiplier)
+    state.shake.duration = Math.max(state.shake.duration, duration * (shakeLevel === 'low' ? 0.8 : 1))
     state.shake.cooldown = 0.12
   }
 
@@ -219,6 +228,9 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.player.cooldown = 0
     state.player.lives = 3
     state.player.invulnerability = 0
+    state.player.visualTilt = 0
+    state.player.thrust = 0
+    state.player.fireFlash = 0
     spawnWave(startWave)
   }
 
@@ -240,14 +252,16 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   function shootPlayer() {
     if (!state.running || state.paused || state.player.cooldown > 0) return
     state.player.cooldown = PLAYER_COOLDOWN
+    state.player.fireFlash = 1
     state.bullets.push({
       x: state.player.x,
-      y: state.player.y - 42,
+      y: state.player.y - 52,
       width: 8,
       height: 40,
       speed: 1200
     })
-    addParticles(state.player.x, state.player.y - 38, PALETTE.cyan, 7, 150, 20)
+    addParticles(state.player.x, state.player.y - 46, PALETTE.cyan, 7, 150, 20)
+    addParticles(state.player.x, state.player.y - 54, PALETTE.white, 3, 90, 10)
     audio.shoot()
   }
 
@@ -315,10 +329,16 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.overlayTimer = Math.max(0, state.overlayTimer - dt)
     state.player.cooldown = Math.max(0, state.player.cooldown - dt)
     state.player.invulnerability = Math.max(0, state.player.invulnerability - dt)
+    state.player.fireFlash = Math.max(0, state.player.fireFlash - dt * 7.5)
 
     let movement = 0
     if (moveLeft) movement -= 1
     if (moveRight) movement += 1
+    const motionScale = state.settings.reducedMotion ? 0.45 : 1
+    const targetTilt = movement * 0.18 * motionScale
+    state.player.visualTilt += (targetTilt - state.player.visualTilt) * Math.min(1, dt * 14)
+    const thrustTarget = movement === 0 ? 0.45 : 1
+    state.player.thrust += (thrustTarget - state.player.thrust) * Math.min(1, dt * 8)
     state.player.x += movement * state.player.speed * dt
     state.player.x = clamp(state.player.x, 74, WORLD.width - 74)
 
@@ -543,6 +563,19 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
       resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))
     },
     setPaused,
+    getSettings() {
+      return { ...state.settings }
+    },
+    updateSettings(nextSettings) {
+      state.settings = { ...state.settings, ...nextSettings }
+      saveSettings(state.settings)
+    },
+    isMuted() {
+      return state.muted
+    },
+    setMuted(value) {
+      setMuted(value)
+    },
     getWave() {
       return state.wave
     }

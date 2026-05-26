@@ -1,6 +1,7 @@
 import './styles.css'
 import { createGame } from './game.js'
 import { setupDebugPanel } from './debug-panel.js'
+import { setupSettingsPanel } from './settings-panel.js'
 
 const app = document.querySelector('#app')
 
@@ -9,11 +10,46 @@ app.innerHTML = `
     <div class="cabinet-glow"></div>
     <canvas class="game" aria-label="Space Invaders playfield"></canvas>
     <div class="top-actions">
+      <button class="overlay-button overlay-button-icon settings-button" type="button" aria-label="Settings" title="Settings">⚙</button>
       <button class="overlay-button overlay-button-desktop restart-button" type="button" aria-label="Restart" title="Restart">↻</button>
       <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause">⏸</button>
       <button class="overlay-button overlay-button-icon mute-button" type="button" aria-label="Sound on" title="Sound on">🔊</button>
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
+    <dialog class="settings-dialog">
+      <div class="settings-form">
+        <div class="debug-title">Settings</div>
+        <label class="settings-row" for="settings-sprite-style">
+          <span>Sprite style</span>
+          <select class="debug-input settings-select" id="settings-sprite-style">
+            <option value="pixel-gaps">Pixel gaps</option>
+            <option value="smooth">Smooth</option>
+          </select>
+        </label>
+        <label class="settings-row" for="settings-screen-shake">
+          <span>Screen shake</span>
+          <select class="debug-input settings-select" id="settings-screen-shake">
+            <option value="off">Off</option>
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+          </select>
+        </label>
+        <label class="settings-row" for="settings-controls">
+          <span>Controls</span>
+          <select class="debug-input settings-select" id="settings-controls">
+            <option value="buttons">Buttons</option>
+            <option value="zones">Touch zones</option>
+          </select>
+        </label>
+        <label class="settings-toggle"><span>Sound</span><input id="settings-sound" type="checkbox" checked /></label>
+        <label class="settings-toggle"><span>Reduced motion</span><input id="settings-reduced-motion" type="checkbox" /></label>
+        <label class="settings-toggle"><span>Keyboard hint</span><input id="settings-keyboard-hint" type="checkbox" checked /></label>
+        <div class="debug-actions">
+          <button class="overlay-button settings-restart" type="button">Restart</button>
+          <button class="overlay-button settings-close" type="button">Close</button>
+        </div>
+      </div>
+    </dialog>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
         <div class="debug-title">Debug Wave</div>
@@ -47,6 +83,7 @@ const game = createGame({
     right: document.querySelector('.touch-right')
   }
 })
+setupSettingsPanel({ game, root: shell, shell })
 setupDebugPanel({ game, root: shell })
 
 window.addEventListener('resize', game.resize)

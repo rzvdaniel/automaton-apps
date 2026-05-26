@@ -10,15 +10,15 @@ function createBuffer(width, height) {
   return buffer
 }
 
-function getCachedSprite(sprite, pixelSize, color, glow) {
+function getCachedSprite(sprite, pixelSize, color, glow, spriteStyle = 'pixel-gaps') {
   const unit = Math.max(1, Math.round(pixelSize))
-  const cacheKey = `${sprite.join('')}:${unit}:${color}:${glow}`
+  const cacheKey = `${sprite.join('')}:${unit}:${color}:${glow}:${spriteStyle}`
   if (spriteCache.has(cacheKey)) return spriteCache.get(cacheKey)
 
   const width = sprite[0].length * unit
   const height = sprite.length * unit
   const padding = Math.max(2, Math.ceil(unit * 1.5))
-  const pixelInset = unit >= 8 ? 0.5 : 0
+  const pixelInset = spriteStyle === 'pixel-gaps' && unit >= 8 ? 0.5 : 0
   const pixelDrawSize = Math.max(1, unit - pixelInset * 2)
   const buffer = createBuffer(width + padding * 2, height + padding * 2)
   const bufferContext = buffer.getContext('2d')
@@ -57,11 +57,11 @@ function getScanlineCanvas() {
   return scanlineCanvas
 }
 
-function drawPixelSprite(context, sprite, x, y, pixelSize, color, glow = color) {
+function drawPixelSprite(context, sprite, x, y, pixelSize, color, glow = color, spriteStyle = 'pixel-gaps') {
   const unit = Math.max(1, Math.round(pixelSize))
   const startX = Math.round(x)
   const startY = Math.round(y)
-  const { buffer, padding } = getCachedSprite(sprite, unit, color, glow)
+  const { buffer, padding } = getCachedSprite(sprite, unit, color, glow, spriteStyle)
   context.drawImage(buffer, startX - padding, startY - padding)
 }
 
@@ -118,38 +118,88 @@ function drawHud(context, state) {
 
 function drawShip(context, state, elapsed) {
   if (state.player.invulnerability > 0 && Math.floor(elapsed * 18) % 2 === 0) return
-  const { x, y } = state.player
-  const thruster = 12 + Math.sin(elapsed * 14) * 6
+  const { x, y, visualTilt, thrust, fireFlash } = state.player
+  const motionScale = state.settings.reducedMotion ? 0.35 : 1
+  const enginePulse = 0.82 + Math.sin(elapsed * 14) * 0.12 * motionScale + Math.sin(elapsed * 31) * 0.06 * motionScale
+  const thruster = 14 + thrust * 9 + enginePulse * 6
+  const sideBias = visualTilt * 18
+  const muzzleFlash = fireFlash * 18
   context.save()
-  context.shadowColor = PALETTE.cyan
-  context.shadowBlur = 16
-  context.fillStyle = PALETTE.cyan
+  context.translate(x, y)
+  context.rotate(visualTilt)
+
+  context.fillStyle = 'rgba(12, 24, 46, 0.72)'
   context.beginPath()
-  context.moveTo(x, y - 32)
-  context.lineTo(x + 44, y + 24)
-  context.lineTo(x + 16, y + 20)
-  context.lineTo(x, y + 8)
-  context.lineTo(x - 16, y + 20)
-  context.lineTo(x - 44, y + 24)
+  context.ellipse(0, 14, 76, 36, 0, 0, Math.PI * 2)
+  context.fill()
+
+  context.scale(0.88, 0.88)
+  context.fillStyle = '#8cf7ff'
+  context.beginPath()
+  context.moveTo(0, -56)
+  context.lineTo(22, -22)
+  context.lineTo(50, -8)
+  context.lineTo(70, 20)
+  context.lineTo(34, 18)
+  context.lineTo(18, 8)
+  context.lineTo(8, 28)
+  context.lineTo(-8, 28)
+  context.lineTo(-18, 8)
+  context.lineTo(-34, 18)
+  context.lineTo(-70, 20)
+  context.lineTo(-50, -8)
+  context.lineTo(-22, -22)
   context.closePath()
   context.fill()
+
+  context.fillStyle = '#4bc9ff'
+  context.beginPath()
+  context.moveTo(0, -44)
+  context.lineTo(16, -16)
+  context.lineTo(28, 6)
+  context.lineTo(12, 18)
+  context.lineTo(-12, 18)
+  context.lineTo(-28, 6)
+  context.lineTo(-16, -16)
+  context.closePath()
+  context.fill()
+
   context.fillStyle = PALETTE.white
-  context.fillRect(x - 10, y - 10, 20, 28)
-  context.fillStyle = 'rgba(255, 110, 92, 0.88)'
-  context.fillRect(x - 8, y + 24, 6, thruster)
-  context.fillRect(x + 2, y + 24, 6, thruster * 0.85)
+  context.fillRect(-12, -18, 24, 26)
+  context.fillRect(-38, -2, 14, 10)
+  context.fillRect(24, -2, 14, 10)
+
+  context.fillStyle = 'rgba(255, 110, 92, 0.96)'
+  context.fillRect(-28, 22, 8, thruster * (0.8 - sideBias * 0.01))
+  context.fillRect(-4, 26, 8, thruster)
+  context.fillRect(20, 22, 8, thruster * (0.8 + sideBias * 0.01))
+  context.fillStyle = 'rgba(255, 214, 160, 0.88)'
+  context.fillRect(-26, 22, 4, thruster * (0.54 - sideBias * 0.008))
+  context.fillRect(-2, 26, 4, thruster * 0.7)
+  context.fillRect(22, 22, 4, thruster * (0.54 + sideBias * 0.008))
+
+  if (fireFlash > 0) {
+    context.fillStyle = `rgba(255,255,255,${0.45 * fireFlash})`
+    context.beginPath()
+    context.moveTo(0, -86 - muzzleFlash)
+    context.lineTo(10, -50)
+    context.lineTo(-10, -50)
+    context.closePath()
+    context.fill()
+  }
+
   context.restore()
 }
 
-function drawEnemy(context, enemy, elapsed) {
+function drawEnemy(context, enemy, elapsed, settings) {
   const pixelSize = Math.max(1, Math.round(enemy.width / 8))
-  const bob = Math.sin(elapsed * 5 + enemy.phase) * 2.5
+  const bob = Math.sin(elapsed * 5 + enemy.phase) * (settings.reducedMotion ? 1 : 2.5)
   const x = enemy.x
   const y = enemy.y + bob
   const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
   const color = enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2'
   const glow = enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)'
-  drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow)
+  drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
 }
 
 function drawProjectiles(context, state) {
@@ -239,12 +289,14 @@ function drawOverlay(context, state, desktopMode) {
   context.font = '600 32px monospace'
   const headline = state.paused ? 'PAUSED' : state.message
   context.fillText(headline, WORLD.width / 2, 690)
-  context.fillStyle = 'rgba(238,252,255,0.82)'
-  context.font = '500 24px monospace'
-  const controlHint = desktopMode
-    ? 'ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE'
-    : 'HOLD LEFT OR RIGHT   HOLD FIRE   TAP TO START'
-  context.fillText(controlHint, WORLD.width / 2, 770)
+  if (!desktopMode || state.settings.keyboardHint) {
+    context.fillStyle = 'rgba(238,252,255,0.82)'
+    context.font = '500 24px monospace'
+    const controlHint = desktopMode
+      ? 'ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE'
+      : 'HOLD LEFT OR RIGHT   HOLD FIRE   TAP TO START'
+    context.fillText(controlHint, WORLD.width / 2, 770)
+  }
   if (!state.running) {
     context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, 822)
   }
@@ -260,7 +312,7 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
   context.scale(state.scale, state.scale)
   drawBackground(context, state)
   drawParticles(context, state.particles)
-  for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed)
+  for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed, state.settings)
   drawProjectiles(context, state)
   drawShip(context, state, elapsed)
   drawHud(context, state)

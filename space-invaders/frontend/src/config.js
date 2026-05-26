@@ -1,6 +1,7 @@
 export const STORAGE_KEYS = {
   highScore: 'space-invaders-high-score',
-  muted: 'space-invaders-muted'
+  muted: 'space-invaders-muted',
+  settings: 'space-invaders-settings'
 }
 
 export const DPR_LIMIT = 2
