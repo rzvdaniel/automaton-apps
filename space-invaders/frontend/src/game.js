@@ -796,6 +796,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       state.settings = { ...state.settings, ...nextSettings }
       saveSettings(state.settings)
       syncShellState()
+      resize()
     },
     isMuted() {
       return state.muted
