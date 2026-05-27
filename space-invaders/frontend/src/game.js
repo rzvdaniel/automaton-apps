@@ -93,6 +93,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     intermission: null,
     waveArrivalTimer: 0,
     waveArrivalDuration: 0,
+    waveLockTimer: 0,
+    waveLockDuration: 0,
     particles: [],
     bullets: [],
     enemyBullets: [],
@@ -250,6 +252,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.intermission = immediateStart ? null : { fromWave, toWave: wave }
     state.waveArrivalDuration = isIntermissionWave ? Math.max(0.45, 0.72 - wave * 0.015) : 0
     state.waveArrivalTimer = state.waveArrivalDuration
+    state.waveLockDuration = isIntermissionWave ? Math.max(0.18, 0.28 - wave * 0.008) : 0
+    state.waveLockTimer = 0
     state.bullets = []
     state.enemies = []
     state.enemyBullets = []
@@ -299,6 +303,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.intermission = null
     state.waveArrivalTimer = 0
     state.waveArrivalDuration = 0
+    state.waveLockTimer = 0
+    state.waveLockDuration = 0
     state.bullets = []
     state.enemyBullets = []
     state.enemies = []
@@ -332,6 +338,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.intermission = null
     state.waveArrivalTimer = 0
     state.waveArrivalDuration = 0
+    state.waveLockTimer = 0
+    state.waveLockDuration = 0
     state.shake.power = 0
     state.shake.duration = 0
     state.shake.cooldown = 0
@@ -492,6 +500,16 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
         particle.life -= dt
       }
       state.particles = state.particles.filter((particle) => particle.life > 0)
+      if (state.waveArrivalTimer === 0 && state.waveLockDuration > 0) {
+        state.waveLockTimer = state.waveLockDuration
+        state.flash = Math.max(state.flash, 0.08)
+        triggerShake(0.8, 0.05)
+      }
+      return desktopMode
+    }
+
+    if (state.waveLockTimer > 0) {
+      state.waveLockTimer = Math.max(0, state.waveLockTimer - dt)
       return desktopMode
     }
 
