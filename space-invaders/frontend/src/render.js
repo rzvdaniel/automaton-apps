@@ -558,7 +558,12 @@ function drawOverlay(context, state, desktopMode) {
     const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
     const incomingWave = state.intermission?.toWave ?? state.wave
     const clearedWave = state.intermission?.fromWave
+    const fadeWindow = 0.22
+    const fadeProgress = Math.min(1, state.overlayTimer / fadeWindow)
+    const fadeAlpha = fadeProgress * fadeProgress * (3 - 2 * fadeProgress)
 
+    context.save()
+    context.globalAlpha = fadeAlpha
     context.textAlign = 'center'
 
     const softGlow = context.createRadialGradient(WORLD.width / 2, 720, 40, WORLD.width / 2, 720, desktopMode ? 260 : 320)
@@ -593,6 +598,7 @@ function drawOverlay(context, state, desktopMode) {
     context.font = desktopMode ? '600 18px monospace' : '600 28px monospace'
     context.fillText('INCOMING HOSTILE FLEET', WORLD.width / 2, desktopMode ? 822 : 902)
     context.textAlign = 'left'
+    context.restore()
     return
   }
 
