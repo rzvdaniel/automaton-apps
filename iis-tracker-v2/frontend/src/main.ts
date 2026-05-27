@@ -1,5 +1,16 @@
 import './styles.css';
 import appIconUrl from './assets/app-icon.png';
+import { buildCamera, getMapViewport, type Camera } from './mapProjection';
+import {
+  drawAmbientOverlay,
+  drawDayNightOverlay,
+  drawDebugGrid,
+  drawTextureBackdrop,
+  projectPoint,
+  updateDebugPanel,
+  updateTextureLayer,
+  type RenderPoint,
+} from './mapRenderer';
 
 type IssSample = {
   latitude: number;
@@ -31,22 +42,6 @@ type ReferenceCity = {
   lat: number;
   lon: number;
   name: string;
-};
-
-type RenderPoint = { x: number; y: number; lat: number; lon: number };
-
-type Camera = {
-  centerWorldX: number;
-  sourceX: number;
-  sourceY: number;
-  sourceWidth: number;
-  sourceHeight: number;
-  zoom: number;
-  gridAlpha: number;
-  glowScale: number;
-  orbitWidth: number;
-  groundWidth: number;
-  showLegendLabels: boolean;
 };
 
 const API_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
@@ -133,6 +128,7 @@ const ids = [
   'debugApiTime',
   'debugUtcNow',
   'debugDataAge',
+  'debugProjectionMode',
   'debugRawCoords',
   'debugProjectedCoords',
   'debugProjectedPercent',
@@ -448,14 +444,6 @@ function worldYFromLat(lat: number, worldHeight: number) {
   return ((90 - clamped) / 180) * worldHeight;
 }
 
-function lonFromWorldX(worldX: number, worldWidth: number) {
-  return (worldX / worldWidth) * 360 - 180;
-}
-
-function latFromWorldY(worldY: number, worldHeight: number) {
-  return 90 - (worldY / worldHeight) * 180;
-}
-
 function interpolateAngle(start: number, end: number, amount: number) {
   let delta = end - start;
   if (delta > 180) delta -= 360;
@@ -570,13 +558,6 @@ function setDebugEnabled(enabled: boolean) {
   }
 }
 
-function shortestWorldDelta(value: number, center: number, worldWidth: number) {
-  let delta = value - center;
-  if (delta > worldWidth / 2) delta -= worldWidth;
-  if (delta < -worldWidth / 2) delta += worldWidth;
-  return delta;
-}
-
 function isMobileViewport() {
   return window.innerWidth <= MOBILE_BREAKPOINT;
 }
@@ -669,181 +650,8 @@ function getWorldDimensions() {
   };
 }
 
-function updateTextureLayer(camera: Camera) {
-  const viewportWidth = mapCanvas.clientWidth;
-  const viewportHeight = mapCanvas.clientHeight;
-  const world = getWorldDimensions();
-  const scaledWidth = (world.width / camera.sourceWidth) * viewportWidth;
-  const scaledHeight = (world.height / camera.sourceHeight) * viewportHeight;
-  const offsetX = -(camera.sourceX / camera.sourceWidth) * viewportWidth;
-  const offsetY = -(camera.sourceY / camera.sourceHeight) * viewportHeight;
-
-  mapTexture.style.backgroundImage = `url("${DAY_TEXTURE_URL}")`;
-  mapTexture.style.backgroundSize = `${scaledWidth}px ${scaledHeight}px`;
-  mapTexture.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
-}
-
-function buildCamera(sample: IssSample | null, canvasWidth: number, canvasHeight: number): Camera {
-  const world = getWorldDimensions();
-  const mobile = isMobileViewport();
-  const zoom = mobile ? 2.15 : 1;
-  const aspect = canvasWidth / canvasHeight;
-  const worldAspect = world.width / world.height;
-  let sourceWidth = world.width / zoom;
-  let sourceHeight = sourceWidth / aspect;
-  const maxSourceHeight = world.height / zoom;
-
-  if (!mobile && aspect >= worldAspect) {
-    sourceHeight = world.height;
-    sourceWidth = world.width;
-  } else if (sourceHeight > maxSourceHeight) {
-    sourceHeight = maxSourceHeight;
-    sourceWidth = sourceHeight * aspect;
-  }
-
-  const centerWorldX = sample ? worldXFromLon(sample.longitude, world.width) : world.width / 2;
-  const desiredY = sample ? worldYFromLat(sample.latitude, world.height) : world.height / 2;
-  const centerWorldY = mobile
-    ? Math.min(world.height - sourceHeight * 0.44, Math.max(sourceHeight * 0.56, desiredY))
-    : world.height / 2;
-
-  return {
-    centerWorldX,
-    sourceX: mobile ? centerWorldX - sourceWidth / 2 : 0,
-    sourceY: Math.min(world.height - sourceHeight, Math.max(0, centerWorldY - sourceHeight / 2)),
-    sourceWidth,
-    sourceHeight,
-    zoom,
-    gridAlpha: mobile ? 0.06 : 0.1,
-    glowScale: mobile ? 1.2 : 1,
-    orbitWidth: mobile ? 4.2 : 3,
-    groundWidth: mobile ? 1 : 1.3,
-    showLegendLabels: !mobile,
-  };
-}
-
-function drawTextureMap(camera: Camera) {
-  const width = mapCanvas.clientWidth;
-  const height = mapCanvas.clientHeight;
-  const gradient = mapCtx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, 'rgba(6, 21, 40, 0.12)');
-  gradient.addColorStop(0.5, 'rgba(3, 16, 29, 0.08)');
-  gradient.addColorStop(1, 'rgba(2, 8, 20, 0.18)');
-  mapCtx.fillStyle = gradient;
-  mapCtx.fillRect(0, 0, width, height);
-
-  const shade = mapCtx.createRadialGradient(width * 0.48, height * 0.46, 0, width * 0.48, height * 0.46, width * 0.72);
-  shade.addColorStop(0, 'rgba(2, 13, 28, 0)');
-  shade.addColorStop(0.65, 'rgba(2, 13, 28, 0.18)');
-  shade.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
-  mapCtx.fillStyle = shade;
-  mapCtx.fillRect(0, 0, width, height);
-}
-
-function drawDayNightOverlay(camera: Camera, timestampMs: number) {
-  const width = mapCanvas.clientWidth;
-  const height = mapCanvas.clientHeight;
-  const maskWidth = Math.max(160, Math.round(width / 2));
-  const maskHeight = Math.max(90, Math.round(height / 2));
-  const world = getWorldDimensions();
-  const subsolar = getSubsolarPoint(timestampMs);
-  const sunLatRad = (subsolar.latitude * Math.PI) / 180;
-  const sunLonRad = (subsolar.longitude * Math.PI) / 180;
-  dayNightMaskCanvas.width = maskWidth;
-  dayNightMaskCanvas.height = maskHeight;
-
-  const imageData = dayNightMaskCtx.createImageData(maskWidth, maskHeight);
-  const pixels = imageData.data;
-
-  for (let row = 0; row < maskHeight; row += 1) {
-    const worldY = camera.sourceY + ((row + 0.5) / maskHeight) * camera.sourceHeight;
-    const lat = latFromWorldY(worldY, world.height);
-    const latRad = (lat * Math.PI) / 180;
-    const sinLat = Math.sin(latRad);
-    const cosLat = Math.cos(latRad);
-
-    for (let col = 0; col < maskWidth; col += 1) {
-      const worldX = camera.sourceX + ((col + 0.5) / maskWidth) * camera.sourceWidth;
-      const wrappedWorldX = ((worldX % world.width) + world.width) % world.width;
-      const lon = lonFromWorldX(wrappedWorldX, world.width);
-      const lonRad = (lon * Math.PI) / 180;
-      const solarCos =
-        sinLat * Math.sin(sunLatRad) + cosLat * Math.cos(sunLatRad) * Math.cos(lonRad - sunLonRad);
-      const normalized = Math.max(0, Math.min(1, (0.14 - solarCos) / 0.28));
-      const alpha = Math.round((0.1 + normalized * 0.42) * 255);
-      const index = (row * maskWidth + col) * 4;
-      pixels[index] = 3;
-      pixels[index + 1] = 9;
-      pixels[index + 2] = 20;
-      pixels[index + 3] = normalized <= 0 ? 0 : alpha;
-    }
-  }
-
-  dayNightMaskCtx.putImageData(imageData, 0, 0);
-
-  mapCtx.save();
-  mapCtx.imageSmoothingEnabled = true;
-  mapCtx.drawImage(dayNightMaskCanvas, 0, 0, width, height);
-  const glow = mapCtx.createRadialGradient(width * 0.5, height * 0.2, 0, width * 0.5, height * 0.5, width * 0.72);
-  glow.addColorStop(0, 'rgba(255, 214, 112, 0.05)');
-  glow.addColorStop(1, 'rgba(255, 214, 112, 0)');
-  mapCtx.fillStyle = glow;
-  mapCtx.fillRect(0, 0, width, height);
-  mapCtx.restore();
-}
-
-function projectPoint(lat: number, lon: number, camera: Camera): RenderPoint {
-  const world = getWorldDimensions();
-  const baseX = worldXFromLon(lon, world.width);
-  const baseY = worldYFromLat(lat, world.height);
-  const adjustedX = camera.centerWorldX + shortestWorldDelta(baseX, camera.centerWorldX, world.width);
-  return {
-    x: ((adjustedX - camera.sourceX) / camera.sourceWidth) * mapCanvas.clientWidth,
-    y: ((baseY - camera.sourceY) / camera.sourceHeight) * mapCanvas.clientHeight,
-    lat,
-    lon,
-  };
-}
-
-function drawGrid(camera: Camera) {
-  const width = mapCanvas.clientWidth;
-  const height = mapCanvas.clientHeight;
-  mapCtx.save();
-  mapCtx.strokeStyle = `rgba(37, 208, 255, ${camera.gridAlpha})`;
-  mapCtx.lineWidth = 1;
-  for (let lon = -180; lon <= 180; lon += 15) {
-    const p = projectPoint(0, lon, camera);
-    mapCtx.beginPath();
-    mapCtx.moveTo(p.x, 0);
-    mapCtx.lineTo(p.x, height);
-    mapCtx.stroke();
-  }
-  for (let lat = -60; lat <= 60; lat += 15) {
-    const p = projectPoint(lat, 0, camera);
-    mapCtx.beginPath();
-    mapCtx.moveTo(0, p.y);
-    mapCtx.lineTo(width, p.y);
-    mapCtx.stroke();
-  }
-
-  if (camera.showLegendLabels) {
-    mapCtx.fillStyle = 'rgba(190, 221, 255, 0.72)';
-    mapCtx.font = '11px Inter, system-ui, sans-serif';
-    for (let lat = -60; lat <= 60; lat += 30) {
-      const p = projectPoint(lat, renderSample?.longitude ?? 0, camera);
-      mapCtx.fillText(`${Math.abs(lat)}°${lat >= 0 ? 'N' : 'S'}`, 18, p.y - 5);
-    }
-    for (let lon = -180; lon <= 180; lon += 60) {
-      const p = projectPoint(0, lon, camera);
-      if (p.x > -30 && p.x < width + 30) {
-        mapCtx.fillText(`${Math.abs(lon)}°${lon >= 0 ? 'E' : 'W'}`, p.x + 4, height - 18);
-      }
-    }
-  }
-  mapCtx.restore();
-}
-
 function drawWrappedPath(points: RenderPoint[], style: 'solid' | 'dashed', camera: Camera) {
+  const viewport = getMapViewport(mapCanvas.clientWidth, mapCanvas.clientHeight, camera, isMobileViewport());
   mapCtx.save();
   mapCtx.lineWidth = style === 'solid' ? camera.orbitWidth : camera.groundWidth;
   mapCtx.strokeStyle = style === 'solid' ? '#18e7ff' : 'rgba(180, 247, 255, 0.88)';
@@ -855,7 +663,7 @@ function drawWrappedPath(points: RenderPoint[], style: 'solid' | 'dashed', camer
   for (let i = 0; i < points.length; i += 1) {
     const point = points[i];
     const last = points[i - 1];
-    if (!started || (last && Math.abs(point.x - last.x) > mapCanvas.clientWidth * 0.45)) {
+    if (!started || (last && Math.abs(point.x - last.x) > viewport.width * 0.45)) {
       if (started) mapCtx.stroke();
       mapCtx.beginPath();
       mapCtx.moveTo(point.x, point.y);
@@ -871,6 +679,7 @@ function drawWrappedPath(points: RenderPoint[], style: 'solid' | 'dashed', camer
 function drawObservedTrail(points: RenderPoint[], camera: Camera) {
   if (points.length < 2) return;
 
+  const viewport = getMapViewport(mapCanvas.clientWidth, mapCanvas.clientHeight, camera, isMobileViewport());
   mapCtx.save();
   mapCtx.lineWidth = isMobileViewport() ? 3.2 : 2.8;
   mapCtx.lineCap = 'round';
@@ -879,7 +688,7 @@ function drawObservedTrail(points: RenderPoint[], camera: Camera) {
   for (let i = 1; i < points.length; i += 1) {
     const prev = points[i - 1];
     const point = points[i];
-    if (Math.abs(point.x - prev.x) > mapCanvas.clientWidth * 0.45) {
+    if (Math.abs(point.x - prev.x) > viewport.width * 0.45) {
       continue;
     }
 
@@ -898,7 +707,11 @@ function drawObservedTrail(points: RenderPoint[], camera: Camera) {
 }
 
 function buildTrailPath(samples: IssSample[], camera: Camera) {
-  return samples.map((sample) => projectPoint(sample.latitude, sample.longitude, camera));
+  const world = getWorldDimensions();
+  const mobile = isMobileViewport();
+  return samples.map((sample) =>
+    projectPoint(sample.latitude, sample.longitude, camera, mapCanvas.clientWidth, mapCanvas.clientHeight, world, mobile),
+  );
 }
 
 function orbitLatitude(lon: number, phase: number) {
@@ -932,10 +745,12 @@ function getOrbitPhase(sample: IssSample, previous: IssSample | null) {
 }
 
 function buildEstimatedOrbitPath(sample: IssSample, previous: IssSample | null, camera: Camera) {
+  const world = getWorldDimensions();
+  const mobile = isMobileViewport();
   const phase = getOrbitPhase(sample, previous);
   return Array.from({ length: 721 }, (_, index) => {
     const lon = -180 + index * 0.5;
-    return projectPoint(orbitLatitude(lon, phase), lon, camera);
+    return projectPoint(orbitLatitude(lon, phase), lon, camera, mapCanvas.clientWidth, mapCanvas.clientHeight, world, mobile);
   });
 }
 
@@ -959,7 +774,15 @@ function drawOrbit(sample: IssSample | null, camera: Camera) {
   if (observedPoints.length > 1) {
     drawObservedTrail(observedPoints, camera);
   } else {
-    const markerPoint = projectPoint(sample.latitude, sample.longitude, camera);
+    const markerPoint = projectPoint(
+      sample.latitude,
+      sample.longitude,
+      camera,
+      mapCanvas.clientWidth,
+      mapCanvas.clientHeight,
+      getWorldDimensions(),
+      isMobileViewport(),
+    );
     mapCtx.save();
     mapCtx.fillStyle = 'rgba(24, 231, 255, 0.42)';
     mapCtx.beginPath();
@@ -970,7 +793,15 @@ function drawOrbit(sample: IssSample | null, camera: Camera) {
 }
 
 function drawIssMarker(sample: IssSample, time: number, camera: Camera) {
-  const point = projectPoint(sample.latitude, sample.longitude, camera);
+  const point = projectPoint(
+    sample.latitude,
+    sample.longitude,
+    camera,
+    mapCanvas.clientWidth,
+    mapCanvas.clientHeight,
+    getWorldDimensions(),
+    isMobileViewport(),
+  );
   const pulse = 0.58 + Math.sin(time * 0.0034) * 0.14;
   const radius = (isMobileViewport() ? 34 : 28) + pulse * 10;
 
@@ -1008,50 +839,21 @@ function drawIssMarker(sample: IssSample, time: number, camera: Camera) {
   mapCtx.restore();
 }
 
-function updateDebugOverlay(sample: IssSample, camera: Camera) {
-  const point = projectPoint(sample.latitude, sample.longitude, camera);
-  const timestampMs = lastIssTimestamp ? lastIssTimestamp * 1000 : sample.timestamp * 1000;
-  const ageSeconds = Math.max(0, Math.round(Date.now() / 1000 - (lastIssTimestamp || sample.timestamp)));
-  const cityChecks = REFERENCE_CITIES.map((city) => {
-    const cityPoint = projectPoint(city.lat, city.lon, camera);
-    return `${city.name}:${Math.round(cityPoint.x)},${Math.round(cityPoint.y)}`;
-  }).join(' • ');
-  el.debugRawCoords.textContent = `${sample.latitude.toFixed(2)}°, ${sample.longitude.toFixed(2)}°`;
-  el.debugProjectedCoords.textContent = `${Math.round(point.x)}px, ${Math.round(point.y)}px`;
-  el.debugApiTime.textContent = `${formatDebugUtc(timestampMs)} UTC`;
-  el.debugUtcNow.textContent = `${formatDebugUtc(Date.now())} UTC`;
-  el.debugDataAge.textContent = ageSeconds > 10 ? `${ageSeconds}s stale` : `${ageSeconds}s`;
-  el.debugProjectedPercent.textContent = `${((point.x / mapCanvas.clientWidth) * 100).toFixed(1)}%, ${((point.y / mapCanvas.clientHeight) * 100).toFixed(1)}%`;
-  el.debugMapSize.textContent = `${mapCanvas.clientWidth}x${mapCanvas.clientHeight}`;
-  el.debugCityChecks.textContent = cityChecks;
-  debugOverlay.hidden = !getDebugEnabled();
-  debugOverlay.classList.toggle('warning', ageSeconds > 10);
-}
-
-function drawAmbientOverlay(camera: Camera) {
-  const width = mapCanvas.clientWidth;
-  const height = mapCanvas.clientHeight;
-  const overlay = mapCtx.createLinearGradient(0, 0, 0, height);
-  overlay.addColorStop(0, 'rgba(0, 8, 24, 0.15)');
-  overlay.addColorStop(0.55, 'rgba(0, 0, 0, 0)');
-  overlay.addColorStop(1, isMobileViewport() ? 'rgba(0, 6, 18, 0.34)' : 'rgba(0, 6, 18, 0.24)');
-  mapCtx.fillStyle = overlay;
-  mapCtx.fillRect(0, 0, width, height);
-}
-
 function render(time = 0) {
   requestAnimationFrame(render);
   drawStars(time);
 
   const width = mapCanvas.clientWidth;
   const height = mapCanvas.clientHeight;
-  const camera = buildCamera(renderSample ?? currentSample, width, height);
-  updateTextureLayer(camera);
+  const world = getWorldDimensions();
+  const mobile = isMobileViewport();
+  const camera = buildCamera(renderSample ?? currentSample, width, height, world, mobile);
+  updateTextureLayer(mapTexture, camera, DAY_TEXTURE_URL, width, height, world, mobile);
   mapCtx.clearRect(0, 0, width, height);
-  drawTextureMap(camera);
-  drawDayNightOverlay(camera, Date.now());
+  drawTextureBackdrop(mapCtx, width, height);
+  drawDayNightOverlay(mapCtx, camera, Date.now(), width, height, world, mobile, getSubsolarPoint, dayNightMaskCanvas, dayNightMaskCtx);
   if (getDebugEnabled()) {
-    drawGrid(camera);
+    drawDebugGrid(mapCtx, camera, width, height, world, mobile, renderSample?.longitude ?? 0);
   }
 
   if (previousSample && currentSample) {
@@ -1067,13 +869,36 @@ function render(time = 0) {
     renderSample = currentSample;
   }
 
-  const activeCamera = buildCamera(renderSample, width, height);
+  const activeCamera = buildCamera(renderSample, width, height, world, mobile);
   drawOrbit(renderSample, activeCamera);
   if (renderSample) {
     drawIssMarker(renderSample, time, activeCamera);
-    updateDebugOverlay(renderSample, activeCamera);
+    updateDebugPanel(
+      debugOverlay,
+      {
+        debugApiTime: el.debugApiTime,
+        debugUtcNow: el.debugUtcNow,
+        debugDataAge: el.debugDataAge,
+        debugProjectionMode: el.debugProjectionMode,
+        debugRawCoords: el.debugRawCoords,
+        debugProjectedCoords: el.debugProjectedCoords,
+        debugProjectedPercent: el.debugProjectedPercent,
+        debugMapSize: el.debugMapSize,
+        debugCityChecks: el.debugCityChecks,
+      },
+      renderSample,
+      activeCamera,
+      width,
+      height,
+      world,
+      mobile,
+      lastIssTimestamp,
+      formatDebugUtc,
+      REFERENCE_CITIES,
+      getDebugEnabled(),
+    );
   }
-  drawAmbientOverlay(activeCamera);
+  drawAmbientOverlay(mapCtx, width, height, mobile);
 }
 
 function updateTelemetry(sample: IssSample) {
