@@ -103,8 +103,13 @@ function wrapIndex(index, length) {
   return (index + length + 1) % (length + 1)
 }
 
-function isInsideRect(x, y, rect) {
-  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
+function isInsideRect(x, y, rect, slop = 0) {
+  return (
+    x >= rect.x - slop &&
+    x <= rect.x + rect.width + slop &&
+    y >= rect.y - slop &&
+    y <= rect.y + rect.height + slop
+  )
 }
 
 function cycleOption(options, currentValue, direction) {
@@ -255,15 +260,16 @@ export function setupSettingsPanel({ game, root, shell }) {
     const entries = getCurrentEntries()
     const layout = getSettingsMenuLayout(desktopMode, entries.length, screen)
     const point = getWorldPoint(event)
+    const touchSlop = desktopMode ? 0 : 28
     event.preventDefault()
     event.stopImmediatePropagation()
 
-    if (!isInsideRect(point.x, point.y, layout.panel)) {
+    if (!isInsideRect(point.x, point.y, layout.panel, touchSlop)) {
       closeDialog(true)
       return
     }
 
-    if (isInsideRect(point.x, point.y, layout.closeButton)) {
+    if (isInsideRect(point.x, point.y, layout.closeButton, touchSlop)) {
       selectedIndex = entries.length
       if (screen === 'detail') {
         resetToMainScreen()
@@ -275,7 +281,7 @@ export function setupSettingsPanel({ game, root, shell }) {
       return
     }
 
-    const rowIndex = layout.rows.findIndex((row) => isInsideRect(point.x, point.y, row))
+    const rowIndex = layout.rows.findIndex((row) => isInsideRect(point.x, point.y, row, touchSlop))
     if (rowIndex === -1) return
 
     selectedIndex = rowIndex

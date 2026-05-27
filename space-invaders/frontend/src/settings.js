@@ -9,13 +9,23 @@ export const DEFAULT_SETTINGS = {
   keyboardHint: true
 }
 
+function getDefaultSettings() {
+  const prefersTouchZones = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+
+  return {
+    ...DEFAULT_SETTINGS,
+    controls: prefersTouchZones ? 'zones' : DEFAULT_SETTINGS.controls
+  }
+}
+
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.settings)
-    if (!raw) return { ...DEFAULT_SETTINGS }
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+    const defaults = getDefaultSettings()
+    if (!raw) return defaults
+    return { ...defaults, ...JSON.parse(raw) }
   } catch {
-    return { ...DEFAULT_SETTINGS }
+    return getDefaultSettings()
   }
 }
 
