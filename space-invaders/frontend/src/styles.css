@@ -108,6 +108,55 @@ canvas {
   font-size: 0.95rem;
 }
 
+.toolbar-svg,
+.touch-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.toolbar-svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-svg-play {
+  display: none;
+  transform: translateX(1px);
+  fill: currentColor;
+  stroke: none;
+}
+
+.toolbar-svg-pause {
+  fill: currentColor;
+  stroke: none;
+}
+
+.pause-button[data-state="play"] .toolbar-svg-play {
+  display: block;
+}
+
+.pause-button[data-state="play"] .toolbar-svg-pause {
+  display: none;
+}
+
+.pause-button[data-state="pause"] .toolbar-svg-pause {
+  display: block;
+}
+
+.pause-button[data-state="pause"] .toolbar-svg-play {
+  display: none;
+}
+
+.toolbar-svg-settings {
+  width: 19px;
+  height: 19px;
+}
+
 .overlay-button:disabled {
   opacity: 0.38;
   pointer-events: none;
@@ -252,6 +301,18 @@ canvas {
 .touch-zone span {
   opacity: 0.96;
   text-shadow: 0 0 12px rgba(140, 247, 255, 0.34);
+}
+
+.touch-icon {
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+  fill: currentColor;
+  filter: drop-shadow(0 0 12px rgba(140, 247, 255, 0.34));
+}
+
+.touch-fire-label {
+  display: inline-block;
 }
 
 .touch-left,

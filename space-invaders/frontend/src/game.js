@@ -17,7 +17,7 @@ function isCompactViewport() {
 }
 
 function isMobileViewport() {
-  return window.matchMedia('(max-width: 768px)').matches
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
 }
 
 function isShortViewport() {
@@ -74,6 +74,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const backgroundImage = new Image()
   backgroundImage.src = './images/planet-cinematic-bg.png'
   const settings = loadSettings()
+  const defaultPlayerY = WORLD.height - 236
   const state = {
     scale: 1,
     offsetX: 0,
@@ -106,7 +107,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     settings,
     player: {
       x: WORLD.width / 2,
-      y: WORLD.height - 236,
+      y: defaultPlayerY,
       width: 98,
       height: 64,
       speed: 760,
@@ -117,6 +118,22 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       thrust: 0,
       fireFlash: 0
     }
+  }
+
+  function getPlayerSafeY(rect = canvas.getBoundingClientRect()) {
+    const controlsTop = touchControls?.fire?.getBoundingClientRect().top
+
+    if (!controlsTop || controlsTop <= rect.top) return defaultPlayerY
+
+    const clearance = isCompactViewport() ? 32 : 44
+    const worldY = (controlsTop - rect.top - state.offsetY) / Math.max(state.scale, 0.001)
+    const maxSafeY = worldY - state.player.height / 2 - clearance
+
+    return Math.min(defaultPlayerY, Math.max(1280, maxSafeY))
+  }
+
+  function syncPlayerVerticalPosition(rect = canvas.getBoundingClientRect()) {
+    state.player.y = getPlayerSafeY(rect)
   }
 
   audio.setMuted(state.muted)
@@ -157,7 +174,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   }
 
   function updatePauseButton() {
-    pauseButton.textContent = state.paused ? '▶' : '⏸'
+    pauseButton.dataset.state = state.paused ? 'play' : 'pause'
     pauseButton.setAttribute('aria-label', state.paused ? 'Resume' : 'Pause')
     pauseButton.setAttribute('title', state.paused ? 'Resume' : 'Pause')
   }
@@ -181,6 +198,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.offsetX = (rect.width - WORLD.width * state.scale) / 2
     state.offsetY = isMobileViewport() ? 0 : (rect.height - WORLD.height * state.scale) / 2
     state.desktopMode = !isMobileViewport()
+    syncPlayerVerticalPosition(rect)
   }
 
   function addParticles(x, y, color, count, force, gravity = 0) {
@@ -272,6 +290,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.particles = []
     state.enemyStepTimer = 0
     state.player.x = WORLD.width / 2
+    syncPlayerVerticalPosition()
     state.player.cooldown = 0
     state.player.lives = 3
     state.player.invulnerability = 0
@@ -301,6 +320,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.particles = []
     state.enemyStepTimer = 0
     state.player.x = WORLD.width / 2
+    syncPlayerVerticalPosition()
     state.player.cooldown = 0
     state.player.lives = 3
     state.player.invulnerability = 0

@@ -138,49 +138,28 @@ function drawBackground(context, state) {
 }
 
 function drawHud(context, state, desktopMode) {
-  const mobileHud = !desktopMode
-  const compactHud = mobileHud && window.matchMedia('(max-width: 380px)').matches
+  const compactHud = window.matchMedia('(max-width: 380px)').matches
 
   context.fillStyle = 'rgba(6, 10, 24, 0.28)'
-  context.fillRect(24, mobileHud ? 32 : 24, WORLD.width - 48, mobileHud ? 124 : 86)
+  context.fillRect(24, 32, WORLD.width - 48, 124)
   context.fillStyle = PALETTE.white
 
-  if (mobileHud) {
-    const columns = [
-      { label: 'SCORE', value: String(state.score).padStart(6, '0'), x: 44 },
-      { label: 'WAVE', value: String(state.wave).padStart(2, '0'), x: compactHud ? 270 : 266 },
-      { label: 'LIVES', value: String(state.player.lives), x: compactHud ? 500 : 506 }
-    ]
-
-    context.textAlign = 'left'
-    context.font = compactHud ? '700 28px monospace' : '700 30px monospace'
-    for (const column of columns) {
-      context.fillText(column.label, column.x, 70)
-    }
-
-    context.font = compactHud ? '700 38px monospace' : '700 42px monospace'
-    for (const column of columns) {
-      context.fillText(column.value, column.x, 118)
-    }
-    return
-  }
+  const columns = [
+    { label: 'SCORE', value: String(state.score).padStart(6, '0'), x: 44 },
+    { label: 'WAVE', value: String(state.wave).padStart(2, '0'), x: compactHud ? 270 : 266 },
+    { label: 'LIVES', value: String(state.player.lives), x: compactHud ? 500 : 506 }
+  ]
 
   context.textAlign = 'left'
-  context.font = '700 26px monospace'
-  context.fillText('SCORE', 42, 56)
-  context.fillText(String(state.score).padStart(6, '0'), 42, 88)
-  context.fillText('WAVE', 352, 56)
-  context.fillText(String(state.wave).padStart(2, '0'), 352, 88)
-  context.fillText('LIVES', 554, 56)
-  context.fillText(String(state.player.lives), 554, 88)
-  context.fillText('HI', 776, 56)
-  context.fillText(String(state.highScore).padStart(6, '0'), 776, 88)
+  context.font = compactHud ? '700 28px monospace' : '700 30px monospace'
+  for (const column of columns) {
+    context.fillText(column.label, column.x, 70)
+  }
 
-  context.textAlign = 'right'
-  context.fillStyle = state.muted ? 'rgba(255,211,107,0.88)' : 'rgba(140,247,255,0.88)'
-  context.fillText(state.muted ? 'MUTE' : 'SFX', WORLD.width - 42, 56)
-  context.fillStyle = state.paused ? 'rgba(255,106,122,0.92)' : 'rgba(255,255,255,0.62)'
-  context.fillText(state.paused ? 'PAUSED' : 'LIVE', WORLD.width - 42, 88)
+  context.font = compactHud ? '700 38px monospace' : '700 42px monospace'
+  for (const column of columns) {
+    context.fillText(column.value, column.x, 118)
+  }
 }
 
 function drawShip(context, state, elapsed) {

@@ -1,4 +1,5 @@
 import './styles.css'
+import { createIcons, Pause, Play, Settings } from 'lucide'
 import { createGame } from './game.js'
 import { setupDebugPanel } from './debug-panel.js'
 import { getPauseMenuLayout } from './overlay-layout.js'
@@ -11,8 +12,13 @@ app.innerHTML = `
     <div class="cabinet-glow"></div>
     <canvas class="game" aria-label="Space Invaders playfield"></canvas>
     <div class="top-actions">
-      <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause">⏸</button>
-      <button class="overlay-button overlay-button-icon settings-button" type="button" aria-label="Settings" title="Settings">⚙</button>
+      <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause" data-state="pause">
+        <i class="toolbar-svg toolbar-svg-pause" data-lucide="pause" aria-hidden="true"></i>
+        <i class="toolbar-svg toolbar-svg-play" data-lucide="play" aria-hidden="true"></i>
+      </button>
+      <button class="overlay-button overlay-button-icon settings-button" type="button" aria-label="Settings" title="Settings">
+        <i class="toolbar-svg toolbar-svg-settings" data-lucide="settings" aria-hidden="true"></i>
+      </button>
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
     <div class="pause-menu" aria-hidden="true">
@@ -36,12 +42,23 @@ app.innerHTML = `
       </form>
     </dialog>
     <div class="touch-controls" aria-hidden="true">
-      <button class="touch-zone touch-left" type="button"><span>◀</span></button>
-      <button class="touch-zone touch-fire" type="button"><span>FIRE</span></button>
-      <button class="touch-zone touch-right" type="button"><span>▶</span></button>
+      <button class="touch-zone touch-left" type="button" aria-label="Move left">
+        <svg class="touch-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.5 2 4 8l7.5 6V2Z" /></svg>
+      </button>
+      <button class="touch-zone touch-fire" type="button"><span class="touch-fire-label">FIRE</span></button>
+      <button class="touch-zone touch-right" type="button" aria-label="Move right">
+        <svg class="touch-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2 12 8l-7.5 6V2Z" /></svg>
+      </button>
     </div>
   </div>
 `
+
+createIcons({
+  icons: { Pause, Play, Settings },
+  attrs: {
+    'stroke-width': 1.9
+  }
+})
 
 const shell = document.querySelector('.shell')
 const pauseMenu = document.querySelector('.pause-menu')
@@ -71,8 +88,8 @@ function syncPauseMenu() {
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
   pauseButton.disabled = !isStarted || !isRunning
+  pauseButton.dataset.state = isPaused ? 'play' : 'pause'
 
-  pauseButton.textContent = isPaused ? '▶' : '⏸'
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
   pauseButton.setAttribute('title', isPaused ? 'Resume' : 'Pause')
   positionPauseMenu()
