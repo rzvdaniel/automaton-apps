@@ -87,6 +87,7 @@ function syncPauseMenu() {
   const isRunning = shell.dataset.gameRunning === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
+  pauseButton.classList.toggle('hidden', !isStarted)
   pauseButton.disabled = !isStarted || !isRunning
   pauseButton.dataset.state = isPaused ? 'play' : 'pause'
 
@@ -114,10 +115,6 @@ window.addEventListener('resize', game.resize)
 window.addEventListener('resize', positionPauseMenu)
 window.addEventListener('orientationchange', game.resize)
 window.addEventListener('orientationchange', positionPauseMenu)
-settingsButton.addEventListener('click', () => {
-  settingsPanel.open()
-  syncPauseMenu()
-})
 pauseResumeButton.addEventListener('click', () => {
   game.setPaused(false)
   syncPauseMenu()
