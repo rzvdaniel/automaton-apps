@@ -180,7 +180,6 @@ export function setupSettingsPanel({ game, root, shell }) {
           }
         })
 
-    shell.dataset.controlsMode = settings.controls
     game.setSettingsMenuState({
       view: screen,
       selectedIndex,
