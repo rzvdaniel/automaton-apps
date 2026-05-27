@@ -138,7 +138,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     const clearance = isCompactViewport() ? 32 : 44
     const worldY = (controlsTop - rect.top - state.offsetY) / Math.max(state.scale, 0.001)
-    const maxSafeY = worldY - state.player.height / 2 - clearance
+    const shipBottomReach = 68
+    const maxSafeY = worldY - shipBottomReach - clearance
 
     return Math.min(defaultPlayerY, Math.max(1280, maxSafeY))
   }
@@ -777,6 +778,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   updatePauseButton()
   syncShellState()
   render(!isMobileViewport())
+  requestAnimationFrame(() => {
+    resize()
+  })
   requestAnimationFrame(tick)
 
   return {
