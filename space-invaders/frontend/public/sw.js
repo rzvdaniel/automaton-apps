@@ -1,5 +1,5 @@
-const CACHE_NAME = 'space-invaders-v1'
-const APP_SHELL = ['./', './manifest.webmanifest']
+const CACHE_NAME = 'space-invaders-v2'
+const APP_SHELL = ['./', './manifest.webmanifest?v=2']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
