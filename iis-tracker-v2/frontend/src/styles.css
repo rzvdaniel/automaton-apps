@@ -245,7 +245,7 @@ time {
 }
 
 .map-texture {
-  background-repeat: repeat-x;
+  background-repeat: no-repeat;
   background-position: center center;
   background-color: #05111e;
   filter: saturate(1.04) contrast(1.04) brightness(0.92);

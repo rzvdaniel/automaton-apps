@@ -695,7 +695,7 @@ function buildCamera(sample: IssSample | null, canvasWidth: number, canvasHeight
 
   if (!mobile && aspect >= worldAspect) {
     sourceHeight = world.height;
-    sourceWidth = sourceHeight * aspect;
+    sourceWidth = world.width;
   } else if (sourceHeight > maxSourceHeight) {
     sourceHeight = maxSourceHeight;
     sourceWidth = sourceHeight * aspect;
@@ -709,7 +709,7 @@ function buildCamera(sample: IssSample | null, canvasWidth: number, canvasHeight
 
   return {
     centerWorldX,
-    sourceX: centerWorldX - sourceWidth / 2,
+    sourceX: mobile ? centerWorldX - sourceWidth / 2 : 0,
     sourceY: Math.min(world.height - sourceHeight, Math.max(0, centerWorldY - sourceHeight / 2)),
     sourceWidth,
     sourceHeight,
