@@ -139,10 +139,14 @@ function drawBackground(context, state) {
 
 function drawHud(context, state, desktopMode) {
   const compactHud = window.matchMedia('(max-width: 380px)').matches
+  const hudAlpha = !state.running ? 0.72 : 1
+  const labelColor = !state.running ? 'rgba(196, 216, 234, 0.78)' : PALETTE.white
+  const valueColor = !state.running ? 'rgba(226, 236, 246, 0.82)' : PALETTE.white
 
+  context.save()
+  context.globalAlpha = hudAlpha
   context.fillStyle = 'rgba(6, 10, 24, 0.28)'
   context.fillRect(24, 32, WORLD.width - 48, 124)
-  context.fillStyle = PALETTE.white
 
   const columns = [
     { label: 'SCORE', value: String(state.score).padStart(6, '0'), x: 44 },
@@ -153,15 +157,16 @@ function drawHud(context, state, desktopMode) {
   context.textAlign = 'left'
   context.font = compactHud ? '700 28px monospace' : '700 30px monospace'
   for (const column of columns) {
-    context.fillStyle = PALETTE.white
+    context.fillStyle = labelColor
     context.fillText(column.label, column.x, 70)
   }
 
   context.font = compactHud ? '700 38px monospace' : '700 42px monospace'
   for (const column of columns) {
-    context.fillStyle = column.label === 'LIVES' && !state.running ? 'rgba(255,106,122,0.96)' : PALETTE.white
+    context.fillStyle = column.label === 'LIVES' && !state.running ? 'rgba(255,106,122,0.96)' : valueColor
     context.fillText(column.value, column.x, 118)
   }
+  context.restore()
 }
 
 function drawShip(context, state, elapsed) {
@@ -180,7 +185,8 @@ function drawShip(context, state, elapsed) {
   context.rotate(shipRotation)
 
   if (destroyed) {
-    context.globalAlpha = Math.max(0.72, 1 - deathTime * 0.08)
+    const flicker = 0.06 * Math.sin(elapsed * 14)
+    context.globalAlpha = Math.max(0.58, 0.82 - deathTime * 0.1 + flicker)
   }
 
   context.fillStyle = destroyed ? 'rgba(8, 14, 26, 0.82)' : 'rgba(12, 24, 46, 0.72)'
@@ -233,6 +239,9 @@ function drawShip(context, state, elapsed) {
     context.fillStyle = 'rgba(255, 106, 122, 0.58)'
     context.fillRect(-6, 18, 6, 18)
     context.fillRect(16, 22, 6, 12)
+    context.fillStyle = `rgba(255, 210, 140, ${0.36 + (Math.sin(elapsed * 18) + 1) * 0.12})`
+    context.fillRect(12, 16, 4, 10)
+    context.fillRect(-22, 8, 3, 8)
   } else {
     context.fillStyle = 'rgba(255, 110, 92, 0.96)'
     context.fillRect(-28, 22, 8, thruster * (0.8 - sideBias * 0.01))
@@ -444,27 +453,14 @@ function drawOverlay(context, state, desktopMode) {
   }
 
   if (gameOverOverlay) {
-    const panelWidth = desktopMode ? WORLD.width - 320 : WORLD.width - 220
-    const panelHeight = desktopMode ? 368 : 432
+    const panelWidth = desktopMode ? WORLD.width - 420 : WORLD.width - 300
+    const panelHeight = desktopMode ? 348 : 404
     const panelX = (WORLD.width - panelWidth) / 2
-    const panelY = desktopMode ? 584 : 650
+    const panelY = desktopMode ? 604 : 706
     const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
     panelGradient.addColorStop(0, 'rgba(8, 16, 30, 0.82)')
     panelGradient.addColorStop(1, 'rgba(4, 8, 18, 0.92)')
     context.fillStyle = panelGradient
-    context.fillRect(panelX, panelY, panelWidth, panelHeight)
-
-    const panelGlow = context.createRadialGradient(
-      WORLD.width / 2,
-      panelY + panelHeight * 0.28,
-      24,
-      WORLD.width / 2,
-      panelY + panelHeight * 0.28,
-      panelWidth * 0.6
-    )
-    panelGlow.addColorStop(0, 'rgba(255, 106, 122, 0.14)')
-    panelGlow.addColorStop(1, 'rgba(255, 106, 122, 0)')
-    context.fillStyle = panelGlow
     context.fillRect(panelX, panelY, panelWidth, panelHeight)
 
     context.strokeStyle = 'rgba(255, 106, 122, 0.24)'
@@ -498,7 +494,7 @@ function drawOverlay(context, state, desktopMode) {
 
     context.fillStyle = 'rgba(255,255,255,0.9)'
     context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText('PRESS FIRE TO RETRY', WORLD.width / 2, panelY + (desktopMode ? 318 : 366))
+    context.fillText(desktopMode ? 'PRESS FIRE TO RETRY' : 'TAP FIRE TO RETRY', WORLD.width / 2, panelY + (desktopMode ? 304 : 352))
     context.textAlign = 'left'
     return
   }
@@ -630,8 +626,10 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
   context.scale(state.scale, state.scale)
   drawBackground(context, state)
   drawParticles(context, state.particles)
-  for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed, state.settings)
-  drawProjectiles(context, state)
+  if (state.running) {
+    for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed, state.settings)
+    drawProjectiles(context, state)
+  }
   drawShip(context, state, elapsed)
   drawHud(context, state, desktopMode)
   drawOverlay(context, state, desktopMode)

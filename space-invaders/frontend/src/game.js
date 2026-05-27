@@ -273,8 +273,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     audio.wave()
   }
 
-  function resetGame() {
-    resetGameToWave(1)
+  function resetGame({ immediateStart = false } = {}) {
+    resetGameToWave(1, { immediateStart })
   }
 
   function resetToIntro() {
@@ -308,7 +308,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     syncShellState()
   }
 
-  function resetGameToWave(startWave) {
+  function resetGameToWave(startWave, { immediateStart = false } = {}) {
     const wasStarted = state.started
     state.started = true
     state.running = true
@@ -334,6 +334,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.destroyed = false
     state.player.destroyedAt = 0
     state.started = wasStarted
+    if (immediateStart) state.started = false
     spawnWave(startWave)
     state.started = true
     syncShellState()
@@ -440,7 +441,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     }
 
     if (!state.running) {
-      if (firing) resetGame()
+      if (firing) resetGame({ immediateStart: true })
       return desktopMode
     }
 

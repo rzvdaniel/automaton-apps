@@ -64,6 +64,8 @@ const shell = document.querySelector('.shell')
 const pauseMenu = document.querySelector('.pause-menu')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
+const touchFireButton = document.querySelector('.touch-fire')
+const touchFireLabel = document.querySelector('.touch-fire-label')
 const game = createGame({
   canvas: document.querySelector('.game'),
   shell,
@@ -86,10 +88,13 @@ function syncPauseMenu() {
   const isPaused = shell.dataset.gamePaused === 'true'
   const isRunning = shell.dataset.gameRunning === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
+  const isGameOver = isStarted && !isRunning
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
   pauseButton.classList.toggle('hidden', !isStarted)
   pauseButton.disabled = !isStarted || !isRunning
   pauseButton.dataset.state = isPaused ? 'play' : 'pause'
+  touchFireLabel.textContent = isGameOver ? 'RETRY' : 'FIRE'
+  touchFireButton.setAttribute('aria-label', isGameOver ? 'Retry game' : 'Fire')
 
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
   pauseButton.setAttribute('title', isPaused ? 'Resume' : 'Pause')

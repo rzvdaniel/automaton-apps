@@ -324,6 +324,7 @@ canvas {
 }
 
 .touch-fire {
+  position: relative;
   min-width: 104px;
   padding: 0 18px;
   justify-self: center;
@@ -358,6 +359,39 @@ canvas {
     inset 0 0 0 1px rgba(255, 238, 220, 0.56),
     inset 0 0 26px rgba(255, 220, 180, 0.18),
     0 0 34px rgba(255, 122, 84, 0.34);
+}
+
+@keyframes retryPulse {
+  0%,
+  100% {
+    background: rgba(255, 98, 92, 0.44);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 200, 168, 0.44),
+      inset 0 0 22px rgba(255, 120, 90, 0.14),
+      0 0 20px rgba(255, 110, 92, 0.14);
+  }
+
+  50% {
+    background: rgba(255, 118, 98, 0.68);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 232, 214, 0.72),
+      inset 0 0 34px rgba(255, 146, 116, 0.3),
+      0 0 24px rgba(255, 118, 98, 0.18);
+  }
+}
+
+.shell[data-game-running="false"][data-game-started="true"] .touch-controls {
+  opacity: 0.92;
+}
+
+.shell[data-game-running="false"][data-game-started="true"] .touch-fire {
+  animation: retryPulse 1.6s ease-in-out infinite;
+}
+
+.shell[data-game-running="false"][data-game-started="true"] .touch-fire-label {
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 18px rgba(255, 180, 120, 0.52);
 }
 
 .hidden {
