@@ -1,45 +1,86 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="108" fill="#1557d6" />
-  <g fill="#ffd36b">
-    <rect x="152" y="124" width="26" height="26" />
-    <rect x="334" y="124" width="26" height="26" />
-    <rect x="178" y="150" width="26" height="26" />
-    <rect x="204" y="150" width="26" height="26" />
-    <rect x="230" y="150" width="26" height="26" />
-    <rect x="256" y="150" width="26" height="26" />
-    <rect x="282" y="150" width="26" height="26" />
-    <rect x="308" y="150" width="26" height="26" />
-    <rect x="152" y="176" width="26" height="26" />
-    <rect x="178" y="176" width="26" height="26" />
-    <rect x="204" y="176" width="26" height="26" />
-    <rect x="230" y="176" width="26" height="26" />
-    <rect x="256" y="176" width="26" height="26" />
-    <rect x="282" y="176" width="26" height="26" />
-    <rect x="308" y="176" width="26" height="26" />
-    <rect x="334" y="176" width="26" height="26" />
-    <rect x="152" y="202" width="26" height="26" />
-    <rect x="178" y="202" width="26" height="26" />
-    <rect x="230" y="202" width="26" height="26" />
-    <rect x="256" y="202" width="26" height="26" />
-    <rect x="308" y="202" width="26" height="26" />
-    <rect x="334" y="202" width="26" height="26" />
-    <rect x="152" y="228" width="26" height="26" />
-    <rect x="178" y="228" width="26" height="26" />
-    <rect x="204" y="228" width="26" height="26" />
-    <rect x="230" y="228" width="26" height="26" />
-    <rect x="256" y="228" width="26" height="26" />
-    <rect x="282" y="228" width="26" height="26" />
-    <rect x="308" y="228" width="26" height="26" />
-    <rect x="334" y="228" width="26" height="26" />
-    <rect x="204" y="254" width="26" height="26" />
-    <rect x="230" y="254" width="26" height="26" />
-    <rect x="256" y="254" width="26" height="26" />
-    <rect x="282" y="254" width="26" height="26" />
-    <rect x="178" y="280" width="26" height="26" />
-    <rect x="308" y="280" width="26" height="26" />
-    <rect x="152" y="306" width="26" height="26" />
-    <rect x="178" y="306" width="26" height="26" />
-    <rect x="308" y="306" width="26" height="26" />
-    <rect x="334" y="306" width="26" height="26" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title>Space Invaders Web Game Icon</title>
+  <desc>Retro pixel spaceship icon with neon cyan glow on dark space background.</desc>
+
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0%" stop-color="#16384f"/>
+      <stop offset="55%" stop-color="#071426"/>
+      <stop offset="100%" stop-color="#020713"/>
+    </radialGradient>
+
+    <radialGradient id="planet" cx="35%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#ffb36a"/>
+      <stop offset="45%" stop-color="#b54a36"/>
+      <stop offset="100%" stop-color="#30111a" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="cyanGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 0.18
+                0 0 0 0 0.95
+                0 0 0 0 1
+                0 0 0 0.85 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="orangeGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 1
+                0 0 0 0 0.36
+                0 0 0 0 0.15
+                0 0 0 0.9 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="scanlines" width="512" height="8" patternUnits="userSpaceOnUse">
+      <rect width="512" height="3" fill="#ffffff" opacity="0.035"/>
+      <rect y="3" width="512" height="5" fill="#000000" opacity="0.08"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <path d="M88 92h6v6h-6zM138 132h5v5h-5zM394 104h6v6h-6zM430 174h4v4h-4zM76 340h5v5h-5zM237 82h4v4h-4z" fill="#b7f8ff" opacity="0.8"/>
+
+  <!-- Subtle alien silhouettes -->
+  <g opacity="0.28" fill="#d759b8">
+    <path d="M92 120h20v12h12v20h-12v12h-12v-12H84v12H72v-12H60v-20h12v-12h20z"/>
+    <path d="M388 124h20v12h12v20h-12v12h-12v-12h-16v12h-12v-12h-12v-20h12v-12h20z"/>
   </g>
+
+  <!-- Pixel spaceship -->
+  <g filter="url(#cyanGlow)" shape-rendering="crispEdges">
+    <!-- wings shadow -->
+    <path d="M96 342h64v-32h32v-32h32v-48h64v48h32v32h32v32h64v48H320v-32H192v32H96z" fill="#124d68"/>
+
+    <!-- main hull -->
+    <path d="M224 182h64v48h32v64h32v32H160v-32h32v-64h32z" fill="#8eefff"/>
+    <path d="M240 150h32v32h-32z" fill="#c7fbff"/>
+    <path d="M224 182h64v48h-64z" fill="#5ccbea"/>
+    <path d="M192 230h32v64h-32z" fill="#5fcde8"/>
+    <path d="M288 230h32v64h-32z" fill="#5fcde8"/>
+    <path d="M160 294h32v32h-32zM320 294h32v32h-32z" fill="#45a9cf"/>
+
+    <!-- cockpit -->
+    <path d="M240 230h32v48h-32z" fill="#f4ffff"/>
+    <path d="M248 238h16v32h-16z" fill="#7be9ff"/>
+
+    <!-- outline/depth -->
+    <path d="M224 182h16v48h-16zM272 182h16v48h-16zM192 294h128v32H192z" fill="#2c8bb8" opacity="0.55"/>
+  </g>
+
+
+
+  <!-- Border and scanline texture -->
+  <rect x="18" y="18" width="476" height="476" rx="82" fill="none" stroke="#65eaff" stroke-opacity="0.28" stroke-width="6"/>
+  <rect width="512" height="512" rx="96" fill="url(#scanlines)"/>
 </svg>
