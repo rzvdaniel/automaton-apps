@@ -87,6 +87,15 @@ export function createAudioManager() {
     wave() {
       pulse('square', 620, 0.1, 0.042, 140)
       pulse('square', 820, 0.14, 0.036, 90)
+    },
+    waveArrival() {
+      pulse('triangle', 340, 0.18, 0.034, 120)
+      pulse('sawtooth', 420, 0.22, 0.022, 180)
+      pulse('square', 560, 0.14, 0.018, 90)
+    },
+    formationLocked() {
+      pulse('triangle', 720, 0.08, 0.026, 80)
+      pulse('square', 980, 0.1, 0.018, 40)
     }
   }
 }
