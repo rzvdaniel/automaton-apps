@@ -277,6 +277,24 @@ function drawEnemy(context, enemy, elapsed, settings) {
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
 }
 
+function drawEnemyArrival(context, enemy, elapsed, settings, arrivalProgress) {
+  const easedProgress = Math.min(1, Math.max(0, (arrivalProgress - enemy.arrivalDelay) / Math.max(0.18, 1 - enemy.arrivalDelay)))
+  if (easedProgress <= 0) return
+  const settle = 1 - (1 - easedProgress) * (1 - easedProgress)
+  const dropOffset = (1 - settle) * 180
+
+  context.save()
+  context.globalAlpha = 0.22 + settle * 0.78
+  drawEnemy(context, { ...enemy, y: enemy.y - dropOffset }, elapsed, settings)
+
+  if (!settings.reducedMotion && settle < 1) {
+    context.globalAlpha = 0.08 + (1 - settle) * 0.18
+    drawEnemy(context, { ...enemy, y: enemy.y - dropOffset - 26 }, elapsed, settings)
+  }
+
+  context.restore()
+}
+
 function drawProjectiles(context, state) {
   for (const bullet of state.bullets) {
     context.save()
@@ -342,7 +360,8 @@ function drawOverlay(context, state, desktopMode) {
   const pausedMenu = !settingsOpen && state.paused && state.running
   const mobilePauseMenu = !desktopMode && pausedMenu
   const gameOverOverlay = !settingsOpen && state.started && !state.running && !state.paused
-  const introOverlay = !settingsOpen && (!state.started || (state.running && !state.paused && state.overlayTimer > 0))
+  const titleOverlay = !settingsOpen && !state.started
+  const intermissionOverlay = !settingsOpen && state.started && state.running && !state.paused && state.overlayTimer > 0
 
   if (settingsOpen) {
     settingsMenuRenderer.render(context, state.settingsMenu, desktopMode)
@@ -355,7 +374,7 @@ function drawOverlay(context, state, desktopMode) {
   } else if (gameOverOverlay) {
     context.fillStyle = 'rgba(1, 4, 12, 0.42)'
     context.fillRect(0, 0, WORLD.width, WORLD.height)
-  } else if (!introOverlay) {
+  } else if (!titleOverlay && !intermissionOverlay) {
     context.fillStyle = 'rgba(1, 4, 12, 0.28)'
     context.fillRect(0, 0, WORLD.width, WORLD.height)
   }
@@ -499,17 +518,59 @@ function drawOverlay(context, state, desktopMode) {
     return
   }
 
-  const panelWidth = introOverlay ? (desktopMode ? WORLD.width - 260 : WORLD.width - 260) : WORLD.width - 160
+  if (intermissionOverlay) {
+    const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
+    const incomingWave = state.intermission?.toWave ?? state.wave
+    const clearedWave = state.intermission?.fromWave
+
+    context.textAlign = 'center'
+
+    const softGlow = context.createRadialGradient(WORLD.width / 2, 720, 40, WORLD.width / 2, 720, desktopMode ? 260 : 320)
+    softGlow.addColorStop(0, `rgba(120, 220, 255, ${transitionPulse * 0.14})`)
+    softGlow.addColorStop(1, 'rgba(120, 220, 255, 0)')
+    context.fillStyle = softGlow
+    context.fillRect(120, 470, WORLD.width - 240, 480)
+
+    context.fillStyle = `rgba(140,247,255,${transitionPulse})`
+    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
+    context.fillText(clearedWave ? 'SECTOR CLEARED' : 'HOSTILE FLEET DETECTED', WORLD.width / 2, desktopMode ? 618 : 670)
+
+    context.strokeStyle = `rgba(140, 247, 255, ${0.12 + transitionPulse * 0.18})`
+    context.lineWidth = 2
+    context.beginPath()
+    context.moveTo(184, desktopMode ? 648 : 704)
+    context.lineTo(WORLD.width - 184, desktopMode ? 648 : 704)
+    context.stroke()
+
+    context.fillStyle = PALETTE.white
+    context.shadowColor = PALETTE.cyan
+    context.shadowBlur = 18
+    context.font = desktopMode ? '900 60px "Arial Black", Impact, sans-serif' : '900 74px "Arial Black", Impact, sans-serif'
+    context.fillText(`WAVE ${String(incomingWave).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 728 : 794)
+    context.shadowBlur = 0
+
+    context.fillStyle = 'rgba(238,252,255,0.82)'
+    context.font = desktopMode ? '600 20px monospace' : '600 24px monospace'
+    context.fillText(clearedWave ? `WAVE ${String(clearedWave).padStart(2, '0')} COMPLETE` : 'TACTICAL SYSTEMS ONLINE', WORLD.width / 2, desktopMode ? 780 : 854)
+
+    context.fillStyle = 'rgba(255, 196, 144, 0.86)'
+    context.font = desktopMode ? '600 18px monospace' : '600 22px monospace'
+    context.fillText('INCOMING HOSTILE FLEET', WORLD.width / 2, desktopMode ? 822 : 902)
+    context.textAlign = 'left'
+    return
+  }
+
+  const panelWidth = titleOverlay ? (desktopMode ? WORLD.width - 260 : WORLD.width - 260) : WORLD.width - 160
   const panelX = (WORLD.width - panelWidth) / 2
-  const panelY = introOverlay ? (desktopMode ? 318 : 350) : 276
-  const panelHeight = introOverlay ? (desktopMode ? 500 : 488) : desktopMode ? 660 : 710
+  const panelY = titleOverlay ? (desktopMode ? 318 : 350) : 276
+  const panelHeight = titleOverlay ? (desktopMode ? 500 : 488) : desktopMode ? 660 : 710
   const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
-  panelGradient.addColorStop(0, introOverlay ? 'rgba(28, 78, 108, 0.2)' : 'rgba(4, 10, 22, 0.82)')
-  panelGradient.addColorStop(1, introOverlay ? 'rgba(10, 30, 50, 0.12)' : 'rgba(2, 6, 16, 0.72)')
+  panelGradient.addColorStop(0, titleOverlay ? 'rgba(28, 78, 108, 0.2)' : 'rgba(4, 10, 22, 0.82)')
+  panelGradient.addColorStop(1, titleOverlay ? 'rgba(10, 30, 50, 0.12)' : 'rgba(2, 6, 16, 0.72)')
   context.fillStyle = panelGradient
   context.fillRect(panelX, panelY, panelWidth, panelHeight)
 
-  if (introOverlay) {
+  if (titleOverlay) {
     const panelGlow = context.createRadialGradient(
       WORLD.width / 2,
       panelY + panelHeight * 0.45,
@@ -571,7 +632,7 @@ function drawOverlay(context, state, desktopMode) {
   context.shadowColor = PALETTE.cyan
   context.shadowBlur = mobilePauseMenu ? 8 : 18
   context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
-  if (introOverlay) {
+  if (titleOverlay) {
     const titleGlow = context.createRadialGradient(WORLD.width / 2, desktopMode ? 428 : 452, 24, WORLD.width / 2, desktopMode ? 428 : 452, 140)
     titleGlow.addColorStop(0, 'rgba(120, 220, 255, 0.1)')
     titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
@@ -582,7 +643,7 @@ function drawOverlay(context, state, desktopMode) {
   context.font = desktopMode ? '900 76px "Arial Black", Impact, sans-serif' : '900 88px "Arial Black", Impact, sans-serif'
   context.fillText('SPACE', WORLD.width / 2, desktopMode ? 446 : 472)
   context.fillText('INVADERS', WORLD.width / 2, desktopMode ? 528 : 554)
-  if (introOverlay) {
+  if (titleOverlay) {
     context.strokeStyle = 'rgba(140, 247, 255, 0.18)'
     context.lineWidth = 2
     context.beginPath()
@@ -593,11 +654,11 @@ function drawOverlay(context, state, desktopMode) {
   context.shadowBlur = 0
   context.fillStyle = PALETTE.cyan
   if (!mobilePauseMenu) {
-    const insertCoinPulse = introOverlay ? 0.72 + ((Math.sin(state.elapsed * 4.6) + 1) / 2) * 0.28 : 1
-    context.fillStyle = introOverlay ? `rgba(140,247,255,${insertCoinPulse})` : PALETTE.cyan
+    const insertCoinPulse = titleOverlay ? 0.72 + ((Math.sin(state.elapsed * 4.6) + 1) / 2) * 0.28 : 1
+    context.fillStyle = titleOverlay ? `rgba(140,247,255,${insertCoinPulse})` : PALETTE.cyan
     context.font = desktopMode ? '600 32px monospace' : '600 42px monospace'
     const headline = state.paused ? 'PAUSED' : state.message
-    context.fillText(headline, WORLD.width / 2, introOverlay ? (desktopMode ? 642 : 678) : desktopMode ? 690 : 700)
+    context.fillText(headline, WORLD.width / 2, titleOverlay ? (desktopMode ? 642 : 678) : desktopMode ? 690 : 700)
   }
   if (!mobilePauseMenu && (!desktopMode || state.settings.keyboardHint)) {
     context.fillStyle = 'rgba(238,252,255,0.82)'
@@ -605,9 +666,9 @@ function drawOverlay(context, state, desktopMode) {
       context.font = '500 24px monospace'
       context.fillText('ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE', WORLD.width / 2, 770)
     } else {
-      context.font = introOverlay ? '700 40px monospace' : '700 34px monospace'
-      context.fillText('◀  ▶ MOVE', WORLD.width / 2, introOverlay ? 760 : 760)
-      context.fillText('TAP FIRE', WORLD.width / 2, introOverlay ? 812 : 804)
+      context.font = titleOverlay ? '700 40px monospace' : '700 34px monospace'
+      context.fillText('◀  ▶ MOVE', WORLD.width / 2, titleOverlay ? 760 : 760)
+      context.fillText('TAP FIRE', WORLD.width / 2, titleOverlay ? 812 : 804)
     }
   }
   if (!mobilePauseMenu && !state.running) {
@@ -626,8 +687,15 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
   context.scale(state.scale, state.scale)
   drawBackground(context, state)
   drawParticles(context, state.particles)
-  if (state.running) {
-    for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed, state.settings)
+  const intermissionActive = state.started && state.running && !state.paused && state.overlayTimer > 0
+  const arrivalActive = state.running && state.waveArrivalTimer > 0 && state.waveArrivalDuration > 0
+  if (state.running && !intermissionActive) {
+    if (arrivalActive) {
+      const arrivalProgress = 1 - state.waveArrivalTimer / state.waveArrivalDuration
+      for (const enemy of state.enemies) drawEnemyArrival(context, enemy, elapsed, state.settings, arrivalProgress)
+    } else {
+      for (const enemy of state.enemies) drawEnemy(context, enemy, elapsed, state.settings)
+    }
     drawProjectiles(context, state)
   }
   drawShip(context, state, elapsed)
