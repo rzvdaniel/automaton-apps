@@ -67,7 +67,7 @@ function getWaveConfig(wave) {
   }
 }
 
-export function createGame({ canvas, shell, installButton, muteButton, pauseButton, touchControls }) {
+export function createGame({ canvas, shell, installButton, muteButton = null, pauseButton, touchControls }) {
   const context = canvas.getContext('2d', { alpha: false })
   const audio = createAudioManager()
   const backgroundEffects = createBackgroundEffects()
@@ -150,6 +150,7 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
   }
 
   function updateMuteButton() {
+    if (!muteButton) return
     muteButton.textContent = state.muted ? '🔇' : '🔊'
     muteButton.setAttribute('aria-label', state.muted ? 'Sound off' : 'Sound on')
     muteButton.setAttribute('title', state.muted ? 'Sound off' : 'Sound on')
@@ -605,10 +606,12 @@ export function createGame({ canvas, shell, installButton, muteButton, pauseButt
     state.keys.clear()
   })
 
-  muteButton.addEventListener('click', async () => {
-    await audio.unlock()
-    setMuted(!state.muted)
-  })
+  if (muteButton) {
+    muteButton.addEventListener('click', async () => {
+      await audio.unlock()
+      setMuted(!state.muted)
+    })
+  }
 
   pauseButton.addEventListener('click', () => {
     setPaused(!state.paused)

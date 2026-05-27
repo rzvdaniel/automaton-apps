@@ -73,13 +73,14 @@ canvas {
   z-index: 3;
 }
 
-.settings-button,
-.restart-button,
-.mute-button {
+.settings-button {
   display: inline-flex;
 }
 
 .overlay-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   min-width: 36px;
   min-height: 36px;
@@ -96,14 +97,20 @@ canvas {
   width: 36px;
   padding: 0;
   font-size: 1rem;
+  line-height: 1;
 }
 
 .pause-button {
   box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.22);
 }
 
-.overlay-button-desktop {
-  display: none;
+.settings-button {
+  font-size: 0.95rem;
+}
+
+.overlay-button:disabled {
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 .debug-dialog {
@@ -134,7 +141,6 @@ canvas {
   position: static;
 }
 
-.pause-menu-kicker,
 .pause-menu-title,
 .pause-menu-status {
   display: none;
@@ -166,20 +172,6 @@ canvas {
   top: var(--pause-restart-top);
   width: var(--pause-restart-width);
   height: var(--pause-restart-height);
-}
-
-.pause-sound {
-  left: var(--pause-sound-left);
-  top: var(--pause-sound-top);
-  width: var(--pause-sound-width);
-  height: var(--pause-sound-height);
-}
-
-.pause-settings {
-  left: var(--pause-settings-left);
-  top: var(--pause-settings-top);
-  width: var(--pause-settings-width);
-  height: var(--pause-settings-height);
 }
 
 .debug-dialog::backdrop {
@@ -327,17 +319,6 @@ canvas {
     box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.18);
   }
 
-  .pause-button.is-settings-proxy {
-    font-size: 1.08rem;
-  }
-
-  .settings-button,
-  .restart-button,
-  .mute-button,
-  .install {
-    display: none;
-  }
-
   .pause-menu {
     inset: 0;
   }
@@ -368,10 +349,6 @@ canvas {
     height: 36px;
     min-height: 36px;
     font-size: 0.9rem;
-  }
-
-  .pause-button.is-settings-proxy {
-    font-size: 1rem;
   }
 
   .shell[data-game-paused="false"] .top-actions {
@@ -475,11 +452,5 @@ canvas {
       inset 0 0 120px rgba(140, 247, 255, 0.08),
       inset 0 -30px 120px rgba(255, 79, 216, 0.08),
       0 0 140px rgba(61, 111, 255, 0.12);
-  }
-
-  .overlay-button-desktop {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 }

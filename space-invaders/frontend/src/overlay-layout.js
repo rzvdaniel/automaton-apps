@@ -1,18 +1,17 @@
-export function getPauseMenuLayout(desktopMode, muted) {
-  const panelWidth = desktopMode ? 540 : 700
-  const panelHeight = desktopMode ? 540 : 660
+export function getPauseMenuLayout(desktopMode) {
+  const panelWidth = 1080 - 260
+  const panelHeight = desktopMode ? 500 : 488
   const panelX = (1080 - panelWidth) / 2
-  const panelY = desktopMode ? 300 : 292
-  const buttonWidth = panelWidth - (desktopMode ? 132 : 112)
+  const panelY = desktopMode ? 318 : 350
+  const labelY = panelY + (desktopMode ? 168 : 186)
+  const buttonWidth = desktopMode ? 360 : 432
   const buttonHeight = desktopMode ? 62 : 78
-  const buttonX = panelX + (panelWidth - buttonWidth) / 2
-  const firstButtonY = panelY + (desktopMode ? 236 : 302)
+  const buttonX = (1080 - buttonWidth) / 2
+  const firstButtonY = panelY + (desktopMode ? 224 : 258)
   const buttonGap = desktopMode ? 26 : 30
   const actions = [
     { id: 'resume', label: 'RESUME' },
-    { id: 'restart', label: 'RESTART' },
-    { id: 'sound', label: muted ? 'SOUND OFF' : 'SOUND ON' },
-    { id: 'settings', label: 'SETTINGS' }
+    { id: 'restart', label: 'RESTART' }
   ].map((action, index) => ({
     ...action,
     x: buttonX,
@@ -22,6 +21,7 @@ export function getPauseMenuLayout(desktopMode, muted) {
   }))
 
   return {
+    labelY,
     panel: { x: panelX, y: panelY, width: panelWidth, height: panelHeight },
     actions
   }

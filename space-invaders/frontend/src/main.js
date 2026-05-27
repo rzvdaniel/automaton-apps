@@ -11,22 +11,16 @@ app.innerHTML = `
     <div class="cabinet-glow"></div>
     <canvas class="game" aria-label="Space Invaders playfield"></canvas>
     <div class="top-actions">
-      <button class="overlay-button overlay-button-icon settings-button" type="button" aria-label="Settings" title="Settings">⚙</button>
-      <button class="overlay-button overlay-button-desktop restart-button" type="button" aria-label="Restart" title="Restart">↻</button>
       <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause">⏸</button>
-      <button class="overlay-button overlay-button-icon mute-button" type="button" aria-label="Sound on" title="Sound on">🔊</button>
+      <button class="overlay-button overlay-button-icon settings-button" type="button" aria-label="Settings" title="Settings">⚙</button>
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
     <div class="pause-menu" aria-hidden="true">
       <div class="pause-menu-panel">
-        <div class="pause-menu-kicker">Command Link</div>
         <div class="pause-menu-title">Paused</div>
-        <div class="pause-menu-status">Command Link Active</div>
         <div class="pause-menu-actions">
           <button class="pause-menu-button pause-resume" type="button">Resume</button>
           <button class="pause-menu-button pause-restart" type="button">Restart</button>
-          <button class="pause-menu-button pause-sound" type="button">Sound On</button>
-          <button class="pause-menu-button pause-settings" type="button">Settings</button>
         </div>
       </div>
     </div>
@@ -50,7 +44,6 @@ app.innerHTML = `
 `
 
 const shell = document.querySelector('.shell')
-const restartButton = document.querySelector('.restart-button')
 const pauseMenu = document.querySelector('.pause-menu')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
@@ -58,7 +51,6 @@ const game = createGame({
   canvas: document.querySelector('.game'),
   shell,
   installButton: document.querySelector('.install'),
-  muteButton: document.querySelector('.mute-button'),
   pauseButton,
   touchControls: {
     left: document.querySelector('.touch-left'),
@@ -71,24 +63,14 @@ setupDebugPanel({ game, root: shell })
 
 const pauseResumeButton = document.querySelector('.pause-resume')
 const pauseRestartButton = document.querySelector('.pause-restart')
-const pauseSoundButton = document.querySelector('.pause-sound')
-const pauseSettingsButton = document.querySelector('.pause-settings')
 
 function syncPauseMenu() {
   const isStarted = shell.dataset.gameStarted === 'true'
   const isPaused = shell.dataset.gamePaused === 'true'
+  const isRunning = shell.dataset.gameRunning === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
-  pauseSoundButton.textContent = game.isMuted() ? 'Sound Off' : 'Sound On'
-  pauseButton.classList.toggle('is-settings-proxy', !isStarted)
-  settingsButton.classList.toggle('hidden', !isStarted)
-
-  if (!isStarted) {
-    pauseButton.textContent = '⚙'
-    pauseButton.setAttribute('aria-label', 'Settings')
-    pauseButton.setAttribute('title', 'Settings')
-    return
-  }
+  pauseButton.disabled = !isStarted || !isRunning
 
   pauseButton.textContent = isPaused ? '▶' : '⏸'
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
@@ -98,7 +80,7 @@ function syncPauseMenu() {
 
 function positionPauseMenu() {
   const { scale, offsetX, offsetY, desktopMode } = game.getViewport()
-  const { panel, actions } = getPauseMenuLayout(desktopMode, game.isMuted())
+  const { panel, actions } = getPauseMenuLayout(desktopMode)
   pauseMenu.style.setProperty('--pause-panel-left', `${offsetX + panel.x * scale}px`)
   pauseMenu.style.setProperty('--pause-panel-top', `${offsetY + panel.y * scale}px`)
   pauseMenu.style.setProperty('--pause-panel-width', `${panel.width * scale}px`)
@@ -115,30 +97,16 @@ window.addEventListener('resize', game.resize)
 window.addEventListener('resize', positionPauseMenu)
 window.addEventListener('orientationchange', game.resize)
 window.addEventListener('orientationchange', positionPauseMenu)
-restartButton.addEventListener('click', () => {
-  game.restart()
-})
-pauseButton.addEventListener('click', (event) => {
-  if (shell.dataset.gameStarted === 'true') return
-  event.preventDefault()
-  event.stopImmediatePropagation()
+settingsButton.addEventListener('click', () => {
   settingsPanel.open()
   syncPauseMenu()
-}, true)
+})
 pauseResumeButton.addEventListener('click', () => {
   game.setPaused(false)
   syncPauseMenu()
 })
 pauseRestartButton.addEventListener('click', () => {
   game.restart()
-  syncPauseMenu()
-})
-pauseSoundButton.addEventListener('click', () => {
-  game.setMuted(!game.isMuted())
-  syncPauseMenu()
-})
-pauseSettingsButton.addEventListener('click', () => {
-  settingsPanel.open()
   syncPauseMenu()
 })
 shell.addEventListener('game-state-change', syncPauseMenu)

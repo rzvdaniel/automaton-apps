@@ -349,8 +349,8 @@ function drawOverlay(context, state, desktopMode) {
   }
 
   if (pausedMenu) {
-    const layout = getPauseMenuLayout(desktopMode, state.muted)
-    const { panel, actions } = layout
+    const layout = getPauseMenuLayout(desktopMode)
+    const { panel, labelY, actions } = layout
     const panelGradient = context.createLinearGradient(panel.x, panel.y, panel.x, panel.y + panel.height)
     panelGradient.addColorStop(0, 'rgba(28, 78, 108, 0.2)')
     panelGradient.addColorStop(1, 'rgba(10, 30, 50, 0.12)')
@@ -359,15 +359,28 @@ function drawOverlay(context, state, desktopMode) {
 
     const panelGlow = context.createRadialGradient(
       WORLD.width / 2,
-      panel.y + panel.height * 0.32,
-      40,
+      panel.y + panel.height * 0.45,
+      panel.width * 0.08,
       WORLD.width / 2,
-      panel.y + panel.height * 0.32,
-      panel.width * 0.58
+      panel.y + panel.height * 0.45,
+      panel.width * 0.72
     )
-    panelGlow.addColorStop(0, 'rgba(140, 247, 255, 0.11)')
+    panelGlow.addColorStop(0, 'rgba(120, 220, 255, 0.08)')
     panelGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
     context.fillStyle = panelGlow
+    context.fillRect(panel.x, panel.y, panel.width, panel.height)
+
+    const glow = context.createRadialGradient(
+      WORLD.width / 2,
+      panel.y + panel.height * 0.35,
+      40,
+      WORLD.width / 2,
+      panel.y + panel.height * 0.35,
+      panel.width * 0.62
+    )
+    glow.addColorStop(0, 'rgba(140, 247, 255, 0.1)')
+    glow.addColorStop(1, 'rgba(140, 247, 255, 0)')
+    context.fillStyle = glow
     context.fillRect(panel.x, panel.y, panel.width, panel.height)
 
     context.save()
@@ -397,7 +410,7 @@ function drawOverlay(context, state, desktopMode) {
     context.stroke()
 
     context.textAlign = 'center'
-    const titleGlow = context.createRadialGradient(WORLD.width / 2, panel.y + 118, 24, WORLD.width / 2, panel.y + 118, 140)
+    const titleGlow = context.createRadialGradient(WORLD.width / 2, labelY - (desktopMode ? 18 : 24), 24, WORLD.width / 2, labelY - (desktopMode ? 18 : 24), 140)
     titleGlow.addColorStop(0, 'rgba(120, 220, 255, 0.1)')
     titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
     context.fillStyle = titleGlow
@@ -406,25 +419,10 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = PALETTE.white
     context.shadowColor = PALETTE.cyan
     context.shadowBlur = 16
-    context.font = desktopMode ? '900 52px "Arial Black", Impact, sans-serif' : '900 62px "Arial Black", Impact, sans-serif'
-    context.fillText('SPACE', WORLD.width / 2, panel.y + (desktopMode ? 108 : 126))
-    context.fillText('INVADERS', WORLD.width / 2, panel.y + (desktopMode ? 164 : 186))
+    context.font = desktopMode ? '900 56px "Arial Black", Impact, sans-serif' : '900 68px "Arial Black", Impact, sans-serif'
+    context.fillText('PAUSED', WORLD.width / 2, labelY)
 
     context.shadowBlur = 0
-    context.strokeStyle = 'rgba(140, 247, 255, 0.18)'
-    context.lineWidth = 2
-    context.beginPath()
-    context.moveTo(panel.x + 54, panel.y + (desktopMode ? 208 : 232))
-    context.lineTo(panel.x + panel.width - 54, panel.y + (desktopMode ? 208 : 232))
-    context.stroke()
-
-    context.fillStyle = PALETTE.cyan
-    context.font = desktopMode ? '600 22px monospace' : '600 30px monospace'
-    context.fillText('PAUSED', WORLD.width / 2, panel.y + (desktopMode ? 250 : 280))
-    context.fillStyle = 'rgba(140,247,255,0.58)'
-    context.font = desktopMode ? '600 12px monospace' : '600 16px monospace'
-    context.fillText('COMMAND LINK ACTIVE', WORLD.width / 2, panel.y + (desktopMode ? 282 : 318))
-
     context.font = desktopMode ? '700 24px monospace' : '700 30px monospace'
     for (const action of actions) {
       const buttonGradient = context.createLinearGradient(action.x, action.y, action.x, action.y + action.height)
