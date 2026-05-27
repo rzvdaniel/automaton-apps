@@ -189,7 +189,7 @@ export function setupSettingsPanel({ game, root, shell }) {
       closeLabel: screen === 'main' ? (shell.dataset.gameStarted === 'true' ? 'Resume' : 'Back') : 'Main Menu',
       footerLabel: screen === 'main'
         ? (desktopMode ? 'UP/DOWN SELECT   ENTER OPEN   ESC CLOSE' : 'TAP TO SELECT')
-        : (desktopMode ? 'LEFT/RIGHT CHANGE   ESC BACK' : 'TAP TO CHANGE'),
+        : (desktopMode ? 'LEFT/RIGHT CHANGE   ESC BACK' : 'TAP LEFT/RIGHT TO CHANGE'),
       items: entries
     })
   }
@@ -291,18 +291,15 @@ export function setupSettingsPanel({ game, root, shell }) {
     }
 
     const item = entries[rowIndex]
-    if (point.x <= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.32) {
+    const row = layout.rows[rowIndex]
+    const relativeX = (point.x - row.x) / row.width
+
+    if (relativeX < 0.5) {
       changeSelectedItem(-1)
       return
     }
 
-    if (item.options.length === 2) {
-      changeSelectedItem(1)
-      return
-    }
-
-    const direction = point.x >= layout.rows[rowIndex].x + layout.rows[rowIndex].width * 0.68 ? 1 : -1
-    changeSelectedItem(direction)
+    changeSelectedItem(1)
   }
 
   function handleKeyDown(event) {
