@@ -90,6 +90,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     muted: localStorage.getItem(STORAGE_KEYS.muted) === '1',
     overlayTimer: 999,
     message: 'INSERT COIN',
+    intermission: null,
+    waveArrivalTimer: 0,
+    waveArrivalDuration: 0,
     particles: [],
     bullets: [],
     enemyBullets: [],
@@ -233,16 +236,21 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.shake.cooldown = 0.12
   }
 
-  function spawnWave(wave) {
+  function spawnWave(wave, { fromWave = null } = {}) {
     const config = getWaveConfig(wave)
     const { columns, rows, gapX, gapY, enemyWidth, enemyHeight } = config
     const formationWidth = columns * enemyWidth + (columns - 1) * gapX
     const startX = (WORLD.width - formationWidth) / 2
     const formationYOffset = isShortViewport() ? 16 : 0
     const immediateStart = wave === 1 && !state.started
+    const isIntermissionWave = wave > 1 || fromWave !== null
     state.wave = wave
     state.message = wave === 1 ? 'READY' : `WAVE ${wave}`
-    state.overlayTimer = immediateStart ? 0 : wave === 1 ? 1 : 0.9
+    state.overlayTimer = immediateStart ? 0 : wave === 1 ? 0.9 : Math.max(1.05, 1.45 - wave * 0.04)
+    state.intermission = immediateStart ? null : { fromWave, toWave: wave }
+    state.waveArrivalDuration = isIntermissionWave ? Math.max(0.45, 0.72 - wave * 0.015) : 0
+    state.waveArrivalTimer = state.waveArrivalDuration
+    state.bullets = []
     state.enemies = []
     state.enemyBullets = []
 
@@ -256,7 +264,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
           height: enemyHeight,
           rank,
           alive: true,
-          phase: Math.random() * Math.PI * 2
+          phase: Math.random() * Math.PI * 2,
+          arrivalDelay: row * 0.06 + col * 0.012
         })
       }
     }
@@ -287,6 +296,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.flash = 0
     state.message = 'INSERT COIN'
     state.overlayTimer = 999
+    state.intermission = null
+    state.waveArrivalTimer = 0
+    state.waveArrivalDuration = 0
     state.bullets = []
     state.enemyBullets = []
     state.enemies = []
@@ -317,6 +329,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.score = 0
     state.wave = startWave
     state.flash = 0
+    state.intermission = null
+    state.waveArrivalTimer = 0
+    state.waveArrivalDuration = 0
     state.shake.power = 0
     state.shake.duration = 0
     state.shake.cooldown = 0
@@ -453,6 +468,33 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.invulnerability = Math.max(0, state.player.invulnerability - dt)
     state.player.fireFlash = Math.max(0, state.player.fireFlash - dt * 7.5)
 
+    if (state.overlayTimer > 0) {
+      for (const particle of state.particles) {
+        particle.x += particle.vx * dt
+        particle.y += particle.vy * dt
+        particle.vx *= 0.985
+        particle.vy = particle.vy * 0.988 + particle.gravity * dt
+        particle.life -= dt
+      }
+      state.particles = state.particles.filter((particle) => particle.life > 0)
+      return desktopMode
+    }
+
+    state.intermission = null
+
+    if (state.waveArrivalTimer > 0) {
+      state.waveArrivalTimer = Math.max(0, state.waveArrivalTimer - dt)
+      for (const particle of state.particles) {
+        particle.x += particle.vx * dt
+        particle.y += particle.vy * dt
+        particle.vx *= 0.985
+        particle.vy = particle.vy * 0.988 + particle.gravity * dt
+        particle.life -= dt
+      }
+      state.particles = state.particles.filter((particle) => particle.life > 0)
+      return desktopMode
+    }
+
     let movement = 0
     if (moveLeft) movement -= 1
     if (moveRight) movement += 1
@@ -559,10 +601,10 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     state.enemies = state.enemies.filter((enemy) => enemy.alive)
     if (state.enemies.length === 0) {
-      state.message = 'WAVE CLEAR'
-      state.overlayTimer = 0.8
+      const clearedWave = state.wave
       triggerShake(1.8, 0.08)
-      spawnWave(state.wave + 1)
+      spawnWave(clearedWave + 1, { fromWave: clearedWave })
+      return desktopMode
     }
 
     for (const particle of state.particles) {
