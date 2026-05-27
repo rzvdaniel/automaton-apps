@@ -745,30 +745,55 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   }
 
   function clearPointer() {
+    zonePointers.left.clear()
+    zonePointers.right.clear()
+    zonePointers.fire.clear()
     state.pointer.left = false
     state.pointer.right = false
     state.pointer.fire = false
+    touchControls.left.dataset.pressed = 'false'
+    touchControls.right.dataset.pressed = 'false'
+    touchControls.fire.dataset.pressed = 'false'
   }
 
-  function setZone(zone, active) {
+  const zonePointers = {
+    left: new Set(),
+    right: new Set(),
+    fire: new Set()
+  }
+
+  function syncZone(zone) {
+    const active = zonePointers[zone].size > 0
     state.pointer[zone] = active
+    touchControls[zone].dataset.pressed = active ? 'true' : 'false'
   }
 
   function bindHold(button, key) {
     const down = async (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return
       event.preventDefault()
+      event.stopPropagation()
+      button.setPointerCapture(event.pointerId)
+      zonePointers[key].add(event.pointerId)
+      syncZone(key)
       await audio.unlock()
-      setZone(key, true)
       if (!state.started && key === 'fire') resetGame()
     }
+
     const up = (event) => {
       event.preventDefault()
-      setZone(key, false)
+      event.stopPropagation()
+      zonePointers[key].delete(event.pointerId)
+      if (button.hasPointerCapture?.(event.pointerId)) {
+        button.releasePointerCapture(event.pointerId)
+      }
+      syncZone(key)
     }
+
     button.addEventListener('pointerdown', down)
     button.addEventListener('pointerup', up)
-    button.addEventListener('pointerleave', up)
     button.addEventListener('pointercancel', up)
+    button.addEventListener('lostpointercapture', up)
   }
 
   bindHold(touchControls.left, 'left')
