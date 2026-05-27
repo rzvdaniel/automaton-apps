@@ -1,5 +1,5 @@
 import './styles.css'
-import { createIcons, Pause, Play, Settings } from 'lucide'
+import { ChevronLeft, ChevronRight, createIcons, Pause, Play, Settings } from 'lucide'
 import { createGame } from './game.js'
 import { setupDebugPanel } from './debug-panel.js'
 import { getPauseMenuLayout } from './overlay-layout.js'
@@ -43,18 +43,18 @@ app.innerHTML = `
     </dialog>
     <div class="touch-controls" aria-hidden="true">
       <button class="touch-zone touch-left" type="button" aria-label="Move left">
-        <svg class="touch-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.5 2 4 8l7.5 6V2Z" /></svg>
+        <i class="touch-icon" data-lucide="chevron-left" aria-hidden="true"></i>
       </button>
       <button class="touch-zone touch-fire" type="button"><span class="touch-fire-label">FIRE</span></button>
       <button class="touch-zone touch-right" type="button" aria-label="Move right">
-        <svg class="touch-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2 12 8l-7.5 6V2Z" /></svg>
+        <i class="touch-icon" data-lucide="chevron-right" aria-hidden="true"></i>
       </button>
     </div>
   </div>
 `
 
 createIcons({
-  icons: { Pause, Play, Settings },
+  icons: { ChevronLeft, ChevronRight, Pause, Play, Settings },
   attrs: {
     'stroke-width': 1.9
   }
