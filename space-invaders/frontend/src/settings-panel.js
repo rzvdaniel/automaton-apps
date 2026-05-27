@@ -72,7 +72,6 @@ const SETTINGS_SECTIONS = [
   {
     id: 'graphics',
     label: 'Graphics',
-    caption: 'Visual signal and atmosphere',
     summary(settings) {
       return settings.spriteStyle === 'smooth' ? 'Smooth holographics' : 'Crisp pixel glow'
     }
@@ -80,7 +79,6 @@ const SETTINGS_SECTIONS = [
   {
     id: 'controls',
     label: 'Controls',
-    caption: 'How you steer the ship',
     summary(settings) {
       return settings.controls === 'zones' ? 'Touch zones engaged' : 'Button layout engaged'
     }
@@ -88,7 +86,6 @@ const SETTINGS_SECTIONS = [
   {
     id: 'audio',
     label: 'Audio',
-    caption: 'Cabinet sound output',
     summary(_settings, isMuted) {
       return isMuted ? 'Sound muted' : 'Sound live'
     }
@@ -96,7 +93,6 @@ const SETTINGS_SECTIONS = [
   {
     id: 'accessibility',
     label: 'Accessibility',
-    caption: 'Comfort and readability',
     summary(settings) {
       return settings.reducedMotion ? 'Reduced motion active' : 'Full motion active'
     }
@@ -160,12 +156,12 @@ export function setupSettingsPanel({ game, root, shell }) {
   function updateRenderState() {
     const settings = game.getSettings()
     const activeSection = getActiveSection()
+    const { desktopMode } = game.getViewport()
     const entries = screen === 'main'
       ? SETTINGS_SECTIONS.map((section) => ({
           kind: 'section',
           id: section.id,
           label: section.label,
-          caption: section.caption,
           valueLabel: section.summary(settings, game.isMuted())
         }))
       : getSectionItems(activeSectionId).map((item) => {
@@ -174,7 +170,6 @@ export function setupSettingsPanel({ game, root, shell }) {
             kind: 'item',
             id: item.id,
             label: item.label,
-            caption: activeSection?.label ?? 'Setting',
             value: option.value,
             valueLabel: option.label
           }
@@ -185,11 +180,11 @@ export function setupSettingsPanel({ game, root, shell }) {
       view: screen,
       selectedIndex,
       title: activeSection?.label ?? 'Settings',
-      subtitle: activeSection?.caption ?? 'Command Console',
+      subtitle: activeSection?.caption ?? 'System Menu',
       closeLabel: screen === 'main' ? (shell.dataset.gameStarted === 'true' ? 'Resume' : 'Back') : 'Main Menu',
       footerLabel: screen === 'main'
-        ? 'UP/DOWN SELECT  ENTER OPEN  ESC CLOSE'
-        : 'LEFT/RIGHT CHANGE  ENTER CYCLE  ESC BACK',
+        ? (desktopMode ? 'UP/DOWN SELECT   ENTER OPEN   ESC CLOSE' : 'TAP TO SELECT')
+        : (desktopMode ? 'LEFT/RIGHT CHANGE   ESC BACK' : 'TAP TO CHANGE'),
       items: entries
     })
   }

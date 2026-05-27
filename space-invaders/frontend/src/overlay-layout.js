@@ -29,18 +29,18 @@ export function getPauseMenuLayout(desktopMode, muted) {
 
 export function getSettingsMenuLayout(desktopMode, rowCount = 4, view = 'main') {
   const isMainView = view === 'main'
-  const panelWidth = desktopMode ? (isMainView ? 680 : 700) : (isMainView ? 800 : 760)
-  const panelHeight = desktopMode ? (isMainView ? 760 : 860) : (isMainView ? 900 : 1020)
+  const panelWidth = desktopMode ? (isMainView ? 720 : 720) : (isMainView ? 840 : 780)
+  const panelHeight = desktopMode ? (isMainView ? 760 : 900) : (isMainView ? 900 : 1060)
   const panelX = (1080 - panelWidth) / 2
-  const panelY = desktopMode ? (isMainView ? 232 : 180) : (isMainView ? 208 : 170)
-  const dividerY = panelY + (desktopMode ? (isMainView ? 210 : 232) : (isMainView ? 238 : 260))
+  const panelY = desktopMode ? (isMainView ? 228 : 212) : (isMainView ? 220 : 236)
+  const dividerY = panelY + (desktopMode ? (isMainView ? 234 : 250) : (isMainView ? 270 : 286))
   const rowX = panelX + (desktopMode ? (isMainView ? 68 : 62) : (isMainView ? 54 : 58))
   const rowWidth = panelWidth - (desktopMode ? (isMainView ? 136 : 124) : (isMainView ? 108 : 116))
   const rowGap = desktopMode ? (isMainView ? 18 : 14) : (isMainView ? 18 : 14)
   const footerHeight = desktopMode ? 32 : 42
   const closeHeight = desktopMode ? (isMainView ? 52 : 56) : (isMainView ? 62 : 68)
   const closeWidth = desktopMode ? 250 : 320
-  const listTop = dividerY + (desktopMode ? (isMainView ? 42 : 34) : (isMainView ? 46 : 42))
+  const listTop = dividerY + (desktopMode ? (isMainView ? 46 : 38) : (isMainView ? 52 : 46))
   const listBottom = panelY + panelHeight - (desktopMode ? 54 : 64)
   const closeGap = desktopMode ? 22 : 28
   const availableHeight = listBottom - listTop - closeHeight - footerHeight - closeGap - rowGap * Math.max(0, rowCount - 1)
