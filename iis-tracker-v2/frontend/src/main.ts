@@ -688,11 +688,15 @@ function buildCamera(sample: IssSample | null, canvasWidth: number, canvasHeight
   const mobile = isMobileViewport();
   const zoom = mobile ? 2.15 : 1;
   const aspect = canvasWidth / canvasHeight;
+  const worldAspect = world.width / world.height;
   let sourceWidth = world.width / zoom;
   let sourceHeight = sourceWidth / aspect;
   const maxSourceHeight = world.height / zoom;
 
-  if (sourceHeight > maxSourceHeight) {
+  if (!mobile && aspect >= worldAspect) {
+    sourceHeight = world.height;
+    sourceWidth = sourceHeight * aspect;
+  } else if (sourceHeight > maxSourceHeight) {
     sourceHeight = maxSourceHeight;
     sourceWidth = sourceHeight * aspect;
   }
