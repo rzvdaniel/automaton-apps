@@ -3,6 +3,7 @@ import { createBackgroundEffects } from './background-effects.js'
 import { DPR_LIMIT, PALETTE, PLAYER_COOLDOWN, PLAYER_INVULNERABILITY, STORAGE_KEYS, WORLD } from './config.js'
 import { renderScene } from './render.js'
 import { loadSettings, saveSettings } from './settings.js'
+import { UfoEncounter } from './ufo-encounter.js'
 
 function random(min, max) {
   return min + Math.random() * (max - min)
@@ -71,6 +72,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const context = canvas.getContext('2d', { alpha: false })
   const audio = createAudioManager()
   const backgroundEffects = createBackgroundEffects()
+  const ufoEncounter = new UfoEncounter({ audio })
   const backgroundImage = new Image()
   backgroundImage.src = './images/planet-cinematic-bg.png'
   const settings = loadSettings()
@@ -96,6 +98,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     waveArrivalCuePending: false,
     waveLockTimer: 0,
     waveLockDuration: 0,
+    ufo: null,
     particles: [],
     bullets: [],
     enemyBullets: [],
@@ -259,6 +262,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.bullets = []
     state.enemies = []
     state.enemyBullets = []
+    ufoEncounter.reset(wave)
+    state.ufo = null
 
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < columns; col += 1) {
@@ -311,8 +316,10 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.bullets = []
     state.enemyBullets = []
     state.enemies = []
+    state.ufo = null
     state.particles = []
     state.enemyStepTimer = 0
+    ufoEncounter.reset(1)
     state.player.x = WORLD.width / 2
     syncPlayerVerticalPosition()
     state.player.cooldown = 0
@@ -349,8 +356,10 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.shake.cooldown = 0
     state.bullets = []
     state.enemyBullets = []
+    state.ufo = null
     state.particles = []
     state.enemyStepTimer = 0
+    ufoEncounter.reset(startWave)
     state.player.x = WORLD.width / 2
     syncPlayerVerticalPosition()
     state.player.cooldown = 0
@@ -428,6 +437,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       state.bullets = []
       state.enemyBullets = []
       state.enemies = []
+      state.ufo = null
       state.player.cooldown = 0
       state.player.fireFlash = 0
       state.player.invulnerability = 0
@@ -498,6 +508,13 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       audio.waveArrival()
       state.waveArrivalCuePending = false
     }
+
+    state.ufo = ufoEncounter.update(dt, {
+      running: state.running,
+      paused: state.paused,
+      overlayActive: state.overlayTimer > 0 || state.waveArrivalTimer > 0 || state.waveLockTimer > 0,
+      wave: state.wave
+    })
 
     if (state.waveArrivalTimer > 0) {
       state.waveArrivalTimer = Math.max(0, state.waveArrivalTimer - dt)
@@ -588,6 +605,20 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     for (const bullet of state.bullets) {
       const bulletRect = rectFromCenter(bullet)
+      const ufoHit = ufoEncounter.tryHit(bulletRect, state.wave)
+      if (ufoHit) {
+        bullet.y = -100
+        state.ufo = ufoEncounter.getState()
+        state.score += ufoHit.score
+        persistHighScore()
+        state.flash = 0.16
+        triggerShake(1.1, 0.05)
+        addParticles(ufoHit.x, ufoHit.y, PALETTE.amber, 18, 320, 40)
+        addParticles(ufoHit.x, ufoHit.y, PALETTE.magenta, 10, 240, 20)
+        addParticles(ufoHit.x, ufoHit.y, PALETTE.white, 8, 180, 16)
+        continue
+      }
+
       for (const enemy of aliveEnemies) {
         if (!enemy.alive) continue
         if (intersects(bulletRect, rectFromTopLeft(enemy))) {

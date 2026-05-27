@@ -96,6 +96,14 @@ export function createAudioManager() {
     formationLocked() {
       pulse('triangle', 720, 0.08, 0.026, 80)
       pulse('square', 980, 0.1, 0.018, 40)
+    },
+    ufoPass() {
+      pulse('sawtooth', 460, 0.3, 0.02, 140)
+      pulse('triangle', 690, 0.24, 0.015, -80)
+    },
+    ufoHit() {
+      pulse('square', 1120, 0.08, 0.028, -320)
+      pulse('triangle', 720, 0.14, 0.024, -180)
     }
   }
 }

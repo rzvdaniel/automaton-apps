@@ -1,4 +1,4 @@
-import { ENEMY_SPRITES, PALETTE, WORLD } from './config.js'
+import { ENEMY_SPRITES, PALETTE, UFO_SPRITES, WORLD } from './config.js'
 import { getPauseMenuLayout } from './overlay-layout.js'
 import { SettingsMenuRenderer } from './settings-menu-renderer.js'
 
@@ -275,6 +275,28 @@ function drawEnemy(context, enemy, elapsed, settings) {
   const color = enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2'
   const glow = enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)'
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
+}
+
+function drawUfo(context, ufo, elapsed, settings) {
+  const pixelSize = Math.max(1, Math.round(ufo.width / 16))
+  const bob = Math.sin(elapsed * 6 + ufo.phase) * (settings.reducedMotion ? 0.8 : 2)
+  const spriteKey = Math.sin(elapsed * 7.5 + ufo.phase) > 0 ? 'ufo' : 'ufoAlt'
+  const x = ufo.x - ufo.width / 2
+  const y = ufo.y - ufo.height / 2 + bob
+  drawPixelSprite(context, UFO_SPRITES[spriteKey], x, y, pixelSize, '#ffb46e', 'rgba(255, 148, 88, 0.34)', settings.spriteStyle)
+  context.save()
+  context.globalAlpha = 0.28
+  context.fillStyle = 'rgba(120, 220, 255, 0.48)'
+  context.fillRect(ufo.x - 18, ufo.y + 8 + bob, 36, 8)
+  context.restore()
+}
+
+function drawPausedUfo(context, ufo, elapsed, settings) {
+  context.save()
+  context.globalAlpha = 0.46
+  context.filter = 'saturate(0.5) brightness(0.72)'
+  drawUfo(context, ufo, elapsed, settings)
+  context.restore()
 }
 
 function drawPausedEnemy(context, enemy, elapsed, settings) {
@@ -776,6 +798,13 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
         } else {
           drawEnemy(context, enemy, elapsed, state.settings)
         }
+      }
+    }
+    if (state.ufo) {
+      if (state.paused && !state.settingsOpen) {
+        drawPausedUfo(context, state.ufo, elapsed, state.settings)
+      } else {
+        drawUfo(context, state.ufo, elapsed, state.settings)
       }
     }
     drawProjectiles(context, state)
