@@ -116,7 +116,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       invulnerability: 0,
       visualTilt: 0,
       thrust: 0,
-      fireFlash: 0
+      fireFlash: 0,
+      destroyed: false,
+      destroyedAt: 0
     }
   }
 
@@ -297,6 +299,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.visualTilt = 0
     state.player.thrust = 0
     state.player.fireFlash = 0
+    state.player.destroyed = false
+    state.player.destroyedAt = 0
     state.shake.power = 0
     state.shake.duration = 0
     state.shake.cooldown = 0
@@ -327,6 +331,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.visualTilt = 0
     state.player.thrust = 0
     state.player.fireFlash = 0
+    state.player.destroyed = false
+    state.player.destroyedAt = 0
     state.started = wasStarted
     spawnWave(startWave)
     state.started = true
@@ -388,8 +394,20 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     audio.playerHit()
     if (state.player.lives <= 0) {
       state.running = false
-      state.message = 'GAME OVER'
+      state.message = 'SIGNAL LOST'
       state.overlayTimer = 999
+      state.bullets = []
+      state.enemyBullets = []
+      state.enemies = []
+      state.player.cooldown = 0
+      state.player.fireFlash = 0
+      state.player.invulnerability = 0
+      state.player.destroyed = true
+      state.player.destroyedAt = state.elapsed
+      state.player.visualTilt = -0.18
+      state.player.thrust = 0
+      addParticles(state.player.x, state.player.y - 10, PALETTE.red, 28, 420, 55)
+      addParticles(state.player.x, state.player.y + 8, PALETTE.white, 10, 240, 35)
       persistHighScore()
       syncShellState()
     }

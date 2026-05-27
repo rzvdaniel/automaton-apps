@@ -153,34 +153,43 @@ function drawHud(context, state, desktopMode) {
   context.textAlign = 'left'
   context.font = compactHud ? '700 28px monospace' : '700 30px monospace'
   for (const column of columns) {
+    context.fillStyle = PALETTE.white
     context.fillText(column.label, column.x, 70)
   }
 
   context.font = compactHud ? '700 38px monospace' : '700 42px monospace'
   for (const column of columns) {
+    context.fillStyle = column.label === 'LIVES' && !state.running ? 'rgba(255,106,122,0.96)' : PALETTE.white
     context.fillText(column.value, column.x, 118)
   }
 }
 
 function drawShip(context, state, elapsed) {
   if (state.player.invulnerability > 0 && Math.floor(elapsed * 18) % 2 === 0) return
-  const { x, y, visualTilt, thrust, fireFlash } = state.player
+  const { x, y, visualTilt, thrust, fireFlash, destroyed, destroyedAt } = state.player
   const motionScale = state.settings.reducedMotion ? 0.35 : 1
   const enginePulse = 0.82 + Math.sin(elapsed * 14) * 0.12 * motionScale + Math.sin(elapsed * 31) * 0.06 * motionScale
   const thruster = 14 + thrust * 9 + enginePulse * 6
   const sideBias = visualTilt * 18
   const muzzleFlash = fireFlash * 18
+  const deathTime = destroyed ? Math.min(2.4, Math.max(0, elapsed - destroyedAt)) : 0
+  const shipY = destroyed ? y + deathTime * 34 : y
+  const shipRotation = destroyed ? visualTilt - deathTime * 0.24 : visualTilt
   context.save()
-  context.translate(x, y)
-  context.rotate(visualTilt)
+  context.translate(x, shipY)
+  context.rotate(shipRotation)
 
-  context.fillStyle = 'rgba(12, 24, 46, 0.72)'
+  if (destroyed) {
+    context.globalAlpha = Math.max(0.72, 1 - deathTime * 0.08)
+  }
+
+  context.fillStyle = destroyed ? 'rgba(8, 14, 26, 0.82)' : 'rgba(12, 24, 46, 0.72)'
   context.beginPath()
   context.ellipse(0, 14, 76, 36, 0, 0, Math.PI * 2)
   context.fill()
 
   context.scale(0.88, 0.88)
-  context.fillStyle = '#8cf7ff'
+  context.fillStyle = destroyed ? '#5d6e86' : '#8cf7ff'
   context.beginPath()
   context.moveTo(0, -56)
   context.lineTo(22, -22)
@@ -198,7 +207,7 @@ function drawShip(context, state, elapsed) {
   context.closePath()
   context.fill()
 
-  context.fillStyle = '#4bc9ff'
+  context.fillStyle = destroyed ? '#7c889a' : '#4bc9ff'
   context.beginPath()
   context.moveTo(0, -44)
   context.lineTo(16, -16)
@@ -210,21 +219,32 @@ function drawShip(context, state, elapsed) {
   context.closePath()
   context.fill()
 
-  context.fillStyle = PALETTE.white
+  context.fillStyle = destroyed ? 'rgba(222, 230, 238, 0.72)' : PALETTE.white
   context.fillRect(-12, -18, 24, 26)
   context.fillRect(-38, -2, 14, 10)
   context.fillRect(24, -2, 14, 10)
 
-  context.fillStyle = 'rgba(255, 110, 92, 0.96)'
-  context.fillRect(-28, 22, 8, thruster * (0.8 - sideBias * 0.01))
-  context.fillRect(-4, 26, 8, thruster)
-  context.fillRect(20, 22, 8, thruster * (0.8 + sideBias * 0.01))
-  context.fillStyle = 'rgba(255, 214, 160, 0.88)'
-  context.fillRect(-26, 22, 4, thruster * (0.54 - sideBias * 0.008))
-  context.fillRect(-2, 26, 4, thruster * 0.7)
-  context.fillRect(22, 22, 4, thruster * (0.54 + sideBias * 0.008))
+  if (destroyed) {
+    context.fillStyle = 'rgba(255, 110, 92, 0.72)'
+    context.fillRect(-8, -6, 44, 6)
+    context.fillStyle = 'rgba(255, 214, 160, 0.5)'
+    context.fillRect(18, -8, 12, 3)
+    context.fillRect(-30, 6, 18, 3)
+    context.fillStyle = 'rgba(255, 106, 122, 0.58)'
+    context.fillRect(-6, 18, 6, 18)
+    context.fillRect(16, 22, 6, 12)
+  } else {
+    context.fillStyle = 'rgba(255, 110, 92, 0.96)'
+    context.fillRect(-28, 22, 8, thruster * (0.8 - sideBias * 0.01))
+    context.fillRect(-4, 26, 8, thruster)
+    context.fillRect(20, 22, 8, thruster * (0.8 + sideBias * 0.01))
+    context.fillStyle = 'rgba(255, 214, 160, 0.88)'
+    context.fillRect(-26, 22, 4, thruster * (0.54 - sideBias * 0.008))
+    context.fillRect(-2, 26, 4, thruster * 0.7)
+    context.fillRect(22, 22, 4, thruster * (0.54 + sideBias * 0.008))
+  }
 
-  if (fireFlash > 0) {
+  if (!destroyed && fireFlash > 0) {
     context.fillStyle = `rgba(255,255,255,${0.45 * fireFlash})`
     context.beginPath()
     context.moveTo(0, -86 - muzzleFlash)
@@ -312,7 +332,8 @@ function drawOverlay(context, state, desktopMode) {
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused) return
   const pausedMenu = !settingsOpen && state.paused && state.running
   const mobilePauseMenu = !desktopMode && pausedMenu
-  const introOverlay = !settingsOpen && (!state.started || (!state.running && !state.paused) || (!state.paused && state.overlayTimer > 0))
+  const gameOverOverlay = !settingsOpen && state.started && !state.running && !state.paused
+  const introOverlay = !settingsOpen && (!state.started || (state.running && !state.paused && state.overlayTimer > 0))
 
   if (settingsOpen) {
     settingsMenuRenderer.render(context, state.settingsMenu, desktopMode)
@@ -321,6 +342,9 @@ function drawOverlay(context, state, desktopMode) {
 
   if (pausedMenu) {
     context.fillStyle = 'rgba(1, 4, 12, 0.18)'
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
+  } else if (gameOverOverlay) {
+    context.fillStyle = 'rgba(1, 4, 12, 0.42)'
     context.fillRect(0, 0, WORLD.width, WORLD.height)
   } else if (!introOverlay) {
     context.fillStyle = 'rgba(1, 4, 12, 0.28)'
@@ -415,6 +439,66 @@ function drawOverlay(context, state, desktopMode) {
       context.fillStyle = PALETTE.white
       context.fillText(action.label, WORLD.width / 2, action.y + action.height / 2 + (desktopMode ? 8 : 10))
     }
+    context.textAlign = 'left'
+    return
+  }
+
+  if (gameOverOverlay) {
+    const panelWidth = desktopMode ? WORLD.width - 320 : WORLD.width - 220
+    const panelHeight = desktopMode ? 368 : 432
+    const panelX = (WORLD.width - panelWidth) / 2
+    const panelY = desktopMode ? 584 : 650
+    const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
+    panelGradient.addColorStop(0, 'rgba(8, 16, 30, 0.82)')
+    panelGradient.addColorStop(1, 'rgba(4, 8, 18, 0.92)')
+    context.fillStyle = panelGradient
+    context.fillRect(panelX, panelY, panelWidth, panelHeight)
+
+    const panelGlow = context.createRadialGradient(
+      WORLD.width / 2,
+      panelY + panelHeight * 0.28,
+      24,
+      WORLD.width / 2,
+      panelY + panelHeight * 0.28,
+      panelWidth * 0.6
+    )
+    panelGlow.addColorStop(0, 'rgba(255, 106, 122, 0.14)')
+    panelGlow.addColorStop(1, 'rgba(255, 106, 122, 0)')
+    context.fillStyle = panelGlow
+    context.fillRect(panelX, panelY, panelWidth, panelHeight)
+
+    context.strokeStyle = 'rgba(255, 106, 122, 0.24)'
+    context.lineWidth = 2
+    context.strokeRect(panelX, panelY, panelWidth, panelHeight)
+
+    context.textAlign = 'center'
+    context.fillStyle = 'rgba(255, 160, 174, 0.92)'
+    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
+    context.fillText('SIGNAL LOST', WORLD.width / 2, panelY + (desktopMode ? 56 : 68))
+
+    context.fillStyle = PALETTE.white
+    context.shadowColor = PALETTE.red
+    context.shadowBlur = 18
+    context.font = desktopMode ? '900 58px "Arial Black", Impact, sans-serif' : '900 72px "Arial Black", Impact, sans-serif'
+    context.fillText('GAME OVER', WORLD.width / 2, panelY + (desktopMode ? 132 : 156))
+    context.shadowBlur = 0
+
+    context.strokeStyle = 'rgba(255, 130, 142, 0.2)'
+    context.beginPath()
+    context.moveTo(panelX + 62, panelY + (desktopMode ? 172 : 196))
+    context.lineTo(panelX + panelWidth - 62, panelY + (desktopMode ? 172 : 196))
+    context.stroke()
+
+    context.fillStyle = 'rgba(238,252,255,0.78)'
+    context.font = desktopMode ? '600 22px monospace' : '600 28px monospace'
+    context.fillText(`WAVE ${String(state.wave).padStart(2, '0')}   SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, panelY + (desktopMode ? 224 : 258))
+    context.fillStyle = 'rgba(255, 180, 190, 0.86)'
+    context.font = desktopMode ? '600 18px monospace' : '600 24px monospace'
+    context.fillText('PILOT OFFLINE   SHIP DESTROYED', WORLD.width / 2, panelY + (desktopMode ? 266 : 306))
+
+    context.fillStyle = 'rgba(255,255,255,0.9)'
+    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
+    context.fillText('PRESS FIRE TO RETRY', WORLD.width / 2, panelY + (desktopMode ? 318 : 366))
     context.textAlign = 'left'
     return
   }
