@@ -384,6 +384,11 @@ canvas {
   opacity: 0.92;
 }
 
+.shell[data-game-paused="true"][data-game-started="true"][data-game-running="true"] .touch-controls {
+  opacity: 0.24;
+  filter: saturate(0.4) brightness(0.72);
+}
+
 .shell[data-game-running="false"][data-game-started="true"] .touch-fire {
   animation: retryPulse 1.6s ease-in-out infinite;
 }

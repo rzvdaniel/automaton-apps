@@ -246,7 +246,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     const isIntermissionWave = wave > 1 || fromWave !== null
     state.wave = wave
     state.message = wave === 1 ? 'READY' : `WAVE ${wave}`
-    state.overlayTimer = immediateStart ? 0 : wave === 1 ? 0.9 : Math.max(1.05, 1.45 - wave * 0.04)
+    state.overlayTimer = immediateStart ? 0 : wave === 1 ? 1.05 : Math.max(1.8, 2.2 - wave * 0.05)
     state.intermission = immediateStart ? null : { fromWave, toWave: wave }
     state.waveArrivalDuration = isIntermissionWave ? Math.max(0.45, 0.72 - wave * 0.015) : 0
     state.waveArrivalTimer = state.waveArrivalDuration

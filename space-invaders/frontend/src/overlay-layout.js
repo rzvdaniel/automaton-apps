@@ -1,13 +1,13 @@
 export function getPauseMenuLayout(desktopMode) {
   const panelWidth = 1080 - 260
-  const panelHeight = desktopMode ? 500 : 488
+  const panelHeight = desktopMode ? 540 : 536
   const panelX = (1080 - panelWidth) / 2
-  const panelY = desktopMode ? 318 : 350
-  const labelY = panelY + (desktopMode ? 168 : 186)
+  const panelY = desktopMode ? 584 : 626
+  const labelY = panelY + (desktopMode ? 188 : 210)
   const buttonWidth = desktopMode ? 360 : 432
   const buttonHeight = desktopMode ? 62 : 78
   const buttonX = (1080 - buttonWidth) / 2
-  const firstButtonY = panelY + (desktopMode ? 224 : 258)
+  const firstButtonY = panelY + (desktopMode ? 266 : 304)
   const buttonGap = desktopMode ? 26 : 30
   const actions = [
     { id: 'resume', label: 'RESUME' },
