@@ -418,7 +418,7 @@ function drawOverlay(context, state, desktopMode) {
   }
 
   if (pausedMenu) {
-    const layout = getPauseMenuLayout(desktopMode)
+    const layout = getPauseMenuLayout(desktopMode, state.composition.pauseShiftWorld)
     const { panel, labelY, actions } = layout
     context.fillStyle = 'rgba(3, 10, 20, 0.36)'
     context.fillRect(panel.x - 30, panel.y - 34, panel.width + 60, panel.height + 68)
@@ -534,7 +534,7 @@ function drawOverlay(context, state, desktopMode) {
     const panelWidth = desktopMode ? WORLD.width - 420 : WORLD.width - 300
     const panelHeight = desktopMode ? 348 : 404
     const panelX = (WORLD.width - panelWidth) / 2
-    const panelY = desktopMode ? 604 : 706
+    const panelY = (desktopMode ? 604 : 706) + Math.round(state.composition.overlayShiftWorld * 0.55)
     const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
     panelGradient.addColorStop(0, 'rgba(8, 16, 30, 0.82)')
     panelGradient.addColorStop(1, 'rgba(4, 8, 18, 0.92)')
@@ -657,9 +657,10 @@ function drawOverlay(context, state, desktopMode) {
     return
   }
 
+  const titleShiftY = titleOverlay ? state.composition.overlayShiftWorld : 0
   const panelWidth = titleOverlay ? (desktopMode ? WORLD.width - 260 : WORLD.width - 260) : WORLD.width - 160
   const panelX = (WORLD.width - panelWidth) / 2
-  const panelY = titleOverlay ? (desktopMode ? 318 : 350) : 276
+  const panelY = titleOverlay ? (desktopMode ? 318 : 350) + titleShiftY : 276
   const panelHeight = titleOverlay ? (desktopMode ? 500 : 488) : desktopMode ? 660 : 710
   const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
   panelGradient.addColorStop(0, titleOverlay ? 'rgba(28, 78, 108, 0.2)' : 'rgba(4, 10, 22, 0.82)')
@@ -730,7 +731,8 @@ function drawOverlay(context, state, desktopMode) {
   context.shadowBlur = mobilePauseMenu ? 8 : 18
   context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
   if (titleOverlay) {
-    const titleGlow = context.createRadialGradient(WORLD.width / 2, desktopMode ? 428 : 452, 24, WORLD.width / 2, desktopMode ? 428 : 452, 140)
+    const titleGlowY = (desktopMode ? 428 : 452) + titleShiftY
+    const titleGlow = context.createRadialGradient(WORLD.width / 2, titleGlowY, 24, WORLD.width / 2, titleGlowY, 140)
     titleGlow.addColorStop(0, 'rgba(120, 220, 255, 0.1)')
     titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
     context.fillStyle = titleGlow
@@ -738,14 +740,14 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
   }
   context.font = desktopMode ? '900 76px "Arial Black", Impact, sans-serif' : '900 88px "Arial Black", Impact, sans-serif'
-  context.fillText('SPACE', WORLD.width / 2, desktopMode ? 446 : 472)
-  context.fillText('INVADERS', WORLD.width / 2, desktopMode ? 528 : 554)
+  context.fillText('SPACE', WORLD.width / 2, (desktopMode ? 446 : 472) + titleShiftY)
+  context.fillText('INVADERS', WORLD.width / 2, (desktopMode ? 528 : 554) + titleShiftY)
   if (titleOverlay) {
     context.strokeStyle = 'rgba(140, 247, 255, 0.18)'
     context.lineWidth = 2
     context.beginPath()
-    context.moveTo(panelX + 54, desktopMode ? 582 : 608)
-    context.lineTo(panelX + panelWidth - 54, desktopMode ? 582 : 608)
+    context.moveTo(panelX + 54, (desktopMode ? 582 : 608) + titleShiftY)
+    context.lineTo(panelX + panelWidth - 54, (desktopMode ? 582 : 608) + titleShiftY)
     context.stroke()
   }
   context.shadowBlur = 0
@@ -755,22 +757,22 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = titleOverlay ? `rgba(140,247,255,${insertCoinPulse})` : PALETTE.cyan
     context.font = desktopMode ? '600 32px monospace' : '600 42px monospace'
     const headline = state.paused ? 'PAUSED' : state.message
-    context.fillText(headline, WORLD.width / 2, titleOverlay ? (desktopMode ? 642 : 678) : desktopMode ? 690 : 700)
+    context.fillText(headline, WORLD.width / 2, titleOverlay ? (desktopMode ? 642 : 678) + titleShiftY : desktopMode ? 690 : 700)
   }
   if (!mobilePauseMenu && (!desktopMode || state.settings.keyboardHint)) {
     context.fillStyle = 'rgba(238,252,255,0.82)'
     if (desktopMode) {
       context.font = '500 24px monospace'
-      context.fillText('ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE', WORLD.width / 2, 770)
+      context.fillText('ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE', WORLD.width / 2, 770 + titleShiftY)
     } else {
       context.font = titleOverlay ? '700 40px monospace' : '700 34px monospace'
-      context.fillText('◀  ▶ MOVE', WORLD.width / 2, titleOverlay ? 760 : 760)
-      context.fillText('TAP FIRE', WORLD.width / 2, titleOverlay ? 812 : 804)
+      context.fillText('◀  ▶ MOVE', WORLD.width / 2, titleOverlay ? 760 + titleShiftY : 760)
+      context.fillText('TAP FIRE', WORLD.width / 2, titleOverlay ? 812 + titleShiftY : 804)
     }
   }
   if (!mobilePauseMenu && !state.running) {
     context.font = desktopMode ? '500 24px monospace' : '700 28px monospace'
-    context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, desktopMode ? 822 : 856)
+    context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, (desktopMode ? 822 : 856) + Math.round(state.composition.overlayShiftWorld * 0.45))
   }
   context.textAlign = 'left'
 }

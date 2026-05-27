@@ -278,9 +278,9 @@ canvas {
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
   gap: 10px;
-  width: min(100%, 420px);
+  width: min(100%, var(--touch-controls-max-width, 420px));
   margin: 0 auto;
-  padding: 0 14px env(safe-area-inset-bottom);
+  padding: 0 14px calc(env(safe-area-inset-bottom) + var(--touch-controls-bottom-offset, 0px));
   z-index: 3;
   pointer-events: none;
 }

@@ -161,7 +161,7 @@ export function setupSettingsPanel({ game, root, shell }) {
   function updateRenderState() {
     const settings = game.getSettings()
     const activeSection = getActiveSection()
-    const { desktopMode } = game.getViewport()
+    const { desktopMode, composition } = game.getViewport()
     const entries = screen === 'main'
       ? SETTINGS_SECTIONS.map((section) => ({
           kind: 'section',
@@ -185,6 +185,7 @@ export function setupSettingsPanel({ game, root, shell }) {
       selectedIndex,
       title: activeSection?.label ?? 'Settings',
       subtitle: activeSection?.caption ?? 'System Menu',
+      layoutShiftY: composition.settingsShiftWorld,
       closeLabel: screen === 'main' ? (shell.dataset.gameStarted === 'true' ? 'Resume' : 'Back') : 'Main Menu',
       footerLabel: screen === 'main'
         ? (desktopMode ? 'UP/DOWN SELECT   ENTER OPEN   ESC CLOSE' : 'TAP TO SELECT')
@@ -255,9 +256,9 @@ export function setupSettingsPanel({ game, root, shell }) {
 
   function handlePointer(event) {
     if (!isOpen()) return
-    const { desktopMode } = game.getViewport()
+    const { desktopMode, composition } = game.getViewport()
     const entries = getCurrentEntries()
-    const layout = getSettingsMenuLayout(desktopMode, entries.length, screen)
+    const layout = getSettingsMenuLayout(desktopMode, entries.length, screen, composition.settingsShiftWorld)
     const point = getWorldPoint(event)
     const touchSlop = desktopMode ? 0 : 28
     event.preventDefault()

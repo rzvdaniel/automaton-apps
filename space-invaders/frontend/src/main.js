@@ -102,8 +102,8 @@ function syncPauseMenu() {
 }
 
 function positionPauseMenu() {
-  const { scale, offsetX, offsetY, desktopMode } = game.getViewport()
-  const { panel, actions } = getPauseMenuLayout(desktopMode)
+  const { scale, offsetX, offsetY, desktopMode, composition } = game.getViewport()
+  const { panel, actions } = getPauseMenuLayout(desktopMode, composition.pauseShiftWorld)
   pauseMenu.style.setProperty('--pause-panel-left', `${offsetX + panel.x * scale}px`)
   pauseMenu.style.setProperty('--pause-panel-top', `${offsetY + panel.y * scale}px`)
   pauseMenu.style.setProperty('--pause-panel-width', `${panel.width * scale}px`)

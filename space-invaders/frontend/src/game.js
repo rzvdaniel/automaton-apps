@@ -25,6 +25,44 @@ function isShortViewport() {
   return window.matchMedia('(max-height: 700px)').matches
 }
 
+function getCompositionProfile(rect) {
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const shellShortSide = Math.min(rect.width, rect.height)
+  const shellLongSide = Math.max(rect.width, rect.height)
+  const portraitRatio = rect.height / Math.max(rect.width, 1)
+  const isTabletLike = shellShortSide >= 700 || shellLongSide >= 1180 || (rect.width >= 620 && portraitRatio >= 1.28)
+
+  if (!isTabletLike) {
+    return {
+      progress: 0,
+      enemyShiftWorld: 0,
+      playerLiftWorld: 0,
+      overlayShiftWorld: 0,
+      pauseShiftWorld: 0,
+      settingsShiftWorld: 0,
+      controlsLiftPx: 0,
+      controlsMaxWidthPx: 420
+    }
+  }
+
+  const heightProgress = clamp((Math.max(rect.height, viewportHeight) - 980) / 520, 0, 1)
+  const widthProgress = clamp((Math.max(rect.width, viewportWidth) - 620) / 280, 0, 1)
+  const portraitProgress = clamp((portraitRatio - 1.58) / 0.5, 0, 1)
+  const progress = clamp(Math.max(heightProgress, widthProgress * 0.92, portraitProgress * 0.78), 0, 1)
+
+  return {
+    progress,
+    enemyShiftWorld: Math.round(112 * progress),
+    playerLiftWorld: Math.round(184 * progress),
+    overlayShiftWorld: Math.round(136 * progress),
+    pauseShiftWorld: Math.round(108 * progress),
+    settingsShiftWorld: Math.round(112 * progress),
+    controlsLiftPx: Math.round(52 * progress),
+    controlsMaxWidthPx: 420 + Math.round(200 * progress)
+  }
+}
+
 function rectFromCenter(entity) {
   return {
     left: entity.x - entity.width / 2,
@@ -110,6 +148,16 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     shake: { x: 0, y: 0, power: 0, duration: 0, cooldown: 0 },
     backgroundImage,
     backgroundEffects,
+    composition: {
+      progress: 0,
+      enemyShiftWorld: 0,
+      playerLiftWorld: 0,
+      overlayShiftWorld: 0,
+      pauseShiftWorld: 0,
+      settingsShiftWorld: 0,
+      controlsLiftPx: 0,
+      controlsMaxWidthPx: 420
+    },
     desktopMode: !isMobileViewport(),
     settingsOpen: false,
     settingsMenu: null,
@@ -133,15 +181,16 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   function getPlayerSafeY(rect = canvas.getBoundingClientRect()) {
     const controlsTop = touchControls?.fire?.getBoundingClientRect().top
+    const preferredPlayerY = defaultPlayerY - state.composition.playerLiftWorld
 
-    if (!controlsTop || controlsTop <= rect.top) return defaultPlayerY
+    if (!controlsTop || controlsTop <= rect.top) return preferredPlayerY
 
     const clearance = isCompactViewport() ? 32 : 44
     const worldY = (controlsTop - rect.top - state.offsetY) / Math.max(state.scale, 0.001)
     const shipBottomReach = 68
     const maxSafeY = worldY - shipBottomReach - clearance
 
-    return Math.min(defaultPlayerY, Math.max(1280, maxSafeY))
+    return Math.min(preferredPlayerY, Math.max(1180, maxSafeY))
   }
 
   function syncPlayerVerticalPosition(rect = canvas.getBoundingClientRect()) {
@@ -210,6 +259,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.scale = Math.min(rect.width / WORLD.width, rect.height / WORLD.height)
     state.offsetX = (rect.width - WORLD.width * state.scale) / 2
     state.offsetY = isMobileViewport() ? 0 : (rect.height - WORLD.height * state.scale) / 2
+    state.composition = getCompositionProfile(rect)
+    shell.style.setProperty('--touch-controls-bottom-offset', `${state.composition.controlsLiftPx}px`)
+    shell.style.setProperty('--touch-controls-max-width', `${state.composition.controlsMaxWidthPx}px`)
     state.desktopMode = !isMobileViewport()
     syncPlayerVerticalPosition(rect)
   }
@@ -248,7 +300,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     const { columns, rows, gapX, gapY, enemyWidth, enemyHeight } = config
     const formationWidth = columns * enemyWidth + (columns - 1) * gapX
     const startX = (WORLD.width - formationWidth) / 2
-    const formationYOffset = isShortViewport() ? 16 : 0
+    const formationYOffset = (isShortViewport() ? 16 : 0) + state.composition.enemyShiftWorld
     const immediateStart = wave === 1 && !state.started
     const isIntermissionWave = wave > 1 || fromWave !== null
     state.wave = wave
@@ -816,7 +868,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
         scale: state.scale,
         offsetX: state.offsetX,
         offsetY: state.offsetY,
-        desktopMode: state.desktopMode
+        desktopMode: state.desktopMode,
+        composition: state.composition
       }
     },
     setSettingsMenuState,

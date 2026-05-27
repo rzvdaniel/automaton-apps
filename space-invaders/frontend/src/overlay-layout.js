@@ -1,8 +1,14 @@
-export function getPauseMenuLayout(desktopMode) {
+const WORLD_HEIGHT = 1920
+
+function clampPanelY(baseY, shiftY, panelHeight, marginBottom) {
+  return Math.max(96, Math.min(baseY + shiftY, WORLD_HEIGHT - panelHeight - marginBottom))
+}
+
+export function getPauseMenuLayout(desktopMode, shiftY = 0) {
   const panelWidth = 1080 - 260
   const panelHeight = desktopMode ? 540 : 536
   const panelX = (1080 - panelWidth) / 2
-  const panelY = desktopMode ? 584 : 626
+  const panelY = clampPanelY(desktopMode ? 584 : 626, shiftY, panelHeight, desktopMode ? 180 : 156)
   const labelY = panelY + (desktopMode ? 188 : 210)
   const buttonWidth = desktopMode ? 360 : 432
   const buttonHeight = desktopMode ? 62 : 78
@@ -27,12 +33,13 @@ export function getPauseMenuLayout(desktopMode) {
   }
 }
 
-export function getSettingsMenuLayout(desktopMode, rowCount = 4, view = 'main') {
+export function getSettingsMenuLayout(desktopMode, rowCount = 4, view = 'main', shiftY = 0) {
   const isMainView = view === 'main'
   const panelWidth = desktopMode ? (isMainView ? 720 : 720) : (isMainView ? 840 : 780)
   const panelHeight = desktopMode ? (isMainView ? 760 : 900) : (isMainView ? 900 : 1060)
   const panelX = (1080 - panelWidth) / 2
-  const panelY = desktopMode ? (isMainView ? 228 : 212) : (isMainView ? 220 : 236)
+  const basePanelY = desktopMode ? (isMainView ? 228 : 212) : (isMainView ? 220 : 236)
+  const panelY = clampPanelY(basePanelY, shiftY, panelHeight, desktopMode ? 110 : 84)
   const dividerY = panelY + (desktopMode ? (isMainView ? 234 : 250) : (isMainView ? 270 : 286))
   const rowX = panelX + (desktopMode ? (isMainView ? 68 : 62) : (isMainView ? 54 : 58))
   const rowWidth = panelWidth - (desktopMode ? (isMainView ? 136 : 124) : (isMainView ? 108 : 116))
