@@ -1,6 +1,8 @@
 import './style.css';
 import { convertSvgToPng, extractSvgText, getSvgMetadata } from './converters/svg-to-png.js';
 
+const appIconUrl = new URL('../public/icon.svg', import.meta.url).href;
+
 const PRESETS = [128, 256, 512, 1024];
 
 const state = {
@@ -34,8 +36,13 @@ app.innerHTML = `
     <div class="shell__glow shell__glow--right"></div>
     <header class="hero">
       <div class="hero__content">
-        <h1>Image Converter Studio</h1>
-        <p class="subtitle">Convert and export images directly in your browser.</p>
+        <div class="hero__brand">
+          <img class="hero__brand-mark" src="${appIconUrl}" alt="Image Converter Studio icon" />
+          <div class="hero__brand-copy">
+            <span class="hero__brand-name">Image Converter Studio</span>
+            <p class="subtitle">Fast browser-based export with live preview.</p>
+          </div>
+        </div>
       </div>
     </header>
     <main class="workspace" aria-live="polite">

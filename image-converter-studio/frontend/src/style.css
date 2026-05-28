@@ -94,17 +94,52 @@ button {
 }
 
 .hero {
+  position: sticky;
+  top: 0;
   display: flex;
   justify-content: space-between;
   gap: 4px;
   align-items: end;
-  margin-bottom: 2px;
+  margin-bottom: 10px;
+  padding: 10px 0 8px;
+  background: linear-gradient(180deg, rgba(10, 13, 20, 0.94), rgba(10, 13, 20, 0.76));
+  backdrop-filter: blur(16px);
+  z-index: 4;
 }
 
 .hero__content {
   display: grid;
-  gap: 2px;
-  max-width: 48rem;
+  gap: 0;
+  max-width: 42rem;
+}
+
+.hero__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero__brand-copy {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero__brand-mark {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.hero__brand-name {
+  color: rgba(245, 247, 251, 0.78);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .eyebrow,
@@ -117,7 +152,6 @@ button {
   font-weight: 700;
 }
 
-h1,
 h2,
 h3,
 .hero__pill,
@@ -126,18 +160,17 @@ h3,
   font-family: 'Space Grotesk', sans-serif;
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(1.36rem, 2.35vw, 2.6rem);
-  line-height: 0.99;
-  letter-spacing: -0.04em;
-}
-
 .subtitle {
   margin: 0;
-  max-width: 34rem;
-  color: var(--muted);
-  font-size: 0.82rem;
+  max-width: 32rem;
+  color: rgba(152, 163, 184, 0.76);
+  font-size: 0.8rem;
+}
+
+.subtitle::before {
+  content: '\00B7';
+  margin-right: 10px;
+  color: rgba(139, 240, 199, 0.56);
 }
 
 .workspace {
@@ -774,6 +807,7 @@ input[type='color'] {
 @media (max-width: 1080px) {
   .hero {
     align-items: start;
+    top: 0;
   }
 
   .workspace,
@@ -797,11 +831,33 @@ input[type='color'] {
 
   .hero {
     gap: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
+    padding: 8px 0 6px;
     align-items: start;
   }
 
   .hero__content {
+    gap: 6px;
+  }
+
+  .hero__brand {
+    gap: 10px;
+    align-items: center;
+  }
+
+  .hero__brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+  }
+
+  .hero__brand-name {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+  }
+
+  .hero__brand-copy {
+    display: grid;
     gap: 2px;
   }
 
@@ -811,13 +867,12 @@ input[type='color'] {
     font-size: 0.62rem;
   }
 
-  h1 {
-    font-size: 1.08rem;
-    line-height: 1.02;
-  }
-
   .subtitle {
     font-size: 0.74rem;
+  }
+
+  .subtitle::before {
+    content: none;
   }
 
   h2 {
