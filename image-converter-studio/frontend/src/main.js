@@ -118,7 +118,7 @@ app.innerHTML = `
         <div class="panel__header">
           <div>
             <p class="panel__kicker">Preview</p>
-            <h2 id="preview-title">Live source and export preview</h2>
+            <h2 id="preview-title">Live preview</h2>
           </div>
         </div>
         <div class="preview-grid">
@@ -140,7 +140,7 @@ app.innerHTML = `
               <span>Generated PNG</span>
               <small id="png-dimensions">No export yet</small>
             </div>
-            <button class="preview-surface preview-surface--interactive checkerboard" id="png-preview-surface" type="button" aria-label="Download generated PNG" disabled>
+            <button class="preview-surface preview-surface--interactive checkerboard" id="png-preview-surface" type="button" aria-label="Download generated PNG" aria-disabled="true" tabindex="-1">
               <div class="empty-state" id="png-empty-state">
                 <h3>PNG export appears instantly</h3>
                 <p>Upload an SVG and the download-ready result will appear here automatically.</p>
@@ -148,7 +148,6 @@ app.innerHTML = `
               <img id="png-preview" alt="Generated PNG preview" hidden />
               <div id="png-ready-badge" class="preview-badge" hidden>Ready to download</div>
             </button>
-            <button id="download-button" class="secondary-button" type="button" disabled>Download PNG</button>
           </article>
         </div>
       </section>
@@ -179,10 +178,10 @@ const elements = {
   convertButton: document.querySelector('#convert-button'),
   svgPreview: document.querySelector('#svg-preview'),
   svgEmptyState: document.querySelector('#svg-empty-state'),
+  pngPreviewSurface: document.querySelector('#png-preview-surface'),
   pngPreview: document.querySelector('#png-preview'),
   pngEmptyState: document.querySelector('#png-empty-state'),
   pngReadyBadge: document.querySelector('#png-ready-badge'),
-  downloadButton: document.querySelector('#download-button'),
   svgDimensions: document.querySelector('#svg-dimensions'),
   pngDimensions: document.querySelector('#png-dimensions')
 };
@@ -238,13 +237,11 @@ function updatePresetState() {
 function renderPresets() {
   elements.presetGrid.innerHTML = PRESETS.map((preset) => `
     <button class="preset ${state.activePreset === preset ? 'preset--active' : ''}" type="button" data-preset="${preset}">
-      <strong>${preset} x ${preset}</strong>
-      <span>Square export</span>
+      <strong>${preset}x${preset} px</strong>
     </button>
   `).join('') + `
     <button class="preset ${state.activePreset === null ? 'preset--active' : ''}" type="button" data-preset="custom">
       <strong>Custom size</strong>
-      <span>Manual dimensions</span>
     </button>
   `;
 }
@@ -273,12 +270,10 @@ function renderPngPreview() {
     elements.pngReadyBadge.hidden = true;
     elements.convertButton.disabled = true;
     elements.convertButton.textContent = state.isConverting ? 'Rendering PNG...' : 'Download PNG';
-    elements.downloadButton.disabled = true;
-    elements.downloadButton.textContent = 'Download PNG';
-    elements.downloadButton.classList.remove('secondary-button--ready');
-    elements.pngPreview.parentElement.classList.remove('preview-surface--ready');
-    elements.pngPreview.parentElement.disabled = true;
-    elements.pngPreview.parentElement.title = '';
+    elements.pngPreviewSurface.classList.remove('preview-surface--ready');
+    elements.pngPreviewSurface.setAttribute('aria-disabled', 'true');
+    elements.pngPreviewSurface.tabIndex = -1;
+    elements.pngPreviewSurface.title = '';
     return;
   }
 
@@ -289,12 +284,10 @@ function renderPngPreview() {
   elements.pngReadyBadge.hidden = false;
   elements.convertButton.disabled = false;
   elements.convertButton.textContent = 'Download PNG';
-  elements.downloadButton.disabled = false;
-  elements.downloadButton.textContent = 'Download PNG';
-  elements.downloadButton.classList.add('secondary-button--ready');
-  elements.pngPreview.parentElement.classList.add('preview-surface--ready');
-  elements.pngPreview.parentElement.disabled = false;
-  elements.pngPreview.parentElement.title = 'Click to download PNG';
+  elements.pngPreviewSurface.classList.add('preview-surface--ready');
+  elements.pngPreviewSurface.setAttribute('aria-disabled', 'false');
+  elements.pngPreviewSurface.tabIndex = 0;
+  elements.pngPreviewSurface.title = 'Click preview to download PNG';
 }
 
 function renderControls() {
@@ -574,9 +567,7 @@ elements.presetGrid.addEventListener('click', (event) => {
 
 elements.convertButton.addEventListener('click', handleDownload);
 
-elements.downloadButton.addEventListener('click', handleDownload);
-
-elements.pngPreview.parentElement.addEventListener('click', handleDownload);
+elements.pngPreviewSurface.addEventListener('click', handleDownload);
 
 window.addEventListener('beforeunload', () => {
   revokeConvertedUrl();

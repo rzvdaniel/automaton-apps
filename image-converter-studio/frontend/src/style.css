@@ -158,6 +158,11 @@ h1 {
 
 .panel--controls {
   align-self: start;
+  padding: 18px 18px 16px;
+}
+
+.panel--upload {
+  align-self: start;
 }
 
 .panel--preview {
@@ -352,16 +357,34 @@ textarea {
   margin-bottom: 12px;
 }
 
+.panel--controls .preset-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
 .preset {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px 13px;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
-  text-align: left;
+  text-align: center;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.panel--controls .preset {
+  min-height: 38px;
+  padding: 7px 8px;
+  border-radius: 15px;
+}
+
+.preset strong {
+  font-size: 0.78rem;
+  line-height: 1;
 }
 
 .preset:hover,
@@ -386,6 +409,11 @@ textarea {
   margin-bottom: 2px;
 }
 
+.panel--controls .control-grid {
+  gap: 8px;
+  margin-bottom: 0;
+}
+
 input[type='number'] {
   padding: 11px 13px;
 }
@@ -408,6 +436,11 @@ input[type='color'] {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.025);
+}
+
+.panel--controls .advanced-controls {
+  margin-top: 10px;
+  padding: 10px 12px 12px;
 }
 
 .advanced-controls__header {
@@ -500,15 +533,15 @@ input[type='color'] {
   background-color: transparent;
 }
 
-.preview-surface--interactive:not(:disabled) {
+.preview-surface--interactive[aria-disabled='false'] {
   cursor: pointer;
 }
 
-.preview-surface--interactive:not(:disabled):hover {
+.preview-surface--interactive[aria-disabled='false']:hover {
   transform: translateY(-1px);
 }
 
-.preview-surface--interactive:disabled {
+.preview-surface--interactive[aria-disabled='true'] {
   cursor: default;
 }
 
@@ -604,8 +637,12 @@ input[type='color'] {
 
 .fine-print {
   margin: 12px 0 0;
-  line-height: 1.55;
-  font-size: 0.86rem;
+  line-height: 1.4;
+  font-size: 0.8rem;
+}
+
+.panel--controls .fine-print {
+  margin-top: 10px;
 }
 
 @keyframes rise {
@@ -683,7 +720,12 @@ input[type='color'] {
   }
 
   .preset {
-    padding: 11px 12px;
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  .preset strong {
+    font-size: 0.76rem;
   }
 
   .field span,
@@ -717,6 +759,11 @@ input[type='color'] {
   .preset-grid,
   .control-grid {
     grid-template-columns: 1fr;
+  }
+
+  .panel--controls .preset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .source-switcher {
