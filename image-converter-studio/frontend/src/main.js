@@ -17,7 +17,9 @@ const state = {
   error: '',
   success: '',
   activePreset: 512,
-  fileName: 'converted-image'
+  fileName: 'converted-image',
+  sourceMode: 'upload',
+  editorExpanded: false
 };
 
 const app = document.querySelector('#app');
@@ -27,12 +29,15 @@ app.innerHTML = `
     <div class="shell__glow shell__glow--left"></div>
     <div class="shell__glow shell__glow--right"></div>
     <header class="hero">
-      <div>
+      <div class="hero__content">
         <p class="eyebrow">Browser-native image workflow</p>
         <h1>Image Converter Studio</h1>
         <p class="subtitle">Convert and export images directly in your browser.</p>
+        <div class="hero__meta">
+          <span class="hero__status">SVG to PNG available now</span>
+          <span class="hero__note">More formats coming soon</span>
+        </div>
       </div>
-      <div class="hero__pill">SVG to PNG available now</div>
     </header>
     <main class="workspace" aria-live="polite">
       <section class="panel panel--upload" aria-labelledby="upload-title">
@@ -41,6 +46,10 @@ app.innerHTML = `
             <p class="panel__kicker">Source</p>
             <h2 id="upload-title">Drop an SVG or paste the markup</h2>
           </div>
+        </div>
+        <div class="source-switcher" role="tablist" aria-label="Source input mode">
+          <button id="source-upload-tab" class="source-tab source-tab--active" type="button" role="tab" aria-selected="true">Upload file</button>
+          <button id="source-editor-tab" class="source-tab" type="button" role="tab" aria-selected="false">Paste SVG markup</button>
         </div>
         <label class="dropzone" id="dropzone" tabindex="0" for="svg-file-input">
           <input id="svg-file-input" class="sr-only" type="file" accept=".svg,image/svg+xml" />
@@ -51,7 +60,14 @@ app.innerHTML = `
           </div>
           <div class="dropzone__hint">Transparent PNG export, sharp scaling, and instant preview.</div>
         </label>
-        <div class="editor-block">
+        <div class="editor-toggle-row">
+          <div class="editor-toggle-copy">
+            <strong>Advanced SVG editor</strong>
+            <span>Open raw markup only when you need direct control.</span>
+          </div>
+          <button id="editor-toggle" class="ghost-button" type="button" aria-expanded="false">Open editor</button>
+        </div>
+        <div class="editor-block" id="editor-block" hidden>
           <div class="editor-block__header">
             <label for="svg-editor">SVG editor</label>
             <button id="clear-input" class="ghost-button" type="button">Clear</button>
@@ -143,6 +159,10 @@ app.innerHTML = `
 const elements = {
   dropzone: document.querySelector('#dropzone'),
   fileInput: document.querySelector('#svg-file-input'),
+  sourceUploadTab: document.querySelector('#source-upload-tab'),
+  sourceEditorTab: document.querySelector('#source-editor-tab'),
+  editorToggle: document.querySelector('#editor-toggle'),
+  editorBlock: document.querySelector('#editor-block'),
   editor: document.querySelector('#svg-editor'),
   clearInput: document.querySelector('#clear-input'),
   statusBanner: document.querySelector('#status-banner'),
@@ -267,6 +287,13 @@ function renderControls() {
   elements.convertButton.disabled = state.isConverting || !state.svgText || !state.metadata;
   elements.convertButton.textContent = state.isConverting ? 'Converting...' : 'Convert to PNG';
   elements.dropzone.classList.toggle('is-dragging', state.isDragging);
+  elements.sourceUploadTab.classList.toggle('source-tab--active', state.sourceMode === 'upload');
+  elements.sourceUploadTab.setAttribute('aria-selected', String(state.sourceMode === 'upload'));
+  elements.sourceEditorTab.classList.toggle('source-tab--active', state.sourceMode === 'editor');
+  elements.sourceEditorTab.setAttribute('aria-selected', String(state.sourceMode === 'editor'));
+  elements.editorBlock.hidden = !state.editorExpanded;
+  elements.editorToggle.setAttribute('aria-expanded', String(state.editorExpanded));
+  elements.editorToggle.textContent = state.editorExpanded ? 'Hide editor' : 'Open editor';
   renderPresets();
 }
 
@@ -286,6 +313,7 @@ function applySvgText(svgText, fileName = state.fileName) {
   state.svgText = svgText;
   state.metadata = metadata;
   state.fileName = sanitizeFileName(fileName);
+  state.editorExpanded = state.sourceMode === 'editor';
   state.width = Math.round(metadata.width);
   state.height = Math.round(metadata.height);
   elements.editor.value = svgText;
@@ -368,6 +396,30 @@ elements.dropzone.addEventListener('drop', async (event) => {
   await handleFileSelection(file);
 });
 
+elements.sourceUploadTab.addEventListener('click', () => {
+  state.sourceMode = 'upload';
+  state.editorExpanded = false;
+  renderControls();
+});
+
+elements.sourceEditorTab.addEventListener('click', () => {
+  state.sourceMode = 'editor';
+  state.editorExpanded = true;
+  renderControls();
+  elements.editor.focus();
+});
+
+elements.editorToggle.addEventListener('click', () => {
+  state.editorExpanded = !state.editorExpanded;
+  if (state.editorExpanded) {
+    state.sourceMode = 'editor';
+  }
+  renderControls();
+  if (state.editorExpanded) {
+    elements.editor.focus();
+  }
+});
+
 elements.editor.addEventListener('input', (event) => {
   const nextValue = event.target.value.trim();
   if (!nextValue) {
@@ -380,6 +432,8 @@ elements.editor.addEventListener('input', (event) => {
   }
 
   try {
+    state.sourceMode = 'editor';
+    state.editorExpanded = true;
     applySvgText(nextValue);
   } catch (error) {
     state.svgText = nextValue;
