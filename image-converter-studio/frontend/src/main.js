@@ -19,7 +19,8 @@ const state = {
   activePreset: 512,
   fileName: 'converted-image',
   sourceMode: 'upload',
-  editorExpanded: false
+  editorExpanded: false,
+  conversionVersion: 0
 };
 
 const app = document.querySelector('#app');
@@ -99,19 +100,22 @@ app.innerHTML = `
             <input id="height-input" type="number" min="1" step="1" inputmode="numeric" />
           </label>
         </div>
-        <label class="toggle">
-          <input id="aspect-ratio-toggle" type="checkbox" checked />
-          <span>Keep aspect ratio</span>
-        </label>
-        <label class="toggle">
-          <input id="background-toggle" type="checkbox" />
-          <span>Use solid background</span>
-        </label>
-        <label class="field" id="background-field" hidden>
-          <span>Background color</span>
-          <input id="background-color-input" type="color" value="#10141f" />
-        </label>
-        <button id="convert-button" class="primary-button" type="button">Convert to PNG</button>
+        <button id="convert-button" class="primary-button" type="button" disabled>Download PNG</button>
+        <div class="advanced-controls">
+          <div class="advanced-controls__header">Advanced options</div>
+          <label class="toggle">
+            <input id="aspect-ratio-toggle" type="checkbox" checked />
+            <span>Keep aspect ratio</span>
+          </label>
+          <label class="toggle">
+            <input id="background-toggle" type="checkbox" />
+            <span>Use solid background</span>
+          </label>
+          <label class="field" id="background-field" hidden>
+            <span>Background color</span>
+            <input id="background-color-input" type="color" value="#10141f" />
+          </label>
+        </div>
         <p class="fine-print">More formats coming soon: PNG to WebP, JPG to PNG, PNG to ICO, and batch conversion.</p>
       </section>
 
@@ -143,10 +147,11 @@ app.innerHTML = `
             </div>
             <div class="preview-surface checkerboard" id="png-preview-surface">
               <div class="empty-state" id="png-empty-state">
-                <h3>Export results show up here</h3>
-                <p>Choose a size and convert when the SVG looks right.</p>
+                <h3>PNG export appears instantly</h3>
+                <p>Upload an SVG and the download-ready result will appear here automatically.</p>
               </div>
               <img id="png-preview" alt="Generated PNG preview" hidden />
+              <div id="png-ready-badge" class="preview-badge" hidden>Ready to download</div>
             </div>
             <button id="download-button" class="secondary-button" type="button" disabled>Download PNG</button>
           </article>
@@ -178,6 +183,7 @@ const elements = {
   svgEmptyState: document.querySelector('#svg-empty-state'),
   pngPreview: document.querySelector('#png-preview'),
   pngEmptyState: document.querySelector('#png-empty-state'),
+  pngReadyBadge: document.querySelector('#png-ready-badge'),
   downloadButton: document.querySelector('#download-button'),
   svgDimensions: document.querySelector('#svg-dimensions'),
   pngDimensions: document.querySelector('#png-dimensions')
@@ -266,7 +272,13 @@ function renderPngPreview() {
     elements.pngPreview.removeAttribute('src');
     elements.pngEmptyState.hidden = false;
     elements.pngDimensions.textContent = 'No export yet';
+    elements.pngReadyBadge.hidden = true;
+    elements.convertButton.disabled = true;
+    elements.convertButton.textContent = state.isConverting ? 'Rendering PNG...' : 'Download PNG';
     elements.downloadButton.disabled = true;
+    elements.downloadButton.textContent = 'Download PNG';
+    elements.downloadButton.classList.remove('secondary-button--ready');
+    elements.pngPreview.parentElement.classList.remove('preview-surface--ready');
     return;
   }
 
@@ -274,7 +286,13 @@ function renderPngPreview() {
   elements.pngPreview.src = state.convertedImage.url;
   elements.pngEmptyState.hidden = true;
   elements.pngDimensions.textContent = `${state.convertedImage.width} x ${state.convertedImage.height} PNG ready`;
+  elements.pngReadyBadge.hidden = false;
+  elements.convertButton.disabled = false;
+  elements.convertButton.textContent = 'Download PNG';
   elements.downloadButton.disabled = false;
+  elements.downloadButton.textContent = 'Download PNG';
+  elements.downloadButton.classList.add('secondary-button--ready');
+  elements.pngPreview.parentElement.classList.add('preview-surface--ready');
 }
 
 function renderControls() {
@@ -284,8 +302,8 @@ function renderControls() {
   elements.backgroundToggle.checked = state.useBackground;
   elements.backgroundField.hidden = !state.useBackground;
   elements.backgroundColorInput.value = state.backgroundColor;
-  elements.convertButton.disabled = state.isConverting || !state.svgText || !state.metadata;
-  elements.convertButton.textContent = state.isConverting ? 'Converting...' : 'Convert to PNG';
+  elements.convertButton.disabled = state.isConverting || !state.convertedImage;
+  elements.convertButton.textContent = state.isConverting ? 'Rendering PNG...' : 'Download PNG';
   elements.dropzone.classList.toggle('is-dragging', state.isDragging);
   elements.sourceUploadTab.classList.toggle('source-tab--active', state.sourceMode === 'upload');
   elements.sourceUploadTab.setAttribute('aria-selected', String(state.sourceMode === 'upload'));
@@ -308,6 +326,55 @@ function resetExport() {
   state.convertedImage = null;
 }
 
+async function refreshConvertedImage(options = {}) {
+  const { silent = false } = options;
+
+  if (!state.svgText || !state.metadata) {
+    resetExport();
+    render();
+    return;
+  }
+
+  const currentVersion = ++state.conversionVersion;
+  state.isConverting = true;
+  if (!silent) {
+    setStatus('', '');
+  }
+  render();
+
+  try {
+    const nextImage = await convertSvgToPng({
+      svgText: state.svgText,
+      width: state.width,
+      height: state.height,
+      backgroundColor: state.useBackground ? state.backgroundColor : null
+    });
+
+    if (currentVersion !== state.conversionVersion) {
+      URL.revokeObjectURL(nextImage.url);
+      return;
+    }
+
+    resetExport();
+    state.convertedImage = nextImage;
+    if (!silent) {
+      setStatus('success', 'PNG export is ready to download.');
+    }
+  } catch (error) {
+    if (currentVersion !== state.conversionVersion) {
+      return;
+    }
+
+    resetExport();
+    setStatus('error', error.message || 'The SVG could not be converted.');
+  } finally {
+    if (currentVersion === state.conversionVersion) {
+      state.isConverting = false;
+      render();
+    }
+  }
+}
+
 function applySvgText(svgText, fileName = state.fileName) {
   const metadata = getSvgMetadata(svgText);
   state.svgText = svgText;
@@ -321,6 +388,7 @@ function applySvgText(svgText, fileName = state.fileName) {
   resetExport();
   setStatus('', '');
   render();
+  void refreshConvertedImage();
 }
 
 async function handleFileSelection(file) {
@@ -336,30 +404,16 @@ async function handleFileSelection(file) {
   }
 }
 
-async function handleConvert() {
-  if (!state.svgText || !state.metadata || state.isConverting) {
+function handleDownload() {
+  if (!state.convertedImage) {
     return;
   }
 
-  state.isConverting = true;
-  setStatus('', '');
-  renderControls();
-
-  try {
-    resetExport();
-    state.convertedImage = await convertSvgToPng({
-      svgText: state.svgText,
-      width: state.width,
-      height: state.height,
-      backgroundColor: state.useBackground ? state.backgroundColor : null
-    });
-    setStatus('success', 'PNG export is ready to download.');
-  } catch (error) {
-    setStatus('error', error.message || 'The SVG could not be converted.');
-  } finally {
-    state.isConverting = false;
-    render();
-  }
+  const link = document.createElement('a');
+  link.href = state.convertedImage.url;
+  link.download = `${state.fileName || 'converted-image'}-${state.convertedImage.width}x${state.convertedImage.height}.png`;
+  link.click();
+  setStatus('success', 'Download started. Your PNG is ready.');
 }
 
 elements.fileInput.addEventListener('change', async (event) => {
@@ -425,6 +479,7 @@ elements.editor.addEventListener('input', (event) => {
   if (!nextValue) {
     state.svgText = '';
     state.metadata = null;
+    state.conversionVersion += 1;
     resetExport();
     setStatus('', '');
     render();
@@ -449,6 +504,7 @@ elements.clearInput.addEventListener('click', () => {
   state.svgText = '';
   state.metadata = null;
   state.fileName = 'converted-image';
+  state.conversionVersion += 1;
   resetExport();
   setStatus('', '');
   render();
@@ -460,6 +516,7 @@ elements.widthInput.addEventListener('input', (event) => {
   syncSizeInputs('width');
   updatePresetState();
   render();
+  void refreshConvertedImage({ silent: true });
 });
 
 elements.heightInput.addEventListener('input', (event) => {
@@ -468,6 +525,7 @@ elements.heightInput.addEventListener('input', (event) => {
   syncSizeInputs('height');
   updatePresetState();
   render();
+  void refreshConvertedImage({ silent: true });
 });
 
 elements.aspectRatioToggle.addEventListener('change', (event) => {
@@ -476,15 +534,18 @@ elements.aspectRatioToggle.addEventListener('change', (event) => {
     syncSizeInputs('width');
   }
   render();
+  void refreshConvertedImage({ silent: true });
 });
 
 elements.backgroundToggle.addEventListener('change', (event) => {
   state.useBackground = event.target.checked;
   renderControls();
+  void refreshConvertedImage({ silent: true });
 });
 
 elements.backgroundColorInput.addEventListener('input', (event) => {
   state.backgroundColor = event.target.value;
+  void refreshConvertedImage({ silent: true });
 });
 
 elements.presetGrid.addEventListener('click', (event) => {
@@ -505,21 +566,12 @@ elements.presetGrid.addEventListener('click', (event) => {
   state.height = size;
   state.activePreset = size;
   render();
+  void refreshConvertedImage({ silent: true });
 });
 
-elements.convertButton.addEventListener('click', handleConvert);
+elements.convertButton.addEventListener('click', handleDownload);
 
-elements.downloadButton.addEventListener('click', () => {
-  if (!state.convertedImage) {
-    return;
-  }
-
-  const link = document.createElement('a');
-  link.href = state.convertedImage.url;
-  link.download = `${state.fileName || 'converted-image'}-${state.convertedImage.width}x${state.convertedImage.height}.png`;
-  link.click();
-  setStatus('success', 'Download started. Your PNG is ready.');
-});
+elements.downloadButton.addEventListener('click', handleDownload);
 
 window.addEventListener('beforeunload', () => {
   revokeConvertedUrl();
