@@ -50,7 +50,7 @@ app.innerHTML = `
         </div>
         <div class="source-switcher" role="tablist" aria-label="Source input mode">
           <button id="source-upload-tab" class="source-tab source-tab--active" type="button" role="tab" aria-selected="true">Upload file</button>
-          <button id="source-editor-tab" class="source-tab" type="button" role="tab" aria-selected="false">Paste SVG markup</button>
+          <button id="source-editor-tab" class="source-tab" type="button" role="tab" aria-selected="false">Paste source</button>
         </div>
         <label class="dropzone" id="dropzone" tabindex="0" for="svg-file-input">
           <input id="svg-file-input" class="sr-only" type="file" accept=".svg,image/svg+xml" />
@@ -63,14 +63,14 @@ app.innerHTML = `
         </label>
         <div class="editor-toggle-row">
           <div class="editor-toggle-copy">
-            <strong>Advanced SVG editor</strong>
-            <span>Open raw markup only when you need direct control.</span>
+            <strong>Raw SVG editor</strong>
+            <span>Use the source editor for direct markup changes and live export updates.</span>
           </div>
-          <button id="editor-toggle" class="ghost-button" type="button" aria-expanded="false">Open editor</button>
+          <button id="editor-toggle" class="ghost-button" type="button" aria-expanded="false">Open source editor</button>
         </div>
         <div class="editor-block" id="editor-block" hidden>
           <div class="editor-block__header">
-            <label for="svg-editor">SVG editor</label>
+            <label for="svg-editor">Raw SVG editor</label>
             <button id="clear-input" class="ghost-button" type="button">Clear</button>
           </div>
           <textarea
@@ -317,13 +317,13 @@ function renderControls() {
   elements.sourceEditorTab.classList.toggle('source-tab--active', state.sourceMode === 'editor');
   elements.sourceEditorTab.setAttribute('aria-selected', String(state.sourceMode === 'editor'));
   elements.dropzoneTitle.textContent = state.sourceMode === 'upload' ? 'Drag and drop your SVG here' : 'Paste raw SVG markup';
-  elements.dropzoneSubtitle.textContent = state.sourceMode === 'upload' ? 'or click to upload from your device' : 'Use the editor below for instant preview and PNG export';
+  elements.dropzoneSubtitle.textContent = state.sourceMode === 'upload' ? 'or click to upload from your device' : 'Use the source editor below for live preview and PNG export';
   elements.dropzoneHint.textContent = state.sourceMode === 'upload'
     ? 'Transparent PNG export, sharp scaling, and instant preview.'
     : 'Raw SVG changes re-render the PNG output automatically.';
   elements.editorBlock.hidden = !state.editorExpanded;
   elements.editorToggle.setAttribute('aria-expanded', String(state.editorExpanded));
-  elements.editorToggle.textContent = state.editorExpanded ? 'Hide editor' : 'Open editor';
+  elements.editorToggle.textContent = state.editorExpanded ? 'Hide source editor' : 'Open source editor';
   renderPresets();
 }
 
