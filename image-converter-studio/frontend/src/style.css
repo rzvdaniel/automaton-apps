@@ -96,14 +96,14 @@ button {
 .hero {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
   align-items: end;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .hero__content {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   max-width: 48rem;
 }
 
@@ -137,32 +137,7 @@ h1 {
   margin: 0;
   max-width: 34rem;
   color: var(--muted);
-  font-size: 0.86rem;
-}
-
-.hero__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-}
-
-.hero__status,
-.hero__note {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.025);
-  color: rgba(219, 228, 243, 0.82);
-  font-size: 0.68rem;
-}
-
-.hero__status {
-  border-color: rgba(139, 240, 199, 0.14);
-  background: rgba(139, 240, 199, 0.05);
+  font-size: 0.82rem;
 }
 
 .workspace {
@@ -671,12 +646,12 @@ input[type='color'] {
 
   .hero {
     gap: 6px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     align-items: start;
   }
 
   .hero__content {
-    gap: 4px;
+    gap: 2px;
   }
 
   .eyebrow,
@@ -691,18 +666,7 @@ input[type='color'] {
   }
 
   .subtitle {
-    font-size: 0.78rem;
-  }
-
-  .hero__meta {
-    gap: 4px;
-  }
-
-  .hero__status,
-  .hero__note {
-    min-height: 20px;
-    padding: 2px 6px;
-    font-size: 0.62rem;
+    font-size: 0.74rem;
   }
 
   h2 {

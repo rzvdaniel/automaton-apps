@@ -31,13 +31,8 @@ app.innerHTML = `
     <div class="shell__glow shell__glow--right"></div>
     <header class="hero">
       <div class="hero__content">
-        <p class="eyebrow">Browser-native image workflow</p>
         <h1>Image Converter Studio</h1>
         <p class="subtitle">Convert and export images directly in your browser.</p>
-        <div class="hero__meta">
-          <span class="hero__status">SVG to PNG available now</span>
-          <span class="hero__note">More formats coming soon</span>
-        </div>
       </div>
     </header>
     <main class="workspace" aria-live="polite">
