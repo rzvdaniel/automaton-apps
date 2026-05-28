@@ -43,7 +43,7 @@ app.innerHTML = `
         <div class="panel__header">
           <div>
             <p class="panel__kicker">Source</p>
-            <h2 id="upload-title">Drop an SVG or paste the markup</h2>
+            <h2 id="upload-title">Upload or paste SVG</h2>
           </div>
         </div>
         <div class="source-switcher" role="tablist" aria-label="Source input mode">
@@ -53,6 +53,9 @@ app.innerHTML = `
         <label class="dropzone" id="dropzone" tabindex="0" for="svg-file-input">
           <input id="svg-file-input" class="sr-only" type="file" accept=".svg,image/svg+xml" />
           <div class="dropzone__icon" aria-hidden="true"></div>
+          <div class="dropzone__thumb checkerboard" id="dropzone-thumb" hidden>
+            <div id="dropzone-thumb-preview" class="dropzone__thumb-preview"></div>
+          </div>
           <div class="dropzone__copy">
             <strong id="dropzone-title">Drag and drop your SVG here</strong>
             <span id="dropzone-subtitle">or click to upload from your device</span>
@@ -66,14 +69,14 @@ app.innerHTML = `
         </label>
         <div class="editor-toggle-row">
           <div class="editor-toggle-copy">
-            <strong>Raw SVG editor</strong>
-            <span>Use the source editor for direct markup changes and live export updates.</span>
+            <strong>Source editor</strong>
+            <span>Edit SVG markup directly and update the preview instantly.</span>
           </div>
           <button id="editor-toggle" class="ghost-button" type="button" aria-expanded="false">Open source editor</button>
         </div>
         <div class="editor-block" id="editor-block" hidden>
           <div class="editor-block__header">
-            <label for="svg-editor">Raw SVG editor</label>
+            <label for="svg-editor">Source editor</label>
             <button id="clear-input" class="ghost-button" type="button">Clear</button>
           </div>
           <textarea
@@ -89,7 +92,7 @@ app.innerHTML = `
         <div class="panel__header">
           <div>
             <p class="panel__kicker">Export</p>
-            <h2 id="controls-title">PNG output settings</h2>
+            <h2 id="controls-title">PNG settings</h2>
           </div>
         </div>
         <div class="preset-grid" id="preset-grid"></div>
@@ -170,6 +173,9 @@ const elements = {
   sourceEditorTab: document.querySelector('#source-editor-tab'),
   dropzoneTitle: document.querySelector('#dropzone-title'),
   dropzoneSubtitle: document.querySelector('#dropzone-subtitle'),
+  dropzoneIcon: document.querySelector('.dropzone__icon'),
+  dropzoneThumb: document.querySelector('#dropzone-thumb'),
+  dropzoneThumbPreview: document.querySelector('#dropzone-thumb-preview'),
   dropzoneMeta: document.querySelector('#dropzone-meta'),
   dropzoneFileName: document.querySelector('#dropzone-file-name'),
   dropzoneFileDimensions: document.querySelector('#dropzone-file-dimensions'),
@@ -346,15 +352,21 @@ function renderControls() {
       ? 'or click to upload from your device'
       : 'Use the source editor below for live preview and PNG export';
   elements.dropzoneHint.textContent = hasUploadedFile
-    ? 'Replace file'
+    ? 'Replace SVG'
     : state.sourceMode === 'upload'
       ? 'Transparent PNG export, sharp scaling, and instant preview.'
       : 'Raw SVG changes re-render the PNG output automatically.';
+  elements.dropzoneIcon.hidden = Boolean(hasUploadedFile);
+  elements.dropzoneThumb.hidden = !hasUploadedFile;
   elements.dropzoneMeta.hidden = !hasUploadedFile;
   if (hasUploadedFile) {
+    elements.dropzoneThumbPreview.innerHTML = state.svgText;
     elements.dropzoneFileName.textContent = state.sourceLabel || 'SVG file';
+    elements.dropzoneFileName.title = state.sourceLabel || 'SVG file';
     elements.dropzoneFileDimensions.textContent = `${Math.round(state.metadata.width)}x${Math.round(state.metadata.height)} px`;
     elements.dropzoneFileSize.textContent = formatFileSize(state.sourceFileSize);
+  } else {
+    elements.dropzoneThumbPreview.innerHTML = '';
   }
   elements.editorBlock.hidden = !state.editorExpanded;
   elements.editorToggle.setAttribute('aria-expanded', String(state.editorExpanded));

@@ -255,6 +255,29 @@ textarea:focus-visible {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 18px 40px rgba(55, 95, 160, 0.28);
 }
 
+.dropzone__thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 16px 30px rgba(25, 39, 68, 0.22);
+}
+
+.dropzone__thumb-preview {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+}
+
+.dropzone__thumb-preview svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .dropzone__copy {
   display: grid;
   gap: 6px;
@@ -265,6 +288,7 @@ textarea:focus-visible {
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
+  width: 100%;
 }
 
 .dropzone__meta-pill {
@@ -278,6 +302,15 @@ textarea:focus-visible {
   color: rgba(245, 247, 251, 0.84);
   font-size: 0.74rem;
   line-height: 1;
+}
+
+#dropzone-file-name {
+  display: block;
+  max-width: min(100%, 320px);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dropzone--uploaded {
@@ -299,6 +332,12 @@ textarea:focus-visible {
   height: 42px;
   border-radius: 14px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 12px 24px rgba(55, 95, 160, 0.2);
+}
+
+.dropzone--uploaded .dropzone__thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
 }
 
 .dropzone--uploaded .dropzone__copy {
@@ -350,12 +389,12 @@ textarea:focus-visible {
 }
 
 .editor-toggle-copy strong {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
 }
 
 .editor-toggle-copy span {
-  color: var(--muted);
-  font-size: 0.78rem;
+  color: rgba(219, 228, 243, 0.78);
+  font-size: 0.82rem;
 }
 
 .editor-block__header,
@@ -864,6 +903,12 @@ input[type='color'] {
     border-radius: 16px;
   }
 
+  .dropzone__thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
   .dropzone__copy strong {
     font-size: 0.98rem;
   }
@@ -876,6 +921,10 @@ input[type='color'] {
     min-height: 22px;
     padding: 4px 8px;
     font-size: 0.7rem;
+  }
+
+  #dropzone-file-name {
+    max-width: min(100%, 240px);
   }
 
   .editor-toggle-row {
