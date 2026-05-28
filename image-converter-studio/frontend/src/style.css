@@ -505,16 +505,34 @@ input[type='color'] {
   border: 1px solid var(--line);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.03);
-  padding: 14px;
+  padding: 12px;
 }
 
 .preview-surface {
   position: relative;
-  min-height: 224px;
+  min-height: 192px;
   border-radius: 20px;
   border: 1px solid var(--line);
   overflow: hidden;
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.preview-surface--interactive {
+  width: 100%;
+  padding: 0;
+  background-color: transparent;
+}
+
+.preview-surface--interactive:not(:disabled) {
+  cursor: pointer;
+}
+
+.preview-surface--interactive:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.preview-surface--interactive:disabled {
+  cursor: default;
 }
 
 .preview-surface--ready {
@@ -579,6 +597,29 @@ input[type='color'] {
   text-transform: uppercase;
 }
 
+.preview-surface--interactive::after {
+  content: 'Click to download';
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(10, 18, 21, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(245, 247, 251, 0.8);
+  font-size: 0.74rem;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.preview-surface--interactive.preview-surface--ready:hover::after,
+.preview-surface--interactive.preview-surface--ready:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .empty-state h3 {
   margin: 0 0 8px;
   font-size: 1.1rem;
@@ -617,7 +658,7 @@ input[type='color'] {
   }
 
   .preview-surface {
-    min-height: 210px;
+    min-height: 184px;
   }
 }
 
@@ -729,7 +770,7 @@ input[type='color'] {
   }
 
   .preview-surface {
-    min-height: 178px;
+    min-height: 160px;
   }
 
   .preview-surface {

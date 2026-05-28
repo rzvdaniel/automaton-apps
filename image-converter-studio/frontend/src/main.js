@@ -56,10 +56,10 @@ app.innerHTML = `
           <input id="svg-file-input" class="sr-only" type="file" accept=".svg,image/svg+xml" />
           <div class="dropzone__icon" aria-hidden="true"></div>
           <div class="dropzone__copy">
-            <strong>Drag and drop your SVG here</strong>
-            <span>or click to upload from your device</span>
+            <strong id="dropzone-title">Drag and drop your SVG here</strong>
+            <span id="dropzone-subtitle">or click to upload from your device</span>
           </div>
-          <div class="dropzone__hint">Transparent PNG export, sharp scaling, and instant preview.</div>
+          <div id="dropzone-hint" class="dropzone__hint">Transparent PNG export, sharp scaling, and instant preview.</div>
         </label>
         <div class="editor-toggle-row">
           <div class="editor-toggle-copy">
@@ -145,14 +145,14 @@ app.innerHTML = `
               <span>Generated PNG</span>
               <small id="png-dimensions">No export yet</small>
             </div>
-            <div class="preview-surface checkerboard" id="png-preview-surface">
+            <button class="preview-surface preview-surface--interactive checkerboard" id="png-preview-surface" type="button" aria-label="Download generated PNG" disabled>
               <div class="empty-state" id="png-empty-state">
                 <h3>PNG export appears instantly</h3>
                 <p>Upload an SVG and the download-ready result will appear here automatically.</p>
               </div>
               <img id="png-preview" alt="Generated PNG preview" hidden />
               <div id="png-ready-badge" class="preview-badge" hidden>Ready to download</div>
-            </div>
+            </button>
             <button id="download-button" class="secondary-button" type="button" disabled>Download PNG</button>
           </article>
         </div>
@@ -166,6 +166,9 @@ const elements = {
   fileInput: document.querySelector('#svg-file-input'),
   sourceUploadTab: document.querySelector('#source-upload-tab'),
   sourceEditorTab: document.querySelector('#source-editor-tab'),
+  dropzoneTitle: document.querySelector('#dropzone-title'),
+  dropzoneSubtitle: document.querySelector('#dropzone-subtitle'),
+  dropzoneHint: document.querySelector('#dropzone-hint'),
   editorToggle: document.querySelector('#editor-toggle'),
   editorBlock: document.querySelector('#editor-block'),
   editor: document.querySelector('#svg-editor'),
@@ -197,7 +200,7 @@ function revokeConvertedUrl() {
 
 function setStatus(type, message) {
   state.error = type === 'error' ? message : '';
-  state.success = type === 'success' ? message : '';
+  state.success = '';
 
   if (!message) {
     elements.statusBanner.hidden = true;
@@ -279,6 +282,8 @@ function renderPngPreview() {
     elements.downloadButton.textContent = 'Download PNG';
     elements.downloadButton.classList.remove('secondary-button--ready');
     elements.pngPreview.parentElement.classList.remove('preview-surface--ready');
+    elements.pngPreview.parentElement.disabled = true;
+    elements.pngPreview.parentElement.title = '';
     return;
   }
 
@@ -293,6 +298,8 @@ function renderPngPreview() {
   elements.downloadButton.textContent = 'Download PNG';
   elements.downloadButton.classList.add('secondary-button--ready');
   elements.pngPreview.parentElement.classList.add('preview-surface--ready');
+  elements.pngPreview.parentElement.disabled = false;
+  elements.pngPreview.parentElement.title = 'Click to download PNG';
 }
 
 function renderControls() {
@@ -309,6 +316,11 @@ function renderControls() {
   elements.sourceUploadTab.setAttribute('aria-selected', String(state.sourceMode === 'upload'));
   elements.sourceEditorTab.classList.toggle('source-tab--active', state.sourceMode === 'editor');
   elements.sourceEditorTab.setAttribute('aria-selected', String(state.sourceMode === 'editor'));
+  elements.dropzoneTitle.textContent = state.sourceMode === 'upload' ? 'Drag and drop your SVG here' : 'Paste raw SVG markup';
+  elements.dropzoneSubtitle.textContent = state.sourceMode === 'upload' ? 'or click to upload from your device' : 'Use the editor below for instant preview and PNG export';
+  elements.dropzoneHint.textContent = state.sourceMode === 'upload'
+    ? 'Transparent PNG export, sharp scaling, and instant preview.'
+    : 'Raw SVG changes re-render the PNG output automatically.';
   elements.editorBlock.hidden = !state.editorExpanded;
   elements.editorToggle.setAttribute('aria-expanded', String(state.editorExpanded));
   elements.editorToggle.textContent = state.editorExpanded ? 'Hide editor' : 'Open editor';
@@ -357,9 +369,6 @@ async function refreshConvertedImage(options = {}) {
 
     resetExport();
     state.convertedImage = nextImage;
-    if (!silent) {
-      setStatus('success', 'PNG export is ready to download.');
-    }
   } catch (error) {
     if (currentVersion !== state.conversionVersion) {
       return;
@@ -413,7 +422,6 @@ function handleDownload() {
   link.href = state.convertedImage.url;
   link.download = `${state.fileName || 'converted-image'}-${state.convertedImage.width}x${state.convertedImage.height}.png`;
   link.click();
-  setStatus('success', 'Download started. Your PNG is ready.');
 }
 
 elements.fileInput.addEventListener('change', async (event) => {
@@ -572,6 +580,8 @@ elements.presetGrid.addEventListener('click', (event) => {
 elements.convertButton.addEventListener('click', handleDownload);
 
 elements.downloadButton.addEventListener('click', handleDownload);
+
+elements.pngPreview.parentElement.addEventListener('click', handleDownload);
 
 window.addEventListener('beforeunload', () => {
   revokeConvertedUrl();
