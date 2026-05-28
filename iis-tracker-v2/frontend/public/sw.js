@@ -3,7 +3,7 @@ const SHELL_ASSETS = [
   './',
   './manifest.webmanifest',
   './icons/iss-icon.svg',
-  './icons/icon-192.png',
+  './icons/icon-256.png',
   './icons/icon-512.png',
 ];
 

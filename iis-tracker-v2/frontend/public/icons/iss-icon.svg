@@ -1,59 +1,115 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">ISS Tracker App Icon</title>
+  <desc id="desc">Circular ISS Tracker icon with simplified ISS, aligned solar panels, stars, and Earth horizon.</desc>
+
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="40%" r="70%">
-      <stop offset="0%" stop-color="#0B3B5A"/>
-      <stop offset="60%" stop-color="#06182D"/>
-      <stop offset="100%" stop-color="#020817"/>
+    <radialGradient id="spaceGradient" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#071d40"/>
+      <stop offset="65%" stop-color="#02122d"/>
+      <stop offset="100%" stop-color="#000814"/>
     </radialGradient>
 
-    <linearGradient id="cyanGlow" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#6CF7FF"/>
-      <stop offset="100%" stop-color="#00CFFF"/>
+    <linearGradient id="panelGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#65a9ff"/>
+      <stop offset="100%" stop-color="#2568c8"/>
     </linearGradient>
 
-    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="18" result="blur"/>
-      <feColorMatrix
-        in="blur"
-        type="matrix"
-        values="0 0 0 0 0
-                0 0 0 0 0.85
-                0 0 0 0 1
-                0 0 0 0.9 0"/>
+    <linearGradient id="earthGradient" x1="155" y1="760" x2="880" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4fa4ff"/>
+      <stop offset="55%" stop-color="#2468c8"/>
+      <stop offset="100%" stop-color="#102f68"/>
+    </linearGradient>
+
+    <filter id="earthGlow" x="-20%" y="-40%" width="140%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
 
-    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feBlend in="SourceGraphic" in2="blur" mode="screen"/>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.35"/>
     </filter>
+
+    <clipPath id="badgeClip">
+      <circle cx="512" cy="512" r="466"/>
+    </clipPath>
   </defs>
 
-  <rect width="1024" height="1024" rx="220" fill="url(#bgGlow)"/>
+  <!-- Circular badge -->
+  <circle cx="512" cy="512" r="500" fill="#000815"/>
+  <circle cx="512" cy="512" r="470" fill="url(#spaceGradient)" stroke="#2d78df" stroke-width="16"/>
 
-  <circle cx="512" cy="512" r="300" stroke="#114C73" stroke-width="2" opacity="0.35"/>
-  <circle cx="512" cy="512" r="250" stroke="#0BCFFF" stroke-width="3" opacity="0.18" stroke-dasharray="18 18"/>
+  <g clip-path="url(#badgeClip)">
+    <!-- Stars, positioned away from station arms -->
+    <g fill="#ffffff">
+      <path d="M526 138 L535 169 L566 178 L535 187 L526 218 L517 187 L486 178 L517 169 Z"/>
+    </g>
 
-  <circle cx="512" cy="512" r="170" fill="#12DFFF" opacity="0.18" filter="url(#outerGlow)"/>
+    <!-- Earth -->
+    <path d="M132 850 C248 708 390 662 512 662 C634 662 776 708 892 850 L892 1024 L132 1024 Z" fill="url(#earthGradient)"/>
 
-  <g transform="translate(512 512) rotate(-18)">
-    <rect x="-290" y="-58" width="120" height="116" rx="10" fill="none" stroke="url(#cyanGlow)" stroke-width="10"/>
-    <line x1="-250" y1="-50" x2="-250" y2="50" stroke="#5EF2FF" stroke-width="4" opacity="0.8"/>
-    <line x1="-210" y1="-50" x2="-210" y2="50" stroke="#5EF2FF" stroke-width="4" opacity="0.8"/>
+    <!-- Earth horizon glow -->
+    <path d="M150 836 C265 706 392 668 512 668 C632 668 759 706 874 836"
+          fill="none" stroke="#9eeeff" stroke-width="12" stroke-linecap="round" filter="url(#earthGlow)"/>
 
-    <rect x="170" y="-58" width="120" height="116" rx="10" fill="none" stroke="url(#cyanGlow)" stroke-width="10"/>
-    <line x1="210" y1="-50" x2="210" y2="50" stroke="#5EF2FF" stroke-width="4" opacity="0.8"/>
-    <line x1="250" y1="-50" x2="250" y2="50" stroke="#5EF2FF" stroke-width="4" opacity="0.8"/>
+    <!-- Continents -->
+    <g fill="#143b86" opacity="0.82">
+      <path d="M210 827 C255 784 305 762 352 761 C382 760 412 739 434 749 C451 757 419 774 397 780 C430 779 464 755 482 772 C493 784 463 803 437 811 C394 824 372 834 334 820 C302 808 270 837 232 853 C208 863 190 845 210 827Z"/>
+      <path d="M520 835 C549 801 589 790 618 805 C642 818 653 842 683 838 C714 834 740 809 773 816 C812 824 839 853 864 881 C814 891 749 888 707 866 C665 843 630 861 591 866 C556 870 526 859 520 835Z"/>
+      <path d="M426 922 C467 901 523 896 559 918 C589 936 633 936 670 925 C645 957 590 968 540 954 C491 941 455 944 426 922Z"/>
+    </g>
 
-    <rect x="-180" y="-18" width="360" height="36" rx="18" fill="url(#cyanGlow)" filter="url(#softGlow)"/>
+    <!-- Simplified ISS -->
+    <g filter="url(#softShadow)">
+      <!-- Left solar panels -->
+      <g>
+        <rect x="198" y="288" width="70" height="184" rx="6" fill="url(#panelGradient)"/>
+        <rect x="282" y="288" width="70" height="184" rx="6" fill="url(#panelGradient)"/>
+        <rect x="198" y="488" width="70" height="174" rx="6" fill="url(#panelGradient)"/>
+        <rect x="282" y="488" width="70" height="174" rx="6" fill="url(#panelGradient)"/>
 
-    <rect x="-95" y="-42" width="60" height="84" rx="18" fill="#E8FDFF" opacity="0.96"/>
-    <rect x="-20" y="-52" width="40" height="104" rx="18" fill="#E8FDFF" opacity="0.96"/>
-    <rect x="35" y="-42" width="60" height="84" rx="18" fill="#E8FDFF" opacity="0.96"/>
+        <!-- centered arm supports -->
+        <rect x="218" y="472" width="20" height="16" rx="1" fill="#f3f7fb"/>
+        <rect x="306" y="472" width="20" height="16" rx="1" fill="#f3f7fb"/>
+      </g>
 
-    <circle cx="0" cy="0" r="14" fill="#00E5FF"/>
-    <line x1="0" y1="-90" x2="0" y2="-140" stroke="#70F7FF" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="0" cy="-160" r="16" fill="#70F7FF" opacity="0.8"/>
+      <!-- Right solar panels -->
+      <g>
+        <rect x="672" y="288" width="70" height="184" rx="6" fill="url(#panelGradient)"/>
+        <rect x="756" y="288" width="70" height="184" rx="6" fill="url(#panelGradient)"/>
+        <rect x="672" y="488" width="70" height="174" rx="6" fill="url(#panelGradient)"/>
+        <rect x="756" y="488" width="70" height="174" rx="6" fill="url(#panelGradient)"/>
+
+        <!-- centered arm supports -->
+        <rect x="696" y="472" width="20" height="16" rx="1" fill="#f3f7fb"/>
+        <rect x="780" y="472" width="20" height="16" rx="1" fill="#f3f7fb"/>
+      </g>
+
+      <!-- Tiny side nubs -->
+      <rect x="360" y="472" width="7" height="18" rx="1" fill="#f6f8fb"/>
+      <rect x="657" y="472" width="7" height="18" rx="1" fill="#f6f8fb"/>
+
+      <!-- Side modules -->
+      <rect x="370" y="450" width="34" height="64" rx="5" fill="#f8fafc"/>
+      <rect x="620" y="450" width="34" height="64" rx="5" fill="#f8fafc"/>
+
+      <!-- Arms, centered on panels -->
+      <rect x="404" y="468" width="120" height="28" rx="5" fill="#f8fafc"/>
+      <rect x="500" y="468" width="120" height="28" rx="5" fill="#f8fafc"/>
+
+      <!-- Center module -->
+      <rect x="484" y="424" width="56" height="90" rx="8" fill="#f8fafc"/>
+      <rect x="499" y="382" width="26" height="54" rx="13" fill="#f8fafc"/>
+
+      <!-- Bottom module -->
+      <rect x="448" y="524" width="128" height="36" rx="5" fill="#f8fafc"/>
+      <rect x="494" y="558" width="36" height="42" rx="5" fill="#f8fafc"/>
+    </g>
   </g>
 
-  <rect x="18" y="18" width="988" height="988" rx="202" stroke="#1FDFFF" stroke-opacity="0.22" stroke-width="3"/>
+  <!-- Top border highlight -->
+  <circle cx="512" cy="512" r="470" fill="none" stroke="#4693ff" stroke-width="5" opacity="0.9"/>
 </svg>

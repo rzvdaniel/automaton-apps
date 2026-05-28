@@ -95,7 +95,10 @@ const crewBackdrop = document.querySelector<HTMLDivElement>('#crewBackdrop')!;
 const crewGrid = document.querySelector<HTMLDivElement>('#crewGrid')!;
 const crewModalSubtitle = document.querySelector<HTMLParagraphElement>('#crewModalSubtitle')!;
 const crewCloseButton = document.querySelector<HTMLButtonElement>('#crewCloseButton')!;
-const installAppButton = document.querySelector<HTMLButtonElement>('#installAppButton')!;
+const installAppButtons = [
+  document.querySelector<HTMLButtonElement>('#installAppButtonDesktop')!,
+  document.querySelector<HTMLButtonElement>('#installAppButton')!,
+];
 
 const ids = [
   'liveBadge',
@@ -563,8 +566,10 @@ function isMobileViewport() {
 }
 
 function updateInstallButton() {
-  const shouldShow = Boolean(deferredInstallPrompt) && isMobileViewport();
-  installAppButton.hidden = !shouldShow;
+  const shouldShow = Boolean(deferredInstallPrompt);
+  for (const button of installAppButtons) {
+    button.hidden = !shouldShow;
+  }
 }
 
 function syncAppIcons() {
@@ -1084,17 +1089,19 @@ window.addEventListener('keydown', (event) => {
   debugOverlay.hidden = !next;
 });
 
-installAppButton.addEventListener('click', async () => {
-  if (!deferredInstallPrompt) return;
-  await deferredInstallPrompt.prompt();
-  try {
-    await deferredInstallPrompt.userChoice;
-  } catch {
-    // Ignore install prompt failures; the browser will preserve the state.
-  }
-  deferredInstallPrompt = null;
-  updateInstallButton();
-});
+for (const button of installAppButtons) {
+  button.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    await deferredInstallPrompt.prompt();
+    try {
+      await deferredInstallPrompt.userChoice;
+    } catch {
+      // Ignore install prompt failures; the browser will preserve the state.
+    }
+    deferredInstallPrompt = null;
+    updateInstallButton();
+  });
+}
 
 resizeCanvases();
 syncAppIcons();
