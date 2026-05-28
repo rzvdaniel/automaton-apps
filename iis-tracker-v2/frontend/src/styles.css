@@ -79,8 +79,8 @@ button {
 
 .station-glyph {
   display: block;
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   border: 1px solid rgba(188, 232, 255, 0.2);
   border-radius: 10px;
   background: rgba(5, 18, 34, 0.54);
