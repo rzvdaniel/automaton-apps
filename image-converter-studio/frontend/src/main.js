@@ -18,6 +18,9 @@ const state = {
   success: '',
   activePreset: 512,
   fileName: 'converted-image',
+  sourceLabel: '',
+  sourceFileSize: null,
+  sourceKind: 'empty',
   sourceMode: 'upload',
   editorExpanded: false,
   conversionVersion: 0
@@ -53,6 +56,11 @@ app.innerHTML = `
           <div class="dropzone__copy">
             <strong id="dropzone-title">Drag and drop your SVG here</strong>
             <span id="dropzone-subtitle">or click to upload from your device</span>
+          </div>
+          <div id="dropzone-meta" class="dropzone__meta" hidden>
+            <span id="dropzone-file-name" class="dropzone__meta-pill"></span>
+            <span id="dropzone-file-dimensions" class="dropzone__meta-pill"></span>
+            <span id="dropzone-file-size" class="dropzone__meta-pill"></span>
           </div>
           <div id="dropzone-hint" class="dropzone__hint">Transparent PNG export, sharp scaling, and instant preview.</div>
         </label>
@@ -162,6 +170,10 @@ const elements = {
   sourceEditorTab: document.querySelector('#source-editor-tab'),
   dropzoneTitle: document.querySelector('#dropzone-title'),
   dropzoneSubtitle: document.querySelector('#dropzone-subtitle'),
+  dropzoneMeta: document.querySelector('#dropzone-meta'),
+  dropzoneFileName: document.querySelector('#dropzone-file-name'),
+  dropzoneFileDimensions: document.querySelector('#dropzone-file-dimensions'),
+  dropzoneFileSize: document.querySelector('#dropzone-file-size'),
   dropzoneHint: document.querySelector('#dropzone-hint'),
   editorToggle: document.querySelector('#editor-toggle'),
   editorBlock: document.querySelector('#editor-block'),
@@ -213,6 +225,22 @@ function sanitizeFileName(name) {
     .replace(/\.[^.]+$/, '')
     .replace(/[^a-z0-9-_]+/gi, '-')
     .replace(/^-+|-+$/g, '') || 'converted-image';
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return '';
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1).replace(/\.0$/, '')} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} MB`;
 }
 
 function syncSizeInputs(changedDimension) {
@@ -291,6 +319,8 @@ function renderPngPreview() {
 }
 
 function renderControls() {
+  const hasUploadedFile = state.sourceMode === 'upload' && state.sourceKind === 'file' && state.metadata;
+
   elements.widthInput.value = String(state.width);
   elements.heightInput.value = String(state.height);
   elements.aspectRatioToggle.checked = state.keepAspectRatio;
@@ -304,11 +334,28 @@ function renderControls() {
   elements.sourceUploadTab.setAttribute('aria-selected', String(state.sourceMode === 'upload'));
   elements.sourceEditorTab.classList.toggle('source-tab--active', state.sourceMode === 'editor');
   elements.sourceEditorTab.setAttribute('aria-selected', String(state.sourceMode === 'editor'));
-  elements.dropzoneTitle.textContent = state.sourceMode === 'upload' ? 'Drag and drop your SVG here' : 'Paste raw SVG markup';
-  elements.dropzoneSubtitle.textContent = state.sourceMode === 'upload' ? 'or click to upload from your device' : 'Use the source editor below for live preview and PNG export';
-  elements.dropzoneHint.textContent = state.sourceMode === 'upload'
-    ? 'Transparent PNG export, sharp scaling, and instant preview.'
-    : 'Raw SVG changes re-render the PNG output automatically.';
+  elements.dropzone.classList.toggle('dropzone--uploaded', Boolean(hasUploadedFile));
+  elements.dropzoneTitle.textContent = hasUploadedFile
+    ? state.sourceLabel || 'SVG uploaded'
+    : state.sourceMode === 'upload'
+      ? 'Drag and drop your SVG here'
+      : 'Paste raw SVG markup';
+  elements.dropzoneSubtitle.textContent = hasUploadedFile
+    ? 'Ready for export. Click to replace the current file.'
+    : state.sourceMode === 'upload'
+      ? 'or click to upload from your device'
+      : 'Use the source editor below for live preview and PNG export';
+  elements.dropzoneHint.textContent = hasUploadedFile
+    ? 'Replace file'
+    : state.sourceMode === 'upload'
+      ? 'Transparent PNG export, sharp scaling, and instant preview.'
+      : 'Raw SVG changes re-render the PNG output automatically.';
+  elements.dropzoneMeta.hidden = !hasUploadedFile;
+  if (hasUploadedFile) {
+    elements.dropzoneFileName.textContent = state.sourceLabel || 'SVG file';
+    elements.dropzoneFileDimensions.textContent = `${Math.round(state.metadata.width)}x${Math.round(state.metadata.height)} px`;
+    elements.dropzoneFileSize.textContent = formatFileSize(state.sourceFileSize);
+  }
   elements.editorBlock.hidden = !state.editorExpanded;
   elements.editorToggle.setAttribute('aria-expanded', String(state.editorExpanded));
   elements.editorToggle.textContent = state.editorExpanded ? 'Hide source editor' : 'Open source editor';
@@ -372,11 +419,15 @@ async function refreshConvertedImage(options = {}) {
   }
 }
 
-function applySvgText(svgText, fileName = state.fileName) {
+function applySvgText(svgText, fileName = state.fileName, options = {}) {
   const metadata = getSvgMetadata(svgText);
+  const { sourceKind = 'editor', sourceLabel = '', sourceFileSize = null } = options;
   state.svgText = svgText;
   state.metadata = metadata;
   state.fileName = sanitizeFileName(fileName);
+  state.sourceLabel = sourceLabel || fileName || 'converted-image';
+  state.sourceFileSize = sourceFileSize;
+  state.sourceKind = sourceKind;
   state.editorExpanded = state.sourceMode === 'editor';
   state.width = Math.round(metadata.width);
   state.height = Math.round(metadata.height);
@@ -395,7 +446,12 @@ async function handleFileSelection(file) {
 
   try {
     const svgText = await extractSvgText(file);
-    applySvgText(svgText, file.name);
+    state.sourceMode = 'upload';
+    applySvgText(svgText, file.name, {
+      sourceKind: 'file',
+      sourceLabel: file.name,
+      sourceFileSize: file.size
+    });
   } catch (error) {
     setStatus('error', error.message || 'The selected file is not a valid SVG.');
   }
@@ -485,10 +541,16 @@ elements.editor.addEventListener('input', (event) => {
   try {
     state.sourceMode = 'editor';
     state.editorExpanded = true;
-    applySvgText(nextValue);
+    applySvgText(nextValue, state.fileName, {
+      sourceKind: 'editor',
+      sourceLabel: 'Pasted SVG markup',
+      sourceFileSize: null
+    });
   } catch (error) {
     state.svgText = nextValue;
     state.metadata = null;
+    state.sourceKind = 'editor';
+    state.sourceFileSize = null;
     resetExport();
     render();
     setStatus('error', error.message || 'The SVG markup is invalid.');
@@ -500,6 +562,9 @@ elements.clearInput.addEventListener('click', () => {
   state.svgText = '';
   state.metadata = null;
   state.fileName = 'converted-image';
+  state.sourceLabel = '';
+  state.sourceFileSize = null;
+  state.sourceKind = 'empty';
   state.conversionVersion += 1;
   resetExport();
   setStatus('', '');
