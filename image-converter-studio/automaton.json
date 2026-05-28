@@ -1,0 +1,9 @@
+{
+  "appId": "ee62e981-c630-4f8a-a7d0-58254cec1035",
+  "name": "Image Converter Studio",
+  "server": "https://api.automaton.monster",
+  "frontend": {
+    "build": "cd frontend && npm install && npm run build",
+    "deployDir": "frontend/dist"
+  }
+}
