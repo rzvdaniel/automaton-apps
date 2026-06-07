@@ -21,6 +21,10 @@ export class ScoreManager {
     this._lives = n
   }
 
+  setScore(value) {
+    this._score = value
+  }
+
   persistHighScore() {
     if (this._score > this._highScore) {
       this._highScore = this._score

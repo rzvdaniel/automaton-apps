@@ -57,7 +57,6 @@ describe('ScoreManager', () => {
     const sm = new ScoreManager(100)
     expect(sm.highScore).toBe(100)
     sm.addScore(200)
-    sm._score = 200
     sm.persistHighScore()
     expect(sm.highScore).toBe(200)
     expect(localStorage.setItem).toHaveBeenCalledWith('space-invaders-high-score', '200')
@@ -65,7 +64,7 @@ describe('ScoreManager', () => {
 
   it('does not update high score if score is lower', () => {
     const sm = new ScoreManager(500)
-    sm._score = 200
+    sm.addScore(200)
     sm.persistHighScore()
     expect(sm.highScore).toBe(500)
   })

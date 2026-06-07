@@ -160,7 +160,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   }
 
   function persistHighScore() {
-    scoreManager._score = state.score
+    scoreManager.setScore(state.score)
     scoreManager.persistHighScore()
     state.highScore = scoreManager.highScore
   }
