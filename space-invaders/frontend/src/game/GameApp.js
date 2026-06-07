@@ -1,0 +1,715 @@
+import { createAudioManager } from '../audio/AudioManager.js'
+import { createBackgroundEffects } from '../background-effects.js'
+import { DPR_LIMIT, PALETTE, PLAYER_COOLDOWN, PLAYER_INVULNERABILITY, STORAGE_KEYS, WORLD } from '../config.js'
+import { EnemyFormation } from '../entities/EnemyFormation.js'
+import { InputController } from '../input/InputController.js'
+import { Renderer } from '../rendering/Renderer.js'
+import { loadSettings, saveSettings } from '../settings.js'
+import { rectFromCenter, rectFromTopLeft, intersects } from '../systems/CollisionSystem.js'
+import { ProjectileManager } from '../systems/ProjectileManager.js'
+import { ScoreManager } from '../systems/ScoreManager.js'
+import { WaveManager } from '../systems/WaveManager.js'
+import { UfoEncounter } from '../ufo-encounter.js'
+import { GameLoop } from './GameLoop.js'
+import { createInitialState } from './GameState.js'
+
+function random(min, max) {
+  return min + Math.random() * (max - min)
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function isCompactViewport() {
+  return window.matchMedia('(max-width: 420px)').matches
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+}
+
+function isShortViewport() {
+  return window.matchMedia('(max-height: 700px)').matches
+}
+
+function getCompositionProfile(rect) {
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const shellShortSide = Math.min(rect.width, rect.height)
+  const shellLongSide = Math.max(rect.width, rect.height)
+  const portraitRatio = rect.height / Math.max(rect.width, 1)
+  const isTabletLike = shellShortSide >= 700 || shellLongSide >= 1180 || (rect.width >= 620 && portraitRatio >= 1.28)
+
+  if (!isTabletLike) {
+    return {
+      progress: 0,
+      enemyShiftWorld: 0,
+      playerLiftWorld: 0,
+      overlayShiftWorld: 0,
+      pauseShiftWorld: 0,
+      settingsShiftWorld: 0,
+      controlsLiftPx: 0,
+      controlsMaxWidthPx: 420
+    }
+  }
+
+  const heightProgress = clamp((Math.max(rect.height, viewportHeight) - 980) / 520, 0, 1)
+  const widthProgress = clamp((Math.max(rect.width, viewportWidth) - 620) / 280, 0, 1)
+  const portraitProgress = clamp((portraitRatio - 1.58) / 0.5, 0, 1)
+  const progress = clamp(Math.max(heightProgress, widthProgress * 0.92, portraitProgress * 0.78), 0, 1)
+
+  return {
+    progress,
+    enemyShiftWorld: Math.round(112 * progress),
+    playerLiftWorld: Math.round(184 * progress),
+    overlayShiftWorld: Math.round(136 * progress),
+    pauseShiftWorld: Math.round(108 * progress),
+    settingsShiftWorld: Math.round(112 * progress),
+    controlsLiftPx: Math.round(52 * progress),
+    controlsMaxWidthPx: 420 + Math.round(200 * progress)
+  }
+}
+
+export function createGame({ canvas, shell, installButton, muteButton = null, pauseButton, touchControls }) {
+  const context = canvas.getContext('2d', { alpha: false })
+  const audio = createAudioManager()
+  const backgroundEffects = createBackgroundEffects()
+  const ufoEncounter = new UfoEncounter({ audio })
+  const backgroundImage = new Image()
+  backgroundImage.src = './images/planet-cinematic-bg.png'
+  const settings = loadSettings()
+  const defaultPlayerY = WORLD.height - 236
+
+  const state = createInitialState({ settings, backgroundImage, backgroundEffects })
+  state.highScore = Number(localStorage.getItem(STORAGE_KEYS.highScore) || 0)
+  state.muted = localStorage.getItem(STORAGE_KEYS.muted) === '1'
+  state.desktopMode = !isMobileViewport()
+
+  const waveManager = new WaveManager({ audio, ufoEncounter })
+  const projectileManager = new ProjectileManager()
+  const scoreManager = new ScoreManager(state.highScore)
+  const renderer = new Renderer(context, canvas)
+
+  // Keep state.bullets and state.enemyBullets in sync with projectileManager
+  function syncProjectilesToState() {
+    state.bullets = projectileManager.playerBullets
+    state.enemyBullets = projectileManager.enemyBullets
+  }
+
+  function getPlayerSafeY(rect = canvas.getBoundingClientRect()) {
+    const controlsTop = touchControls?.fire?.getBoundingClientRect().top
+    const preferredPlayerY = defaultPlayerY - state.composition.playerLiftWorld
+
+    if (!controlsTop || controlsTop <= rect.top) return preferredPlayerY
+
+    const clearance = isCompactViewport() ? 32 : 44
+    const worldY = (controlsTop - rect.top - state.offsetY) / Math.max(state.scale, 0.001)
+    const shipBottomReach = 68
+    const maxSafeY = worldY - shipBottomReach - clearance
+
+    return Math.min(preferredPlayerY, Math.max(1180, maxSafeY))
+  }
+
+  function syncPlayerVerticalPosition(rect = canvas.getBoundingClientRect()) {
+    state.player.y = getPlayerSafeY(rect)
+  }
+
+  audio.setMuted(state.muted)
+
+  function syncShellState() {
+    shell.dataset.gamePaused = state.paused ? 'true' : 'false'
+    shell.dataset.gameStarted = state.started ? 'true' : 'false'
+    shell.dataset.gameRunning = state.running ? 'true' : 'false'
+    shell.dataset.settingsOpen = state.settingsOpen ? 'true' : 'false'
+    shell.dataset.controlsMode = state.settings.controls
+    shell.dispatchEvent(
+      new CustomEvent('game-state-change', {
+        detail: {
+          paused: state.paused,
+          started: state.started,
+          running: state.running,
+          muted: state.muted,
+          settingsOpen: state.settingsOpen
+        }
+      })
+    )
+  }
+
+  function setSettingsMenuState(menuState) {
+    const wasOpen = state.settingsOpen
+    state.settingsMenu = menuState
+    state.settingsOpen = Boolean(menuState)
+    shell.dataset.settingsOpen = state.settingsOpen ? 'true' : 'false'
+    if (wasOpen !== state.settingsOpen) {
+      shell.dispatchEvent(new CustomEvent('settings-menu-change', { detail: { open: state.settingsOpen } }))
+    }
+  }
+
+  function updateMuteButton() {
+    if (!muteButton) return
+    muteButton.textContent = state.muted ? '🔇' : '🔊'
+    muteButton.setAttribute('aria-label', state.muted ? 'Sound off' : 'Sound on')
+    muteButton.setAttribute('title', state.muted ? 'Sound off' : 'Sound on')
+  }
+
+  function updatePauseButton() {
+    pauseButton.dataset.state = state.paused ? 'play' : 'pause'
+    pauseButton.setAttribute('aria-label', state.paused ? 'Resume' : 'Pause')
+    pauseButton.setAttribute('title', state.paused ? 'Resume' : 'Pause')
+  }
+
+  function persistHighScore() {
+    scoreManager._score = state.score
+    scoreManager.persistHighScore()
+    state.highScore = scoreManager.highScore
+  }
+
+  function resize() {
+    const rect = shell.getBoundingClientRect()
+    const dpr = Math.min(window.devicePixelRatio || 1, DPR_LIMIT)
+    canvas.width = Math.floor(rect.width * dpr)
+    canvas.height = Math.floor(rect.height * dpr)
+    context.imageSmoothingEnabled = false
+    context.setTransform(1, 0, 0, 1, 0, 0)
+    context.scale(dpr, dpr)
+    state.scale = Math.min(rect.width / WORLD.width, rect.height / WORLD.height)
+    state.offsetX = (rect.width - WORLD.width * state.scale) / 2
+    state.offsetY = isMobileViewport() ? 0 : (rect.height - WORLD.height * state.scale) / 2
+    state.composition = getCompositionProfile(rect)
+    shell.style.setProperty('--touch-controls-bottom-offset', `${state.composition.controlsLiftPx}px`)
+    shell.style.setProperty('--touch-controls-max-width', `${state.composition.controlsMaxWidthPx}px`)
+    state.desktopMode = !isMobileViewport()
+    syncPlayerVerticalPosition(rect)
+  }
+
+  function addParticles(x, y, color, count, force, gravity = 0) {
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.random() * Math.PI * 2
+      const speed = random(force * 0.35, force)
+      const life = random(0.3, 0.85)
+      state.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        gravity, life,
+        maxLife: life,
+        size: random(2, 8),
+        color
+      })
+    }
+  }
+
+  function triggerShake(power, duration) {
+    const shakeLevel = state.settings.screenShake
+    if (shakeLevel === 'off') return
+    const multiplier = shakeLevel === 'low' ? 0.45 : 1
+    if (state.shake.cooldown > 0) return
+    state.shake.power = Math.max(state.shake.power, power * multiplier)
+    state.shake.duration = Math.max(state.shake.duration, duration * (shakeLevel === 'low' ? 0.8 : 1))
+    state.shake.cooldown = 0.12
+  }
+
+  function spawnWave(wave, { fromWave = null } = {}) {
+    waveManager.spawnWave(wave, state, { fromWave, isShortViewport: isShortViewport() })
+    // After spawnWave replaces state.bullets/enemyBullets, sync projectileManager arrays
+    projectileManager.playerBullets = state.bullets
+    projectileManager.enemyBullets = state.enemyBullets
+  }
+
+  function resetGame({ immediateStart = false } = {}) {
+    resetGameToWave(1, { immediateStart })
+  }
+
+  function resetToIntro() {
+    state.started = false
+    state.running = true
+    state.paused = false
+    state.score = 0
+    state.wave = 1
+    state.flash = 0
+    state.message = 'INSERT COIN'
+    state.overlayTimer = 999
+    state.intermission = null
+    state.waveArrivalTimer = 0
+    state.waveArrivalDuration = 0
+    state.waveArrivalCuePending = false
+    state.waveLockTimer = 0
+    state.waveLockDuration = 0
+    state.bullets = []
+    state.enemyBullets = []
+    state.enemies = []
+    state.ufo = null
+    state.particles = []
+    state.enemyStepTimer = 0
+    ufoEncounter.reset(1)
+    projectileManager.clear()
+    syncProjectilesToState()
+    state.player.x = WORLD.width / 2
+    syncPlayerVerticalPosition()
+    state.player.cooldown = 0
+    state.player.lives = 3
+    state.player.invulnerability = 0
+    state.player.visualTilt = 0
+    state.player.thrust = 0
+    state.player.fireFlash = 0
+    state.player.destroyed = false
+    state.player.destroyedAt = 0
+    state.shake.power = 0
+    state.shake.duration = 0
+    state.shake.cooldown = 0
+    updatePauseButton()
+    syncShellState()
+  }
+
+  function resetGameToWave(startWave, { immediateStart = false } = {}) {
+    const wasStarted = state.started
+    state.started = true
+    state.running = true
+    state.paused = false
+    state.score = 0
+    state.wave = startWave
+    state.flash = 0
+    state.intermission = null
+    state.waveArrivalTimer = 0
+    state.waveArrivalDuration = 0
+    state.waveArrivalCuePending = false
+    state.waveLockTimer = 0
+    state.waveLockDuration = 0
+    state.shake.power = 0
+    state.shake.duration = 0
+    state.shake.cooldown = 0
+    state.bullets = []
+    state.enemyBullets = []
+    state.ufo = null
+    state.particles = []
+    state.enemyStepTimer = 0
+    ufoEncounter.reset(startWave)
+    projectileManager.clear()
+    syncProjectilesToState()
+    state.player.x = WORLD.width / 2
+    syncPlayerVerticalPosition()
+    state.player.cooldown = 0
+    state.player.lives = 3
+    state.player.invulnerability = 0
+    state.player.visualTilt = 0
+    state.player.thrust = 0
+    state.player.fireFlash = 0
+    state.player.destroyed = false
+    state.player.destroyedAt = 0
+    state.started = wasStarted
+    if (immediateStart) state.started = false
+    spawnWave(startWave)
+    state.started = true
+    syncShellState()
+  }
+
+  function setMuted(value) {
+    state.muted = value
+    audio.setMuted(value)
+    localStorage.setItem(STORAGE_KEYS.muted, value ? '1' : '0')
+    updateMuteButton()
+    syncShellState()
+  }
+
+  function setPaused(value) {
+    if (!state.started || !state.running) return
+    state.paused = value
+    updatePauseButton()
+    state.message = value ? 'PAUSED' : `WAVE ${state.wave}`
+    state.overlayTimer = value ? 999 : 0
+    syncShellState()
+  }
+
+  function shootPlayer() {
+    if (!state.running || state.paused || state.player.cooldown > 0) return
+    state.player.cooldown = PLAYER_COOLDOWN
+    state.player.fireFlash = 1
+    const bullet = {
+      x: state.player.x,
+      y: state.player.y - 52,
+      width: 8,
+      height: 40,
+      speed: 1200
+    }
+    projectileManager.addPlayerBullet(bullet)
+    syncProjectilesToState()
+    addParticles(state.player.x, state.player.y - 46, PALETTE.cyan, 7, 150, 20)
+    addParticles(state.player.x, state.player.y - 54, PALETTE.white, 3, 90, 10)
+    audio.shoot()
+  }
+
+  function shootEnemy(enemy) {
+    if (projectileManager.enemyBullets.length >= state.maxEnemyBullets) return
+    const bullet = {
+      x: enemy.x + enemy.width / 2,
+      y: enemy.y + enemy.height,
+      width: 10,
+      height: 28,
+      speed: state.enemyBulletSpeed
+    }
+    projectileManager.addEnemyBullet(bullet)
+    syncProjectilesToState()
+    audio.enemyShoot()
+  }
+
+  function hitPlayer() {
+    if (state.player.invulnerability > 0) return
+    state.player.lives -= 1
+    state.player.invulnerability = PLAYER_INVULNERABILITY
+    state.flash = 0.22
+    triggerShake(2.6, 0.09)
+    addParticles(state.player.x, state.player.y, PALETTE.cyan, 24, 320, 40)
+    audio.playerHit()
+    if (state.player.lives <= 0) {
+      state.running = false
+      state.message = 'SIGNAL LOST'
+      state.overlayTimer = 999
+      state.bullets = []
+      state.enemyBullets = []
+      state.enemies = []
+      state.ufo = null
+      state.player.cooldown = 0
+      state.player.fireFlash = 0
+      state.player.invulnerability = 0
+      state.player.destroyed = true
+      state.player.destroyedAt = state.elapsed
+      state.player.visualTilt = -0.18
+      state.player.thrust = 0
+      projectileManager.clear()
+      syncProjectilesToState()
+      addParticles(state.player.x, state.player.y - 10, PALETTE.red, 28, 420, 55)
+      addParticles(state.player.x, state.player.y + 8, PALETTE.white, 10, 240, 35)
+      persistHighScore()
+      syncShellState()
+    }
+  }
+
+  // InputController wires input events and exposes movement/fire state
+  const inputController = new InputController({
+    touchControls,
+    audio,
+    onStartGame() {
+      if (!state.started) resetGame()
+    },
+    onToggleMute() {
+      setMuted(!state.muted)
+    },
+    onTogglePause() {
+      setPaused(!state.paused)
+    }
+  })
+
+  function update(dt) {
+    const desktopMode = !isMobileViewport()
+    const moveLeft = inputController.moveLeft
+    const moveRight = inputController.moveRight
+    const firing = inputController.firing
+
+    state.backgroundEffects.update(dt)
+
+    state.flash = Math.max(0, state.flash - dt * 1.7)
+    state.shake.cooldown = Math.max(0, state.shake.cooldown - dt)
+    state.shake.duration = Math.max(0, state.shake.duration - dt)
+    if (state.shake.duration > 0) {
+      state.shake.x = random(-state.shake.power, state.shake.power)
+      state.shake.y = random(-state.shake.power * 0.45, state.shake.power * 0.45)
+    } else {
+      state.shake.power = Math.max(0, state.shake.power - dt * 40)
+      state.shake.x = 0
+      state.shake.y = 0
+    }
+
+    if (!state.started) {
+      if (moveLeft || moveRight || firing) resetGame()
+      return desktopMode
+    }
+
+    if (!state.running) {
+      if (firing) resetGame({ immediateStart: true })
+      return desktopMode
+    }
+
+    if (state.paused) return desktopMode
+
+    state.overlayTimer = Math.max(0, state.overlayTimer - dt)
+    state.player.cooldown = Math.max(0, state.player.cooldown - dt)
+    state.player.invulnerability = Math.max(0, state.player.invulnerability - dt)
+    state.player.fireFlash = Math.max(0, state.player.fireFlash - dt * 7.5)
+
+    if (state.overlayTimer > 0) {
+      for (const particle of state.particles) {
+        particle.x += particle.vx * dt
+        particle.y += particle.vy * dt
+        particle.vx *= 0.985
+        particle.vy = particle.vy * 0.988 + particle.gravity * dt
+        particle.life -= dt
+      }
+      state.particles = state.particles.filter((particle) => particle.life > 0)
+      return desktopMode
+    }
+
+    state.intermission = null
+
+    if (state.waveArrivalCuePending && state.waveArrivalTimer > 0) {
+      audio.waveArrival()
+      state.waveArrivalCuePending = false
+    }
+
+    state.ufo = ufoEncounter.update(dt, {
+      running: state.running,
+      paused: state.paused,
+      overlayActive: state.overlayTimer > 0 || state.waveArrivalTimer > 0 || state.waveLockTimer > 0,
+      wave: state.wave
+    })
+
+    if (state.waveArrivalTimer > 0) {
+      state.waveArrivalTimer = Math.max(0, state.waveArrivalTimer - dt)
+      for (const particle of state.particles) {
+        particle.x += particle.vx * dt
+        particle.y += particle.vy * dt
+        particle.vx *= 0.985
+        particle.vy = particle.vy * 0.988 + particle.gravity * dt
+        particle.life -= dt
+      }
+      state.particles = state.particles.filter((particle) => particle.life > 0)
+      if (state.waveArrivalTimer === 0 && state.waveLockDuration > 0) {
+        state.waveLockTimer = state.waveLockDuration
+        state.flash = Math.max(state.flash, 0.08)
+        triggerShake(0.8, 0.05)
+        audio.formationLocked()
+      }
+      return desktopMode
+    }
+
+    if (state.waveLockTimer > 0) {
+      state.waveLockTimer = Math.max(0, state.waveLockTimer - dt)
+      return desktopMode
+    }
+
+    let movement = 0
+    if (moveLeft) movement -= 1
+    if (moveRight) movement += 1
+    const motionScale = state.settings.reducedMotion ? 0.45 : 1
+    const targetTilt = movement * 0.18 * motionScale
+    state.player.visualTilt += (targetTilt - state.player.visualTilt) * Math.min(1, dt * 14)
+    const thrustTarget = movement === 0 ? 0.45 : 1
+    state.player.thrust += (thrustTarget - state.player.thrust) * Math.min(1, dt * 8)
+    state.player.x += movement * state.player.speed * dt
+    state.player.x = clamp(state.player.x, 74, WORLD.width - 74)
+
+    if (firing) shootPlayer()
+
+    // Update projectiles and sync to state
+    projectileManager.update(dt)
+    syncProjectilesToState()
+
+    const aliveEnemies = state.enemies.filter((enemy) => enemy.alive)
+    const totalEnemies = state.enemies.length || 1
+    const aliveRatio = aliveEnemies.length / totalEnemies
+    const speedBoost = 1 + (1 - aliveRatio) * state.killSpeedBoost
+    const currentStepInterval = Math.max(0.08, state.enemyStepInterval / speedBoost)
+    state.enemyStepTimer += dt
+
+    while (state.enemyStepTimer >= currentStepInterval && aliveEnemies.length > 0) {
+      state.enemyStepTimer -= currentStepInterval
+
+      let leftEdge = Infinity
+      let rightEdge = -Infinity
+      for (const enemy of aliveEnemies) {
+        leftEdge = Math.min(leftEdge, enemy.x)
+        rightEdge = Math.max(rightEdge, enemy.x + enemy.width)
+      }
+
+      const nextLeftEdge = leftEdge + state.enemyDirection * state.enemyHorizontalStep
+      const nextRightEdge = rightEdge + state.enemyDirection * state.enemyHorizontalStep
+      const hitWall = nextLeftEdge < 50 || nextRightEdge > WORLD.width - 50
+
+      if (hitWall) {
+        state.enemyDirection *= -1
+        for (const enemy of aliveEnemies) {
+          enemy.y += state.enemyDrop
+        }
+      } else {
+        for (const enemy of aliveEnemies) {
+          enemy.x += state.enemyDirection * state.enemyHorizontalStep
+        }
+      }
+    }
+
+    if (aliveEnemies.length && Math.random() < dt * state.enemyFireRate) {
+      const columns = new Map()
+      for (const enemy of aliveEnemies) {
+        const key = Math.round(enemy.x / 12)
+        const current = columns.get(key)
+        if (!current || enemy.y > current.y) columns.set(key, enemy)
+      }
+      const shooters = [...columns.values()]
+      shootEnemy(shooters[Math.floor(Math.random() * shooters.length)])
+    }
+
+    for (const bullet of state.bullets) {
+      const bulletRect = rectFromCenter(bullet)
+      const ufoHit = ufoEncounter.tryHit(bulletRect, state.wave)
+      if (ufoHit) {
+        bullet.y = -100
+        state.ufo = ufoEncounter.getState()
+        state.score += ufoHit.score
+        persistHighScore()
+        state.flash = 0.16
+        triggerShake(1.1, 0.05)
+        addParticles(ufoHit.x, ufoHit.y, PALETTE.amber, 18, 320, 40)
+        addParticles(ufoHit.x, ufoHit.y, PALETTE.magenta, 10, 240, 20)
+        addParticles(ufoHit.x, ufoHit.y, PALETTE.white, 8, 180, 16)
+        continue
+      }
+
+      for (const enemy of aliveEnemies) {
+        if (!enemy.alive) continue
+        if (intersects(bulletRect, rectFromTopLeft(enemy))) {
+          enemy.alive = false
+          bullet.y = -100
+          state.score += enemy.rank === 'elite' ? 50 : enemy.rank === 'mid' ? 30 : 15
+          persistHighScore()
+          state.flash = 0.12
+          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.rank === 'elite' ? PALETTE.magenta : PALETTE.amber, 20, 380, 70)
+          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, 8, 220, 30)
+          audio.explosion()
+          break
+        }
+      }
+    }
+
+    const playerRect = rectFromCenter(state.player)
+    for (const bullet of state.enemyBullets) {
+      if (intersects(rectFromCenter(bullet), playerRect)) {
+        bullet.y = WORLD.height + 100
+        hitPlayer()
+        break
+      }
+    }
+
+    for (const enemy of aliveEnemies) {
+      const enemyRect = rectFromCenter({
+        x: enemy.x + enemy.width / 2,
+        y: enemy.y + enemy.height / 2,
+        width: enemy.width,
+        height: enemy.height
+      })
+      if (intersects(enemyRect, playerRect) || enemy.y + enemy.height > state.player.y + 16) {
+        state.player.lives = 1
+        hitPlayer()
+        break
+      }
+    }
+
+    state.enemies = state.enemies.filter((enemy) => enemy.alive)
+    if (state.enemies.length === 0) {
+      const clearedWave = state.wave
+      triggerShake(1.8, 0.08)
+      spawnWave(clearedWave + 1, { fromWave: clearedWave })
+      return desktopMode
+    }
+
+    for (const particle of state.particles) {
+      particle.x += particle.vx * dt
+      particle.y += particle.vy * dt
+      particle.vx *= 0.985
+      particle.vy = particle.vy * 0.988 + particle.gravity * dt
+      particle.life -= dt
+    }
+    state.particles = state.particles.filter((particle) => particle.life > 0)
+
+    return desktopMode
+  }
+
+  function render(desktopMode) {
+    renderer.render(state, state.elapsed, desktopMode)
+  }
+
+  const gameLoop = new GameLoop({
+    onTick(dt) {
+      state.elapsed += dt
+      const desktopMode = update(dt)
+      render(desktopMode)
+    }
+  })
+
+  if (muteButton) {
+    muteButton.addEventListener('click', async () => {
+      await audio.unlock()
+      setMuted(!state.muted)
+    })
+  }
+
+  pauseButton.addEventListener('click', () => {
+    setPaused(!state.paused)
+  })
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault()
+    state.pendingInstallPrompt = event
+    installButton.classList.remove('hidden')
+  })
+
+  installButton.addEventListener('click', async () => {
+    if (!state.pendingInstallPrompt) return
+    state.pendingInstallPrompt.prompt()
+    await state.pendingInstallPrompt.userChoice
+    state.pendingInstallPrompt = null
+    installButton.classList.add('hidden')
+  })
+
+  resize()
+  setMuted(state.muted)
+  updatePauseButton()
+  syncShellState()
+  render(!isMobileViewport())
+  requestAnimationFrame(() => resize())
+  gameLoop.start()
+
+  return {
+    resize,
+    clearPointer() {
+      inputController.clearPointer()
+    },
+    restart() {
+      resetToIntro()
+    },
+    startAtWave(wave) {
+      resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))
+    },
+    setPaused,
+    getSettings() {
+      return { ...state.settings }
+    },
+    updateSettings(nextSettings) {
+      state.settings = { ...state.settings, ...nextSettings }
+      saveSettings(state.settings)
+      syncShellState()
+      resize()
+    },
+    isMuted() {
+      return state.muted
+    },
+    setMuted(value) {
+      setMuted(value)
+    },
+    getWave() {
+      return state.wave
+    },
+    getViewport() {
+      return {
+        scale: state.scale,
+        offsetX: state.offsetX,
+        offsetY: state.offsetY,
+        desktopMode: state.desktopMode,
+        composition: state.composition
+      }
+    },
+    setSettingsMenuState,
+    isSettingsOpen() {
+      return state.settingsOpen
+    }
+  }
+}

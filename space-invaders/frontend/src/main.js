@@ -1,6 +1,6 @@
 import './styles.css'
 import { ChevronLeft, ChevronRight, createIcons, Pause, Play, Settings } from 'lucide'
-import { createGame } from './game.js'
+import { createGame } from './game/GameApp.js'
 import { setupDebugPanel } from './debug-panel.js'
 import { getPauseMenuLayout } from './overlay-layout.js'
 import { setupSettingsPanel } from './settings-panel.js'
