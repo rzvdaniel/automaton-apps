@@ -17,8 +17,18 @@ export class BossRenderer {
 
     context.save()
     context.translate(x, y)
-    context.shadowColor = `rgba(122, 255, 146, ${0.16 + reactorPulse * 0.14})`
-    context.shadowBlur = 18
+
+    const halo = context.createRadialGradient(0, 0, width * 0.12, 0, 0, width * 0.95)
+    halo.addColorStop(0, 'rgba(0, 0, 0, 0.26)')
+    halo.addColorStop(0.48, 'rgba(0, 0, 0, 0.18)')
+    halo.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    context.fillStyle = halo
+    context.beginPath()
+    context.arc(0, 0, width * 0.95, 0, Math.PI * 2)
+    context.fill()
+
+    context.shadowColor = `rgba(122, 255, 146, ${0.2 + reactorPulse * 0.18})`
+    context.shadowBlur = 24
 
     if (sprite?.complete && sprite.naturalWidth > 0) {
       context.drawImage(sprite, -width / 2, -height / 2, width, height)
@@ -28,10 +38,10 @@ export class BossRenderer {
     }
 
     context.globalCompositeOperation = 'screen'
-    const coreRadius = width * (0.18 + reactorPulse * 0.05)
+    const coreRadius = width * (0.22 + reactorPulse * 0.08)
     const coreGlow = context.createRadialGradient(0, 0, width * 0.03, 0, 0, coreRadius)
-    coreGlow.addColorStop(0, `rgba(255, 210, 255, ${0.28 + reactorPulse * 0.18})`)
-    coreGlow.addColorStop(0.45, `rgba(255, 92, 216, ${0.18 + reactorPulse * 0.14})`)
+    coreGlow.addColorStop(0, `rgba(255, 230, 255, ${0.36 + reactorPulse * 0.24})`)
+    coreGlow.addColorStop(0.38, `rgba(255, 92, 216, ${0.24 + reactorPulse * 0.18})`)
     coreGlow.addColorStop(1, 'rgba(255, 92, 216, 0)')
     context.fillStyle = coreGlow
     context.beginPath()
