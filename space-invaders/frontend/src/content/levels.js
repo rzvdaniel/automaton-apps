@@ -1,6 +1,7 @@
 import { BACKGROUND_DEFINITIONS } from './backgrounds.js'
 
 export const WAVES_PER_LEVEL = 5
+export const LAST_LEVEL = 3
 
 export const LEVEL_DEFINITIONS = [
   {
@@ -98,6 +99,10 @@ export const LEVEL_DEFINITIONS = [
       enemyBulletSpeedBonus: 20
     },
     mechanics: {
+      aggressiveUfo: {
+        spawnDelayMultiplier: 0.7,
+        speedBonus: 80
+      },
       divingAliens: {
         enabled: true,
         maxActive: 2,
@@ -106,6 +111,16 @@ export const LEVEL_DEFINITIONS = [
         warningDuration: 0.3,
         speed: 470,
         horizontalTracking: 0.75
+      },
+      finalBoss: {
+        waveInLevel: 5,
+        hp: 40,
+        speed: 210,
+        spreadCooldown: 1.35,
+        beamCooldown: 4.6,
+        beamWarningDuration: 0.85,
+        descentInterval: 12,
+        descentStep: 12
       }
     }
   }

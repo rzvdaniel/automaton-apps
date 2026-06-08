@@ -3,7 +3,7 @@ import { createInitialState } from '../../game/GameState.js'
 import { ScoreManager } from '../../systems/ScoreManager.js'
 import { getWaveConfig } from '../../systems/WaveManager.js'
 import { intersects, rectFromCenter } from '../../systems/CollisionSystem.js'
-import { LEVEL_DEFINITIONS, getAbsoluteWave, getLevelProgression } from '../../content/levels.js'
+import { LAST_LEVEL, LEVEL_DEFINITIONS, getAbsoluteWave, getLevelProgression } from '../../content/levels.js'
 import { ENEMY_DEFINITIONS } from '../../content/enemies.js'
 
 beforeEach(() => {
@@ -92,6 +92,18 @@ describe('Game flow integration', () => {
     const level = LEVEL_DEFINITIONS[0]
     expect(level.backgroundId).toBe('planet-cinematic')
     expect(level.name).toBe('Red Planet')
+  })
+
+  it('level 3 is configured as the boss finale', () => {
+    const level = LEVEL_DEFINITIONS[2]
+    expect(level.backgroundId).toBe('mothership-depths')
+    expect(level.mechanics.finalBoss.waveInLevel).toBe(5)
+    expect(level.mechanics.divingAliens.maxActive).toBe(2)
+  })
+
+  it('campaign ends on the last configured level and wave', () => {
+    expect(LAST_LEVEL).toBe(3)
+    expect(getLevelProgression(getAbsoluteWave(3, 5))).toEqual({ wave: 15, level: 3, waveInLevel: 5 })
   })
 
   it('enemy type stats from definitions are applied correctly', () => {

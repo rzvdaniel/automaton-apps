@@ -67,4 +67,13 @@ describe('ProjectileManager', () => {
     pm.update(0.1)
     expect(pm.enemyBullets[0].y).toBeGreaterThan(500)
   })
+
+  it('moves vector enemy bullets using vx and vy', () => {
+    const pm = new ProjectileManager()
+    const bullet = { x: 100, y: 500, width: 10, height: 28, speed: 500, vx: 120, vy: 640 }
+    pm.addEnemyBullet(bullet)
+    pm.update(0.1)
+    expect(pm.enemyBullets[0].x).toBeGreaterThan(100)
+    expect(pm.enemyBullets[0].y).toBeGreaterThan(500)
+  })
 })

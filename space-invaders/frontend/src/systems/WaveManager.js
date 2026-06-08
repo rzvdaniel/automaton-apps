@@ -1,3 +1,4 @@
+import { createBoss } from './BossSystem.js'
 import { getBackgroundDefinition, getLevelDefinition, getLevelProgression } from '../content/levels.js'
 
 function clamp(value, min, max) {
@@ -77,30 +78,50 @@ export class WaveManager {
     state.waveLockTimer = 0
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
+    state.boss = null
     state.bullets = []
     state.enemies = []
     state.enemyBullets = []
-    this.ufoEncounter.reset(wave)
+    this.ufoEncounter.reset(wave, levelDefinition.mechanics?.aggressiveUfo ?? null)
     state.ufo = null
 
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < columns; col += 1) {
-        const rank = levelDefinition.enemyFormation.rowAssignment(row, rows, progression)
-        state.enemies.push({
-          x: startX + col * (enemyWidth + gapX),
-          y: config.startY + formationYOffset + row * (enemyHeight + gapY),
-          width: enemyWidth,
-          height: enemyHeight,
-          rank,
-          palette: levelDefinition.enemyPalette?.[rank] ?? null,
-          alive: true,
-          diving: false,
-          diveWarning: 0,
-          diveVx: 0,
-          diveVy: 0,
-          phase: Math.random() * Math.PI * 2,
-          arrivalDelay: row * 0.06 + col * 0.012
-        })
+    const bossWaveInLevel = levelDefinition.mechanics?.finalBoss?.waveInLevel
+    const isBossWave = bossWaveInLevel && progression.waveInLevel === bossWaveInLevel
+
+    if (isBossWave) {
+      state.message = 'FINAL BOSS'
+      state.overlayTimer = immediateStart ? 0 : 1.25
+      state.waveArrivalDuration = immediateStart ? 0 : 1.45
+      state.waveArrivalTimer = state.waveArrivalDuration
+      state.waveLockDuration = immediateStart ? 0 : 0.35
+      state.intermission = immediateStart
+        ? null
+        : {
+            ...state.intermission,
+            isBossWave: true,
+            levelSubtitle: 'Command Ship Detected'
+          }
+      state.boss = createBoss(levelDefinition.mechanics.finalBoss)
+    } else {
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < columns; col += 1) {
+          const rank = levelDefinition.enemyFormation.rowAssignment(row, rows, progression)
+          state.enemies.push({
+            x: startX + col * (enemyWidth + gapX),
+            y: config.startY + formationYOffset + row * (enemyHeight + gapY),
+            width: enemyWidth,
+            height: enemyHeight,
+            rank,
+            palette: levelDefinition.enemyPalette?.[rank] ?? null,
+            alive: true,
+            diving: false,
+            diveWarning: 0,
+            diveVx: 0,
+            diveVy: 0,
+            phase: Math.random() * Math.PI * 2,
+            arrivalDelay: row * 0.06 + col * 0.012
+          })
+        }
       }
     }
 

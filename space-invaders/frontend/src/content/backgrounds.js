@@ -18,7 +18,7 @@ export const BACKGROUND_DEFINITIONS = [
   {
     id: 'mothership-depths',
     name: 'Mothership Depths',
-    imageSrc: './images/planet-cinematic-bg.png',
+    imageSrc: './images/mothership-depths-bg.png',
     parallaxLayers: [],
     tint: null,
     glowColor: 'rgba(120, 255, 194, 0.08)'

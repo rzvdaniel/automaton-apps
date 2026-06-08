@@ -17,22 +17,23 @@ export class UfoEncounter {
     this.spawnTimer = this.getNextSpawnDelay(1)
   }
 
-  getNextSpawnDelay(wave) {
+  getNextSpawnDelay(wave, aggressiveUfo = null) {
     const baseDelay = Math.max(10.5, 16.5 - Math.min(wave, 10) * 0.5)
-    return randomBetween(baseDelay, baseDelay + 4.5)
+    const multiplier = aggressiveUfo?.spawnDelayMultiplier ?? 1
+    return randomBetween(baseDelay * multiplier, (baseDelay + 4.5) * multiplier)
   }
 
-  reset(wave = 1) {
+  reset(wave = 1, aggressiveUfo = null) {
     this.active = null
-    this.spawnTimer = this.getNextSpawnDelay(wave)
+    this.spawnTimer = this.getNextSpawnDelay(wave, aggressiveUfo)
   }
 
-  spawn(wave) {
+  spawn(wave, aggressiveUfo = null) {
     const fromLeft = Math.random() >= 0.5
     const width = 132
     const height = 58
     const y = randomBetween(164, 248)
-    const speed = (220 + wave * 12) * (fromLeft ? 1 : -1)
+    const speed = (220 + wave * 12 + (aggressiveUfo?.speedBonus ?? 0)) * (fromLeft ? 1 : -1)
     this.active = {
       x: fromLeft ? -width : WORLD.width + width,
       y,
@@ -45,7 +46,7 @@ export class UfoEncounter {
     this.audio.ufoPass()
   }
 
-  update(dt, { running, paused, overlayActive, wave }) {
+  update(dt, { running, paused, overlayActive, wave, aggressiveUfo = null }) {
     if (!running) {
       this.active = null
       return this.getState()
@@ -61,19 +62,19 @@ export class UfoEncounter {
       const offscreenLeft = this.active.speed < 0 && this.active.x + this.active.width / 2 < -40
       if (offscreenRight || offscreenLeft) {
         this.active = null
-        this.spawnTimer = this.getNextSpawnDelay(wave)
+        this.spawnTimer = this.getNextSpawnDelay(wave, aggressiveUfo)
       }
       return this.getState()
     }
 
     this.spawnTimer = Math.max(0, this.spawnTimer - dt)
     if (this.spawnTimer === 0) {
-      this.spawn(wave)
+      this.spawn(wave, aggressiveUfo)
     }
     return this.getState()
   }
 
-  tryHit(bulletRect, wave) {
+  tryHit(bulletRect, wave, aggressiveUfo = null) {
     if (!this.active) return null
 
     const hitbox = {
@@ -92,7 +93,7 @@ export class UfoEncounter {
     }
 
     this.active = null
-    this.spawnTimer = this.getNextSpawnDelay(wave)
+    this.spawnTimer = this.getNextSpawnDelay(wave, aggressiveUfo)
     this.audio.ufoHit()
     return hit
   }

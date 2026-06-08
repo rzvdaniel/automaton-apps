@@ -1,10 +1,12 @@
 import { ENEMY_SPRITES, PALETTE, UFO_SPRITES, WORLD } from './config.js'
 import { getPauseMenuLayout } from './overlay-layout.js'
+import { BossRenderer } from './rendering/BossRenderer.js'
 import { SettingsMenuRenderer } from './settings-menu-renderer.js'
 
 const spriteCache = new Map()
 let scanlineCanvas = null
 const settingsMenuRenderer = new SettingsMenuRenderer()
+const bossRenderer = new BossRenderer()
 
 function createBuffer(width, height) {
   const buffer = document.createElement('canvas')
@@ -355,12 +357,15 @@ function drawProjectiles(context, state) {
 
   for (const bullet of state.enemyBullets) {
     context.save()
-    context.shadowColor = 'rgba(255, 92, 140, 0.9)'
-    context.shadowBlur = 16
-    context.fillStyle = '#ff5c8c'
-    context.fillRect(bullet.x - 4, bullet.y - bullet.height / 2, 8, bullet.height)
-    context.fillStyle = '#ffd37b'
-    context.fillRect(bullet.x - 2, bullet.y + bullet.height / 2 - 6, 4, 6)
+    const glowColor = bullet.glowColor ?? 'rgba(255, 92, 140, 0.9)'
+    const coreColor = bullet.coreColor ?? '#ff5c8c'
+    const tailColor = bullet.tailColor ?? '#ffd37b'
+    context.shadowColor = glowColor
+    context.shadowBlur = bullet.kind === 'boss-core' ? 24 : 16
+    context.fillStyle = coreColor
+    context.fillRect(bullet.x - bullet.width / 2, bullet.y - bullet.height / 2, bullet.width, bullet.height)
+    context.fillStyle = tailColor
+    context.fillRect(bullet.x - Math.max(2, bullet.width * 0.25), bullet.y + bullet.height / 2 - Math.max(6, bullet.height * 0.22), Math.max(4, bullet.width * 0.5), Math.max(6, bullet.height * 0.22))
     context.restore()
   }
 }
@@ -407,6 +412,7 @@ function drawOverlay(context, state, desktopMode) {
   const pausedMenu = !settingsOpen && state.paused && state.running
   const mobilePauseMenu = !desktopMode && pausedMenu
   const gameOverOverlay = !settingsOpen && state.started && !state.running && !state.paused
+  const victoryOverlay = gameOverOverlay && state.victory
   const titleOverlay = !settingsOpen && !state.started
   const intermissionOverlay = !settingsOpen && state.started && state.running && !state.paused && state.overlayTimer > 0
 
@@ -562,15 +568,15 @@ function drawOverlay(context, state, desktopMode) {
     context.strokeRect(panelX, panelY, panelWidth, panelHeight)
 
     context.textAlign = 'center'
-    context.fillStyle = 'rgba(255, 160, 174, 0.92)'
+    context.fillStyle = victoryOverlay ? 'rgba(170, 255, 194, 0.92)' : 'rgba(255, 160, 174, 0.92)'
     context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText('SIGNAL LOST', WORLD.width / 2, panelY + (desktopMode ? 56 : 68))
+    context.fillText(victoryOverlay ? 'INVASION STOPPED' : 'SIGNAL LOST', WORLD.width / 2, panelY + (desktopMode ? 56 : 68))
 
     context.fillStyle = PALETTE.white
-    context.shadowColor = PALETTE.red
+    context.shadowColor = victoryOverlay ? '#a1ff91' : PALETTE.red
     context.shadowBlur = 18
     context.font = desktopMode ? '900 58px "Arial Black", Impact, sans-serif' : '900 72px "Arial Black", Impact, sans-serif'
-    context.fillText('GAME OVER', WORLD.width / 2, panelY + (desktopMode ? 132 : 156))
+    context.fillText(victoryOverlay ? 'MISSION COMPLETE' : 'GAME OVER', WORLD.width / 2, panelY + (desktopMode ? 132 : 156))
     context.shadowBlur = 0
 
     context.strokeStyle = 'rgba(255, 130, 142, 0.2)'
@@ -582,13 +588,13 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = 'rgba(238,252,255,0.78)'
     context.font = desktopMode ? '600 22px monospace' : '600 28px monospace'
     context.fillText(`LEVEL ${String(state.level).padStart(2, '0')}  WAVE ${String(state.waveInLevel).padStart(2, '0')}  SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, panelY + (desktopMode ? 224 : 258))
-    context.fillStyle = 'rgba(255, 180, 190, 0.86)'
+    context.fillStyle = victoryOverlay ? 'rgba(184, 255, 214, 0.88)' : 'rgba(255, 180, 190, 0.86)'
     context.font = desktopMode ? '600 18px monospace' : '600 24px monospace'
-    context.fillText('PILOT OFFLINE   SHIP DESTROYED', WORLD.width / 2, panelY + (desktopMode ? 266 : 306))
+    context.fillText(victoryOverlay ? 'ALIEN COMMAND SHIP DESTROYED' : 'PILOT OFFLINE   SHIP DESTROYED', WORLD.width / 2, panelY + (desktopMode ? 266 : 306))
 
     context.fillStyle = 'rgba(255,255,255,0.9)'
     context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText(desktopMode ? 'PRESS FIRE TO RETRY' : 'TAP FIRE TO RETRY', WORLD.width / 2, panelY + (desktopMode ? 304 : 352))
+    context.fillText(desktopMode ? 'PRESS FIRE TO PLAY AGAIN' : 'TAP FIRE TO PLAY AGAIN', WORLD.width / 2, panelY + (desktopMode ? 304 : 352))
     context.textAlign = 'left'
     return
   }
@@ -616,11 +622,13 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = state.intermission?.isLevelTransition ? `rgba(255, 214, 156, ${transitionPulse})` : `rgba(140,247,255,${transitionPulse})`
     context.font = desktopMode ? '700 22px monospace' : '700 34px monospace'
     context.fillText(
-      state.intermission?.isLevelTransition
-        ? `LEVEL ${String(completedLevel ?? 0).padStart(2, '0')} COMPLETE`
-        : clearedWave
-          ? 'SECTOR CLEARED'
-          : 'HOSTILE FLEET DETECTED',
+      state.intermission?.isBossWave
+        ? 'MOTHERSHIP APPROACHING'
+        : state.intermission?.isLevelTransition
+          ? `LEVEL ${String(completedLevel ?? 0).padStart(2, '0')} COMPLETE`
+          : clearedWave
+            ? 'SECTOR CLEARED'
+            : 'HOSTILE FLEET DETECTED',
       WORLD.width / 2,
       desktopMode ? 618 : 670
     )
@@ -636,19 +644,21 @@ function drawOverlay(context, state, desktopMode) {
     context.shadowColor = PALETTE.cyan
     context.shadowBlur = 18
     context.font = desktopMode ? '900 60px "Arial Black", Impact, sans-serif' : '900 84px "Arial Black", Impact, sans-serif'
-    context.fillText(`LEVEL ${String(state.intermission?.level ?? state.level).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 704 : 764)
+    context.fillText(state.intermission?.isBossWave ? 'WARNING' : `LEVEL ${String(state.intermission?.level ?? state.level).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 704 : 764)
     context.font = desktopMode ? '900 50px "Arial Black", Impact, sans-serif' : '900 70px "Arial Black", Impact, sans-serif'
-    context.fillText(`WAVE ${String(incomingWave).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 768 : 836)
+    context.fillText(state.intermission?.isBossWave ? 'FINAL BOSS' : `WAVE ${String(incomingWave).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 768 : 836)
     context.shadowBlur = 0
 
     context.fillStyle = 'rgba(238,252,255,0.82)'
     context.font = desktopMode ? '600 20px monospace' : '600 30px monospace'
     context.fillText(
-      state.intermission?.isLevelTransition
-        ? (state.intermission?.levelName ?? 'NEW SECTOR').toUpperCase()
-        : clearedProgress
-          ? `WAVE ${String(clearedProgress).padStart(2, '0')} COMPLETE`
-          : 'TACTICAL SYSTEMS ONLINE',
+      state.intermission?.isBossWave
+        ? 'INPUT LOCKED  STAND BY'
+        : state.intermission?.isLevelTransition
+          ? (state.intermission?.levelName ?? 'NEW SECTOR').toUpperCase()
+          : clearedProgress
+            ? `WAVE ${String(clearedProgress).padStart(2, '0')} COMPLETE`
+            : 'TACTICAL SYSTEMS ONLINE',
       WORLD.width / 2,
       desktopMode ? 826 : 896
     )
@@ -656,6 +666,12 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = 'rgba(255, 196, 144, 0.86)'
     context.font = desktopMode ? '600 18px monospace' : '600 28px monospace'
     context.fillText((state.intermission?.levelSubtitle ?? 'INCOMING HOSTILE FLEET').toUpperCase(), WORLD.width / 2, desktopMode ? 864 : 944)
+
+    if (state.intermission?.isBossWave) {
+      context.fillStyle = 'rgba(255, 228, 236, 0.88)'
+      context.font = desktopMode ? '700 16px monospace' : '700 24px monospace'
+      context.fillText('WEAPONS ONLINE AFTER MOTHERSHIP ARRIVAL', WORLD.width / 2, desktopMode ? 900 : 986)
+    }
     context.textAlign = 'left'
     context.restore()
     return
@@ -813,6 +829,7 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
         drawUfo(context, state.ufo, elapsed, state.settings)
       }
     }
+    bossRenderer.draw(context, state.boss, state.bossSprite, elapsed, state.settings)
     drawProjectiles(context, state)
   }
   drawShip(context, state, elapsed)

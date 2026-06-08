@@ -6,6 +6,7 @@ import { InputController } from '../input/InputController.js'
 import { Renderer } from '../rendering/Renderer.js'
 import { loadSettings, saveSettings } from '../settings.js'
 import { rectFromCenter, rectFromTopLeft, intersects } from '../systems/CollisionSystem.js'
+import { tryHitBoss, updateBoss } from '../systems/BossSystem.js'
 import { getFormationEnemies, updateDivingAliens } from '../systems/DivingAliensSystem.js'
 import { ProjectileManager } from '../systems/ProjectileManager.js'
 import { ScoreManager } from '../systems/ScoreManager.js'
@@ -13,7 +14,7 @@ import { WaveManager } from '../systems/WaveManager.js'
 import { UfoEncounter } from '../ufo-encounter.js'
 import { GameLoop } from './GameLoop.js'
 import { createInitialState } from './GameState.js'
-import { getAbsoluteWave, getBackgroundDefinition, getLevelDefinition, getLevelProgression, LEVEL_DEFINITIONS, WAVES_PER_LEVEL } from '../content/levels.js'
+import { getAbsoluteWave, getBackgroundDefinition, getLevelDefinition, getLevelProgression, LAST_LEVEL, LEVEL_DEFINITIONS, WAVES_PER_LEVEL } from '../content/levels.js'
 
 function random(min, max) {
   return min + Math.random() * (max - min)
@@ -79,11 +80,22 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const backgroundEffects = createBackgroundEffects()
   const ufoEncounter = new UfoEncounter({ audio })
   const backgroundImage = new Image()
+  const bossSprite = new Image()
   const settings = loadSettings()
   const defaultPlayerY = WORLD.height - 236
 
   const state = createInitialState({ settings, backgroundImage, backgroundEffects })
   backgroundImage.src = state.backgroundDefinition.imageSrc
+  bossSprite.src = './images/mothership.png'
+  state.bossSprite = bossSprite
+  bossSprite.addEventListener('load', () => {
+    if (bossSprite.naturalWidth > 0) {
+      state.bossSpriteAspect = bossSprite.naturalHeight / bossSprite.naturalWidth
+      if (state.boss) {
+        state.boss.height = state.boss.width * state.bossSpriteAspect
+      }
+    }
+  })
   state.highScore = Number(localStorage.getItem(STORAGE_KEYS.highScore) || 0)
   state.muted = localStorage.getItem(STORAGE_KEYS.muted) === '1'
   state.desktopMode = !isMobileViewport()
@@ -245,15 +257,19 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.waveArrivalCuePending = false
     state.waveLockTimer = 0
     state.waveLockDuration = 0
+    state.restartLockTimer = 0
+    state.restartInputArmed = true
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
+    state.boss = null
+    state.victory = false
     state.bullets = []
     state.enemyBullets = []
     state.enemies = []
     state.ufo = null
     state.particles = []
     state.enemyStepTimer = 0
-    ufoEncounter.reset(1)
+    ufoEncounter.reset(1, null)
     projectileManager.clear()
     syncProjectilesToState()
     state.player.x = WORLD.width / 2
@@ -292,8 +308,12 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.waveArrivalCuePending = false
     state.waveLockTimer = 0
     state.waveLockDuration = 0
+    state.restartLockTimer = 0
+    state.restartInputArmed = true
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
+    state.boss = null
+    state.victory = false
     state.shake.power = 0
     state.shake.duration = 0
     state.shake.cooldown = 0
@@ -302,7 +322,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.ufo = null
     state.particles = []
     state.enemyStepTimer = 0
-    ufoEncounter.reset(startWave)
+    ufoEncounter.reset(startWave, state.levelDefinition?.mechanics?.aggressiveUfo ?? null)
     projectileManager.clear()
     syncProjectilesToState()
     state.player.x = WORLD.width / 2
@@ -359,12 +379,23 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   function shootEnemy(enemy) {
     if (projectileManager.enemyBullets.length >= state.maxEnemyBullets) return
+    const originX = enemy.originX ?? (enemy.x + enemy.width / 2)
+    const originY = enemy.originY ?? (enemy.y + enemy.height)
+    const width = enemy.projectileWidth ?? 10
+    const height = enemy.projectileHeight ?? 28
+    const speed = enemy.projectileSpeed ?? state.enemyBulletSpeed
     const bullet = {
-      x: enemy.x + enemy.width / 2,
-      y: enemy.y + enemy.height,
-      width: 10,
-      height: 28,
-      speed: state.enemyBulletSpeed
+      x: originX,
+      y: originY,
+      width,
+      height,
+      speed,
+      vx: enemy.projectileVx,
+      vy: enemy.projectileVy,
+      kind: enemy.projectileKind ?? 'enemy',
+      glowColor: enemy.projectileGlowColor,
+      coreColor: enemy.projectileCoreColor,
+      tailColor: enemy.projectileTailColor
     }
     projectileManager.addEnemyBullet(bullet)
     syncProjectilesToState()
@@ -394,6 +425,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       state.player.destroyedAt = state.elapsed
       state.player.visualTilt = -0.18
       state.player.thrust = 0
+      state.restartLockTimer = 1.2
+      state.restartInputArmed = false
       projectileManager.clear()
       syncProjectilesToState()
       addParticles(state.player.x, state.player.y - 10, PALETTE.red, 28, 420, 55)
@@ -401,6 +434,22 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       persistHighScore()
       syncShellState()
     }
+  }
+
+  function triggerVictory(message = 'MISSION COMPLETE') {
+    state.victory = true
+    state.running = false
+    state.message = message
+    state.overlayTimer = 999
+    state.restartLockTimer = 1.2
+    state.restartInputArmed = false
+    state.enemyBullets = []
+    state.bullets = []
+    state.ufo = null
+    projectileManager.clear()
+    syncProjectilesToState()
+    persistHighScore()
+    syncShellState()
   }
 
   // InputController wires input events and exposes movement/fire state
@@ -429,6 +478,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.flash = Math.max(0, state.flash - dt * 1.7)
     state.shake.cooldown = Math.max(0, state.shake.cooldown - dt)
     state.shake.duration = Math.max(0, state.shake.duration - dt)
+    state.restartLockTimer = Math.max(0, state.restartLockTimer - dt)
     if (state.shake.duration > 0) {
       state.shake.x = random(-state.shake.power, state.shake.power)
       state.shake.y = random(-state.shake.power * 0.45, state.shake.power * 0.45)
@@ -444,7 +494,13 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     }
 
     if (!state.running) {
-      if (firing) resetGame({ immediateStart: true })
+      if (!firing) {
+        state.restartInputArmed = true
+      }
+      if (firing && state.restartLockTimer === 0 && state.restartInputArmed) {
+        state.restartInputArmed = false
+        resetGame({ immediateStart: true })
+      }
       return desktopMode
     }
 
@@ -478,7 +534,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       running: state.running,
       paused: state.paused,
       overlayActive: state.overlayTimer > 0 || state.waveArrivalTimer > 0 || state.waveLockTimer > 0,
-      wave: state.wave
+      wave: state.wave,
+      aggressiveUfo: state.levelDefinition?.mechanics?.aggressiveUfo ?? null
     })
 
     if (state.waveArrivalTimer > 0) {
@@ -521,6 +578,10 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     // Update projectiles and sync to state
     projectileManager.update(dt)
     syncProjectilesToState()
+
+    if (state.boss?.active) {
+      updateBoss(state, dt, { shootEnemy, hitPlayer })
+    }
 
     const aliveEnemies = state.enemies.filter((enemy) => enemy.alive)
     updateDivingAliens(state, dt)
@@ -570,7 +631,22 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     for (const bullet of state.bullets) {
       const bulletRect = rectFromCenter(bullet)
-      const ufoHit = ufoEncounter.tryHit(bulletRect, state.wave)
+      const bossHit = tryHitBoss(state.boss, bulletRect)
+      if (bossHit) {
+        bullet.y = -100
+        state.flash = 0.16
+        triggerShake(1.4, 0.06)
+        addParticles(bossHit.x, bossHit.y, PALETTE.magenta, bossHit.defeated ? 40 : 12, bossHit.defeated ? 420 : 180, 45)
+        addParticles(bossHit.x, bossHit.y, PALETTE.white, bossHit.defeated ? 22 : 6, bossHit.defeated ? 260 : 110, 20)
+        if (bossHit.defeated) {
+          state.score += 1500
+          triggerVictory()
+          return desktopMode
+        }
+        continue
+      }
+
+      const ufoHit = ufoEncounter.tryHit(bulletRect, state.wave, state.levelDefinition?.mechanics?.aggressiveUfo ?? null)
       if (ufoHit) {
         bullet.y = -100
         state.ufo = ufoEncounter.getState()
@@ -628,8 +704,15 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     }
 
     state.enemies = state.enemies.filter((enemy) => enemy.alive)
-    if (state.enemies.length === 0) {
+    if (!state.boss?.active && state.enemies.length === 0) {
       const clearedWave = state.wave
+      if (state.level >= LAST_LEVEL && state.waveInLevel >= WAVES_PER_LEVEL) {
+        triggerShake(2.4, 0.12)
+        addParticles(WORLD.width / 2, WORLD.height * 0.38, PALETTE.magenta, 38, 420, 40)
+        addParticles(WORLD.width / 2, WORLD.height * 0.38, PALETTE.white, 24, 300, 20)
+        triggerVictory()
+        return desktopMode
+      }
       triggerShake(1.8, 0.08)
       spawnWave(clearedWave + 1, { fromWave: clearedWave })
       return desktopMode
