@@ -121,6 +121,12 @@ export function getLevelProgression(absoluteWave) {
   return { wave: safeWave, level, waveInLevel }
 }
 
+export function getAbsoluteWave(levelNumber, waveInLevel) {
+  const safeLevel = Math.max(1, Math.floor(levelNumber) || 1)
+  const safeWaveInLevel = Math.max(1, Math.floor(waveInLevel) || 1)
+  return ((safeLevel - 1) * WAVES_PER_LEVEL) + safeWaveInLevel
+}
+
 export function getLevelDefinition(levelNumber) {
   const clampedLevel = Math.max(1, Math.floor(levelNumber) || 1)
   return LEVELS_BY_ID.get(Math.min(clampedLevel, LEVEL_DEFINITIONS.length)) ?? LEVEL_DEFINITIONS[0]

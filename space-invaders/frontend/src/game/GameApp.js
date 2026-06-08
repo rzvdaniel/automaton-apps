@@ -13,8 +13,7 @@ import { WaveManager } from '../systems/WaveManager.js'
 import { UfoEncounter } from '../ufo-encounter.js'
 import { GameLoop } from './GameLoop.js'
 import { createInitialState } from './GameState.js'
-import { getBackgroundDefinition, getLevelDefinition, getLevelProgression } from '../content/levels.js'
-import { LEVEL_DEFINITIONS, WAVES_PER_LEVEL } from '../content/levels.js'
+import { getAbsoluteWave, getBackgroundDefinition, getLevelDefinition, getLevelProgression, LEVEL_DEFINITIONS, WAVES_PER_LEVEL } from '../content/levels.js'
 
 function random(min, max) {
   return min + Math.random() * (max - min)
@@ -274,7 +273,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     syncShellState()
   }
 
-  function resetGameToWave(startWave, { immediateStart = false } = {}) {
+  function resetGameToWave(startWave, { immediateStart = false, startingLives = 3 } = {}) {
     const wasStarted = state.started
     state.started = true
     state.running = true
@@ -309,7 +308,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.x = WORLD.width / 2
     syncPlayerVerticalPosition()
     state.player.cooldown = 0
-    state.player.lives = 3
+    state.player.lives = clamp(Math.floor(startingLives) || 3, 1, 9)
     state.player.invulnerability = 0
     state.player.visualTilt = 0
     state.player.thrust = 0
@@ -611,14 +610,18 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     }
 
     for (const enemy of aliveEnemies) {
+      if (enemy.diving && enemy.y >= WORLD.height) {
+        enemy.alive = false
+        continue
+      }
+
       const enemyRect = rectFromCenter({
         x: enemy.x + enemy.width / 2,
         y: enemy.y + enemy.height / 2,
         width: enemy.width,
         height: enemy.height
       })
-      if (intersects(enemyRect, playerRect) || enemy.y + enemy.height > state.player.y + 16) {
-        state.player.lives = 1
+      if (intersects(enemyRect, playerRect) || (!enemy.diving && enemy.y + enemy.height > state.player.y + 16)) {
         hitPlayer()
         break
       }
@@ -700,11 +703,11 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     startAtWave(wave) {
       resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))
     },
-    startAtLevel(level, waveInLevel = 1) {
+    startAtLevel(level, waveInLevel = 1, startingLives = 3) {
       const safeLevel = clamp(Math.floor(level) || 1, 1, LEVEL_DEFINITIONS.length)
       const safeWaveInLevel = clamp(Math.floor(waveInLevel) || 1, 1, WAVES_PER_LEVEL)
-      const absoluteWave = (safeLevel - 1) * WAVES_PER_LEVEL + safeWaveInLevel
-      resetGameToWave(absoluteWave)
+      const absoluteWave = getAbsoluteWave(safeLevel, safeWaveInLevel)
+      resetGameToWave(absoluteWave, { startingLives })
     },
     setPaused,
     getSettings() {
@@ -731,6 +734,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
         level: state.level,
         waveInLevel: state.waveInLevel
       }
+    },
+    getLives() {
+      return state.player.lives
     },
     getAvailableLevels() {
       return LEVEL_DEFINITIONS.map((level) => ({ id: level.id, name: level.name }))

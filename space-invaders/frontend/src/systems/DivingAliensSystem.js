@@ -61,7 +61,7 @@ export function updateDivingAliens(state, dt) {
     enemy.x += enemy.diveVx * dt
     enemy.y += enemy.diveVy * dt
 
-    if (enemy.y > WORLD.height + enemy.height + 40) {
+    if (enemy.y >= WORLD.height) {
       enemy.alive = false
     }
   }

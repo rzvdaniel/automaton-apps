@@ -338,12 +338,6 @@ function drawEnemyArrival(context, enemy, elapsed, settings, arrivalProgress) {
   context.save()
   context.globalAlpha = 0.22 + settle * 0.78
   drawEnemy(context, { ...enemy, y: enemy.y - dropOffset }, elapsed, settings)
-
-  if (!settings.reducedMotion && settle < 1) {
-    context.globalAlpha = 0.08 + (1 - settle) * 0.18
-    drawEnemy(context, { ...enemy, y: enemy.y - dropOffset - 26 }, elapsed, settings)
-  }
-
   context.restore()
 }
 
@@ -408,7 +402,7 @@ function drawEffects(context, state) {
 
 function drawOverlay(context, state, desktopMode) {
   const settingsOpen = state.settingsOpen
-  const formationLockOverlay = !settingsOpen && state.started && state.running && !state.paused && state.waveLockTimer > 0
+  const formationLockOverlay = false
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused && !formationLockOverlay) return
   const pausedMenu = !settingsOpen && state.paused && state.running
   const mobilePauseMenu = !desktopMode && pausedMenu
@@ -653,38 +647,6 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = 'rgba(255, 196, 144, 0.86)'
     context.font = desktopMode ? '600 18px monospace' : '600 28px monospace'
     context.fillText((state.intermission?.levelSubtitle ?? 'INCOMING HOSTILE FLEET').toUpperCase(), WORLD.width / 2, desktopMode ? 864 : 944)
-    context.textAlign = 'left'
-    context.restore()
-    return
-  }
-
-  if (formationLockOverlay) {
-    const lockProgress = state.waveLockDuration > 0 ? state.waveLockTimer / state.waveLockDuration : 0
-    const lockAlpha = Math.min(1, 0.45 + lockProgress * 0.55)
-
-    context.save()
-    context.globalAlpha = lockAlpha
-    context.textAlign = 'center'
-
-    const lockGlow = context.createRadialGradient(WORLD.width / 2, desktopMode ? 742 : 812, 16, WORLD.width / 2, desktopMode ? 742 : 812, desktopMode ? 180 : 220)
-    lockGlow.addColorStop(0, 'rgba(140, 247, 255, 0.12)')
-    lockGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
-    context.fillStyle = lockGlow
-    context.fillRect(220, desktopMode ? 660 : 724, WORLD.width - 440, 180)
-
-    context.strokeStyle = `rgba(140, 247, 255, ${0.18 + lockProgress * 0.12})`
-    context.lineWidth = 2
-    context.beginPath()
-    context.moveTo(300, desktopMode ? 706 : 772)
-    context.lineTo(WORLD.width - 300, desktopMode ? 706 : 772)
-    context.stroke()
-
-    context.fillStyle = `rgba(238,252,255,${0.82 + lockProgress * 0.1})`
-    context.shadowColor = PALETTE.cyan
-    context.shadowBlur = 12
-    context.font = desktopMode ? '700 20px monospace' : '700 28px monospace'
-    context.fillText('FORMATION LOCKED', WORLD.width / 2, desktopMode ? 748 : 818)
-    context.shadowBlur = 0
     context.textAlign = 'left'
     context.restore()
     return

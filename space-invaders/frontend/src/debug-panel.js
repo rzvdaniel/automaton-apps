@@ -3,6 +3,7 @@ export function setupDebugPanel({ game, root }) {
   const debugForm = root.querySelector('.debug-form')
   const debugLevelInput = root.querySelector('#debug-level')
   const debugWaveInput = root.querySelector('#debug-wave')
+  const debugLivesInput = root.querySelector('#debug-lives')
   const debugCancel = root.querySelector('.debug-cancel')
 
   function populateLevelOptions() {
@@ -28,8 +29,9 @@ export function setupDebugPanel({ game, root }) {
     event.preventDefault()
     const level = Number(debugLevelInput.value || 1)
     const waveInLevel = Number(debugWaveInput.value || 1)
+    const lives = Number(debugLivesInput.value || 3)
     closeDebugDialog(false)
-    game.startAtLevel(level, waveInLevel)
+    game.startAtLevel(level, waveInLevel, lives)
   })
 
   debugCancel.addEventListener('click', () => {
@@ -50,6 +52,7 @@ export function setupDebugPanel({ game, root }) {
         const progression = game.getProgression()
         debugLevelInput.value = String(Math.max(1, progression.level))
         debugWaveInput.value = String(Math.max(1, progression.waveInLevel))
+        debugLivesInput.value = String(Math.max(1, game.getLives()))
         openDebugDialog()
       }
     }

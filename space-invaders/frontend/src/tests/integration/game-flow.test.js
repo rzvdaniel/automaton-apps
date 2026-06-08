@@ -3,7 +3,7 @@ import { createInitialState } from '../../game/GameState.js'
 import { ScoreManager } from '../../systems/ScoreManager.js'
 import { getWaveConfig } from '../../systems/WaveManager.js'
 import { intersects, rectFromCenter } from '../../systems/CollisionSystem.js'
-import { LEVEL_DEFINITIONS, getLevelProgression } from '../../content/levels.js'
+import { LEVEL_DEFINITIONS, getAbsoluteWave, getLevelProgression } from '../../content/levels.js'
 import { ENEMY_DEFINITIONS } from '../../content/enemies.js'
 
 beforeEach(() => {
@@ -76,6 +76,12 @@ describe('Game flow integration', () => {
     expect(getLevelProgression(1)).toEqual({ wave: 1, level: 1, waveInLevel: 1 })
     expect(getLevelProgression(5)).toEqual({ wave: 5, level: 1, waveInLevel: 5 })
     expect(getLevelProgression(6)).toEqual({ wave: 6, level: 2, waveInLevel: 1 })
+  })
+
+  it('maps level and wave-in-level back to an absolute wave', () => {
+    expect(getAbsoluteWave(1, 5)).toBe(5)
+    expect(getAbsoluteWave(2, 1)).toBe(6)
+    expect(getAbsoluteWave(3, 1)).toBe(11)
   })
 
   it('loading a level definition sets background id', () => {
