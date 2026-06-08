@@ -10,7 +10,7 @@ export const BACKGROUND_DEFINITIONS = [
   {
     id: 'broken-orbit',
     name: 'Broken Orbit',
-    imageSrc: './images/planet-cinematic-bg.png',
+    imageSrc: './images/broken-orbit-bg.png',
     parallaxLayers: [],
     tint: null,
     glowColor: 'rgba(134, 180, 255, 0.1)'

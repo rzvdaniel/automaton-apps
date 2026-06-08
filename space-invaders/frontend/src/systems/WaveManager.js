@@ -72,6 +72,8 @@ export class WaveManager {
     state.waveArrivalCuePending = isIntermissionWave
     state.waveLockDuration = isIntermissionWave ? Math.max(0.18, 0.28 - wave * 0.008) : 0
     state.waveLockTimer = 0
+    state.divingAttackCooldown = 0
+    state.divingAttackTimer = 0
     state.bullets = []
     state.enemies = []
     state.enemyBullets = []
@@ -89,6 +91,10 @@ export class WaveManager {
           rank,
           palette: levelDefinition.enemyPalette?.[rank] ?? null,
           alive: true,
+          diving: false,
+          diveWarning: 0,
+          diveVx: 0,
+          diveVy: 0,
           phase: Math.random() * Math.PI * 2,
           arrivalDelay: row * 0.06 + col * 0.012
         })

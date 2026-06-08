@@ -1,8 +1,16 @@
 export function setupDebugPanel({ game, root }) {
   const debugDialog = root.querySelector('.debug-dialog')
   const debugForm = root.querySelector('.debug-form')
+  const debugLevelInput = root.querySelector('#debug-level')
   const debugWaveInput = root.querySelector('#debug-wave')
   const debugCancel = root.querySelector('.debug-cancel')
+
+  function populateLevelOptions() {
+    const levels = game.getAvailableLevels()
+    debugLevelInput.innerHTML = levels
+      .map((level) => `<option value="${level.id}">Level ${level.id} - ${level.name}</option>`)
+      .join('')
+  }
 
   function closeDebugDialog(resumeGame = true) {
     if (!debugDialog.open) return
@@ -12,15 +20,16 @@ export function setupDebugPanel({ game, root }) {
 
   function openDebugDialog() {
     game.setPaused(true)
-    debugWaveInput.focus()
+    debugLevelInput.focus()
     debugDialog.showModal()
   }
 
   debugForm.addEventListener('submit', (event) => {
     event.preventDefault()
-    const wave = Number(debugWaveInput.value || 1)
+    const level = Number(debugLevelInput.value || 1)
+    const waveInLevel = Number(debugWaveInput.value || 1)
     closeDebugDialog(false)
-    game.startAtWave(wave)
+    game.startAtLevel(level, waveInLevel)
   })
 
   debugCancel.addEventListener('click', () => {
@@ -38,9 +47,13 @@ export function setupDebugPanel({ game, root }) {
       if (debugDialog.open) {
         closeDebugDialog(true)
       } else {
-        debugWaveInput.value = String(Math.max(1, game.getWave()))
+        const progression = game.getProgression()
+        debugLevelInput.value = String(Math.max(1, progression.level))
+        debugWaveInput.value = String(Math.max(1, progression.waveInLevel))
         openDebugDialog()
       }
     }
   })
+
+  populateLevelOptions()
 }

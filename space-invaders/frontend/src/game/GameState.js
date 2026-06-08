@@ -28,6 +28,8 @@ export function createInitialState({ settings, backgroundImage = null, backgroun
     waveArrivalCuePending: false,
     waveLockTimer: 0,
     waveLockDuration: 0,
+    divingAttackCooldown: 0,
+    divingAttackTimer: 0,
     ufo: null,
     particles: [],
     bullets: [],

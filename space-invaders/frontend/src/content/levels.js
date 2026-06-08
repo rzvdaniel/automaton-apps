@@ -27,7 +27,8 @@ export const LEVEL_DEFINITIONS = [
       wavesPerLevel: WAVES_PER_LEVEL
     },
     musicTheme: null,
-    difficultyModifiers: {}
+    difficultyModifiers: {},
+    mechanics: {}
   },
   {
     id: 2,
@@ -55,6 +56,17 @@ export const LEVEL_DEFINITIONS = [
     musicTheme: null,
     difficultyModifiers: {
       enemyFireRateMultiplier: 1.08
+    },
+    mechanics: {
+      divingAliens: {
+        enabled: true,
+        maxActive: 1,
+        minInterval: 2.8,
+        chancePerSecond: 0.45,
+        warningDuration: 0.35,
+        speed: 430,
+        horizontalTracking: 0.65
+      }
     }
   },
   {
@@ -84,6 +96,17 @@ export const LEVEL_DEFINITIONS = [
     difficultyModifiers: {
       enemyFireRateMultiplier: 1.14,
       enemyBulletSpeedBonus: 20
+    },
+    mechanics: {
+      divingAliens: {
+        enabled: true,
+        maxActive: 2,
+        minInterval: 2.4,
+        chancePerSecond: 0.55,
+        warningDuration: 0.3,
+        speed: 470,
+        horizontalTracking: 0.75
+      }
     }
   }
 ]

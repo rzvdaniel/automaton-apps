@@ -6,6 +6,7 @@ import { InputController } from '../input/InputController.js'
 import { Renderer } from '../rendering/Renderer.js'
 import { loadSettings, saveSettings } from '../settings.js'
 import { rectFromCenter, rectFromTopLeft, intersects } from '../systems/CollisionSystem.js'
+import { getFormationEnemies, updateDivingAliens } from '../systems/DivingAliensSystem.js'
 import { ProjectileManager } from '../systems/ProjectileManager.js'
 import { ScoreManager } from '../systems/ScoreManager.js'
 import { WaveManager } from '../systems/WaveManager.js'
@@ -13,6 +14,7 @@ import { UfoEncounter } from '../ufo-encounter.js'
 import { GameLoop } from './GameLoop.js'
 import { createInitialState } from './GameState.js'
 import { getBackgroundDefinition, getLevelDefinition, getLevelProgression } from '../content/levels.js'
+import { LEVEL_DEFINITIONS, WAVES_PER_LEVEL } from '../content/levels.js'
 
 function random(min, max) {
   return min + Math.random() * (max - min)
@@ -244,6 +246,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.waveArrivalCuePending = false
     state.waveLockTimer = 0
     state.waveLockDuration = 0
+    state.divingAttackCooldown = 0
+    state.divingAttackTimer = 0
     state.bullets = []
     state.enemyBullets = []
     state.enemies = []
@@ -289,6 +293,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.waveArrivalCuePending = false
     state.waveLockTimer = 0
     state.waveLockDuration = 0
+    state.divingAttackCooldown = 0
+    state.divingAttackTimer = 0
     state.shake.power = 0
     state.shake.duration = 0
     state.shake.cooldown = 0
@@ -518,18 +524,20 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     syncProjectilesToState()
 
     const aliveEnemies = state.enemies.filter((enemy) => enemy.alive)
+    updateDivingAliens(state, dt)
+    const formationEnemies = getFormationEnemies(aliveEnemies)
     const totalEnemies = state.enemies.length || 1
     const aliveRatio = aliveEnemies.length / totalEnemies
     const speedBoost = 1 + (1 - aliveRatio) * state.killSpeedBoost
     const currentStepInterval = Math.max(0.08, state.enemyStepInterval / speedBoost)
     state.enemyStepTimer += dt
 
-    while (state.enemyStepTimer >= currentStepInterval && aliveEnemies.length > 0) {
+    while (state.enemyStepTimer >= currentStepInterval && formationEnemies.length > 0) {
       state.enemyStepTimer -= currentStepInterval
 
       let leftEdge = Infinity
       let rightEdge = -Infinity
-      for (const enemy of aliveEnemies) {
+      for (const enemy of formationEnemies) {
         leftEdge = Math.min(leftEdge, enemy.x)
         rightEdge = Math.max(rightEdge, enemy.x + enemy.width)
       }
@@ -540,19 +548,19 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
       if (hitWall) {
         state.enemyDirection *= -1
-        for (const enemy of aliveEnemies) {
+        for (const enemy of formationEnemies) {
           enemy.y += state.enemyDrop
         }
       } else {
-        for (const enemy of aliveEnemies) {
+        for (const enemy of formationEnemies) {
           enemy.x += state.enemyDirection * state.enemyHorizontalStep
         }
       }
     }
 
-    if (aliveEnemies.length && Math.random() < dt * state.enemyFireRate) {
+    if (formationEnemies.length && Math.random() < dt * state.enemyFireRate) {
       const columns = new Map()
-      for (const enemy of aliveEnemies) {
+      for (const enemy of formationEnemies) {
         const key = Math.round(enemy.x / 12)
         const current = columns.get(key)
         if (!current || enemy.y > current.y) columns.set(key, enemy)
@@ -692,6 +700,12 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     startAtWave(wave) {
       resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))
     },
+    startAtLevel(level, waveInLevel = 1) {
+      const safeLevel = clamp(Math.floor(level) || 1, 1, LEVEL_DEFINITIONS.length)
+      const safeWaveInLevel = clamp(Math.floor(waveInLevel) || 1, 1, WAVES_PER_LEVEL)
+      const absoluteWave = (safeLevel - 1) * WAVES_PER_LEVEL + safeWaveInLevel
+      resetGameToWave(absoluteWave)
+    },
     setPaused,
     getSettings() {
       return { ...state.settings }
@@ -710,6 +724,16 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     },
     getWave() {
       return state.wave
+    },
+    getProgression() {
+      return {
+        wave: state.wave,
+        level: state.level,
+        waveInLevel: state.waveInLevel
+      }
+    },
+    getAvailableLevels() {
+      return LEVEL_DEFINITIONS.map((level) => ({ id: level.id, name: level.name }))
     },
     getViewport() {
       return {

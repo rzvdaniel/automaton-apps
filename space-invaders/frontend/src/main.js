@@ -32,9 +32,11 @@ app.innerHTML = `
     </div>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
-        <div class="debug-title">Debug Wave</div>
-        <label class="debug-label" for="debug-wave">Start from wave</label>
-        <input class="debug-input" id="debug-wave" name="wave" type="number" min="1" max="99" step="1" value="1" />
+        <div class="debug-title">Debug Start</div>
+        <label class="debug-label" for="debug-level">Start from level</label>
+        <select class="debug-input" id="debug-level" name="level"></select>
+        <label class="debug-label" for="debug-wave">Wave in level</label>
+        <input class="debug-input" id="debug-wave" name="wave" type="number" min="1" max="5" step="1" value="1" />
         <div class="debug-actions">
           <button class="overlay-button debug-cancel" type="button">Cancel</button>
           <button class="overlay-button debug-start" type="submit">Start</button>

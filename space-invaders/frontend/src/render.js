@@ -278,13 +278,25 @@ function drawShip(context, state, elapsed) {
 
 function drawEnemy(context, enemy, elapsed, settings) {
   const pixelSize = Math.max(1, Math.round(enemy.width / 8))
+  const warningPulse = enemy.diveWarning > 0 ? 0.55 + ((Math.sin(elapsed * 28) + 1) / 2) * 0.45 : 1
   const bob = Math.sin(elapsed * 5 + enemy.phase) * (settings.reducedMotion ? 1 : 2.5)
-  const x = enemy.x
+  const x = enemy.x + (enemy.diveWarning > 0 && !settings.reducedMotion ? Math.sin(elapsed * 44 + enemy.phase) * 3.5 : 0)
   const y = enemy.y + bob
   const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
   const color = enemy.palette?.color ?? (enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2')
   const glow = enemy.palette?.glow ?? (enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)')
+  context.save()
+  context.globalAlpha = warningPulse
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
+  if (enemy.diveWarning > 0) {
+    context.globalAlpha = 0.22 + ((Math.sin(elapsed * 24) + 1) / 2) * 0.12
+    context.shadowColor = PALETTE.white
+    context.shadowBlur = 24
+    context.strokeStyle = PALETTE.white
+    context.lineWidth = 2
+    context.strokeRect(x - 8, y - 8, enemy.width + 16, enemy.height + 16)
+  }
+  context.restore()
 }
 
 function drawUfo(context, ufo, elapsed, settings) {
