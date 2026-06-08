@@ -17,12 +17,12 @@ function getNormalizedVector(dx, dy) {
 }
 
 export function createBoss(config = {}) {
-  const targetWidth = WORLD.width * 0.6
+  const targetWidth = WORLD.width * 0.72
   return {
     active: true,
     x: WORLD.width / 2,
     y: -240,
-    targetY: 548,
+    targetY: 640,
     width: targetWidth,
     height: targetWidth * 0.32,
     hp: config.hp ?? 30,
