@@ -12,6 +12,7 @@ import { WaveManager } from '../systems/WaveManager.js'
 import { UfoEncounter } from '../ufo-encounter.js'
 import { GameLoop } from './GameLoop.js'
 import { createInitialState } from './GameState.js'
+import { getBackgroundDefinition, getLevelDefinition, getLevelProgression } from '../content/levels.js'
 
 function random(min, max) {
   return min + Math.random() * (max - min)
@@ -77,11 +78,11 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const backgroundEffects = createBackgroundEffects()
   const ufoEncounter = new UfoEncounter({ audio })
   const backgroundImage = new Image()
-  backgroundImage.src = './images/planet-cinematic-bg.png'
   const settings = loadSettings()
   const defaultPlayerY = WORLD.height - 236
 
   const state = createInitialState({ settings, backgroundImage, backgroundEffects })
+  backgroundImage.src = state.backgroundDefinition.imageSrc
   state.highScore = Number(localStorage.getItem(STORAGE_KEYS.highScore) || 0)
   state.muted = localStorage.getItem(STORAGE_KEYS.muted) === '1'
   state.desktopMode = !isMobileViewport()
@@ -212,6 +213,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   function spawnWave(wave, { fromWave = null } = {}) {
     waveManager.spawnWave(wave, state, { fromWave, isShortViewport: isShortViewport() })
+    if (state.backgroundDefinition?.imageSrc && backgroundImage.src !== state.backgroundDefinition.imageSrc) {
+      backgroundImage.src = state.backgroundDefinition.imageSrc
+    }
     // After spawnWave replaces state.bullets/enemyBullets, sync projectileManager arrays
     projectileManager.playerBullets = state.bullets
     projectileManager.enemyBullets = state.enemyBullets
@@ -227,6 +231,10 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.paused = false
     state.score = 0
     state.wave = 1
+    state.waveInLevel = 1
+    state.level = 1
+    state.levelDefinition = getLevelDefinition(1)
+    state.backgroundDefinition = getBackgroundDefinition(state.levelDefinition.backgroundId)
     state.flash = 0
     state.message = 'INSERT COIN'
     state.overlayTimer = 999
@@ -268,7 +276,12 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.running = true
     state.paused = false
     state.score = 0
-    state.wave = startWave
+    const progression = getLevelProgression(startWave)
+    state.wave = progression.wave
+    state.waveInLevel = progression.waveInLevel
+    state.level = progression.level
+    state.levelDefinition = getLevelDefinition(progression.level)
+    state.backgroundDefinition = getBackgroundDefinition(state.levelDefinition.backgroundId)
     state.flash = 0
     state.intermission = null
     state.waveArrivalTimer = 0
@@ -316,7 +329,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     if (!state.started || !state.running) return
     state.paused = value
     updatePauseButton()
-    state.message = value ? 'PAUSED' : `WAVE ${state.wave}`
+    state.message = value ? 'PAUSED' : `LEVEL ${state.level}  WAVE ${state.waveInLevel}`
     state.overlayTimer = value ? 999 : 0
     syncShellState()
   }

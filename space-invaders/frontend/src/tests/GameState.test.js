@@ -34,6 +34,8 @@ describe('GameState', () => {
   it('starts on wave 1', () => {
     const state = createInitialState()
     expect(state.wave).toBe(1)
+    expect(state.level).toBe(1)
+    expect(state.waveInLevel).toBe(1)
   })
 
   it('starts with INSERT COIN message', () => {

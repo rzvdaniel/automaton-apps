@@ -1,6 +1,9 @@
 import { STORAGE_KEYS, WORLD } from '../config.js'
+import { getBackgroundDefinition, getLevelDefinition } from '../content/levels.js'
 
 export function createInitialState({ settings, backgroundImage = null, backgroundEffects = null } = {}) {
+  const levelDefinition = getLevelDefinition(1)
+  const backgroundDefinition = getBackgroundDefinition(levelDefinition.backgroundId)
   return {
     scale: 1,
     offsetX: 0,
@@ -11,6 +14,10 @@ export function createInitialState({ settings, backgroundImage = null, backgroun
     paused: false,
     score: 0,
     wave: 1,
+    waveInLevel: 1,
+    level: 1,
+    levelDefinition,
+    backgroundDefinition,
     highScore: Number((typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEYS.highScore)) || 0),
     muted: typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEYS.muted) === '1',
     overlayTimer: 999,

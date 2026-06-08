@@ -79,6 +79,8 @@ function drawBackground(context, state) {
   state.backgroundEffects.renderBehindImage(context)
 
   if (state.backgroundImage?.complete) {
+    const levelTint = state.backgroundDefinition?.tint
+    const glowColor = state.backgroundDefinition?.glowColor ?? 'rgba(120, 220, 255, 0.1)'
     const image = state.backgroundImage
     const blurSetting = state.settings.backgroundBlur ?? 'low'
     const blurAmount = blurSetting === 'off' ? 0 : blurSetting === 'normal' ? 1.25 : 0.6
@@ -102,6 +104,13 @@ function drawBackground(context, state) {
     context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, WORLD.width, WORLD.height)
     context.restore()
 
+    if (levelTint) {
+      context.save()
+      context.fillStyle = levelTint
+      context.fillRect(0, 0, WORLD.width, WORLD.height)
+      context.restore()
+    }
+
     context.save()
     const rimGlow = context.createRadialGradient(
       WORLD.width * 0.55,
@@ -112,8 +121,8 @@ function drawBackground(context, state) {
       WORLD.width * 0.34
     )
     rimGlow.addColorStop(0, 'rgba(120, 220, 255, 0)')
-    rimGlow.addColorStop(0.72, 'rgba(120, 220, 255, 0.04)')
-    rimGlow.addColorStop(1, 'rgba(120, 220, 255, 0.1)')
+    rimGlow.addColorStop(0.72, glowColor.replace(/0?\.\d+\)$/, '0.04)'))
+    rimGlow.addColorStop(1, glowColor)
     context.fillStyle = rimGlow
     context.fillRect(0, 0, WORLD.width, WORLD.height)
     context.restore()
@@ -150,8 +159,9 @@ function drawHud(context, state, desktopMode) {
 
   const columns = [
     { label: 'SCORE', value: String(state.score).padStart(6, '0'), x: 44 },
-    { label: 'WAVE', value: String(state.wave).padStart(2, '0'), x: compactHud ? 270 : 266 },
-    { label: 'LIVES', value: String(state.player.lives), x: compactHud ? 500 : 506 }
+    { label: 'LEVEL', value: String(state.level).padStart(2, '0'), x: compactHud ? 252 : 248 },
+    { label: 'WAVE', value: String(state.waveInLevel).padStart(2, '0'), x: compactHud ? 446 : 452 },
+    { label: 'LIVES', value: String(state.player.lives), x: compactHud ? 642 : 652 }
   ]
 
   context.textAlign = 'left'
@@ -272,8 +282,8 @@ function drawEnemy(context, enemy, elapsed, settings) {
   const x = enemy.x
   const y = enemy.y + bob
   const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
-  const color = enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2'
-  const glow = enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)'
+  const color = enemy.palette?.color ?? (enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2')
+  const glow = enemy.palette?.glow ?? (enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)')
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
 }
 
@@ -565,7 +575,7 @@ function drawOverlay(context, state, desktopMode) {
 
     context.fillStyle = 'rgba(238,252,255,0.78)'
     context.font = desktopMode ? '600 22px monospace' : '600 28px monospace'
-    context.fillText(`WAVE ${String(state.wave).padStart(2, '0')}   SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, panelY + (desktopMode ? 224 : 258))
+    context.fillText(`LEVEL ${String(state.level).padStart(2, '0')}  WAVE ${String(state.waveInLevel).padStart(2, '0')}  SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, panelY + (desktopMode ? 224 : 258))
     context.fillStyle = 'rgba(255, 180, 190, 0.86)'
     context.font = desktopMode ? '600 18px monospace' : '600 24px monospace'
     context.fillText('PILOT OFFLINE   SHIP DESTROYED', WORLD.width / 2, panelY + (desktopMode ? 266 : 306))
@@ -579,8 +589,9 @@ function drawOverlay(context, state, desktopMode) {
 
   if (intermissionOverlay) {
     const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
-    const incomingWave = state.intermission?.toWave ?? state.wave
+    const incomingWave = state.intermission?.waveInLevel ?? state.waveInLevel
     const clearedWave = state.intermission?.fromWave
+    const clearedProgress = clearedWave ? state.intermission?.isLevelTransition ? 5 : ((clearedWave - 1) % 5) + 1 : null
     const fadeWindow = 0.22
     const fadeProgress = Math.min(1, state.overlayTimer / fadeWindow)
     const fadeAlpha = fadeProgress * fadeProgress * (3 - 2 * fadeProgress)
@@ -597,7 +608,7 @@ function drawOverlay(context, state, desktopMode) {
 
     context.fillStyle = `rgba(140,247,255,${transitionPulse})`
     context.font = desktopMode ? '700 22px monospace' : '700 34px monospace'
-    context.fillText(clearedWave ? 'SECTOR CLEARED' : 'HOSTILE FLEET DETECTED', WORLD.width / 2, desktopMode ? 618 : 670)
+    context.fillText(state.intermission?.isLevelTransition ? 'LEVEL ADVANCE' : clearedWave ? 'SECTOR CLEARED' : 'HOSTILE FLEET DETECTED', WORLD.width / 2, desktopMode ? 618 : 670)
 
     context.strokeStyle = `rgba(140, 247, 255, ${0.12 + transitionPulse * 0.18})`
     context.lineWidth = 2
@@ -610,16 +621,26 @@ function drawOverlay(context, state, desktopMode) {
     context.shadowColor = PALETTE.cyan
     context.shadowBlur = 18
     context.font = desktopMode ? '900 60px "Arial Black", Impact, sans-serif' : '900 84px "Arial Black", Impact, sans-serif'
-    context.fillText(`WAVE ${String(incomingWave).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 728 : 794)
+    context.fillText(`LEVEL ${String(state.intermission?.level ?? state.level).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 704 : 764)
+    context.font = desktopMode ? '900 50px "Arial Black", Impact, sans-serif' : '900 70px "Arial Black", Impact, sans-serif'
+    context.fillText(`WAVE ${String(incomingWave).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 768 : 836)
     context.shadowBlur = 0
 
     context.fillStyle = 'rgba(238,252,255,0.82)'
     context.font = desktopMode ? '600 20px monospace' : '600 30px monospace'
-    context.fillText(clearedWave ? `WAVE ${String(clearedWave).padStart(2, '0')} COMPLETE` : 'TACTICAL SYSTEMS ONLINE', WORLD.width / 2, desktopMode ? 780 : 854)
+    context.fillText(
+      state.intermission?.isLevelTransition
+        ? (state.intermission?.levelName ?? 'NEW SECTOR').toUpperCase()
+        : clearedProgress
+          ? `WAVE ${String(clearedProgress).padStart(2, '0')} COMPLETE`
+          : 'TACTICAL SYSTEMS ONLINE',
+      WORLD.width / 2,
+      desktopMode ? 826 : 896
+    )
 
     context.fillStyle = 'rgba(255, 196, 144, 0.86)'
     context.font = desktopMode ? '600 18px monospace' : '600 28px monospace'
-    context.fillText('INCOMING HOSTILE FLEET', WORLD.width / 2, desktopMode ? 822 : 902)
+    context.fillText((state.intermission?.levelSubtitle ?? 'INCOMING HOSTILE FLEET').toUpperCase(), WORLD.width / 2, desktopMode ? 864 : 944)
     context.textAlign = 'left'
     context.restore()
     return

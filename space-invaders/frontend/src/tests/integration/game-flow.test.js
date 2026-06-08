@@ -3,7 +3,7 @@ import { createInitialState } from '../../game/GameState.js'
 import { ScoreManager } from '../../systems/ScoreManager.js'
 import { getWaveConfig } from '../../systems/WaveManager.js'
 import { intersects, rectFromCenter } from '../../systems/CollisionSystem.js'
-import { LEVEL_DEFINITIONS } from '../../content/levels.js'
+import { LEVEL_DEFINITIONS, getLevelProgression } from '../../content/levels.js'
 import { ENEMY_DEFINITIONS } from '../../content/enemies.js'
 
 beforeEach(() => {
@@ -72,10 +72,16 @@ describe('Game flow integration', () => {
     expect(config.columns).toBeGreaterThanOrEqual(6)
   })
 
+  it('maps absolute waves to five-wave levels', () => {
+    expect(getLevelProgression(1)).toEqual({ wave: 1, level: 1, waveInLevel: 1 })
+    expect(getLevelProgression(5)).toEqual({ wave: 5, level: 1, waveInLevel: 5 })
+    expect(getLevelProgression(6)).toEqual({ wave: 6, level: 2, waveInLevel: 1 })
+  })
+
   it('loading a level definition sets background id', () => {
     const level = LEVEL_DEFINITIONS[0]
     expect(level.backgroundId).toBe('planet-cinematic')
-    expect(level.name).toBe('Space Invaders')
+    expect(level.name).toBe('Red Planet')
   })
 
   it('enemy type stats from definitions are applied correctly', () => {
