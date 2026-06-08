@@ -84,6 +84,10 @@ describe('Game flow integration', () => {
     expect(getAbsoluteWave(3, 1)).toBe(11)
   })
 
+  it('advances level 2 wave 3 to level 2 wave 4, not level 3', () => {
+    expect(getLevelProgression(getAbsoluteWave(2, 3) + 1)).toEqual({ wave: 9, level: 2, waveInLevel: 4 })
+  })
+
   it('loading a level definition sets background id', () => {
     const level = LEVEL_DEFINITIONS[0]
     expect(level.backgroundId).toBe('planet-cinematic')

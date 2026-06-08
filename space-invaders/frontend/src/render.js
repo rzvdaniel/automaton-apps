@@ -598,6 +598,7 @@ function drawOverlay(context, state, desktopMode) {
     const incomingWave = state.intermission?.waveInLevel ?? state.waveInLevel
     const clearedWave = state.intermission?.fromWave
     const clearedProgress = clearedWave ? state.intermission?.isLevelTransition ? 5 : ((clearedWave - 1) % 5) + 1 : null
+    const completedLevel = state.intermission?.completedLevel
     const fadeWindow = 0.22
     const fadeProgress = Math.min(1, state.overlayTimer / fadeWindow)
     const fadeAlpha = fadeProgress * fadeProgress * (3 - 2 * fadeProgress)
@@ -612,9 +613,17 @@ function drawOverlay(context, state, desktopMode) {
     context.fillStyle = softGlow
     context.fillRect(120, 470, WORLD.width - 240, 480)
 
-    context.fillStyle = `rgba(140,247,255,${transitionPulse})`
+    context.fillStyle = state.intermission?.isLevelTransition ? `rgba(255, 214, 156, ${transitionPulse})` : `rgba(140,247,255,${transitionPulse})`
     context.font = desktopMode ? '700 22px monospace' : '700 34px monospace'
-    context.fillText(state.intermission?.isLevelTransition ? 'LEVEL ADVANCE' : clearedWave ? 'SECTOR CLEARED' : 'HOSTILE FLEET DETECTED', WORLD.width / 2, desktopMode ? 618 : 670)
+    context.fillText(
+      state.intermission?.isLevelTransition
+        ? `LEVEL ${String(completedLevel ?? 0).padStart(2, '0')} COMPLETE`
+        : clearedWave
+          ? 'SECTOR CLEARED'
+          : 'HOSTILE FLEET DETECTED',
+      WORLD.width / 2,
+      desktopMode ? 618 : 670
+    )
 
     context.strokeStyle = `rgba(140, 247, 255, ${0.12 + transitionPulse * 0.18})`
     context.lineWidth = 2

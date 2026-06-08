@@ -48,6 +48,8 @@ export class WaveManager {
     const isIntermissionWave = wave > 1 || fromWave !== null
     const fromProgression = fromWave === null ? null : getLevelProgression(fromWave)
     const isLevelTransition = !fromProgression || fromProgression.level !== progression.level
+    const baseOverlayDuration = wave === 1 ? 1.05 : Math.max(1.8, 2.2 - wave * 0.05)
+    const baseArrivalDuration = isIntermissionWave ? Math.max(0.45, 0.72 - wave * 0.015) : 0
 
     state.wave = wave
     state.waveInLevel = progression.waveInLevel
@@ -55,22 +57,23 @@ export class WaveManager {
     state.levelDefinition = levelDefinition
     state.backgroundDefinition = backgroundDefinition
     state.message = wave === 1 ? 'READY' : `LEVEL ${progression.level}  WAVE ${progression.waveInLevel}`
-    state.overlayTimer = immediateStart ? 0 : wave === 1 ? 1.05 : Math.max(1.8, 2.2 - wave * 0.05)
+    state.overlayTimer = immediateStart ? 0 : isLevelTransition ? 4.25 : baseOverlayDuration
     state.intermission = immediateStart
       ? null
       : {
           fromWave,
           toWave: wave,
+          completedLevel: fromProgression?.level ?? null,
           level: progression.level,
           waveInLevel: progression.waveInLevel,
           levelName: levelDefinition.name,
           levelSubtitle: levelDefinition.subtitle,
           isLevelTransition
         }
-    state.waveArrivalDuration = isIntermissionWave ? Math.max(0.45, 0.72 - wave * 0.015) : 0
+    state.waveArrivalDuration = isLevelTransition ? 1.15 : baseArrivalDuration
     state.waveArrivalTimer = state.waveArrivalDuration
     state.waveArrivalCuePending = isIntermissionWave
-    state.waveLockDuration = isIntermissionWave ? Math.max(0.18, 0.28 - wave * 0.008) : 0
+    state.waveLockDuration = isLevelTransition ? 0.36 : (isIntermissionWave ? Math.max(0.18, 0.28 - wave * 0.008) : 0)
     state.waveLockTimer = 0
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
