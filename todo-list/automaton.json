@@ -1,7 +1,7 @@
 {
-  "appId": "ff5d070e-fd09-4296-bfe0-39fb723cfdcb",
+  "appId": "9b666da5-7c25-4e90-a995-61c8f59e4249",
   "name": "todo-list",
-  "server": "https://localhost:7091",
+  "server": "https://api.automaton.monster",
   "frontend": {
     "build": "cd frontend \u0026\u0026 npm install \u0026\u0026 npm run build",
     "deployDir": "frontend/dist"

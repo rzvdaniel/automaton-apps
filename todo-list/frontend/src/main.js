@@ -2,7 +2,7 @@ import './styles.css'
 
 const state = {
   items: [],
-  mode: window.automatonApi?.callController ? 'backend' : 'local fallback',
+  mode: window.automatonApi?.callController ? 'SQLite backend' : 'browser fallback',
 }
 
 const storageKey = 'automaton.todo-list.dev'
@@ -77,6 +77,12 @@ function setStatus(message, type = 'info') {
   statusBanner.dataset.type = type
 }
 
+function getModeMessage() {
+  return state.mode === 'SQLite backend'
+    ? 'Connected to the Automaton SQLite backend.'
+    : 'Running in browser fallback mode until the backend is available.'
+}
+
 function render() {
   todoList.innerHTML = ''
 
@@ -112,7 +118,7 @@ async function loadTodos() {
   try {
     const data = await api.callController('todos', 'list', {})
     state.items = data.items
-    setStatus(`Running in ${state.mode} mode.`)
+    setStatus(getModeMessage())
     render()
   } catch (error) {
     setStatus(error.message, 'error')
@@ -123,7 +129,7 @@ async function runAction(action, inputs) {
   try {
     const data = await api.callController('todos', action, inputs)
     state.items = data.items
-    setStatus(`Running in ${state.mode} mode.`)
+    setStatus(getModeMessage())
     render()
   } catch (error) {
     setStatus(error.message, 'error')

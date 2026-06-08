@@ -1,9 +1,0 @@
-{
-  "appId": "c3ecae7e-d03f-4f07-a358-578df06dfeae",
-  "name": "ISS Tracker",
-  "server": "https://api.automaton.monster",
-  "frontend": {
-    "build": "cd frontend && npm install && npm run build",
-    "deployDir": "frontend/dist"
-  }
-}
