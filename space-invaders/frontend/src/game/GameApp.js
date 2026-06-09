@@ -36,6 +36,19 @@ function isShortViewport() {
   return window.matchMedia('(max-height: 700px)').matches
 }
 
+function getEnemyScore(enemy) {
+  if (enemy.rank === 'commander') return 90
+  if (enemy.rank === 'elite') return 50
+  if (enemy.rank === 'mid') return 30
+  return 15
+}
+
+function getEnemyExplosionColor(enemy) {
+  if (enemy.rank === 'commander' || enemy.rank === 'elite') return PALETTE.magenta
+  if (enemy.rank === 'mid') return PALETTE.amber
+  return PALETTE.cyan
+}
+
 function getCompositionProfile(rect) {
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
@@ -105,7 +118,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const scoreManager = new ScoreManager(state.highScore)
   const renderer = new Renderer(context, canvas)
 
-  // Keep state.bullets and state.enemyBullets in sync with projectileManager
   function syncProjectilesToState() {
     state.bullets = projectileManager.playerBullets
     state.enemyBullets = projectileManager.enemyBullets
@@ -229,7 +241,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     if (state.backgroundDefinition?.imageSrc && backgroundImage.src !== state.backgroundDefinition.imageSrc) {
       backgroundImage.src = state.backgroundDefinition.imageSrc
     }
-    // After spawnWave replaces state.bullets/enemyBullets, sync projectileManager arrays
     projectileManager.playerBullets = state.bullets
     projectileManager.enemyBullets = state.enemyBullets
   }
@@ -314,29 +325,34 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.divingAttackTimer = 0
     state.boss = null
     state.victory = false
-    state.shake.power = 0
-    state.shake.duration = 0
-    state.shake.cooldown = 0
     state.bullets = []
     state.enemyBullets = []
+    state.enemies = []
     state.ufo = null
     state.particles = []
     state.enemyStepTimer = 0
-    ufoEncounter.reset(startWave, state.levelDefinition?.mechanics?.aggressiveUfo ?? null)
     projectileManager.clear()
     syncProjectilesToState()
     state.player.x = WORLD.width / 2
     syncPlayerVerticalPosition()
-    state.player.cooldown = 0
-    state.player.lives = clamp(Math.floor(startingLives) || 3, 1, 9)
+    state.player.lives = startingLives
     state.player.invulnerability = 0
+    state.player.cooldown = 0
     state.player.visualTilt = 0
     state.player.thrust = 0
     state.player.fireFlash = 0
     state.player.destroyed = false
     state.player.destroyedAt = 0
-    state.started = wasStarted
-    if (immediateStart) state.started = false
+    state.shake.power = 0
+    state.shake.duration = 0
+    state.shake.cooldown = 0
+    if (!immediateStart && !wasStarted) {
+      state.started = false
+      state.message = 'INSERT COIN'
+      state.overlayTimer = 999
+      syncShellState()
+      return
+    }
     spawnWave(startWave)
     state.started = true
     syncShellState()
@@ -418,85 +434,89 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       state.enemyBullets = []
       state.enemies = []
       state.ufo = null
-      state.player.cooldown = 0
-      state.player.fireFlash = 0
-      state.player.invulnerability = 0
-      state.player.destroyed = true
-      state.player.destroyedAt = state.elapsed
-      state.player.visualTilt = -0.18
-      state.player.thrust = 0
+      state.intermission = null
+      state.waveLockTimer = 0
+      state.waveArrivalTimer = 0
       state.restartLockTimer = 1.2
       state.restartInputArmed = false
+      state.player.destroyed = true
+      state.player.destroyedAt = state.elapsed
       projectileManager.clear()
       syncProjectilesToState()
-      addParticles(state.player.x, state.player.y - 10, PALETTE.red, 28, 420, 55)
-      addParticles(state.player.x, state.player.y + 8, PALETTE.white, 10, 240, 35)
       persistHighScore()
       syncShellState()
     }
   }
 
-  function triggerVictory(message = 'MISSION COMPLETE') {
-    state.victory = true
+  function triggerVictory() {
     state.running = false
-    state.message = message
+    state.paused = false
+    state.victory = true
+    state.message = 'MISSION COMPLETE'
     state.overlayTimer = 999
+    state.intermission = null
+    state.waveLockTimer = 0
+    state.waveArrivalTimer = 0
     state.restartLockTimer = 1.2
     state.restartInputArmed = false
-    state.enemyBullets = []
     state.bullets = []
+    state.enemyBullets = []
+    state.enemies = []
     state.ufo = null
+    state.boss = null
     projectileManager.clear()
     syncProjectilesToState()
     persistHighScore()
     syncShellState()
   }
 
-  // InputController wires input events and exposes movement/fire state
-  const inputController = new InputController({
-    touchControls,
-    audio,
-    onStartGame() {
-      if (!state.started) resetGame()
-    },
-    onToggleMute() {
-      setMuted(!state.muted)
-    },
-    onTogglePause() {
-      setPaused(!state.paused)
+  function updateSettings(updater) {
+    state.settings = { ...state.settings, ...updater(state.settings) }
+    saveSettings(state.settings)
+  }
+
+  function updateSettingsMenu(menuState, input) {
+    if (!menuState) return null
+    if (menuState.type === 'main') {
+      if (input === 'back') return null
+      const item = menuState.items[menuState.selected]
+      if (!item) return menuState
+      if (input === 'up' || input === 'down') {
+        const direction = input === 'down' ? 1 : -1
+        return { ...menuState, selected: (menuState.selected + direction + menuState.items.length) % menuState.items.length }
+      }
+      if (input === 'select') {
+        if (item.kind === 'submenu') {
+          return { type: item.target, selected: 0, parent: 'main' }
+        }
+        updateSettings((current) => ({ [item.key]: item.next(current[item.key]) }))
+        return { ...menuState }
+      }
     }
-  })
+    if (input === 'back') return { type: 'main', selected: 0 }
+    if (input === 'up' || input === 'down') {
+      const direction = input === 'down' ? 1 : -1
+      return { ...menuState, selected: (menuState.selected + direction + menuState.items.length) % menuState.items.length }
+    }
+    if (input === 'select') {
+      const item = menuState.items[menuState.selected]
+      if (!item) return menuState
+      updateSettings((current) => ({ [item.key]: item.next(current[item.key]) }))
+      return { ...menuState }
+    }
+    return menuState
+  }
 
   function update(dt) {
-    const desktopMode = !isMobileViewport()
-    const moveLeft = inputController.moveLeft
-    const moveRight = inputController.moveRight
-    const firing = inputController.firing
-
-    state.backgroundEffects.update(dt)
-
-    state.flash = Math.max(0, state.flash - dt * 1.7)
-    state.shake.cooldown = Math.max(0, state.shake.cooldown - dt)
-    state.shake.duration = Math.max(0, state.shake.duration - dt)
-    state.restartLockTimer = Math.max(0, state.restartLockTimer - dt)
-    if (state.shake.duration > 0) {
-      state.shake.x = random(-state.shake.power, state.shake.power)
-      state.shake.y = random(-state.shake.power * 0.45, state.shake.power * 0.45)
-    } else {
-      state.shake.power = Math.max(0, state.shake.power - dt * 40)
-      state.shake.x = 0
-      state.shake.y = 0
-    }
-
-    if (!state.started) {
-      if (moveLeft || moveRight || firing) resetGame()
-      return desktopMode
-    }
+    const desktopMode = state.desktopMode
+    const controlsState = input.getState()
+    const moveLeft = controlsState.left
+    const moveRight = controlsState.right
+    const firing = controlsState.fire
 
     if (!state.running) {
-      if (!firing) {
-        state.restartInputArmed = true
-      }
+      state.restartLockTimer = Math.max(0, state.restartLockTimer - dt)
+      if (!firing) state.restartInputArmed = true
       if (firing && state.restartLockTimer === 0 && state.restartInputArmed) {
         state.restartInputArmed = false
         resetGame({ immediateStart: true })
@@ -575,7 +595,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     if (firing) shootPlayer()
 
-    // Update projectiles and sync to state
     projectileManager.update(dt)
     syncProjectilesToState()
 
@@ -663,13 +682,23 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       for (const enemy of aliveEnemies) {
         if (!enemy.alive) continue
         if (intersects(bulletRect, rectFromTopLeft(enemy))) {
-          enemy.alive = false
+          enemy.hp = Math.max(0, (enemy.hp ?? 1) - 1)
           bullet.y = -100
-          state.score += enemy.rank === 'elite' ? 50 : enemy.rank === 'mid' ? 30 : 15
+          if (enemy.hp > 0) {
+            enemy.damageFlash = 1
+            state.flash = 0.08
+            triggerShake(0.75, 0.04)
+            addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, 8, 170, 24)
+            addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, getEnemyExplosionColor(enemy), 6, 150, 24)
+            break
+          }
+
+          enemy.alive = false
+          state.score += getEnemyScore(enemy)
           persistHighScore()
           state.flash = 0.12
-          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.rank === 'elite' ? PALETTE.magenta : PALETTE.amber, 20, 380, 70)
-          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, 8, 220, 30)
+          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, getEnemyExplosionColor(enemy), enemy.rank === 'commander' ? 28 : 20, enemy.rank === 'commander' ? 460 : 380, 70)
+          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, enemy.rank === 'commander' ? 12 : 8, enemy.rank === 'commander' ? 260 : 220, 30)
           audio.explosion()
           break
         }
@@ -760,82 +789,32 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   })
 
   installButton.addEventListener('click', async () => {
-    if (!state.pendingInstallPrompt) return
-    state.pendingInstallPrompt.prompt()
-    await state.pendingInstallPrompt.userChoice
-    state.pendingInstallPrompt = null
+    const prompt = state.pendingInstallPrompt
+    if (!prompt) return
+    await audio.unlock()
     installButton.classList.add('hidden')
+    prompt.prompt()
+    state.pendingInstallPrompt = null
   })
 
-  resize()
+  const input = new InputController({ touchControls, canvas, getMenuState: () => state.settingsMenu, setMenuState: setSettingsMenuState })
+  input.onMuteToggle(() => setMuted(!state.muted))
+  input.onPauseToggle(() => setPaused(!state.paused))
+  input.onDebugStart(({ wave, lives }) => resetGameToWave(wave, { immediateStart: true, startingLives: lives }))
+
   setMuted(state.muted)
+  updateMuteButton()
   updatePauseButton()
-  syncShellState()
-  render(!isMobileViewport())
-  requestAnimationFrame(() => resize())
+  resize()
+  resetToIntro()
+  window.addEventListener('resize', resize)
   gameLoop.start()
 
   return {
-    resize,
-    clearPointer() {
-      inputController.clearPointer()
-    },
-    restart() {
-      resetToIntro()
-    },
-    startAtWave(wave) {
-      resetGameToWave(clamp(Math.floor(wave) || 1, 1, 99))
-    },
-    startAtLevel(level, waveInLevel = 1, startingLives = 3) {
-      const safeLevel = clamp(Math.floor(level) || 1, 1, LEVEL_DEFINITIONS.length)
-      const safeWaveInLevel = clamp(Math.floor(waveInLevel) || 1, 1, WAVES_PER_LEVEL)
-      const absoluteWave = getAbsoluteWave(safeLevel, safeWaveInLevel)
-      resetGameToWave(absoluteWave, { startingLives })
-    },
-    setPaused,
-    getSettings() {
-      return { ...state.settings }
-    },
-    updateSettings(nextSettings) {
-      state.settings = { ...state.settings, ...nextSettings }
-      saveSettings(state.settings)
-      syncShellState()
-      resize()
-    },
-    isMuted() {
-      return state.muted
-    },
-    setMuted(value) {
-      setMuted(value)
-    },
-    getWave() {
-      return state.wave
-    },
-    getProgression() {
-      return {
-        wave: state.wave,
-        level: state.level,
-        waveInLevel: state.waveInLevel
-      }
-    },
-    getLives() {
-      return state.player.lives
-    },
-    getAvailableLevels() {
-      return LEVEL_DEFINITIONS.map((level) => ({ id: level.id, name: level.name }))
-    },
-    getViewport() {
-      return {
-        scale: state.scale,
-        offsetX: state.offsetX,
-        offsetY: state.offsetY,
-        desktopMode: state.desktopMode,
-        composition: state.composition
-      }
-    },
-    setSettingsMenuState,
-    isSettingsOpen() {
-      return state.settingsOpen
+    destroy() {
+      gameLoop.stop()
+      input.destroy()
+      window.removeEventListener('resize', resize)
     }
   }
 }
