@@ -56,17 +56,22 @@ export const LEVEL_DEFINITIONS = [
     },
     musicTheme: null,
     difficultyModifiers: {
-      enemyFireRateMultiplier: 1.08
+      formationDensityBonus: 1,
+      enemyFireRateMultiplier: 1.12,
+      enemyBulletSpeedBonus: 10
     },
     mechanics: {
       divingAliens: {
         enabled: true,
-        maxActive: 1,
-        minInterval: 2.8,
-        chancePerSecond: 0.45,
+        maxActive: 4,
+        minInterval: 2.45,
+        chancePerSecond: 0.58,
         warningDuration: 0.35,
-        speed: 430,
-        horizontalTracking: 0.65
+        speed: 440,
+        horizontalTracking: 0.65,
+        squadWaveStart: 3,
+        squadChance: 0.28,
+        maxSquadSize: 3
       }
     }
   },
