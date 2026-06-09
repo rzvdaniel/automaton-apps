@@ -295,7 +295,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
 
   boss.x += boss.direction * boss.speed * dt
 
-  const horizontalMargin = 36
+  const horizontalMargin = 12
   const leftBound = horizontalMargin + boss.width / 2
   const rightBound = WORLD.width - horizontalMargin - boss.width / 2
   if (boss.x <= leftBound || boss.x >= rightBound) {
