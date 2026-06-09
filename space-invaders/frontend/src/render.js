@@ -196,81 +196,50 @@ function drawShip(context, state, elapsed) {
   context.translate(x, shipY)
   context.rotate(shipRotation)
 
+  const sprite = state.playerShipSprite
+  const spriteWidth = 132
+  const spriteHeight = 132
+
   if (destroyed) {
-    const flicker = 0.06 * Math.sin(elapsed * 14)
-    context.globalAlpha = Math.max(0.58, 0.82 - deathTime * 0.1 + flicker)
+    context.globalAlpha = Math.max(0.45, 0.82 - deathTime * 0.18)
+    context.filter = 'grayscale(0.4) brightness(0.85)'
   }
 
-  context.fillStyle = destroyed ? 'rgba(8, 14, 26, 0.82)' : 'rgba(12, 24, 46, 0.72)'
-  context.beginPath()
-  context.ellipse(0, 14, 76, 36, 0, 0, Math.PI * 2)
-  context.fill()
-
-  context.scale(0.88, 0.88)
-  context.fillStyle = destroyed ? '#5d6e86' : '#8cf7ff'
-  context.beginPath()
-  context.moveTo(0, -56)
-  context.lineTo(22, -22)
-  context.lineTo(50, -8)
-  context.lineTo(70, 20)
-  context.lineTo(34, 18)
-  context.lineTo(18, 8)
-  context.lineTo(8, 28)
-  context.lineTo(-8, 28)
-  context.lineTo(-18, 8)
-  context.lineTo(-34, 18)
-  context.lineTo(-70, 20)
-  context.lineTo(-50, -8)
-  context.lineTo(-22, -22)
-  context.closePath()
-  context.fill()
-
-  context.fillStyle = destroyed ? '#7c889a' : '#4bc9ff'
-  context.beginPath()
-  context.moveTo(0, -44)
-  context.lineTo(16, -16)
-  context.lineTo(28, 6)
-  context.lineTo(12, 18)
-  context.lineTo(-12, 18)
-  context.lineTo(-28, 6)
-  context.lineTo(-16, -16)
-  context.closePath()
-  context.fill()
-
-  context.fillStyle = destroyed ? 'rgba(222, 230, 238, 0.72)' : PALETTE.white
-  context.fillRect(-12, -18, 24, 26)
-  context.fillRect(-38, -2, 14, 10)
-  context.fillRect(24, -2, 14, 10)
+  if (sprite?.complete && sprite.naturalWidth > 0) {
+    context.imageSmoothingEnabled = false
+    context.drawImage(
+      sprite,
+      -spriteWidth / 2,
+      -spriteHeight / 2,
+      spriteWidth,
+      spriteHeight
+    )
+  }
 
   if (destroyed) {
-    context.fillStyle = 'rgba(255, 110, 92, 0.72)'
-    context.fillRect(-8, -6, 44, 6)
-    context.fillStyle = 'rgba(255, 214, 160, 0.5)'
-    context.fillRect(18, -8, 12, 3)
-    context.fillRect(-30, 6, 18, 3)
-    context.fillStyle = 'rgba(255, 106, 122, 0.58)'
-    context.fillRect(-6, 18, 6, 18)
-    context.fillRect(16, 22, 6, 12)
-    context.fillStyle = `rgba(255, 210, 140, ${0.36 + (Math.sin(elapsed * 18) + 1) * 0.12})`
-    context.fillRect(12, 16, 4, 10)
-    context.fillRect(-22, 8, 3, 8)
+    context.fillStyle = 'rgba(255, 110, 92, 0.45)'
+    context.fillRect(-18, -4, 36, 6)
+    context.fillRect(12, 18, 18, 5)
   } else {
-    context.fillStyle = 'rgba(255, 110, 92, 0.96)'
-    context.fillRect(-28, 22, 8, thruster * (0.8 - sideBias * 0.01))
-    context.fillRect(-4, 26, 8, thruster)
-    context.fillRect(20, 22, 8, thruster * (0.8 + sideBias * 0.01))
-    context.fillStyle = 'rgba(255, 214, 160, 0.88)'
-    context.fillRect(-26, 22, 4, thruster * (0.54 - sideBias * 0.008))
-    context.fillRect(-2, 26, 4, thruster * 0.7)
-    context.fillRect(22, 22, 4, thruster * (0.54 + sideBias * 0.008))
+    const flameHeight = 16 + thrust * 14 + Math.sin(elapsed * 16) * 4
+
+    context.fillStyle = 'rgba(255, 110, 92, 0.95)'
+    context.fillRect(-26, 38, 8, flameHeight)
+    context.fillRect(-4, 42, 8, flameHeight * 1.15)
+    context.fillRect(18, 38, 8, flameHeight)
+
+    context.fillStyle = 'rgba(255, 214, 160, 0.9)'
+    context.fillRect(-24, 38, 4, flameHeight * 0.55)
+    context.fillRect(-2, 42, 4, flameHeight * 0.7)
+    context.fillRect(20, 38, 4, flameHeight * 0.55)
   }
 
   if (!destroyed && fireFlash > 0) {
     context.fillStyle = `rgba(255,255,255,${0.45 * fireFlash})`
     context.beginPath()
-    context.moveTo(0, -86 - muzzleFlash)
-    context.lineTo(10, -50)
-    context.lineTo(-10, -50)
+    context.moveTo(0, -78 - muzzleFlash)
+    context.lineTo(9, -48)
+    context.lineTo(-9, -48)
     context.closePath()
     context.fill()
   }

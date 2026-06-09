@@ -81,6 +81,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const ufoEncounter = new UfoEncounter({ audio })
   const backgroundImage = new Image()
   const bossSprite = new Image()
+  const playerShipSprite = new Image()
   const settings = loadSettings()
   const defaultPlayerY = WORLD.height - 236
 
@@ -96,6 +97,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       }
     }
   })
+  playerShipSprite.src = './images/player-ship.png'
+  state.playerShipSprite = playerShipSprite
   state.highScore = Number(localStorage.getItem(STORAGE_KEYS.highScore) || 0)
   state.muted = localStorage.getItem(STORAGE_KEYS.muted) === '1'
   state.desktopMode = !isMobileViewport()
