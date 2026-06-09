@@ -27,7 +27,7 @@ export function createBoss(config = {}) {
     height: targetWidth * 0.32,
     hp: config.hp ?? 30,
     maxHp: config.hp ?? 30,
-    speed: config.speed ?? 210,
+    speed: config.speed ?? 125,
     direction: 1,
     spreadCooldown: config.spreadCooldown ?? 1.35,
     beamCooldown: Math.max(6.8, config.beamCooldown ?? 6.8),
@@ -295,8 +295,9 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
 
   boss.x += boss.direction * boss.speed * dt
 
-  const leftBound = 120 + boss.width / 2
-  const rightBound = WORLD.width - 120 - boss.width / 2
+  const horizontalMargin = 36
+  const leftBound = horizontalMargin + boss.width / 2
+  const rightBound = WORLD.width - horizontalMargin - boss.width / 2
   if (boss.x <= leftBound || boss.x >= rightBound) {
     boss.x = Math.max(leftBound, Math.min(rightBound, boss.x))
     boss.direction *= -1
