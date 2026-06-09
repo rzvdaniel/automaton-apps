@@ -284,9 +284,18 @@ function drawEnemy(context, enemy, elapsed, settings) {
   const bob = Math.sin(elapsed * 5 + enemy.phase) * (settings.reducedMotion ? 1 : 2.5)
   const x = enemy.x + (enemy.diveWarning > 0 && !settings.reducedMotion ? Math.sin(elapsed * 44 + enemy.phase) * 3.5 : 0)
   const y = enemy.y + bob
-  const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
-  const color = enemy.palette?.color ?? (enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2')
-  const glow = enemy.palette?.glow ?? (enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)')
+  const spriteRank = enemy.rank === 'commander' ? 'elite' : enemy.rank
+  const spriteKey = spriteRank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
+  const color = enemy.palette?.color ?? (
+    spriteRank === 'elite' ? PALETTE.magentaSoft :
+    spriteRank === 'mid' ? PALETTE.amber :
+    '#75ffd2'
+  )
+  const glow = enemy.palette?.glow ?? (
+    spriteRank === 'elite' ? 'rgba(255, 186, 239, 0.71)' :
+    spriteRank === 'mid' ? 'rgba(255, 211, 107, 0.34)' :
+    'rgba(64, 247, 196, 0.34)'
+  )
   context.save()
   context.globalAlpha = warningPulse
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
@@ -297,6 +306,16 @@ function drawEnemy(context, enemy, elapsed, settings) {
     context.strokeStyle = PALETTE.white
     context.lineWidth = 2
     context.strokeRect(x - 8, y - 8, enemy.width + 16, enemy.height + 16)
+  }
+  if (enemy.rank === 'commander') {
+    context.globalAlpha = 0.55
+    context.fillStyle = PALETTE.magenta
+    context.fillRect(
+      x + enemy.width * 0.42,
+      y + enemy.height * 0.38,
+      enemy.width * 0.16,
+      Math.max(3, enemy.height * 0.08)
+    )
   }
   context.restore()
 }

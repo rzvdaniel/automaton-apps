@@ -5,6 +5,45 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
+function applyCommanderUpgrades(enemies, levelDefinition, waveInLevel) {
+  const commanderConfig = levelDefinition.mechanics?.commanders
+  if (!commanderConfig?.enabled || waveInLevel >= 5) return
+
+  const commanderCount = Math.min(
+    commanderConfig.maxCount ?? 5,
+    (commanderConfig.baseCount ?? 1) + waveInLevel * (commanderConfig.extraPerWave ?? 1)
+  )
+
+  const eliteTargets = enemies
+    .filter((enemy) => enemy.rank === 'elite')
+    .sort((a, b) => a.x - b.x)
+
+  const selected = []
+  if (eliteTargets.length <= commanderCount) {
+    selected.push(...eliteTargets)
+  } else {
+    for (let i = 0; i < commanderCount; i += 1) {
+      const index = Math.round((i / Math.max(1, commanderCount - 1)) * (eliteTargets.length - 1))
+      selected.push(eliteTargets[index])
+    }
+  }
+
+  for (const enemy of selected) {
+    const oldCenterX = enemy.x + enemy.width / 2
+    const oldCenterY = enemy.y + enemy.height / 2
+
+    enemy.rank = 'commander'
+    enemy.hp = commanderConfig.hp ?? 2
+    enemy.maxHp = enemy.hp
+    enemy.palette = levelDefinition.enemyPalette?.commander ?? enemy.palette
+
+    enemy.width *= 1.16
+    enemy.height *= 1.16
+    enemy.x = oldCenterX - enemy.width / 2
+    enemy.y = oldCenterY - enemy.height / 2
+  }
+}
+
 export function getWaveConfig(wave) {
   const { level, waveInLevel } = getLevelProgression(wave)
   const waveIntensity = waveInLevel - 1
@@ -125,6 +164,8 @@ export class WaveManager {
         }
       }
     }
+
+    applyCommanderUpgrades(state.enemies, levelDefinition, progression.waveInLevel)
 
     state.enemyDirection = 1
     state.enemyStepInterval = config.stepInterval

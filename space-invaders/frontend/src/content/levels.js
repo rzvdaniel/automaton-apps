@@ -83,7 +83,8 @@ export const LEVEL_DEFINITIONS = [
     enemyPalette: {
       elite: { color: '#ff7ad3', glow: 'rgba(255, 92, 196, 0.4)' },
       mid: { color: '#a1ff91', glow: 'rgba(122, 255, 146, 0.36)' },
-      grunt: { color: '#f0fff4', glow: 'rgba(184, 255, 214, 0.3)' }
+      grunt: { color: '#f0fff4', glow: 'rgba(184, 255, 214, 0.3)' },
+      commander: { color: '#ffe6ff', glow: 'rgba(255, 175, 235, 0.87)' }
     },
     enemyFormation: {
       enemyTypes: ['grunt', 'mid', 'elite'],
@@ -104,6 +105,13 @@ export const LEVEL_DEFINITIONS = [
       enemyBulletSpeedBonus: 20
     },
     mechanics: {
+      commanders: {
+        enabled: true,
+        baseCount: 1,
+        extraPerWave: 1,
+        maxCount: 5,
+        hp: 2
+      },
       aggressiveUfo: {
         spawnDelayMultiplier: 0.7,
         speedBonus: 80

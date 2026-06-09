@@ -224,6 +224,19 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.shake.cooldown = 0.12
   }
 
+  function getEnemyScore(enemy) {
+    if (enemy.rank === 'commander') return 90
+    if (enemy.rank === 'elite') return 50
+    if (enemy.rank === 'mid') return 30
+    return 15
+  }
+
+  function getEnemyExplosionColor(enemy) {
+    if (enemy.rank === 'commander' || enemy.rank === 'elite') return PALETTE.magenta
+    if (enemy.rank === 'mid') return PALETTE.amber
+    return PALETTE.cyan
+  }
+
   function spawnWave(wave, { fromWave = null } = {}) {
     waveManager.spawnWave(wave, state, { fromWave, isShortViewport: isShortViewport() })
     if (state.backgroundDefinition?.imageSrc && backgroundImage.src !== state.backgroundDefinition.imageSrc) {
@@ -663,13 +676,24 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       for (const enemy of aliveEnemies) {
         if (!enemy.alive) continue
         if (intersects(bulletRect, rectFromTopLeft(enemy))) {
-          enemy.alive = false
           bullet.y = -100
-          state.score += enemy.rank === 'elite' ? 50 : enemy.rank === 'mid' ? 30 : 15
+          enemy.hp = Math.max(0, (enemy.hp ?? 1) - 1)
+
+          if (enemy.hp > 0) {
+            enemy.damageFlash = 1
+            state.flash = 0.08
+            triggerShake(0.75, 0.04)
+            addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, 8, 170, 24)
+            addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, getEnemyExplosionColor(enemy), 6, 150, 24)
+            break
+          }
+
+          enemy.alive = false
+          state.score += getEnemyScore(enemy)
           persistHighScore()
           state.flash = 0.12
-          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.rank === 'elite' ? PALETTE.magenta : PALETTE.amber, 20, 380, 70)
-          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, 8, 220, 30)
+          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, getEnemyExplosionColor(enemy), enemy.rank === 'commander' ? 28 : 20, enemy.rank === 'commander' ? 460 : 380, 70)
+          addParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, PALETTE.white, enemy.rank === 'commander' ? 12 : 8, enemy.rank === 'commander' ? 260 : 220, 30)
           audio.explosion()
           break
         }
