@@ -11,7 +11,7 @@ export const WORLD = {
   height: 1920
 }
 
-export const PLAYER_COOLDOWN = 0.34
+export const PLAYER_COOLDOWN = 0.42
 export const MAX_PLAYER_BULLETS = 3
 export const PLAYER_INVULNERABILITY = 1.2
 
