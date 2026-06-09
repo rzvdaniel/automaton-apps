@@ -5,6 +5,28 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
+function getCommanderSlots(enemies, commanderConfig, waveInLevel) {
+  if (!commanderConfig?.enabled || waveInLevel >= 5) return new Set()
+
+  const count = Math.min(
+    commanderConfig.maxCount ?? 5,
+    (commanderConfig.baseCount ?? 1) + waveInLevel * (commanderConfig.extraPerWave ?? 1)
+  )
+
+  return new Set(
+    [...enemies]
+      .map((enemy, index) => ({ enemy, index }))
+      .filter(({ enemy }) => enemy.rank === 'elite')
+      .sort((a, b) => {
+        const centerDistanceA = Math.abs(a.enemy.x + a.enemy.width / 2 - 540)
+        const centerDistanceB = Math.abs(b.enemy.x + b.enemy.width / 2 - 540)
+        return centerDistanceA - centerDistanceB
+      })
+      .slice(0, count)
+      .map(({ index }) => index)
+  )
+}
+
 export function getWaveConfig(wave) {
   const { level, waveInLevel } = getLevelProgression(wave)
   const waveIntensity = waveInLevel - 1
@@ -103,10 +125,11 @@ export class WaveManager {
           }
       state.boss = createBoss(levelDefinition.mechanics.finalBoss)
     } else {
+      const nextEnemies = []
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < columns; col += 1) {
           const rank = levelDefinition.enemyFormation.rowAssignment(row, rows, progression)
-          state.enemies.push({
+          nextEnemies.push({
             x: startX + col * (enemyWidth + gapX),
             y: config.startY + formationYOffset + row * (enemyHeight + gapY),
             width: enemyWidth,
@@ -123,6 +146,15 @@ export class WaveManager {
           })
         }
       }
+
+      const commanderSlots = getCommanderSlots(nextEnemies, levelDefinition.mechanics?.commanders, progression.waveInLevel)
+      for (const index of commanderSlots) {
+        nextEnemies[index].rank = 'commander'
+        nextEnemies[index].hp = levelDefinition.mechanics.commanders.hp ?? 2
+        nextEnemies[index].maxHp = nextEnemies[index].hp
+        nextEnemies[index].palette = levelDefinition.enemyPalette?.commander ?? nextEnemies[index].palette
+      }
+      state.enemies = nextEnemies
     }
 
     state.enemyDirection = 1
