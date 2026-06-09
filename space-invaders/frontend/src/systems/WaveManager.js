@@ -11,14 +11,15 @@ export function getWaveConfig(wave) {
   const levelIntensity = level - 1
   const levelDefinition = getLevelDefinition(level)
   const difficulty = levelDefinition.difficultyModifiers ?? {}
+  const formationDensityBonus = difficulty.formationDensityBonus ?? 0
 
   return {
-    columns: clamp(6 + Math.floor(waveIntensity / 2), 6, 8),
+    columns: clamp(6 + formationDensityBonus + Math.floor(waveIntensity / 2), 6, 9),
     rows: clamp(4 + Math.floor((waveIntensity + levelIntensity * 0.45) / 2), 4, 6),
-    gapX: clamp(30 - waveIntensity * 1.5 - levelIntensity * 0.45, 18, 30),
+    gapX: clamp(30 - formationDensityBonus * 1.2 - waveIntensity * 1.5 - levelIntensity * 0.45, 18, 30),
     gapY: clamp(40 - waveIntensity * 1.25 - levelIntensity * 0.35, 26, 40),
-    enemyWidth: clamp(72 - waveIntensity * 2 - levelIntensity * 0.6, 58, 72),
-    enemyHeight: clamp(72 - waveIntensity * 2 - levelIntensity * 0.6, 58, 72),
+    enemyWidth: clamp(72 - formationDensityBonus - waveIntensity * 2 - levelIntensity * 0.6, 58, 72),
+    enemyHeight: clamp(72 - formationDensityBonus - waveIntensity * 2 - levelIntensity * 0.6, 58, 72),
     startY: clamp(224 + waveIntensity * 18 + levelIntensity * 10, 224, 340),
     stepInterval: Math.max(0.18, 0.54 - waveIntensity * 0.055 - levelIntensity * 0.025),
     horizontalStep: clamp(26 + waveIntensity * 2.5 + levelIntensity * 1.5, 26, 38),
