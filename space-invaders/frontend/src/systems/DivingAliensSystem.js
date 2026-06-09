@@ -21,6 +21,35 @@ export function selectDivingEnemyCandidate(candidates) {
   return weightedCandidates[0].enemy
 }
 
+function selectGroupedDivingEnemies(candidates, count) {
+  const leader = selectDivingEnemyCandidate(candidates)
+  if (!leader || count <= 1) return leader ? [leader] : []
+
+  const leaderCenterX = leader.x + leader.width / 2
+  const nearby = candidates
+    .filter((enemy) => enemy !== leader)
+    .sort((a, b) => {
+      const aDistance = Math.abs((a.x + a.width / 2) - leaderCenterX) + Math.abs(a.y - leader.y) * 0.55
+      const bDistance = Math.abs((b.x + b.width / 2) - leaderCenterX) + Math.abs(b.y - leader.y) * 0.55
+      return aDistance - bDistance
+    })
+    .slice(0, count - 1)
+
+  return [leader, ...nearby]
+}
+
+function getDivingGroupSize(state, divingConfig, activeDivers) {
+  const waveInLevel = state.waveInLevel ?? 1
+  const groupWaveStart = divingConfig.squadWaveStart ?? 3
+  if (waveInLevel < groupWaveStart) return 1
+  if (activeDivers.length > 0) return 1
+  if (Math.random() >= (divingConfig.squadChance ?? 0)) return 1
+
+  const maxAllowed = Math.max(1, Math.min(divingConfig.maxSquadSize ?? 3, divingConfig.maxActive ?? 1))
+  const wavePressure = Math.max(0, waveInLevel - groupWaveStart)
+  return Math.min(maxAllowed, 2 + Math.floor(wavePressure / 2))
+}
+
 export function updateDivingAliens(state, dt) {
   const divingConfig = state.levelDefinition?.mechanics?.divingAliens
   if (!divingConfig?.enabled) return
@@ -35,12 +64,16 @@ export function updateDivingAliens(state, dt) {
     state.divingAttackTimer = divingConfig.minInterval
     if (Math.random() < divingConfig.chancePerSecond) {
       const candidates = livingEnemies.filter((enemy) => !enemy.diving && enemy.diveWarning <= 0)
-      const candidate = selectDivingEnemyCandidate(candidates)
-      if (candidate) {
-        candidate.diving = true
-        candidate.diveWarning = divingConfig.warningDuration
-        candidate.diveVx = 0
-        candidate.diveVy = 0
+      const availableSlots = Math.max(1, divingConfig.maxActive - activeDivers.length)
+      const groupSize = Math.min(availableSlots, getDivingGroupSize(state, divingConfig, activeDivers))
+      const selectedEnemies = selectGroupedDivingEnemies(candidates, groupSize)
+      if (selectedEnemies.length) {
+        selectedEnemies.forEach((enemy, index) => {
+          enemy.diving = true
+          enemy.diveWarning = divingConfig.warningDuration + index * 0.08
+          enemy.diveVx = 0
+          enemy.diveVy = 0
+        })
         state.divingAttackCooldown = divingConfig.minInterval
         state.divingAttackTimer = 0
       }
