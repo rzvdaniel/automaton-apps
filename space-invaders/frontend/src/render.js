@@ -279,17 +279,43 @@ function drawShip(context, state, elapsed) {
 }
 
 function drawEnemy(context, enemy, elapsed, settings) {
+  const isCommander = enemy.rank === 'commander'
+  const spriteRank = isCommander ? 'elite' : enemy.rank
   const pixelSize = Math.max(1, Math.round(enemy.width / 8))
   const warningPulse = enemy.diveWarning > 0 ? 0.55 + ((Math.sin(elapsed * 28) + 1) / 2) * 0.45 : 1
+  const commanderPulse = isCommander ? 0.74 + ((Math.sin(elapsed * 8.5 + enemy.phase) + 1) / 2) * 0.26 : 1
   const bob = Math.sin(elapsed * 5 + enemy.phase) * (settings.reducedMotion ? 1 : 2.5)
   const x = enemy.x + (enemy.diveWarning > 0 && !settings.reducedMotion ? Math.sin(elapsed * 44 + enemy.phase) * 3.5 : 0)
   const y = enemy.y + bob
-  const spriteKey = enemy.rank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
-  const color = enemy.palette?.color ?? (enemy.rank === 'elite' ? PALETTE.magentaSoft : enemy.rank === 'mid' ? PALETTE.amber : '#75ffd2')
-  const glow = enemy.palette?.glow ?? (enemy.rank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : enemy.rank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)')
+  const spriteKey = spriteRank + (Math.sin(elapsed * 4.2 + enemy.phase) > 0 ? '' : 'Alt')
+  const color = enemy.palette?.color ?? (spriteRank === 'elite' ? PALETTE.magentaSoft : spriteRank === 'mid' ? PALETTE.amber : '#75ffd2')
+  const glow = enemy.palette?.glow ?? (spriteRank === 'elite' ? 'rgba(255, 88, 216, 0.38)' : spriteRank === 'mid' ? 'rgba(255, 211, 107, 0.34)' : 'rgba(64, 247, 196, 0.34)')
   context.save()
   context.globalAlpha = warningPulse
+  if (isCommander) {
+    context.shadowColor = glow
+    context.shadowBlur = 22
+    context.strokeStyle = `rgba(255, 235, 255, ${0.3 + commanderPulse * 0.24})`
+    context.lineWidth = 3
+    context.strokeRect(x - 8, y - 8, enemy.width + 16, enemy.height + 16)
+  }
   drawPixelSprite(context, ENEMY_SPRITES[spriteKey], x, y, pixelSize, color, glow, settings.spriteStyle)
+  if (isCommander) {
+    context.globalAlpha = 0.28 + commanderPulse * 0.2
+    context.fillStyle = PALETTE.white
+    context.fillRect(x + enemy.width * 0.42, y + enemy.height * 0.38, enemy.width * 0.16, Math.max(3, enemy.height * 0.08))
+    if ((enemy.hp ?? 1) < (enemy.maxHp ?? 1)) {
+      context.globalAlpha = 0.28
+      context.fillStyle = '#ff7ad3'
+      context.fillRect(x + enemy.width * 0.2, y + enemy.height * 0.74, enemy.width * 0.6, 4)
+    }
+  }
+  if (enemy.damageFlash > 0) {
+    context.globalAlpha = enemy.damageFlash * 0.24
+    context.fillStyle = PALETTE.white
+    context.fillRect(x - 4, y - 4, enemy.width + 8, enemy.height + 8)
+    enemy.damageFlash = Math.max(0, enemy.damageFlash - 0.08)
+  }
   if (enemy.diveWarning > 0) {
     context.globalAlpha = 0.22 + ((Math.sin(elapsed * 24) + 1) / 2) * 0.12
     context.shadowColor = PALETTE.white
@@ -428,413 +454,187 @@ function drawOverlay(context, state, desktopMode) {
     const pauseFocus = context.createRadialGradient(WORLD.width / 2, 820, 140, WORLD.width / 2, 820, 760)
     pauseFocus.addColorStop(0, 'rgba(4, 12, 24, 0.04)')
     pauseFocus.addColorStop(0.4, 'rgba(4, 12, 24, 0.16)')
-    pauseFocus.addColorStop(1, 'rgba(1, 4, 12, 0.32)')
+    pauseFocus.addColorStop(1, 'rgba(4, 12, 24, 0.62)')
     context.fillStyle = pauseFocus
     context.fillRect(0, 0, WORLD.width, WORLD.height)
-  } else if (gameOverOverlay) {
-    context.fillStyle = 'rgba(1, 4, 12, 0.42)'
-    context.fillRect(0, 0, WORLD.width, WORLD.height)
-  } else if (!titleOverlay && !intermissionOverlay) {
-    context.fillStyle = 'rgba(1, 4, 12, 0.28)'
-    context.fillRect(0, 0, WORLD.width, WORLD.height)
-  }
 
-  if (pausedMenu) {
-    const layout = getPauseMenuLayout(desktopMode, state.composition.pauseShiftWorld)
-    const { panel, labelY, actions } = layout
-    context.fillStyle = 'rgba(3, 10, 20, 0.36)'
-    context.fillRect(panel.x - 30, panel.y - 34, panel.width + 60, panel.height + 68)
-
-    const panelGradient = context.createLinearGradient(panel.x, panel.y, panel.x, panel.y + panel.height)
-    panelGradient.addColorStop(0, 'rgba(18, 42, 62, 0.34)')
-    panelGradient.addColorStop(1, 'rgba(6, 16, 30, 0.28)')
-    context.fillStyle = panelGradient
-    context.fillRect(panel.x, panel.y, panel.width, panel.height)
-
-    const panelGlow = context.createRadialGradient(
-      WORLD.width / 2,
-      panel.y + panel.height * 0.45,
-      panel.width * 0.08,
-      WORLD.width / 2,
-      panel.y + panel.height * 0.45,
-      panel.width * 0.72
-    )
-    panelGlow.addColorStop(0, 'rgba(120, 220, 255, 0.06)')
-    panelGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
-    context.fillStyle = panelGlow
-    context.fillRect(panel.x, panel.y, panel.width, panel.height)
-
-    const glow = context.createRadialGradient(
-      WORLD.width / 2,
-      panel.y + panel.height * 0.35,
-      40,
-      WORLD.width / 2,
-      panel.y + panel.height * 0.35,
-      panel.width * 0.62
-    )
-    glow.addColorStop(0, 'rgba(140, 247, 255, 0.08)')
-    glow.addColorStop(1, 'rgba(140, 247, 255, 0)')
-    context.fillStyle = glow
-    context.fillRect(panel.x, panel.y, panel.width, panel.height)
-
-    context.save()
-    context.strokeStyle = 'rgba(120, 220, 255, 0.18)'
-    context.shadowColor = 'rgba(120, 220, 255, 0.18)'
-    context.shadowBlur = 18
-    context.lineWidth = 1
-    context.strokeRect(panel.x + 10, panel.y + 10, panel.width - 20, panel.height - 20)
-    context.restore()
-
-    const corner = 34
-    context.strokeStyle = 'rgba(140, 247, 255, 0.68)'
-    context.lineWidth = 2
-    context.beginPath()
-    context.moveTo(panel.x + 18, panel.y + corner)
-    context.lineTo(panel.x + 18, panel.y + 18)
-    context.lineTo(panel.x + corner, panel.y + 18)
-    context.moveTo(panel.x + panel.width - corner, panel.y + 18)
-    context.lineTo(panel.x + panel.width - 18, panel.y + 18)
-    context.lineTo(panel.x + panel.width - 18, panel.y + corner)
-    context.moveTo(panel.x + 18, panel.y + panel.height - corner)
-    context.lineTo(panel.x + 18, panel.y + panel.height - 18)
-    context.lineTo(panel.x + corner, panel.y + panel.height - 18)
-    context.moveTo(panel.x + panel.width - corner, panel.y + panel.height - 18)
-    context.lineTo(panel.x + panel.width - 18, panel.y + panel.height - 18)
-    context.lineTo(panel.x + panel.width - 18, panel.y + panel.height - corner)
-    context.stroke()
-
-    context.textAlign = 'center'
-    const titleGlow = context.createRadialGradient(WORLD.width / 2, labelY - (desktopMode ? 18 : 24), 24, WORLD.width / 2, labelY - (desktopMode ? 18 : 24), 140)
-    titleGlow.addColorStop(0, 'rgba(120, 220, 255, 0.1)')
-    titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
-    context.fillStyle = titleGlow
-    context.fillRect(panel.x, panel.y, panel.width, panel.height)
-
-    context.fillStyle = 'rgba(232, 248, 255, 0.96)'
-    context.shadowColor = PALETTE.cyan
-    context.shadowBlur = 14
-    context.font = desktopMode ? '900 72px "Arial Black", Impact, sans-serif' : '900 86px "Arial Black", Impact, sans-serif'
-    context.letterSpacing = '0.08em'
-    context.fillText('PAUSED', WORLD.width / 2, labelY)
-    context.letterSpacing = '0'
-
-    context.shadowBlur = 0
-    context.font = desktopMode ? '700 32px monospace' : '700 38px monospace'
-    for (const action of actions) {
-      const buttonGradient = context.createLinearGradient(action.x, action.y, action.x, action.y + action.height)
-      buttonGradient.addColorStop(0, 'rgba(18, 40, 62, 0.78)')
-      buttonGradient.addColorStop(0.18, 'rgba(32, 76, 114, 0.34)')
-      buttonGradient.addColorStop(1, 'rgba(5, 10, 20, 0.58)')
-      context.fillStyle = buttonGradient
-      context.fillRect(action.x, action.y, action.width, action.height)
-      context.strokeStyle = 'rgba(214, 248, 255, 0.18)'
-      context.lineWidth = 1
-      context.beginPath()
-      context.moveTo(action.x + 12, action.y + 10)
-      context.lineTo(action.x + action.width - 12, action.y + 10)
-      context.stroke()
-      context.strokeStyle = 'rgba(140, 247, 255, 0.3)'
-      context.lineWidth = 1.5
-      context.strokeRect(action.x, action.y, action.width, action.height)
-      context.shadowColor = 'rgba(120, 220, 255, 0.12)'
-      context.shadowBlur = 10
-      context.fillStyle = 'rgba(238,252,255,0.92)'
-      context.fillText(action.label, WORLD.width / 2, action.y + action.height / 2 + (desktopMode ? 8 : 10))
-      context.shadowBlur = 0
-      context.strokeStyle = 'rgba(4, 10, 22, 0.42)'
-      context.lineWidth = 1
-      context.beginPath()
-      context.moveTo(action.x + 12, action.y + action.height - 9)
-      context.lineTo(action.x + action.width - 12, action.y + action.height - 9)
-      context.stroke()
+    if (mobilePauseMenu) {
+      const layout = getPauseMenuLayout()
+      const panelX = WORLD.width / 2 - layout.panelWidth / 2
+      const panelY = WORLD.height / 2 - layout.panelHeight / 2 + 70
+      drawPanel(context, panelX, panelY, layout.panelWidth, layout.panelHeight, 24, {
+        fill: 'rgba(4, 10, 22, 0.78)',
+        stroke: 'rgba(140, 247, 255, 0.35)',
+        shadow: 'rgba(140, 247, 255, 0.18)'
+      })
+      context.textAlign = 'center'
+      context.fillStyle = PALETTE.white
+      context.font = '900 72px monospace'
+      context.fillText('PAUSED', WORLD.width / 2, panelY + 108)
+      context.font = '700 28px monospace'
+      context.fillStyle = 'rgba(238,252,255,0.74)'
+      context.fillText('Use controls below', WORLD.width / 2, panelY + 154)
+      return
     }
-    context.textAlign = 'left'
-    return
   }
 
   if (gameOverOverlay) {
-    const panelWidth = desktopMode ? WORLD.width - 420 : WORLD.width - 300
-    const panelHeight = desktopMode ? 348 : 404
-    const panelX = (WORLD.width - panelWidth) / 2
-    const panelY = (desktopMode ? 604 : 706) + Math.round(state.composition.overlayShiftWorld * 0.55)
-    const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
-    panelGradient.addColorStop(0, 'rgba(8, 16, 30, 0.82)')
-    panelGradient.addColorStop(1, 'rgba(4, 8, 18, 0.92)')
-    context.fillStyle = panelGradient
-    context.fillRect(panelX, panelY, panelWidth, panelHeight)
+    context.fillStyle = victoryOverlay ? 'rgba(0, 8, 18, 0.44)' : 'rgba(1, 4, 12, 0.64)'
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
 
-    context.strokeStyle = 'rgba(255, 106, 122, 0.24)'
-    context.lineWidth = 2
-    context.strokeRect(panelX, panelY, panelWidth, panelHeight)
+    const focusY = victoryOverlay ? WORLD.height * 0.36 : WORLD.height * 0.48
+    const focus = context.createRadialGradient(WORLD.width / 2, focusY, 120, WORLD.width / 2, focusY, 640)
+    focus.addColorStop(0, victoryOverlay ? 'rgba(122,255,146,0.14)' : 'rgba(255, 76, 120, 0.12)')
+    focus.addColorStop(1, 'rgba(1,4,12,0.82)')
+    context.fillStyle = focus
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
 
     context.textAlign = 'center'
-    context.fillStyle = victoryOverlay ? 'rgba(170, 255, 194, 0.92)' : 'rgba(255, 160, 174, 0.92)'
-    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText(victoryOverlay ? 'INVASION STOPPED' : 'SIGNAL LOST', WORLD.width / 2, panelY + (desktopMode ? 56 : 68))
+    context.fillStyle = victoryOverlay ? PALETTE.cyan : PALETTE.red
+    context.font = '900 76px monospace'
+    context.fillText(victoryOverlay ? 'MISSION' : 'SIGNAL', WORLD.width / 2, focusY - 72)
+    context.fillText(victoryOverlay ? 'COMPLETE' : 'LOST', WORLD.width / 2, focusY + 8)
 
     context.fillStyle = PALETTE.white
-    context.shadowColor = victoryOverlay ? '#a1ff91' : PALETTE.red
-    context.shadowBlur = 18
-    context.font = desktopMode ? '900 58px "Arial Black", Impact, sans-serif' : '900 72px "Arial Black", Impact, sans-serif'
-    context.fillText(victoryOverlay ? 'MISSION COMPLETE' : 'GAME OVER', WORLD.width / 2, panelY + (desktopMode ? 132 : 156))
-    context.shadowBlur = 0
+    context.font = '700 34px monospace'
+    context.fillText(`FINAL SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, focusY + 88)
+    context.fillStyle = 'rgba(238,252,255,0.76)'
+    context.font = '600 25px monospace'
+    context.fillText(`HIGH SCORE ${String(state.highScore).padStart(6, '0')}`, WORLD.width / 2, focusY + 132)
+    context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, focusY + 192)
+    return
+  }
 
-    context.strokeStyle = 'rgba(255, 130, 142, 0.2)'
-    context.beginPath()
-    context.moveTo(panelX + 62, panelY + (desktopMode ? 172 : 196))
-    context.lineTo(panelX + panelWidth - 62, panelY + (desktopMode ? 172 : 196))
-    context.stroke()
+  if (titleOverlay) {
+    context.fillStyle = 'rgba(1, 4, 12, 0.36)'
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
 
-    context.fillStyle = 'rgba(238,252,255,0.78)'
-    context.font = desktopMode ? '600 22px monospace' : '600 28px monospace'
-    context.fillText(`LEVEL ${String(state.level).padStart(2, '0')}  WAVE ${String(state.waveInLevel).padStart(2, '0')}  SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, panelY + (desktopMode ? 224 : 258))
-    context.fillStyle = victoryOverlay ? 'rgba(184, 255, 214, 0.88)' : 'rgba(255, 180, 190, 0.86)'
-    context.font = desktopMode ? '600 18px monospace' : '600 24px monospace'
-    context.fillText(victoryOverlay ? 'ALIEN COMMAND SHIP DESTROYED' : 'PILOT OFFLINE   SHIP DESTROYED', WORLD.width / 2, panelY + (desktopMode ? 266 : 306))
+    const centerY = WORLD.height * 0.47 + state.composition.overlayShiftWorld
+    drawPanel(context, 86, centerY - 260, WORLD.width - 172, 520, 28, {
+      fill: 'rgba(4, 10, 22, 0.76)',
+      stroke: 'rgba(140, 247, 255, 0.42)',
+      shadow: 'rgba(140, 247, 255, 0.18)'
+    })
 
-    context.fillStyle = 'rgba(255,255,255,0.9)'
-    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText(desktopMode ? 'PRESS FIRE TO PLAY AGAIN' : 'TAP FIRE TO PLAY AGAIN', WORLD.width / 2, panelY + (desktopMode ? 304 : 352))
-    context.textAlign = 'left'
+    context.textAlign = 'center'
+    context.fillStyle = PALETTE.cyan
+    context.font = '900 58px monospace'
+    context.fillText('SPACE', WORLD.width / 2, centerY - 132)
+    context.fillText('INVADERS', WORLD.width / 2, centerY - 64)
+    context.fillStyle = PALETTE.white
+    context.font = '600 28px monospace'
+    context.fillText('A retro mobile arcade mission', WORLD.width / 2, centerY + 16)
+    context.fillStyle = PALETTE.amber
+    context.font = '700 26px monospace'
+    context.fillText('PRESS FIRE TO START', WORLD.width / 2, centerY + 92)
+
+    context.fillStyle = 'rgba(238,252,255,0.62)'
+    context.font = '500 22px monospace'
+    context.fillText('Move with arrows or touch zones', WORLD.width / 2, centerY + 148)
     return
   }
 
   if (intermissionOverlay) {
-    const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
-    const incomingWave = state.intermission?.waveInLevel ?? state.waveInLevel
-    const clearedWave = state.intermission?.fromWave
-    const clearedProgress = clearedWave ? state.intermission?.isLevelTransition ? 5 : ((clearedWave - 1) % 5) + 1 : null
-    const completedLevel = state.intermission?.completedLevel
-    const fadeWindow = 0.22
-    const fadeProgress = Math.min(1, state.overlayTimer / fadeWindow)
-    const fadeAlpha = fadeProgress * fadeProgress * (3 - 2 * fadeProgress)
+    const isBossWave = state.intermission?.isBossWave
+    const centerY = WORLD.height * 0.43 + state.composition.overlayShiftWorld
+    const panelHeight = isBossWave ? 390 : 330
+    context.fillStyle = isBossWave ? 'rgba(1, 4, 12, 0.56)' : 'rgba(1, 4, 12, 0.28)'
+    context.fillRect(0, 0, WORLD.width, WORLD.height)
 
-    context.save()
-    context.globalAlpha = fadeAlpha
+    drawPanel(context, 98, centerY - panelHeight / 2, WORLD.width - 196, panelHeight, 28, {
+      fill: isBossWave ? 'rgba(9, 6, 20, 0.84)' : 'rgba(4, 10, 22, 0.68)',
+      stroke: isBossWave ? 'rgba(255, 92, 216, 0.5)' : 'rgba(140, 247, 255, 0.38)',
+      shadow: isBossWave ? 'rgba(255, 92, 216, 0.18)' : 'rgba(140, 247, 255, 0.14)'
+    })
+
     context.textAlign = 'center'
-
-    const softGlow = context.createRadialGradient(WORLD.width / 2, 720, 40, WORLD.width / 2, 720, desktopMode ? 260 : 320)
-    softGlow.addColorStop(0, `rgba(120, 220, 255, ${transitionPulse * 0.14})`)
-    softGlow.addColorStop(1, 'rgba(120, 220, 255, 0)')
-    context.fillStyle = softGlow
-    context.fillRect(120, 470, WORLD.width - 240, 480)
-
-    context.fillStyle = state.intermission?.isLevelTransition ? `rgba(255, 214, 156, ${transitionPulse})` : `rgba(140,247,255,${transitionPulse})`
-    context.font = desktopMode ? '700 22px monospace' : '700 34px monospace'
-    context.fillText(
-      state.intermission?.isBossWave
-        ? 'MOTHERSHIP APPROACHING'
-        : state.intermission?.isLevelTransition
-          ? `LEVEL ${String(completedLevel ?? 0).padStart(2, '0')} COMPLETE`
-          : clearedWave
-            ? 'SECTOR CLEARED'
-            : 'HOSTILE FLEET DETECTED',
-      WORLD.width / 2,
-      desktopMode ? 618 : 670
-    )
-
-    context.strokeStyle = `rgba(140, 247, 255, ${0.12 + transitionPulse * 0.18})`
-    context.lineWidth = 2
-    context.beginPath()
-    context.moveTo(184, desktopMode ? 648 : 704)
-    context.lineTo(WORLD.width - 184, desktopMode ? 648 : 704)
-    context.stroke()
-
+    context.fillStyle = isBossWave ? PALETTE.magenta : PALETTE.cyan
+    context.font = '900 44px monospace'
+    context.fillText(`LEVEL ${state.intermission?.level ?? state.level}`, WORLD.width / 2, centerY - 96)
     context.fillStyle = PALETTE.white
-    context.shadowColor = PALETTE.cyan
-    context.shadowBlur = 18
-    context.font = desktopMode ? '900 60px "Arial Black", Impact, sans-serif' : '900 84px "Arial Black", Impact, sans-serif'
-    context.fillText(state.intermission?.isBossWave ? 'WARNING' : `LEVEL ${String(state.intermission?.level ?? state.level).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 704 : 764)
-    context.font = desktopMode ? '900 50px "Arial Black", Impact, sans-serif' : '900 70px "Arial Black", Impact, sans-serif'
-    context.fillText(state.intermission?.isBossWave ? 'FINAL BOSS' : `WAVE ${String(incomingWave).padStart(2, '0')}`, WORLD.width / 2, desktopMode ? 768 : 836)
-    context.shadowBlur = 0
-
-    context.fillStyle = 'rgba(238,252,255,0.82)'
-    context.font = desktopMode ? '600 20px monospace' : '600 30px monospace'
-    context.fillText(
-      state.intermission?.isBossWave
-        ? 'INPUT LOCKED  STAND BY'
-        : state.intermission?.isLevelTransition
-          ? (state.intermission?.levelName ?? 'NEW SECTOR').toUpperCase()
-          : clearedProgress
-            ? `WAVE ${String(clearedProgress).padStart(2, '0')} COMPLETE`
-            : 'TACTICAL SYSTEMS ONLINE',
-      WORLD.width / 2,
-      desktopMode ? 826 : 896
-    )
-
-    context.fillStyle = 'rgba(255, 196, 144, 0.86)'
-    context.font = desktopMode ? '600 18px monospace' : '600 28px monospace'
-    context.fillText((state.intermission?.levelSubtitle ?? 'INCOMING HOSTILE FLEET').toUpperCase(), WORLD.width / 2, desktopMode ? 864 : 944)
-
-    if (state.intermission?.isBossWave) {
-      context.fillStyle = 'rgba(255, 228, 236, 0.88)'
-      context.font = desktopMode ? '700 16px monospace' : '700 24px monospace'
-      context.fillText('WEAPONS ONLINE AFTER MOTHERSHIP ARRIVAL', WORLD.width / 2, desktopMode ? 900 : 986)
-    }
-    context.textAlign = 'left'
-    context.restore()
+    context.font = '900 58px monospace'
+    context.fillText(isBossWave ? 'FINAL WAVE' : `WAVE ${state.intermission?.waveInLevel ?? state.waveInLevel}`, WORLD.width / 2, centerY - 34)
+    context.font = '700 27px monospace'
+    context.fillStyle = isBossWave ? 'rgba(255,220,255,0.86)' : 'rgba(238,252,255,0.76)'
+    context.fillText(state.intermission?.levelName ?? state.levelDefinition?.name ?? '', WORLD.width / 2, centerY + 26)
+    context.font = '600 24px monospace'
+    context.fillStyle = isBossWave ? 'rgba(255,190,245,0.82)' : 'rgba(238,252,255,0.62)'
+    context.fillText(state.intermission?.levelSubtitle ?? state.levelDefinition?.subtitle ?? '', WORLD.width / 2, centerY + 76)
     return
   }
+}
 
-  const titleShiftY = titleOverlay ? state.composition.overlayShiftWorld : 0
-  const panelWidth = titleOverlay ? (desktopMode ? WORLD.width - 260 : WORLD.width - 260) : WORLD.width - 160
-  const panelX = (WORLD.width - panelWidth) / 2
-  const panelY = titleOverlay ? (desktopMode ? 318 : 350) + titleShiftY : 276
-  const panelHeight = titleOverlay ? (desktopMode ? 500 : 488) : desktopMode ? 660 : 710
-  const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
-  panelGradient.addColorStop(0, titleOverlay ? 'rgba(28, 78, 108, 0.2)' : 'rgba(4, 10, 22, 0.82)')
-  panelGradient.addColorStop(1, titleOverlay ? 'rgba(10, 30, 50, 0.12)' : 'rgba(2, 6, 16, 0.72)')
-  context.fillStyle = panelGradient
-  context.fillRect(panelX, panelY, panelWidth, panelHeight)
-
-  if (titleOverlay) {
-    const panelGlow = context.createRadialGradient(
-      WORLD.width / 2,
-      panelY + panelHeight * 0.45,
-      panelWidth * 0.08,
-      WORLD.width / 2,
-      panelY + panelHeight * 0.45,
-      panelWidth * 0.72
-    )
-    panelGlow.addColorStop(0, 'rgba(120, 220, 255, 0.08)')
-    panelGlow.addColorStop(1, 'rgba(120, 220, 255, 0)')
-    context.fillStyle = panelGlow
-    context.fillRect(panelX, panelY, panelWidth, panelHeight)
-
-    const glow = context.createRadialGradient(
-      WORLD.width / 2,
-      panelY + panelHeight * 0.35,
-      40,
-      WORLD.width / 2,
-      panelY + panelHeight * 0.35,
-      panelWidth * 0.62
-    )
-    glow.addColorStop(0, 'rgba(140, 247, 255, 0.1)')
-    glow.addColorStop(1, 'rgba(140, 247, 255, 0)')
-    context.fillStyle = glow
-    context.fillRect(panelX, panelY, panelWidth, panelHeight)
-
-    context.save()
-    context.strokeStyle = 'rgba(0, 200, 255, 0.16)'
-    context.shadowColor = 'rgba(0, 200, 255, 0.18)'
-    context.shadowBlur = 22
-    context.lineWidth = 1
-    context.strokeRect(panelX + 10, panelY + 10, panelWidth - 20, panelHeight - 20)
-    context.restore()
-
-    const corner = 34
-    context.strokeStyle = 'rgba(140, 247, 255, 0.72)'
-    context.lineWidth = 3
-    context.beginPath()
-    context.moveTo(panelX + 18, panelY + corner)
-    context.lineTo(panelX + 18, panelY + 18)
-    context.lineTo(panelX + corner, panelY + 18)
-    context.moveTo(panelX + panelWidth - corner, panelY + 18)
-    context.lineTo(panelX + panelWidth - 18, panelY + 18)
-    context.lineTo(panelX + panelWidth - 18, panelY + corner)
-    context.moveTo(panelX + 18, panelY + panelHeight - corner)
-    context.lineTo(panelX + 18, panelY + panelHeight - 18)
-    context.lineTo(panelX + corner, panelY + panelHeight - 18)
-    context.moveTo(panelX + panelWidth - corner, panelY + panelHeight - 18)
-    context.lineTo(panelX + panelWidth - 18, panelY + panelHeight - 18)
-    context.lineTo(panelX + panelWidth - 18, panelY + panelHeight - corner)
-    context.stroke()
-  } else {
-    context.strokeStyle = 'rgba(140, 247, 255, 0.1)'
-    context.lineWidth = 2
-    context.strokeRect(panelX, panelY, panelWidth, panelHeight)
-  }
-
-  context.textAlign = 'center'
-  context.shadowColor = PALETTE.cyan
-  context.shadowBlur = mobilePauseMenu ? 8 : 18
-  context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
-  if (titleOverlay) {
-    const titleGlowY = (desktopMode ? 428 : 452) + titleShiftY
-    const titleGlow = context.createRadialGradient(WORLD.width / 2, titleGlowY, 24, WORLD.width / 2, titleGlowY, 140)
-    titleGlow.addColorStop(0, 'rgba(120, 220, 255, 0.1)')
-    titleGlow.addColorStop(1, 'rgba(140, 247, 255, 0)')
-    context.fillStyle = titleGlow
-    context.fillRect(panelX, panelY, panelWidth, panelHeight)
-    context.fillStyle = mobilePauseMenu ? 'rgba(238,252,255,0.28)' : PALETTE.white
-  }
-  context.font = desktopMode ? '900 76px "Arial Black", Impact, sans-serif' : '900 88px "Arial Black", Impact, sans-serif'
-  context.fillText('SPACE', WORLD.width / 2, (desktopMode ? 446 : 472) + titleShiftY)
-  context.fillText('INVADERS', WORLD.width / 2, (desktopMode ? 528 : 554) + titleShiftY)
-  if (titleOverlay) {
-    context.strokeStyle = 'rgba(140, 247, 255, 0.18)'
-    context.lineWidth = 2
-    context.beginPath()
-    context.moveTo(panelX + 54, (desktopMode ? 582 : 608) + titleShiftY)
-    context.lineTo(panelX + panelWidth - 54, (desktopMode ? 582 : 608) + titleShiftY)
-    context.stroke()
-  }
-  context.shadowBlur = 0
-  context.fillStyle = PALETTE.cyan
-  if (!mobilePauseMenu) {
-    const insertCoinPulse = titleOverlay ? 0.72 + ((Math.sin(state.elapsed * 4.6) + 1) / 2) * 0.28 : 1
-    context.fillStyle = titleOverlay ? `rgba(140,247,255,${insertCoinPulse})` : PALETTE.cyan
-    context.font = desktopMode ? '600 32px monospace' : '600 42px monospace'
-    const headline = state.paused ? 'PAUSED' : state.message
-    context.fillText(headline, WORLD.width / 2, titleOverlay ? (desktopMode ? 642 : 678) + titleShiftY : desktopMode ? 690 : 700)
-  }
-  if (!mobilePauseMenu && (!desktopMode || state.settings.keyboardHint)) {
-    context.fillStyle = 'rgba(238,252,255,0.82)'
-    if (desktopMode) {
-      context.font = '500 24px monospace'
-      context.fillText('ARROWS / A D MOVE   SPACE / ENTER FIRE   P PAUSE   M MUTE', WORLD.width / 2, 770 + titleShiftY)
-    } else {
-      context.font = titleOverlay ? '700 40px monospace' : '700 34px monospace'
-      context.fillText('◀  ▶ MOVE', WORLD.width / 2, titleOverlay ? 760 + titleShiftY : 760)
-      context.fillText('TAP FIRE', WORLD.width / 2, titleOverlay ? 812 + titleShiftY : 804)
-    }
-  }
-  if (!mobilePauseMenu && !state.running) {
-    context.font = desktopMode ? '500 24px monospace' : '700 28px monospace'
-    context.fillText('PRESS FIRE TO RESTART', WORLD.width / 2, (desktopMode ? 822 : 856) + Math.round(state.composition.overlayShiftWorld * 0.45))
-  }
-  context.textAlign = 'left'
+function drawPanel(context, x, y, width, height, radius, { fill, stroke, shadow }) {
+  context.save()
+  context.shadowColor = shadow
+  context.shadowBlur = 32
+  context.fillStyle = fill
+  context.strokeStyle = stroke
+  context.lineWidth = 2
+  context.beginPath()
+  context.moveTo(x + radius, y)
+  context.lineTo(x + width - radius, y)
+  context.quadraticCurveTo(x + width, y, x + width, y + radius)
+  context.lineTo(x + width, y + height - radius)
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+  context.lineTo(x + radius, y + height)
+  context.quadraticCurveTo(x, y + height, x, y + height - radius)
+  context.lineTo(x, y + radius)
+  context.quadraticCurveTo(x, y, x + radius, y)
+  context.closePath()
+  context.fill()
+  context.stroke()
+  context.restore()
 }
 
 export function renderScene(context, canvas, state, elapsed, desktopMode) {
-  const rect = canvas.getBoundingClientRect()
-  context.fillStyle = '#030613'
-  context.fillRect(0, 0, rect.width, rect.height)
+  const width = canvas.width / (Math.min(window.devicePixelRatio || 1, 2))
+  const height = canvas.height / (Math.min(window.devicePixelRatio || 1, 2))
   context.save()
-  context.translate(state.offsetX + state.shake.x, state.offsetY + state.shake.y)
-  context.scale(state.scale, state.scale)
+  context.setTransform(state.scale, 0, 0, state.scale, state.offsetX, state.offsetY)
+  context.imageSmoothingEnabled = false
+
   drawBackground(context, state)
-  drawParticles(context, state.particles)
-  const intermissionActive = state.started && state.running && !state.paused && state.overlayTimer > 0
-  const arrivalActive = state.running && state.waveArrivalTimer > 0 && state.waveArrivalDuration > 0
-  if (state.running && !intermissionActive) {
-    if (arrivalActive) {
-      const arrivalProgress = 1 - state.waveArrivalTimer / state.waveArrivalDuration
-      for (const enemy of state.enemies) drawEnemyArrival(context, enemy, elapsed, state.settings, arrivalProgress)
-    } else {
-      const pausedEnemies = state.paused && !state.settingsOpen
-      for (const enemy of state.enemies) {
-        if (pausedEnemies) {
-          drawPausedEnemy(context, enemy, elapsed, state.settings)
-        } else {
-          drawEnemy(context, enemy, elapsed, state.settings)
-        }
-      }
-    }
-    if (state.ufo) {
-      if (state.paused && !state.settingsOpen) {
-        drawPausedUfo(context, state.ufo, elapsed, state.settings)
-      } else {
-        drawUfo(context, state.ufo, elapsed, state.settings)
-      }
-    }
-    bossRenderer.draw(context, state.boss, state.bossSprite, elapsed, state.settings)
-    drawProjectiles(context, state)
+
+  if (state.shake.duration > 0 && state.shake.power > 0) {
+    const shakeScale = state.settings.screenShake === 'low' ? 0.55 : 1
+    context.translate((Math.random() - 0.5) * state.shake.power * shakeScale, (Math.random() - 0.5) * state.shake.power * shakeScale)
+    state.shake.duration -= 0.016
+    state.shake.power *= 0.9
+    state.shake.cooldown = Math.max(0, state.shake.cooldown - 0.016)
   }
+
+  if (state.waveArrivalTimer > 0 && state.enemies.length) {
+    const arrivalProgress = 1 - state.waveArrivalTimer / Math.max(0.001, state.waveArrivalDuration)
+    for (const enemy of state.enemies) {
+      drawEnemyArrival(context, enemy, elapsed, state.settings, arrivalProgress)
+    }
+  } else {
+    for (const enemy of state.enemies) {
+      if (state.paused || !state.running) drawPausedEnemy(context, enemy, elapsed, state.settings)
+      else drawEnemy(context, enemy, elapsed, state.settings)
+    }
+  }
+
+  if (state.ufo) {
+    if (state.paused || !state.running) drawPausedUfo(context, state.ufo, elapsed, state.settings)
+    else drawUfo(context, state.ufo, elapsed, state.settings)
+  }
+
+  bossRenderer.draw(context, state.boss, state.bossSprite, elapsed, state.settings)
+
+  drawProjectiles(context, state)
   drawShip(context, state, elapsed)
+  drawParticles(context, state.particles)
+  drawEffects(context, state)
   drawHud(context, state, desktopMode)
   drawOverlay(context, state, desktopMode)
-  drawEffects(context, state)
+
+  context.restore()
+
+  context.save()
+  context.setTransform(1, 0, 0, 1, 0, 0)
+  context.clearRect(0, 0, width, state.offsetY)
+  context.clearRect(0, state.offsetY + WORLD.height * state.scale, width, height)
   context.restore()
 }
