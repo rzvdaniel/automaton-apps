@@ -18,17 +18,13 @@ export class BossRenderer {
     context.save()
     context.translate(x, y)
 
-    const halo = context.createRadialGradient(0, 0, width * 0.12, 0, 0, width * 0.95)
-    halo.addColorStop(0, 'rgba(0, 0, 0, 0.26)')
-    halo.addColorStop(0.48, 'rgba(0, 0, 0, 0.18)')
+    const halo = context.createRadialGradient(0, 0, width * 0.08, 0, 0, width * 0.55)
+    halo.addColorStop(0, 'rgba(0, 0, 0, 0.18)')
     halo.addColorStop(1, 'rgba(0, 0, 0, 0)')
     context.fillStyle = halo
     context.beginPath()
-    context.arc(0, 0, width * 0.95, 0, Math.PI * 2)
+    context.ellipse(0, height * 0.05, width * 0.48, height * 0.72, 0, 0, Math.PI * 2)
     context.fill()
-
-    context.shadowColor = `rgba(122, 255, 146, ${0.2 + reactorPulse * 0.18})`
-    context.shadowBlur = 24
 
     if (sprite?.complete && sprite.naturalWidth > 0) {
       context.drawImage(sprite, -width / 2, -height / 2, width, height)
@@ -38,7 +34,7 @@ export class BossRenderer {
     }
 
     context.globalCompositeOperation = 'screen'
-    const coreRadius = width * (0.22 + reactorPulse * 0.08)
+    const coreRadius = width * (0.12 + reactorPulse * 0.04)
     const coreGlow = context.createRadialGradient(0, 0, width * 0.03, 0, 0, coreRadius)
     coreGlow.addColorStop(0, `rgba(255, 230, 255, ${0.36 + reactorPulse * 0.24})`)
     coreGlow.addColorStop(0.38, `rgba(255, 92, 216, ${0.24 + reactorPulse * 0.18})`)
@@ -47,54 +43,6 @@ export class BossRenderer {
     context.beginPath()
     context.arc(0, 0, coreRadius, 0, Math.PI * 2)
     context.fill()
-
-    const podGlowAlpha = 0.08 + reactorPulse * 0.08
-    context.fillStyle = `rgba(161, 255, 145, ${podGlowAlpha})`
-    context.beginPath()
-    context.ellipse(-width * 0.28, 0, width * 0.07, height * 0.09, 0, 0, Math.PI * 2)
-    context.fill()
-    context.beginPath()
-    context.ellipse(width * 0.28, 0, width * 0.07, height * 0.09, 0, 0, Math.PI * 2)
-    context.fill()
-
-    if (boss.leftPodFlash > 0) {
-      context.fillStyle = `rgba(255, 214, 168, ${boss.leftPodFlash * 0.45})`
-      context.beginPath()
-      context.ellipse(-width * 0.32, height * 0.2, width * 0.045, height * 0.06, 0, 0, Math.PI * 2)
-      context.fill()
-    }
-    if (boss.rightPodFlash > 0) {
-      context.fillStyle = `rgba(255, 214, 168, ${boss.rightPodFlash * 0.45})`
-      context.beginPath()
-      context.ellipse(width * 0.32, height * 0.2, width * 0.045, height * 0.06, 0, 0, Math.PI * 2)
-      context.fill()
-    }
-
-    if (damageRatio > 0.25) {
-      context.fillStyle = 'rgba(255, 180, 120, 0.32)'
-      context.beginPath()
-      context.ellipse(-width * 0.32, -height * 0.16, width * 0.05, height * 0.08, -0.2, 0, Math.PI * 2)
-      context.fill()
-    }
-    if (damageRatio > 0.5) {
-      context.fillStyle = 'rgba(255, 120, 120, 0.26)'
-      context.beginPath()
-      context.ellipse(width * 0.25, -height * 0.12, width * 0.04, height * 0.06, 0.15, 0, Math.PI * 2)
-      context.fill()
-    }
-    if (damageRatio > 0.75) {
-      context.fillStyle = 'rgba(255, 244, 190, 0.46)'
-      context.fillRect(-width * 0.19, height * 0.02, width * 0.018, height * 0.08)
-      context.fillRect(width * 0.17, -height * 0.01, width * 0.014, height * 0.07)
-    }
-
-    if (boss.damageFlash > 0) {
-      context.globalAlpha = boss.damageFlash * 0.18
-      context.fillStyle = '#ffffff'
-      context.beginPath()
-      context.ellipse(0, 0, width * 0.22, height * 0.18, 0, 0, Math.PI * 2)
-      context.fill()
-    }
 
     context.restore()
     this._drawHealthBar(context, boss)
