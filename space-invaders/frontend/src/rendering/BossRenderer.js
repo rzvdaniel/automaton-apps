@@ -60,101 +60,74 @@ export class BossRenderer {
     this._drawHealthBar(context, boss)
   }
 
-  _drawBeamImpact(context, boss, elapsed, intensity = 1) {
-    const impactY = WORLD.height - 42
-    const pulse = 0.82 + ((Math.sin(elapsed * 18) + 1) / 2) * 0.18
-
-    const wideGlow = context.createRadialGradient(boss.beamX, impactY, 2, boss.beamX, impactY, 138)
-    wideGlow.addColorStop(0, `rgba(255, 255, 236, ${0.78 * intensity * pulse})`)
-    wideGlow.addColorStop(0.16, `rgba(196, 255, 92, ${0.58 * intensity})`)
-    wideGlow.addColorStop(0.42, `rgba(86, 255, 120, ${0.3 * intensity})`)
-    wideGlow.addColorStop(1, 'rgba(86, 255, 120, 0)')
-    context.fillStyle = wideGlow
+  _fillConicalBeam(context, x, top, bottom, topWidth, bottomWidth, fillStyle) {
+    context.fillStyle = fillStyle
     context.beginPath()
-    context.arc(boss.beamX, impactY, 138, 0, Math.PI * 2)
+    context.moveTo(x - topWidth / 2, top)
+    context.lineTo(x + topWidth / 2, top)
+    context.lineTo(x + bottomWidth / 2, bottom)
+    context.lineTo(x - bottomWidth / 2, bottom)
+    context.closePath()
     context.fill()
-
-    const splashGradient = context.createLinearGradient(0, impactY - 22, 0, impactY + 32)
-    splashGradient.addColorStop(0, 'rgba(210, 255, 135, 0)')
-    splashGradient.addColorStop(0.42, `rgba(210, 255, 135, ${0.38 * intensity})`)
-    splashGradient.addColorStop(0.68, `rgba(255, 255, 238, ${0.52 * intensity})`)
-    splashGradient.addColorStop(1, 'rgba(86, 255, 120, 0)')
-    context.fillStyle = splashGradient
-    context.beginPath()
-    context.ellipse(boss.beamX, impactY + 4, 98, 20, 0, 0, Math.PI * 2)
-    context.fill()
-
-    for (let i = 0; i < 9; i += 1) {
-      const angle = (Math.PI * 2 * i) / 9 + elapsed * 0.8
-      const radius = 30 + ((i * 17) % 46)
-      const x = boss.beamX + Math.cos(angle) * radius
-      const y = impactY + Math.sin(angle) * 9
-      context.globalAlpha = 0.12 * intensity
-      context.fillStyle = i % 2 === 0 ? 'rgba(238,255,210,0.9)' : 'rgba(108,255,126,0.9)'
-      context.fillRect(x - 1.5, y - 1.5, 3, 3)
-    }
-    context.globalAlpha = 1
   }
 
   _drawBeam(context, boss, elapsed) {
     const beamTop = boss.beamStartY
-    const beamHeight = WORLD.height - beamTop
+    const beamBottom = WORLD.height
+    const beamHeight = beamBottom - beamTop
     if (boss.beamWarning > 0) {
       const progress = 1 - boss.beamWarning / Math.max(0.001, boss.beamWarningDuration ?? 1)
       const flicker = 0.45 + ((Math.sin(elapsed * 24) + 1) / 2) * 0.55
-      const warningWidth = 8 + progress * 18
+      const warningTopWidth = 7 + progress * 18
+      const warningBottomWidth = warningTopWidth * 1.28
 
       context.save()
       context.globalCompositeOperation = 'screen'
       context.globalAlpha = 0.22 + progress * 0.36
 
-      const warningGlow = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, WORLD.height)
+      const warningGlow = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, beamBottom)
       warningGlow.addColorStop(0, `rgba(180, 255, 120, ${0.18 * flicker})`)
       warningGlow.addColorStop(0.55, `rgba(80, 255, 120, ${0.3 * flicker})`)
       warningGlow.addColorStop(1, `rgba(180, 255, 120, ${0.22 * flicker})`)
-      context.fillStyle = warningGlow
-      context.fillRect(boss.beamX - warningWidth / 2, beamTop, warningWidth, beamHeight)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, warningTopWidth, warningBottomWidth, warningGlow)
 
       context.globalAlpha = 0.68 + progress * 0.22
-      context.fillStyle = 'rgba(236, 255, 220, 0.82)'
-      context.fillRect(boss.beamX - 1.5, beamTop, 3, beamHeight)
-
-      this._drawBeamImpact(context, boss, elapsed, 0.35 + progress * 0.35)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, 3, 5, 'rgba(236, 255, 220, 0.82)')
       context.restore()
     }
 
     if (boss.beamActive > 0) {
-      const progress = boss.beamActive / Math.max(0.001, boss.beamFireDuration ?? 0.62)
+      const age = 1 - boss.beamActive / Math.max(0.001, boss.beamFireDuration ?? 0.7)
+      const growth = Math.min(1, age / 0.42)
       const flicker = 0.78 + ((Math.sin(elapsed * 38) + 1) / 2) * 0.22
-      const outerWidth = 48 + progress * 18
-      const midWidth = 24 + progress * 8
-      const coreWidth = 8 + progress * 4
+      const outerTopWidth = 66 + growth * 22
+      const outerBottomWidth = outerTopWidth * 1.22
+      const midTopWidth = 32 + growth * 12
+      const midBottomWidth = midTopWidth * 1.22
+      const coreTopWidth = 12 + growth * 6
+      const coreBottomWidth = coreTopWidth * 1.2
 
       context.save()
       context.globalCompositeOperation = 'screen'
 
-      const outerGradient = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, WORLD.height)
+      const outerGradient = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, beamBottom)
       outerGradient.addColorStop(0, `rgba(118, 255, 76, ${0.3 * flicker})`)
       outerGradient.addColorStop(0.48, `rgba(50, 255, 120, ${0.42 * flicker})`)
       outerGradient.addColorStop(1, `rgba(170, 255, 95, ${0.34 * flicker})`)
-      context.fillStyle = outerGradient
-      context.fillRect(boss.beamX - outerWidth / 2, beamTop, outerWidth, beamHeight)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, outerTopWidth, outerBottomWidth, outerGradient)
 
-      context.fillStyle = `rgba(142, 255, 94, ${0.5 * flicker})`
-      context.fillRect(boss.beamX - midWidth / 2, beamTop, midWidth, beamHeight)
-
-      context.fillStyle = `rgba(248, 255, 238, ${0.9 * flicker})`
-      context.fillRect(boss.beamX - coreWidth / 2, beamTop, coreWidth, beamHeight)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, midTopWidth, midBottomWidth, `rgba(142, 255, 94, ${0.5 * flicker})`)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, coreTopWidth, coreBottomWidth, `rgba(248, 255, 238, ${0.9 * flicker})`)
 
       for (let i = 0; i < 7; i += 1) {
-        const offset = Math.sin(elapsed * 9 + i * 1.7) * (outerWidth * 0.34)
+        const normalizedY = i / 6
+        const strandWidth = outerTopWidth + (outerBottomWidth - outerTopWidth) * normalizedY
+        const offset = Math.sin(elapsed * 9 + i * 1.7) * (strandWidth * 0.34)
         context.globalAlpha = 0.16
         context.fillStyle = i % 2 === 0 ? 'rgba(210, 255, 160, 0.8)' : 'rgba(70, 255, 130, 0.8)'
         context.fillRect(boss.beamX + offset - 1, beamTop, 2, beamHeight)
       }
       context.globalAlpha = 1
-
-      this._drawBeamImpact(context, boss, elapsed, 1)
       context.restore()
     }
   }
