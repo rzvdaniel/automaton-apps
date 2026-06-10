@@ -81,6 +81,19 @@ app.innerHTML = `
         </div>
       </section>
     </div>
+    <div class="game-dialog-layer settings-menu" aria-hidden="true">
+      <section class="game-dialog game-dialog-settings" aria-labelledby="settings-title">
+        <div class="game-dialog-kicker settings-subtitle">System Menu</div>
+        <h2 class="game-dialog-title settings-title" id="settings-title">Settings</h2>
+        <div class="game-dialog-divider"></div>
+        <div class="settings-list" role="list"></div>
+        <div class="game-dialog-actions settings-actions">
+          <button class="game-dialog-button settings-back" type="button">Close</button>
+          <button class="game-dialog-button game-dialog-button-primary settings-close" type="button">Done</button>
+        </div>
+        <p class="game-dialog-hint">Keyboard: arrows select · Enter open/change · Esc back</p>
+      </section>
+    </div>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
         <div class="debug-title">Debug Start</div>
