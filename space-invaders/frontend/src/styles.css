@@ -349,7 +349,8 @@ canvas {
 }
 
 .settings-actions {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(140px, 180px);
+  justify-content: center;
   width: min(100%, 320px);
 }
 
@@ -727,7 +728,8 @@ canvas {
   }
 
   .settings-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(140px, 180px);
+    justify-content: center;
   }
 
   .settings-row {
