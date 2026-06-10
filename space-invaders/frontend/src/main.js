@@ -2,7 +2,6 @@ import './styles.css'
 import { ChevronLeft, ChevronRight, createIcons, Pause, Play, Settings } from 'lucide'
 import { createGame } from './game/GameApp.js'
 import { setupDebugPanel } from './debug-panel.js'
-import { getPauseMenuLayout } from './overlay-layout.js'
 import { setupSettingsPanel } from './settings-panel.js'
 
 const app = document.querySelector('#app')
@@ -11,21 +10,21 @@ app.innerHTML = `
   <div class="shell">
     <div class="cabinet-glow"></div>
     <canvas class="game" aria-label="Space Invaders playfield"></canvas>
-    <div class="start-menu" aria-hidden="false">
-      <div class="start-menu-panel">
-        <div class="start-menu-kicker">DEFEND EARTH</div>
-        <h1 class="start-menu-title">
+    <div class="game-dialog-layer start-menu" aria-hidden="false">
+      <section class="game-dialog game-dialog-start" aria-labelledby="start-menu-title">
+        <div class="game-dialog-kicker">DEFEND EARTH</div>
+        <h1 class="game-dialog-title game-dialog-title-xl" id="start-menu-title">
           <span>SPACE</span>
           <span>INVADERS</span>
         </h1>
-        <div class="start-menu-divider"></div>
-        <p class="start-menu-copy">Survive 3 levels, 15 waves, and the mothership assault.</p>
-        <div class="start-menu-actions">
-          <button class="start-menu-button start-play" type="button">Start Game</button>
-          <button class="start-menu-button start-settings" type="button">Settings</button>
+        <div class="game-dialog-divider"></div>
+        <p class="game-dialog-copy">Survive 3 levels, 15 waves, and the mothership assault.</p>
+        <div class="game-dialog-actions">
+          <button class="game-dialog-button game-dialog-button-primary start-play" type="button">Start Game</button>
+          <button class="game-dialog-button start-settings" type="button">Settings</button>
         </div>
-        <p class="start-menu-hint">Desktop: arrows / A D move · Space / Enter fire</p>
-      </div>
+        <p class="game-dialog-hint">Desktop: arrows / A D move · Space / Enter fire</p>
+      </section>
     </div>
     <div class="top-actions">
       <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause" data-state="pause">
@@ -37,14 +36,17 @@ app.innerHTML = `
       </button>
       <button class="overlay-button install hidden" type="button">Install</button>
     </div>
-    <div class="pause-menu" aria-hidden="true">
-      <div class="pause-menu-panel">
-        <div class="pause-menu-title">Paused</div>
-        <div class="pause-menu-actions">
-          <button class="pause-menu-button pause-resume" type="button">Resume</button>
-          <button class="pause-menu-button pause-restart" type="button">Restart</button>
+    <div class="game-dialog-layer pause-menu" aria-hidden="true">
+      <section class="game-dialog game-dialog-pause" aria-labelledby="pause-menu-title">
+        <div class="game-dialog-kicker">SYSTEM HOLD</div>
+        <h2 class="game-dialog-title" id="pause-menu-title">Paused</h2>
+        <div class="game-dialog-divider"></div>
+        <p class="game-dialog-copy">The invasion is waiting. Resume when you are ready.</p>
+        <div class="game-dialog-actions">
+          <button class="game-dialog-button game-dialog-button-primary pause-resume" type="button">Resume</button>
+          <button class="game-dialog-button pause-restart" type="button">Restart</button>
         </div>
-      </div>
+      </section>
     </div>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
@@ -122,28 +124,10 @@ function syncPauseMenu() {
 
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
   pauseButton.setAttribute('title', isPaused ? 'Resume' : 'Pause')
-  positionPauseMenu()
-}
-
-function positionPauseMenu() {
-  const { scale, offsetX, offsetY, desktopMode, composition } = game.getViewport()
-  const { panel, actions } = getPauseMenuLayout(desktopMode, composition.pauseShiftWorld)
-  pauseMenu.style.setProperty('--pause-panel-left', `${offsetX + panel.x * scale}px`)
-  pauseMenu.style.setProperty('--pause-panel-top', `${offsetY + panel.y * scale}px`)
-  pauseMenu.style.setProperty('--pause-panel-width', `${panel.width * scale}px`)
-  pauseMenu.style.setProperty('--pause-panel-height', `${panel.height * scale}px`)
-  actions.forEach((action) => {
-    pauseMenu.style.setProperty(`--pause-${action.id}-left`, `${offsetX + action.x * scale}px`)
-    pauseMenu.style.setProperty(`--pause-${action.id}-top`, `${offsetY + action.y * scale}px`)
-    pauseMenu.style.setProperty(`--pause-${action.id}-width`, `${action.width * scale}px`)
-    pauseMenu.style.setProperty(`--pause-${action.id}-height`, `${action.height * scale}px`)
-  })
 }
 
 window.addEventListener('resize', game.resize)
-window.addEventListener('resize', positionPauseMenu)
 window.addEventListener('orientationchange', game.resize)
-window.addEventListener('orientationchange', positionPauseMenu)
 startPlayButton.addEventListener('click', () => {
   game.startAtLevel(1, 1, 3)
   syncPauseMenu()
@@ -161,7 +145,6 @@ pauseRestartButton.addEventListener('click', () => {
 })
 shell.addEventListener('game-state-change', syncPauseMenu)
 shell.addEventListener('settings-menu-change', syncPauseMenu)
-positionPauseMenu()
 syncPauseMenu()
 
 if ('serviceWorker' in navigator) {
