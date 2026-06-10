@@ -4,9 +4,9 @@ function fireBossChargeShot(shootEnemy, origin, velocity, index) {
   shootEnemy({
     originX: origin.x,
     originY: origin.y,
-    projectileWidth: 10,
-    projectileHeight: 26,
-    projectileSpeed: 620,
+    projectileWidth: 12,
+    projectileHeight: 30,
+    projectileSpeed: 580,
     projectileVx: velocity.x,
     projectileVy: velocity.y,
     projectileKind: 'boss-beam-charge',
@@ -31,8 +31,8 @@ export function createBoss(config = {}) {
     direction: 1,
     beamCooldown: config.beamCooldown ?? 4.8,
     beamTimer: config.beamInitialDelay ?? 2.2,
-    beamWarningDuration: config.beamWarningDuration ?? 1.35,
-    beamFireDuration: config.beamFireDuration ?? 0.7,
+    beamWarningDuration: config.beamWarningDuration ?? 1.45,
+    beamFireDuration: config.beamFireDuration ?? 0.72,
     beamWarning: 0,
     beamActive: 0,
     beamX: WORLD.width / 2,
@@ -90,7 +90,7 @@ function beginChargingBeam(boss) {
   boss.beamActive = 0
   boss.beamHitArmed = true
   boss.beamSupportWave = 0
-  boss.beamSupportTimer = 0.22
+  boss.beamSupportTimer = 0.2
   boss.coreCharge = 1
   boss.coreFlash = 1
 }
@@ -98,19 +98,16 @@ function beginChargingBeam(boss) {
 function fireBeamSupportWave(boss, shootEnemy) {
   const { leftPod, rightPod } = getBossHardpoints(boss)
   const waveIndex = boss.beamSupportWave
-  const lanes = waveIndex === 0
-    ? [
-        { origin: leftPod, offset: -7, velocity: { x: -220, y: 640 } },
-        { origin: leftPod, offset: 7, velocity: { x: -115, y: 700 } },
-        { origin: rightPod, offset: -7, velocity: { x: 115, y: 700 } },
-        { origin: rightPod, offset: 7, velocity: { x: 220, y: 640 } }
-      ]
-    : [
-        { origin: leftPod, offset: -7, velocity: { x: -175, y: 690 } },
-        { origin: leftPod, offset: 7, velocity: { x: -54, y: 750 } },
-        { origin: rightPod, offset: -7, velocity: { x: 54, y: 750 } },
-        { origin: rightPod, offset: 7, velocity: { x: 175, y: 690 } }
-      ]
+  const waveSpread = waveIndex === 0
+    ? { outer: 230, inner: 120, yOuter: 650, yInner: 710 }
+    : { outer: 185, inner: 68, yOuter: 700, yInner: 760 }
+
+  const lanes = [
+    { origin: leftPod, offset: -16, velocity: { x: -waveSpread.outer, y: waveSpread.yOuter } },
+    { origin: leftPod, offset: 16, velocity: { x: -waveSpread.inner, y: waveSpread.yInner } },
+    { origin: rightPod, offset: -16, velocity: { x: waveSpread.inner, y: waveSpread.yInner } },
+    { origin: rightPod, offset: 16, velocity: { x: waveSpread.outer, y: waveSpread.yOuter } }
+  ]
 
   lanes.forEach((lane, index) => {
     fireBossChargeShot(
@@ -195,7 +192,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
   if (boss.beamActive > 0) {
     boss.beamActive = Math.max(0, boss.beamActive - dt)
     boss.coreCharge = 1.25
-    if (boss.beamHitArmed && Math.abs(state.player.x - boss.beamX) < 30) {
+    if (boss.beamHitArmed && Math.abs(state.player.x - boss.beamX) < 34) {
       boss.beamHitArmed = false
       hitPlayer()
     }
