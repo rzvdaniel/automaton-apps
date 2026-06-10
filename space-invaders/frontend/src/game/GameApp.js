@@ -108,7 +108,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const scoreManager = new ScoreManager(state.highScore)
   const renderer = new Renderer(context, canvas)
 
-  // Keep state.bullets and state.enemyBullets in sync with projectileManager
   function syncProjectilesToState() {
     state.bullets = projectileManager.playerBullets
     state.enemyBullets = projectileManager.enemyBullets
@@ -245,7 +244,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     if (state.backgroundDefinition?.imageSrc && backgroundImage.src !== state.backgroundDefinition.imageSrc) {
       backgroundImage.src = state.backgroundDefinition.imageSrc
     }
-    // After spawnWave replaces state.bullets/enemyBullets, sync projectileManager arrays
     projectileManager.playerBullets = state.bullets
     projectileManager.enemyBullets = state.enemyBullets
   }
@@ -468,7 +466,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     syncShellState()
   }
 
-  // InputController wires input events and exposes movement/fire state
   const inputController = new InputController({
     touchControls,
     audio,
@@ -591,7 +588,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     if (firing) shootPlayer()
 
-    // Update projectiles and sync to state
     projectileManager.update(dt)
     syncProjectilesToState()
 
@@ -844,6 +840,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
         level: state.level,
         waveInLevel: state.waveInLevel
       }
+    },
+    getScore() {
+      return state.score
     },
     getLives() {
       return state.player.lives
