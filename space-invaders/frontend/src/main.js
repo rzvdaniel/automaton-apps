@@ -11,6 +11,22 @@ app.innerHTML = `
   <div class="shell">
     <div class="cabinet-glow"></div>
     <canvas class="game" aria-label="Space Invaders playfield"></canvas>
+    <div class="start-menu" aria-hidden="false">
+      <div class="start-menu-panel">
+        <div class="start-menu-kicker">DEFEND EARTH</div>
+        <h1 class="start-menu-title">
+          <span>SPACE</span>
+          <span>INVADERS</span>
+        </h1>
+        <div class="start-menu-divider"></div>
+        <p class="start-menu-copy">Survive 3 levels, 15 waves, and the mothership assault.</p>
+        <div class="start-menu-actions">
+          <button class="start-menu-button start-play" type="button">Start Game</button>
+          <button class="start-menu-button start-settings" type="button">Settings</button>
+        </div>
+        <p class="start-menu-hint">Desktop: arrows / A D move · Space / Enter fire</p>
+      </div>
+    </div>
     <div class="top-actions">
       <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause" data-state="pause">
         <i class="toolbar-svg toolbar-svg-pause" data-lucide="pause" aria-hidden="true"></i>
@@ -65,6 +81,9 @@ createIcons({
 })
 
 const shell = document.querySelector('.shell')
+const startMenu = document.querySelector('.start-menu')
+const startPlayButton = document.querySelector('.start-play')
+const startSettingsButton = document.querySelector('.start-settings')
 const pauseMenu = document.querySelector('.pause-menu')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
@@ -93,6 +112,7 @@ function syncPauseMenu() {
   const isRunning = shell.dataset.gameRunning === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
   const isGameOver = isStarted && !isRunning
+  startMenu.setAttribute('aria-hidden', !isStarted && !isSettingsOpen ? 'false' : 'true')
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
   pauseButton.classList.toggle('hidden', !isStarted)
   pauseButton.disabled = !isStarted || !isRunning
@@ -124,6 +144,13 @@ window.addEventListener('resize', game.resize)
 window.addEventListener('resize', positionPauseMenu)
 window.addEventListener('orientationchange', game.resize)
 window.addEventListener('orientationchange', positionPauseMenu)
+startPlayButton.addEventListener('click', () => {
+  game.restart()
+  syncPauseMenu()
+})
+startSettingsButton.addEventListener('click', () => {
+  settingsButton.click()
+})
 pauseResumeButton.addEventListener('click', () => {
   game.setPaused(false)
   syncPauseMenu()
