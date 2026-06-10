@@ -88,8 +88,7 @@ app.innerHTML = `
         <div class="game-dialog-divider"></div>
         <div class="settings-list" role="list"></div>
         <div class="game-dialog-actions settings-actions">
-          <button class="game-dialog-button settings-back" type="button">Close</button>
-          <button class="game-dialog-button game-dialog-button-primary settings-close" type="button">Done</button>
+          <button class="game-dialog-button game-dialog-button-primary settings-back" type="button">Close</button>
         </div>
         <p class="game-dialog-hint">Keyboard: arrows select · Enter open/change · Esc back</p>
       </section>
