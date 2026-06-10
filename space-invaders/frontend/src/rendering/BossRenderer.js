@@ -60,6 +60,42 @@ export class BossRenderer {
     this._drawHealthBar(context, boss)
   }
 
+  _drawBeamImpact(context, boss, elapsed, intensity = 1) {
+    const impactY = WORLD.height - 42
+    const pulse = 0.82 + ((Math.sin(elapsed * 18) + 1) / 2) * 0.18
+
+    const wideGlow = context.createRadialGradient(boss.beamX, impactY, 2, boss.beamX, impactY, 138)
+    wideGlow.addColorStop(0, `rgba(255, 255, 236, ${0.78 * intensity * pulse})`)
+    wideGlow.addColorStop(0.16, `rgba(196, 255, 92, ${0.58 * intensity})`)
+    wideGlow.addColorStop(0.42, `rgba(86, 255, 120, ${0.3 * intensity})`)
+    wideGlow.addColorStop(1, 'rgba(86, 255, 120, 0)')
+    context.fillStyle = wideGlow
+    context.beginPath()
+    context.arc(boss.beamX, impactY, 138, 0, Math.PI * 2)
+    context.fill()
+
+    const splashGradient = context.createLinearGradient(0, impactY - 22, 0, impactY + 32)
+    splashGradient.addColorStop(0, 'rgba(210, 255, 135, 0)')
+    splashGradient.addColorStop(0.42, `rgba(210, 255, 135, ${0.38 * intensity})`)
+    splashGradient.addColorStop(0.68, `rgba(255, 255, 238, ${0.52 * intensity})`)
+    splashGradient.addColorStop(1, 'rgba(86, 255, 120, 0)')
+    context.fillStyle = splashGradient
+    context.beginPath()
+    context.ellipse(boss.beamX, impactY + 4, 98, 20, 0, 0, Math.PI * 2)
+    context.fill()
+
+    for (let i = 0; i < 9; i += 1) {
+      const angle = (Math.PI * 2 * i) / 9 + elapsed * 0.8
+      const radius = 30 + ((i * 17) % 46)
+      const x = boss.beamX + Math.cos(angle) * radius
+      const y = impactY + Math.sin(angle) * 9
+      context.globalAlpha = 0.12 * intensity
+      context.fillStyle = i % 2 === 0 ? 'rgba(238,255,210,0.9)' : 'rgba(108,255,126,0.9)'
+      context.fillRect(x - 1.5, y - 1.5, 3, 3)
+    }
+    context.globalAlpha = 1
+  }
+
   _drawBeam(context, boss, elapsed) {
     const beamTop = boss.beamStartY
     const beamHeight = WORLD.height - beamTop
@@ -83,14 +119,7 @@ export class BossRenderer {
       context.fillStyle = 'rgba(236, 255, 220, 0.82)'
       context.fillRect(boss.beamX - 1.5, beamTop, 3, beamHeight)
 
-      const targetGlow = context.createRadialGradient(boss.beamX, WORLD.height - 56, 8, boss.beamX, WORLD.height - 56, 68 + progress * 34)
-      targetGlow.addColorStop(0, `rgba(240, 255, 230, ${0.35 * flicker})`)
-      targetGlow.addColorStop(0.38, `rgba(140, 255, 90, ${0.26 * flicker})`)
-      targetGlow.addColorStop(1, 'rgba(80, 255, 120, 0)')
-      context.fillStyle = targetGlow
-      context.beginPath()
-      context.arc(boss.beamX, WORLD.height - 56, 68 + progress * 34, 0, Math.PI * 2)
-      context.fill()
+      this._drawBeamImpact(context, boss, elapsed, 0.35 + progress * 0.35)
       context.restore()
     }
 
@@ -125,21 +154,7 @@ export class BossRenderer {
       }
       context.globalAlpha = 1
 
-      const impactGlow = context.createRadialGradient(boss.beamX, WORLD.height - 46, 10, boss.beamX, WORLD.height - 46, 120)
-      impactGlow.addColorStop(0, 'rgba(255, 255, 245, 0.96)')
-      impactGlow.addColorStop(0.22, 'rgba(190, 255, 92, 0.74)')
-      impactGlow.addColorStop(0.52, 'rgba(80, 255, 130, 0.36)')
-      impactGlow.addColorStop(1, 'rgba(80, 255, 130, 0)')
-      context.fillStyle = impactGlow
-      context.beginPath()
-      context.arc(boss.beamX, WORLD.height - 46, 120, 0, Math.PI * 2)
-      context.fill()
-
-      context.strokeStyle = 'rgba(220, 255, 180, 0.8)'
-      context.lineWidth = 2
-      context.beginPath()
-      context.ellipse(boss.beamX, WORLD.height - 42, 72, 16, 0, 0, Math.PI * 2)
-      context.stroke()
+      this._drawBeamImpact(context, boss, elapsed, 1)
       context.restore()
     }
   }
