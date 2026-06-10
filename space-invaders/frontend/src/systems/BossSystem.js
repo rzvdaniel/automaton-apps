@@ -1,5 +1,21 @@
 import { WORLD } from '../config.js'
 
+function fireBossChargeShot(shootEnemy, origin, velocity, index) {
+  shootEnemy({
+    originX: origin.x,
+    originY: origin.y,
+    projectileWidth: 10,
+    projectileHeight: 26,
+    projectileSpeed: 620,
+    projectileVx: velocity.x,
+    projectileVy: velocity.y,
+    projectileKind: 'boss-beam-charge',
+    projectileGlowColor: 'rgba(255, 84, 188, 0.9)',
+    projectileCoreColor: '#ffd6ff',
+    projectileTailColor: index % 2 === 0 ? '#ff5ccc' : '#ff8ae8'
+  })
+}
+
 export function createBoss(config = {}) {
   const targetWidth = WORLD.width * 0.72
   return {
@@ -22,6 +38,7 @@ export function createBoss(config = {}) {
     beamX: WORLD.width / 2,
     beamStartY: 0,
     beamHitArmed: true,
+    beamSupportShotsFired: false,
     damageFlash: 0,
     reactorPulse: 0,
     hoverPhase: Math.random() * Math.PI * 2,
@@ -63,7 +80,7 @@ export function getBossHardpoints(boss) {
 function syncBeamToReactor(boss) {
   const { core } = getBossHardpoints(boss)
   boss.beamX = core.x
-  boss.beamStartY = core.y + boss.height * 0.08
+  boss.beamStartY = core.y - boss.height * 0.02
 }
 
 function beginChargingBeam(boss) {
@@ -71,11 +88,43 @@ function beginChargingBeam(boss) {
   boss.beamWarning = boss.beamWarningDuration
   boss.beamActive = 0
   boss.beamHitArmed = true
+  boss.beamSupportShotsFired = false
   boss.coreCharge = 1
   boss.coreFlash = 1
 }
 
-export function updateBoss(state, dt, { shootEnemy: _shootEnemy, hitPlayer }) {
+function fireBeamSupportShots(boss, shootEnemy) {
+  const { leftPod, rightPod } = getBossHardpoints(boss)
+  const origins = [leftPod, rightPod]
+  const lanes = [
+    { x: -260, y: 620 },
+    { x: -185, y: 660 },
+    { x: -92, y: 700 },
+    { x: -28, y: 740 },
+    { x: 28, y: 740 },
+    { x: 92, y: 700 },
+    { x: 185, y: 660 },
+    { x: 260, y: 620 }
+  ]
+
+  lanes.forEach((velocity, index) => {
+    const origin = origins[index < 4 ? 0 : 1]
+    fireBossChargeShot(
+      shootEnemy,
+      {
+        x: origin.x + (index % 2 === 0 ? -6 : 6),
+        y: origin.y + 4
+      },
+      velocity,
+      index
+    )
+  })
+
+  boss.leftPodFlash = 1
+  boss.rightPodFlash = 1
+}
+
+export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
   const boss = state.boss
   if (!boss?.active) return
 
@@ -125,6 +174,12 @@ export function updateBoss(state, dt, { shootEnemy: _shootEnemy, hitPlayer }) {
   if (boss.beamWarning > 0) {
     boss.beamWarning = Math.max(0, boss.beamWarning - dt)
     boss.coreCharge = Math.min(1.35, 0.65 + (1 - boss.beamWarning / boss.beamWarningDuration) * 0.7)
+
+    if (!boss.beamSupportShotsFired && boss.beamWarning <= boss.beamWarningDuration * 0.72) {
+      boss.beamSupportShotsFired = true
+      fireBeamSupportShots(boss, shootEnemy)
+    }
+
     if (boss.beamWarning === 0) {
       boss.beamActive = boss.beamFireDuration
       boss.beamTimer = boss.beamCooldown
