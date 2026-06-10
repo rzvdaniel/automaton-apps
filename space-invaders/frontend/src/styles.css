@@ -289,7 +289,6 @@ canvas {
   font: 700 0.58rem/1.35 monospace;
 }
 
-
 .settings-menu {
   z-index: 6;
 }
@@ -353,7 +352,6 @@ canvas {
   grid-template-columns: 1fr 1fr;
   width: min(100%, 320px);
 }
-
 
 .top-actions {
   position: absolute;
@@ -508,7 +506,7 @@ canvas {
   margin-top: 4px;
 }
 
-.shell[data-settings-open="true"] .game-dialog-layer,
+.shell[data-settings-open="true"] .game-dialog-layer:not(.settings-menu),
 .shell[data-settings-open="true"] .touch-controls {
   display: none;
 }
@@ -726,6 +724,19 @@ canvas {
 
   .game-dialog-stats {
     grid-template-columns: 1fr;
+  }
+
+  .settings-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .settings-row-value {
+    text-align: center;
   }
 
   .touch-controls {
