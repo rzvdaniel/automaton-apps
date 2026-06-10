@@ -48,6 +48,22 @@ app.innerHTML = `
         </div>
       </section>
     </div>
+    <div class="game-dialog-layer game-over-menu" aria-hidden="true">
+      <section class="game-dialog game-dialog-danger" aria-labelledby="game-over-title">
+        <div class="game-dialog-kicker">SIGNAL LOST</div>
+        <h2 class="game-dialog-title" id="game-over-title">Game Over</h2>
+        <div class="game-dialog-divider"></div>
+        <p class="game-dialog-copy">Your ship was destroyed.</p>
+        <div class="game-dialog-stats" aria-label="Final progress">
+          <span>Level <strong class="game-over-level">1</strong></span>
+          <span>Wave <strong class="game-over-wave">1</strong></span>
+          <span>Score <strong class="game-over-score">000000</strong></span>
+        </div>
+        <div class="game-dialog-actions">
+          <button class="game-dialog-button game-dialog-button-primary game-over-retry" type="button">Try Again</button>
+        </div>
+      </section>
+    </div>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
         <div class="debug-title">Debug Start</div>
@@ -87,6 +103,11 @@ const startMenu = document.querySelector('.start-menu')
 const startPlayButton = document.querySelector('.start-play')
 const startSettingsButton = document.querySelector('.start-settings')
 const pauseMenu = document.querySelector('.pause-menu')
+const gameOverMenu = document.querySelector('.game-over-menu')
+const gameOverLevel = document.querySelector('.game-over-level')
+const gameOverWave = document.querySelector('.game-over-wave')
+const gameOverScore = document.querySelector('.game-over-score')
+const gameOverRetryButton = document.querySelector('.game-over-retry')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
 const touchFireButton = document.querySelector('.touch-fire')
@@ -114,8 +135,13 @@ function syncPauseMenu() {
   const isRunning = shell.dataset.gameRunning === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
   const isGameOver = isStarted && !isRunning
+  const progression = game.getProgression()
   startMenu.setAttribute('aria-hidden', !isStarted && !isSettingsOpen ? 'false' : 'true')
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
+  gameOverMenu.setAttribute('aria-hidden', isGameOver && !isSettingsOpen ? 'false' : 'true')
+  gameOverLevel.textContent = String(progression.level)
+  gameOverWave.textContent = String(progression.waveInLevel)
+  gameOverScore.textContent = String(game.getScore()).padStart(6, '0')
   pauseButton.classList.toggle('hidden', !isStarted)
   pauseButton.disabled = !isStarted || !isRunning
   pauseButton.dataset.state = isPaused ? 'play' : 'pause'
@@ -141,6 +167,10 @@ pauseResumeButton.addEventListener('click', () => {
 })
 pauseRestartButton.addEventListener('click', () => {
   game.restart()
+  syncPauseMenu()
+})
+gameOverRetryButton.addEventListener('click', () => {
+  game.startAtLevel(1, 1, 3)
   syncPauseMenu()
 })
 shell.addEventListener('game-state-change', syncPauseMenu)
