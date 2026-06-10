@@ -397,8 +397,7 @@ function drawOverlay(context, state, desktopMode) {
   const settingsOpen = state.settingsOpen
   const formationLockOverlay = false
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused && !formationLockOverlay) return
-  const gameOverOverlay = !settingsOpen && state.started && !state.running && !state.paused
-  const victoryOverlay = gameOverOverlay && state.victory
+  const victoryOverlay = state.victory
   const titleOverlay = !settingsOpen && !state.started
   const intermissionOverlay = !settingsOpen && state.started && state.running && !state.paused && state.overlayTimer > 0
 
@@ -407,52 +406,7 @@ function drawOverlay(context, state, desktopMode) {
     return
   }
 
-  if (gameOverOverlay) {
-    const panelWidth = desktopMode ? WORLD.width - 420 : WORLD.width - 300
-    const panelHeight = desktopMode ? 348 : 404
-    const panelX = (WORLD.width - panelWidth) / 2
-    const panelY = (desktopMode ? 604 : 706) + Math.round(state.composition.overlayShiftWorld * 0.55)
-    const panelGradient = context.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight)
-    panelGradient.addColorStop(0, 'rgba(8, 16, 30, 0.82)')
-    panelGradient.addColorStop(1, 'rgba(4, 8, 18, 0.92)')
-    context.fillStyle = panelGradient
-    context.fillRect(panelX, panelY, panelWidth, panelHeight)
 
-    context.strokeStyle = 'rgba(255, 106, 122, 0.24)'
-    context.lineWidth = 2
-    context.strokeRect(panelX, panelY, panelWidth, panelHeight)
-
-    context.textAlign = 'center'
-    context.fillStyle = victoryOverlay ? 'rgba(170, 255, 194, 0.92)' : 'rgba(255, 160, 174, 0.92)'
-    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText(victoryOverlay ? 'INVASION STOPPED' : 'SIGNAL LOST', WORLD.width / 2, panelY + (desktopMode ? 56 : 68))
-
-    context.fillStyle = PALETTE.white
-    context.shadowColor = victoryOverlay ? '#a1ff91' : PALETTE.red
-    context.shadowBlur = 18
-    context.font = desktopMode ? '900 58px "Arial Black", Impact, sans-serif' : '900 72px "Arial Black", Impact, sans-serif'
-    context.fillText(victoryOverlay ? 'MISSION COMPLETE' : 'GAME OVER', WORLD.width / 2, panelY + (desktopMode ? 132 : 156))
-    context.shadowBlur = 0
-
-    context.strokeStyle = 'rgba(255, 130, 142, 0.2)'
-    context.beginPath()
-    context.moveTo(panelX + 62, panelY + (desktopMode ? 172 : 196))
-    context.lineTo(panelX + panelWidth - 62, panelY + (desktopMode ? 172 : 196))
-    context.stroke()
-
-    context.fillStyle = 'rgba(238,252,255,0.78)'
-    context.font = desktopMode ? '600 22px monospace' : '600 28px monospace'
-    context.fillText(`LEVEL ${String(state.level).padStart(2, '0')}  WAVE ${String(state.waveInLevel).padStart(2, '0')}  SCORE ${String(state.score).padStart(6, '0')}`, WORLD.width / 2, panelY + (desktopMode ? 224 : 258))
-    context.fillStyle = victoryOverlay ? 'rgba(184, 255, 214, 0.88)' : 'rgba(255, 180, 190, 0.86)'
-    context.font = desktopMode ? '600 18px monospace' : '600 24px monospace'
-    context.fillText(victoryOverlay ? 'ALIEN COMMAND SHIP DESTROYED' : 'PILOT OFFLINE   SHIP DESTROYED', WORLD.width / 2, panelY + (desktopMode ? 266 : 306))
-
-    context.fillStyle = 'rgba(255,255,255,0.9)'
-    context.font = desktopMode ? '700 22px monospace' : '700 28px monospace'
-    context.fillText(desktopMode ? 'PRESS FIRE TO PLAY AGAIN' : 'TAP FIRE TO PLAY AGAIN', WORLD.width / 2, panelY + (desktopMode ? 304 : 352))
-    context.textAlign = 'left'
-    return
-  }
 
   if (intermissionOverlay) {
     const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
