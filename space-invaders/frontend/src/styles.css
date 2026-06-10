@@ -78,7 +78,8 @@ canvas {
 }
 
 .pause-menu,
-.game-over-menu {
+.game-over-menu,
+.victory-menu {
   z-index: 5;
 }
 
@@ -114,6 +115,15 @@ canvas {
     inset 0 0 27px rgba(255, 106, 122, 0.06);
 }
 
+.game-dialog-success {
+  border-color: rgba(161, 255, 145, 0.38);
+  box-shadow:
+    0 20px 56px rgba(0, 0, 0, 0.34),
+    0 0 30px rgba(161, 255, 145, 0.13),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 0 27px rgba(161, 255, 145, 0.06);
+}
+
 .game-dialog-kicker {
   margin-bottom: 10px;
   color: var(--accent);
@@ -125,6 +135,11 @@ canvas {
 .game-dialog-danger .game-dialog-kicker {
   color: rgba(255, 160, 174, 0.96);
   text-shadow: 0 0 11px rgba(255, 106, 122, 0.62);
+}
+
+.game-dialog-success .game-dialog-kicker {
+  color: rgba(184, 255, 214, 0.96);
+  text-shadow: 0 0 11px rgba(161, 255, 145, 0.52);
 }
 
 .game-dialog-title {
@@ -141,6 +156,12 @@ canvas {
   text-shadow:
     0 0 13px rgba(255, 106, 122, 0.58),
     0 0 27px rgba(255, 106, 122, 0.16);
+}
+
+.game-dialog-success .game-dialog-title {
+  text-shadow:
+    0 0 13px rgba(161, 255, 145, 0.5),
+    0 0 27px rgba(161, 255, 145, 0.14);
 }
 
 .game-dialog-title-xl {
@@ -160,6 +181,11 @@ canvas {
 .game-dialog-danger .game-dialog-divider {
   background: linear-gradient(90deg, transparent, rgba(255, 106, 122, 0.58), transparent);
   box-shadow: 0 0 10px rgba(255, 106, 122, 0.28);
+}
+
+.game-dialog-success .game-dialog-divider {
+  background: linear-gradient(90deg, transparent, rgba(161, 255, 145, 0.54), transparent);
+  box-shadow: 0 0 10px rgba(161, 255, 145, 0.24);
 }
 
 .game-dialog-copy {
@@ -189,10 +215,20 @@ canvas {
   box-shadow: inset 0 0 14px rgba(255, 106, 122, 0.06);
 }
 
+.game-dialog-success .game-dialog-stats span {
+  border-color: rgba(161, 255, 145, 0.22);
+  background: rgba(6, 16, 10, 0.32);
+  box-shadow: inset 0 0 14px rgba(161, 255, 145, 0.06);
+}
+
 .game-dialog-stats strong {
   color: rgba(255, 238, 242, 0.98);
   font-size: 0.82rem;
   letter-spacing: 0.04em;
+}
+
+.game-dialog-success .game-dialog-stats strong {
+  color: rgba(231, 255, 238, 0.98);
 }
 
 .game-dialog-actions {
