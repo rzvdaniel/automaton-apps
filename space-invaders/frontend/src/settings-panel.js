@@ -1,5 +1,3 @@
-import { getSettingsMenuLayout } from './overlay-layout.js'
-
 const SETTING_DEFINITIONS = [
   {
     id: 'spriteStyle',
@@ -103,15 +101,6 @@ function wrapIndex(index, length) {
   return (index + length + 1) % (length + 1)
 }
 
-function isInsideRect(x, y, rect, slop = 0) {
-  return (
-    x >= rect.x - slop &&
-    x <= rect.x + rect.width + slop &&
-    y >= rect.y - slop &&
-    y <= rect.y + rect.height + slop
-  )
-}
-
 function cycleOption(options, currentValue, direction) {
   const currentIndex = options.findIndex((option) => option.value === currentValue)
   const nextIndex = (currentIndex + direction + options.length) % options.length
@@ -119,8 +108,13 @@ function cycleOption(options, currentValue, direction) {
 }
 
 export function setupSettingsPanel({ game, root, shell }) {
-  const canvas = root.querySelector('.game')
   const openButton = root.querySelector('.settings-button')
+  const settingsMenu = root.querySelector('.settings-menu')
+  const titleElement = root.querySelector('.settings-title')
+  const subtitleElement = root.querySelector('.settings-subtitle')
+  const listElement = root.querySelector('.settings-list')
+  const backButton = root.querySelector('.settings-back')
+  const closeButton = root.querySelector('.settings-close')
   let screen = 'main'
   let activeSectionId = null
   let selectedIndex = 0
@@ -158,49 +152,13 @@ export function setupSettingsPanel({ game, root, shell }) {
     selectedIndex = 0
   }
 
-  function updateRenderState() {
-    const settings = game.getSettings()
-    const activeSection = getActiveSection()
-    const { desktopMode, composition } = game.getViewport()
-    const entries = screen === 'main'
-      ? SETTINGS_SECTIONS.map((section) => ({
-          kind: 'section',
-          id: section.id,
-          label: section.label,
-          valueLabel: section.summary(settings, game.isMuted())
-        }))
-      : getSectionItems(activeSectionId).map((item) => {
-          const option = getOption(item, settings)
-          return {
-            kind: 'item',
-            id: item.id,
-            label: item.label,
-            value: option.value,
-            valueLabel: option.label
-          }
-        })
-
-    game.setSettingsMenuState({
-      view: screen,
-      selectedIndex,
-      title: activeSection?.label ?? 'Settings',
-      subtitle: activeSection?.caption ?? 'System Menu',
-      layoutShiftY: composition.settingsShiftWorld,
-      closeLabel: screen === 'main' ? (shell.dataset.gameStarted === 'true' ? 'Resume' : 'Back') : 'Main Menu',
-      footerLabel: screen === 'main'
-        ? (desktopMode ? 'UP/DOWN SELECT   ENTER OPEN   ESC CLOSE' : 'TAP TO SELECT')
-        : (desktopMode ? 'LEFT/RIGHT CHANGE   ESC BACK' : 'TAP LEFT/RIGHT TO CHANGE'),
-      items: entries
-    })
-  }
-
   function applyValue(item, value) {
     if (item.id === 'sound') {
       game.setMuted(!value)
     } else {
       game.updateSettings({ [item.id]: value })
     }
-    updateRenderState()
+    renderSettingsDialog()
   }
 
   function changeSelectedItem(direction) {
@@ -217,7 +175,7 @@ export function setupSettingsPanel({ game, root, shell }) {
     activeSectionId = sectionId
     screen = 'detail'
     selectedIndex = 0
-    updateRenderState()
+    renderSettingsDialog()
   }
 
   function activateSelectedItem() {
@@ -225,7 +183,7 @@ export function setupSettingsPanel({ game, root, shell }) {
     if (selectedIndex === entries.length) {
       if (screen === 'detail') {
         resetToMainScreen()
-        updateRenderState()
+        renderSettingsDialog()
         return
       }
       closeDialog(true)
@@ -242,64 +200,50 @@ export function setupSettingsPanel({ game, root, shell }) {
 
   function moveSelection(direction) {
     selectedIndex = wrapIndex(selectedIndex + direction, getCurrentEntries().length)
-    updateRenderState()
+    renderSettingsDialog()
   }
 
-  function getWorldPoint(event) {
-    const rect = canvas.getBoundingClientRect()
-    const { scale, offsetX, offsetY } = game.getViewport()
-    return {
-      x: (event.clientX - rect.left - offsetX) / scale,
-      y: (event.clientY - rect.top - offsetY) / scale
-    }
-  }
-
-  function handlePointer(event) {
-    if (!isOpen()) return
-    const { desktopMode, composition } = game.getViewport()
+  function renderSettingsDialog() {
+    const settings = game.getSettings()
+    const activeSection = getActiveSection()
     const entries = getCurrentEntries()
-    const layout = getSettingsMenuLayout(desktopMode, entries.length, screen, composition.settingsShiftWorld)
-    const point = getWorldPoint(event)
-    const touchSlop = desktopMode ? 0 : 28
-    event.preventDefault()
-    event.stopImmediatePropagation()
+    const isMain = screen === 'main'
 
-    if (!isInsideRect(point.x, point.y, layout.panel, touchSlop)) {
-      closeDialog(true)
-      return
-    }
+    titleElement.textContent = activeSection?.label ?? 'Settings'
+    subtitleElement.textContent = isMain ? 'System Menu' : 'Adjust Option'
+    backButton.textContent = isMain ? 'Close' : 'Main Menu'
+    settingsMenu.setAttribute('aria-hidden', isOpen() ? 'false' : 'true')
+    listElement.innerHTML = ''
 
-    if (isInsideRect(point.x, point.y, layout.closeButton, touchSlop)) {
-      selectedIndex = entries.length
-      if (screen === 'detail') {
-        resetToMainScreen()
-        updateRenderState()
+    entries.forEach((entry, index) => {
+      const row = document.createElement('button')
+      row.type = 'button'
+      row.className = 'settings-row'
+      row.dataset.selected = selectedIndex === index ? 'true' : 'false'
+
+      const label = document.createElement('span')
+      label.className = 'settings-row-label'
+      label.textContent = entry.label
+      row.append(label)
+
+      const value = document.createElement('span')
+      value.className = 'settings-row-value'
+
+      if (isMain) {
+        value.textContent = entry.summary(settings, game.isMuted())
+        row.addEventListener('click', () => openSection(entry.id))
       } else {
-        updateRenderState()
-        closeDialog(true)
+        const option = getOption(entry, settings)
+        value.textContent = option.label
+        row.addEventListener('click', () => {
+          selectedIndex = index
+          changeSelectedItem(1)
+        })
       }
-      return
-    }
 
-    const rowIndex = layout.rows.findIndex((row) => isInsideRect(point.x, point.y, row, touchSlop))
-    if (rowIndex === -1) return
-
-    selectedIndex = rowIndex
-    if (screen === 'main') {
-      openSection(entries[rowIndex].id)
-      return
-    }
-
-    const item = entries[rowIndex]
-    const row = layout.rows[rowIndex]
-    const relativeX = (point.x - row.x) / row.width
-
-    if (relativeX < 0.5) {
-      changeSelectedItem(-1)
-      return
-    }
-
-    changeSelectedItem(1)
+      row.append(value)
+      listElement.append(row)
+    })
   }
 
   function handleKeyDown(event) {
@@ -319,7 +263,7 @@ export function setupSettingsPanel({ game, root, shell }) {
     if (event.code === 'Escape') {
       if (screen === 'detail') {
         resetToMainScreen()
-        updateRenderState()
+        renderSettingsDialog()
       } else {
         closeDialog(true)
       }
@@ -330,12 +274,14 @@ export function setupSettingsPanel({ game, root, shell }) {
     if (isOpen()) return
     resetToMainScreen()
     if (shell.dataset.gameStarted === 'true') game.setPaused(true)
-    updateRenderState()
+    game.setSettingsMenuState({ view: 'html' })
+    renderSettingsDialog()
   }
 
   function closeDialog(resume = true) {
     if (!isOpen()) return
     game.setSettingsMenuState(null)
+    settingsMenu.setAttribute('aria-hidden', 'true')
     if (resume && shell.dataset.gameStarted === 'true') game.setPaused(false)
   }
 
@@ -346,11 +292,22 @@ export function setupSettingsPanel({ game, root, shell }) {
     }
     openDialog()
   })
-  canvas.addEventListener('pointerdown', handlePointer)
+
+  backButton.addEventListener('click', () => {
+    if (screen === 'detail') {
+      resetToMainScreen()
+      renderSettingsDialog()
+      return
+    }
+    closeDialog(true)
+  })
+
+  closeButton.addEventListener('click', () => closeDialog(true))
   window.addEventListener('keydown', handleKeyDown, true)
 
   game.setSettingsMenuState(null)
   shell.dataset.settingsOpen = 'false'
+  settingsMenu.setAttribute('aria-hidden', 'true')
 
   return {
     open: openDialog,
