@@ -145,7 +145,7 @@ window.addEventListener('resize', positionPauseMenu)
 window.addEventListener('orientationchange', game.resize)
 window.addEventListener('orientationchange', positionPauseMenu)
 startPlayButton.addEventListener('click', () => {
-  game.restart()
+  game.startAtLevel(1, 1, 3)
   syncPauseMenu()
 })
 startSettingsButton.addEventListener('click', () => {
