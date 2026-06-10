@@ -114,7 +114,6 @@ export function setupSettingsPanel({ game, root, shell }) {
   const subtitleElement = root.querySelector('.settings-subtitle')
   const listElement = root.querySelector('.settings-list')
   const backButton = root.querySelector('.settings-back')
-  const closeButton = root.querySelector('.settings-close')
   let screen = 'main'
   let activeSectionId = null
   let selectedIndex = 0
@@ -211,7 +210,7 @@ export function setupSettingsPanel({ game, root, shell }) {
 
     titleElement.textContent = activeSection?.label ?? 'Settings'
     subtitleElement.textContent = isMain ? 'System Menu' : 'Adjust Option'
-    backButton.textContent = isMain ? 'Close' : 'Main Menu'
+    backButton.textContent = isMain ? 'Close' : 'Back'
     settingsMenu.setAttribute('aria-hidden', isOpen() ? 'false' : 'true')
     listElement.innerHTML = ''
 
@@ -302,7 +301,6 @@ export function setupSettingsPanel({ game, root, shell }) {
     closeDialog(true)
   })
 
-  closeButton.addEventListener('click', () => closeDialog(true))
   window.addEventListener('keydown', handleKeyDown, true)
 
   game.setSettingsMenuState(null)
