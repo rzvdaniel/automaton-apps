@@ -77,6 +77,7 @@ app.innerHTML = `
         </div>
         <div class="game-dialog-actions">
           <button class="game-dialog-button game-dialog-button-primary victory-replay" type="button">Play Again</button>
+          <button class="game-dialog-button victory-main-menu" type="button">Main Menu</button>
         </div>
       </section>
     </div>
@@ -129,6 +130,7 @@ const victoryLevel = document.querySelector('.victory-level')
 const victoryWave = document.querySelector('.victory-wave')
 const victoryScore = document.querySelector('.victory-score')
 const victoryReplayButton = document.querySelector('.victory-replay')
+const victoryMainMenuButton = document.querySelector('.victory-main-menu')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
 const touchFireButton = document.querySelector('.touch-fire')
@@ -202,6 +204,10 @@ gameOverRetryButton.addEventListener('click', () => {
 })
 victoryReplayButton.addEventListener('click', () => {
   game.startAtLevel(1, 1, 3)
+  syncPauseMenu()
+})
+victoryMainMenuButton.addEventListener('click', () => {
+  game.restart()
   syncPauseMenu()
 })
 shell.addEventListener('game-state-change', syncPauseMenu)
