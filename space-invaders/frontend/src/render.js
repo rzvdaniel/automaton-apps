@@ -397,16 +397,12 @@ function drawOverlay(context, state, desktopMode) {
   const settingsOpen = state.settingsOpen
   const formationLockOverlay = false
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused && !formationLockOverlay) return
-  const victoryOverlay = state.victory
-  const titleOverlay = !settingsOpen && !state.started
   const intermissionOverlay = !settingsOpen && state.started && state.running && !state.paused && state.overlayTimer > 0
 
   if (settingsOpen) {
     settingsMenuRenderer.render(context, state.settingsMenu, desktopMode)
     return
   }
-
-
 
   if (intermissionOverlay) {
     const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
