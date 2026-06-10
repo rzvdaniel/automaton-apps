@@ -17,7 +17,6 @@ src/
   ufo-encounter.js               UFO state machine (spawn, move, hit)
   settings.js                    loadSettings / saveSettings (localStorage)
   settings-panel.js              Settings overlay interaction (keyboard + pointer)
-  settings-menu-renderer.js      Canvas drawing for settings panel
   overlay-layout.js              Layout math for pause + settings panels
   debug-panel.js                 Debug wave-jump dialog (Shift+D)
 
@@ -44,7 +43,6 @@ src/
   rendering/
     Renderer.js                  Thin class wrapping renderScene from render.js
     HudRenderer.js               drawHud — score/wave/lives bar
-    MenuRenderer.js              drawOverlay — title, pause, game-over, intermission
     SpriteFactory.js             getCachedSprite, getScanlineCanvas, drawPixelSprite
 
   audio/
