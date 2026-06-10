@@ -64,6 +64,22 @@ app.innerHTML = `
         </div>
       </section>
     </div>
+    <div class="game-dialog-layer victory-menu" aria-hidden="true">
+      <section class="game-dialog game-dialog-success" aria-labelledby="victory-title">
+        <div class="game-dialog-kicker">INVASION STOPPED</div>
+        <h2 class="game-dialog-title" id="victory-title">Victory</h2>
+        <div class="game-dialog-divider"></div>
+        <p class="game-dialog-copy">You destroyed the mothership and saved Earth.</p>
+        <div class="game-dialog-stats" aria-label="Final score">
+          <span>Level <strong class="victory-level">1</strong></span>
+          <span>Wave <strong class="victory-wave">1</strong></span>
+          <span>Score <strong class="victory-score">000000</strong></span>
+        </div>
+        <div class="game-dialog-actions">
+          <button class="game-dialog-button game-dialog-button-primary victory-replay" type="button">Play Again</button>
+        </div>
+      </section>
+    </div>
     <dialog class="debug-dialog">
       <form class="debug-form" method="dialog">
         <div class="debug-title">Debug Start</div>
@@ -108,6 +124,11 @@ const gameOverLevel = document.querySelector('.game-over-level')
 const gameOverWave = document.querySelector('.game-over-wave')
 const gameOverScore = document.querySelector('.game-over-score')
 const gameOverRetryButton = document.querySelector('.game-over-retry')
+const victoryMenu = document.querySelector('.victory-menu')
+const victoryLevel = document.querySelector('.victory-level')
+const victoryWave = document.querySelector('.victory-wave')
+const victoryScore = document.querySelector('.victory-score')
+const victoryReplayButton = document.querySelector('.victory-replay')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
 const touchFireButton = document.querySelector('.touch-fire')
@@ -134,19 +155,25 @@ function syncPauseMenu() {
   const isPaused = shell.dataset.gamePaused === 'true'
   const isRunning = shell.dataset.gameRunning === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
-  const isGameOver = isStarted && !isRunning
+  const isVictory = game.hasVictory()
+  const isGameOver = isStarted && !isRunning && !isVictory
+  const isGameFinished = isStarted && !isRunning
   const progression = game.getProgression()
   startMenu.setAttribute('aria-hidden', !isStarted && !isSettingsOpen ? 'false' : 'true')
   pauseMenu.setAttribute('aria-hidden', isPaused && !isSettingsOpen ? 'false' : 'true')
   gameOverMenu.setAttribute('aria-hidden', isGameOver && !isSettingsOpen ? 'false' : 'true')
+  victoryMenu.setAttribute('aria-hidden', isVictory && !isSettingsOpen ? 'false' : 'true')
   gameOverLevel.textContent = String(progression.level)
   gameOverWave.textContent = String(progression.waveInLevel)
   gameOverScore.textContent = String(game.getScore()).padStart(6, '0')
+  victoryLevel.textContent = String(progression.level)
+  victoryWave.textContent = String(progression.waveInLevel)
+  victoryScore.textContent = String(game.getScore()).padStart(6, '0')
   pauseButton.classList.toggle('hidden', !isStarted)
   pauseButton.disabled = !isStarted || !isRunning
   pauseButton.dataset.state = isPaused ? 'play' : 'pause'
-  touchFireLabel.textContent = isGameOver ? 'RETRY' : 'FIRE'
-  touchFireButton.setAttribute('aria-label', isGameOver ? 'Retry game' : 'Fire')
+  touchFireLabel.textContent = isGameFinished ? 'RETRY' : 'FIRE'
+  touchFireButton.setAttribute('aria-label', isGameFinished ? 'Retry game' : 'Fire')
 
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
   pauseButton.setAttribute('title', isPaused ? 'Resume' : 'Pause')
@@ -170,6 +197,10 @@ pauseRestartButton.addEventListener('click', () => {
   syncPauseMenu()
 })
 gameOverRetryButton.addEventListener('click', () => {
+  game.startAtLevel(1, 1, 3)
+  syncPauseMenu()
+})
+victoryReplayButton.addEventListener('click', () => {
   game.startAtLevel(1, 1, 3)
   syncPauseMenu()
 })
