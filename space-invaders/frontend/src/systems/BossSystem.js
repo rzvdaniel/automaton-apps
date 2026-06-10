@@ -1,9 +1,5 @@
 import { WORLD } from '../config.js'
 
-function randomBetween(min, max) {
-  return min + Math.random() * (max - min)
-}
-
 export function createBoss(config = {}) {
   const targetWidth = WORLD.width * 0.72
   return {
@@ -64,10 +60,14 @@ export function getBossHardpoints(boss) {
   }
 }
 
-function beginChargingBeam(state, boss) {
+function syncBeamToReactor(boss) {
   const { core } = getBossHardpoints(boss)
-  boss.beamX = Math.max(84, Math.min(WORLD.width - 84, state.player.x + randomBetween(-42, 42)))
+  boss.beamX = core.x
   boss.beamStartY = core.y + boss.height * 0.08
+}
+
+function beginChargingBeam(boss) {
+  syncBeamToReactor(boss)
   boss.beamWarning = boss.beamWarningDuration
   boss.beamActive = 0
   boss.beamHitArmed = true
@@ -104,10 +104,17 @@ export function updateBoss(state, dt, { shootEnemy: _shootEnemy, hitPlayer }) {
     boss.direction *= -1
   }
 
+  if (boss.beamWarning > 0 || boss.beamActive > 0) {
+    syncBeamToReactor(boss)
+  }
+
   boss.descentTimer = Math.max(0, boss.descentTimer - dt)
   if (boss.descentTimer === 0) {
     boss.y += boss.descentStep
     boss.descentTimer = boss.descentInterval
+    if (boss.beamWarning > 0 || boss.beamActive > 0) {
+      syncBeamToReactor(boss)
+    }
   }
 
   if (boss.y + boss.height / 2 >= state.player.y - 24) {
@@ -122,6 +129,7 @@ export function updateBoss(state, dt, { shootEnemy: _shootEnemy, hitPlayer }) {
       boss.beamActive = boss.beamFireDuration
       boss.beamTimer = boss.beamCooldown
       boss.coreFlash = 1
+      syncBeamToReactor(boss)
     }
     return
   }
@@ -142,7 +150,7 @@ export function updateBoss(state, dt, { shootEnemy: _shootEnemy, hitPlayer }) {
   boss.coreCharge = Math.max(0, boss.coreCharge - dt * 2.4)
   boss.beamTimer = Math.max(0, boss.beamTimer - dt)
   if (boss.beamTimer === 0) {
-    beginChargingBeam(state, boss)
+    beginChargingBeam(boss)
   }
 }
 
