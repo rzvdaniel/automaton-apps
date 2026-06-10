@@ -1,11 +1,9 @@
 import { ENEMY_SPRITES, PALETTE, UFO_SPRITES, WORLD } from './config.js'
 import { getPauseMenuLayout } from './overlay-layout.js'
 import { BossRenderer } from './rendering/BossRenderer.js'
-import { SettingsMenuRenderer } from './settings-menu-renderer.js'
 
 const spriteCache = new Map()
 let scanlineCanvas = null
-const settingsMenuRenderer = new SettingsMenuRenderer()
 const bossRenderer = new BossRenderer()
 
 function createBuffer(width, height) {
@@ -398,11 +396,6 @@ function drawOverlay(context, state, desktopMode) {
   const formationLockOverlay = false
   if (state.started && state.running && state.overlayTimer <= 0 && !state.paused && !formationLockOverlay) return
   const intermissionOverlay = !settingsOpen && state.started && state.running && !state.paused && state.overlayTimer > 0
-
-  if (settingsOpen) {
-    settingsMenuRenderer.render(context, state.settingsMenu, desktopMode)
-    return
-  }
 
   if (intermissionOverlay) {
     const transitionPulse = 0.68 + ((Math.sin(state.elapsed * 4.2) + 1) / 2) * 0.22
