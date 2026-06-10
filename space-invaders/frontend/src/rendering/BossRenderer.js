@@ -71,6 +71,16 @@ export class BossRenderer {
     context.fill()
   }
 
+  _drawGlowStack(context, boss, beamTop, beamBottom, layers) {
+    for (const layer of layers) {
+      const gradient = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, beamBottom)
+      gradient.addColorStop(0, layer.top)
+      gradient.addColorStop(0.46, layer.mid)
+      gradient.addColorStop(1, layer.bottom)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, layer.topWidth, layer.bottomWidth, gradient)
+    }
+  }
+
   _drawBeam(context, boss, elapsed) {
     const beamTop = boss.beamStartY
     const beamBottom = WORLD.height
@@ -78,52 +88,94 @@ export class BossRenderer {
     if (boss.beamWarning > 0) {
       const progress = 1 - boss.beamWarning / Math.max(0.001, boss.beamWarningDuration ?? 1)
       const flicker = 0.45 + ((Math.sin(elapsed * 24) + 1) / 2) * 0.55
-      const warningTopWidth = 7 + progress * 18
-      const warningBottomWidth = warningTopWidth * 1.28
+      const glow = 0.55 + progress * 0.45
+      const warningTopWidth = 16 + progress * 28
+      const warningBottomWidth = warningTopWidth * 1.26
 
       context.save()
       context.globalCompositeOperation = 'screen'
-      context.globalAlpha = 0.22 + progress * 0.36
+      context.globalAlpha = 0.2 + progress * 0.42
+      this._drawGlowStack(context, boss, beamTop, beamBottom, [
+        {
+          topWidth: warningTopWidth * 2.2,
+          bottomWidth: warningBottomWidth * 2.6,
+          top: `rgba(120, 255, 90, ${0.07 * glow * flicker})`,
+          mid: `rgba(60, 255, 120, ${0.12 * glow * flicker})`,
+          bottom: `rgba(120, 255, 90, ${0.08 * glow * flicker})`
+        },
+        {
+          topWidth: warningTopWidth * 1.35,
+          bottomWidth: warningBottomWidth * 1.55,
+          top: `rgba(160, 255, 105, ${0.12 * glow * flicker})`,
+          mid: `rgba(92, 255, 120, ${0.18 * glow * flicker})`,
+          bottom: `rgba(170, 255, 108, ${0.13 * glow * flicker})`
+        },
+        {
+          topWidth: warningTopWidth,
+          bottomWidth: warningBottomWidth,
+          top: `rgba(210, 255, 170, ${0.14 * glow * flicker})`,
+          mid: `rgba(132, 255, 120, ${0.24 * glow * flicker})`,
+          bottom: `rgba(210, 255, 170, ${0.16 * glow * flicker})`
+        }
+      ])
 
-      const warningGlow = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, beamBottom)
-      warningGlow.addColorStop(0, `rgba(180, 255, 120, ${0.18 * flicker})`)
-      warningGlow.addColorStop(0.55, `rgba(80, 255, 120, ${0.3 * flicker})`)
-      warningGlow.addColorStop(1, `rgba(180, 255, 120, ${0.22 * flicker})`)
-      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, warningTopWidth, warningBottomWidth, warningGlow)
-
-      context.globalAlpha = 0.68 + progress * 0.22
-      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, 3, 5, 'rgba(236, 255, 220, 0.82)')
+      context.globalAlpha = 0.58 + progress * 0.25
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, 4, 7, 'rgba(238, 255, 226, 0.74)')
       context.restore()
     }
 
     if (boss.beamActive > 0) {
-      const age = 1 - boss.beamActive / Math.max(0.001, boss.beamFireDuration ?? 0.7)
+      const age = 1 - boss.beamActive / Math.max(0.001, boss.beamFireDuration ?? 0.72)
       const growth = Math.min(1, age / 0.42)
       const flicker = 0.78 + ((Math.sin(elapsed * 38) + 1) / 2) * 0.22
-      const outerTopWidth = 66 + growth * 22
-      const outerBottomWidth = outerTopWidth * 1.22
-      const midTopWidth = 32 + growth * 12
-      const midBottomWidth = midTopWidth * 1.22
+      const outerTopWidth = 70 + growth * 34
+      const outerBottomWidth = outerTopWidth * 1.26
+      const midTopWidth = 42 + growth * 16
+      const midBottomWidth = midTopWidth * 1.24
+      const innerTopWidth = 24 + growth * 10
+      const innerBottomWidth = innerTopWidth * 1.22
       const coreTopWidth = 12 + growth * 6
       const coreBottomWidth = coreTopWidth * 1.2
 
       context.save()
       context.globalCompositeOperation = 'screen'
 
-      const outerGradient = context.createLinearGradient(boss.beamX, beamTop, boss.beamX, beamBottom)
-      outerGradient.addColorStop(0, `rgba(118, 255, 76, ${0.3 * flicker})`)
-      outerGradient.addColorStop(0.48, `rgba(50, 255, 120, ${0.42 * flicker})`)
-      outerGradient.addColorStop(1, `rgba(170, 255, 95, ${0.34 * flicker})`)
-      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, outerTopWidth, outerBottomWidth, outerGradient)
+      this._drawGlowStack(context, boss, beamTop, beamBottom, [
+        {
+          topWidth: outerTopWidth * 1.45,
+          bottomWidth: outerBottomWidth * 1.55,
+          top: `rgba(90, 255, 74, ${0.12 * flicker})`,
+          mid: `rgba(55, 255, 124, ${0.18 * flicker})`,
+          bottom: `rgba(125, 255, 90, ${0.13 * flicker})`
+        },
+        {
+          topWidth: outerTopWidth,
+          bottomWidth: outerBottomWidth,
+          top: `rgba(118, 255, 76, ${0.23 * flicker})`,
+          mid: `rgba(50, 255, 120, ${0.34 * flicker})`,
+          bottom: `rgba(170, 255, 95, ${0.25 * flicker})`
+        },
+        {
+          topWidth: midTopWidth,
+          bottomWidth: midBottomWidth,
+          top: `rgba(142, 255, 94, ${0.42 * flicker})`,
+          mid: `rgba(160, 255, 112, ${0.48 * flicker})`,
+          bottom: `rgba(190, 255, 130, ${0.38 * flicker})`
+        },
+        {
+          topWidth: innerTopWidth,
+          bottomWidth: innerBottomWidth,
+          top: `rgba(220, 255, 184, ${0.56 * flicker})`,
+          mid: `rgba(224, 255, 196, ${0.62 * flicker})`,
+          bottom: `rgba(232, 255, 204, ${0.54 * flicker})`
+        }
+      ])
 
-      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, midTopWidth, midBottomWidth, `rgba(142, 255, 94, ${0.5 * flicker})`)
-      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, coreTopWidth, coreBottomWidth, `rgba(248, 255, 238, ${0.9 * flicker})`)
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, coreTopWidth, coreBottomWidth, `rgba(250, 255, 240, ${0.82 * flicker})`)
 
-      for (let i = 0; i < 7; i += 1) {
-        const normalizedY = i / 6
-        const strandWidth = outerTopWidth + (outerBottomWidth - outerTopWidth) * normalizedY
-        const offset = Math.sin(elapsed * 9 + i * 1.7) * (strandWidth * 0.34)
-        context.globalAlpha = 0.16
+      for (let i = 0; i < 9; i += 1) {
+        const offset = Math.sin(elapsed * 9 + i * 1.7) * (outerTopWidth * 0.42)
+        context.globalAlpha = 0.11
         context.fillStyle = i % 2 === 0 ? 'rgba(210, 255, 160, 0.8)' : 'rgba(70, 255, 130, 0.8)'
         context.fillRect(boss.beamX + offset - 1, beamTop, 2, beamHeight)
       }
