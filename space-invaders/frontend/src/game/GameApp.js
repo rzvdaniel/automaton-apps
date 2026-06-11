@@ -409,7 +409,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       kind: enemy.projectileKind ?? 'enemy',
       glowColor: enemy.projectileGlowColor,
       coreColor: enemy.projectileCoreColor,
-      tailColor: enemy.projectileTailColor
+      tailColor: enemy.projectileTailColor,
+      phase: enemy.phase
     }
     projectileManager.addEnemyBullet(bullet)
     syncProjectilesToState()
