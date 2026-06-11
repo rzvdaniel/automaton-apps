@@ -127,7 +127,7 @@ export const LEVEL_DEFINITIONS = [
       },
       finalBoss: {
         waveInLevel: 5,
-        hp: 40,
+        hp: 50,
         speed: 210,
         spreadCooldown: 1.35,
         beamCooldown: 4.6,

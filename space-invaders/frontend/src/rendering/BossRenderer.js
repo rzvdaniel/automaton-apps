@@ -186,22 +186,77 @@ export class BossRenderer {
 
   _drawHealthBar(context, boss) {
     const barWidth = Math.min(440, WORLD.width * 0.44)
-    const barHeight = 12
+    const barHeight = 16
     const barX = (WORLD.width - barWidth) / 2
-    const barY = 148
+    const barY = 172
     const hpRatio = Math.max(0, boss.hp / Math.max(1, boss.maxHp))
+    const framePaddingX = 16
+    const framePaddingY = 10
+    const frameX = barX - framePaddingX
+    const frameY = barY - framePaddingY
+    const frameWidth = barWidth + framePaddingX * 2
+    const frameHeight = barHeight + framePaddingY * 2
+    const healthColor = (
+      hpRatio > 0.5 ? '#9cff8f' :
+      hpRatio > 0.25 ? '#ffb84d' :
+      '#ff5c6f'
+    )
+    const glowColor = (
+      hpRatio > 0.5 ? 'rgba(156, 255, 143, 0.5)' :
+      hpRatio > 0.25 ? 'rgba(255, 184, 77, 0.5)' :
+      'rgba(255, 92, 111, 0.5)'
+    )
+    const fillWidth = Math.max(0, (barWidth - 6) * hpRatio)
 
     context.save()
-    context.fillStyle = 'rgba(3, 10, 20, 0.62)'
+    context.fillStyle = 'rgba(5, 12, 22, 0.88)'
+    context.beginPath()
+    context.moveTo(frameX + 14, frameY)
+    context.lineTo(frameX + frameWidth - 14, frameY)
+    context.lineTo(frameX + frameWidth, frameY + frameHeight / 2)
+    context.lineTo(frameX + frameWidth - 14, frameY + frameHeight)
+    context.lineTo(frameX + 14, frameY + frameHeight)
+    context.lineTo(frameX, frameY + frameHeight / 2)
+    context.closePath()
+    context.fill()
+
+    context.strokeStyle = 'rgba(120, 255, 180, 0.18)'
+    context.lineWidth = 2
+    context.stroke()
+
+    context.fillStyle = 'rgba(2, 8, 16, 0.95)'
     context.fillRect(barX, barY, barWidth, barHeight)
-    context.strokeStyle = 'rgba(238, 252, 255, 0.2)'
+
+    if (fillWidth > 0) {
+      const hpGradient = context.createLinearGradient(barX, 0, barX + barWidth, 0)
+      hpGradient.addColorStop(0, 'rgba(255,255,255,0.22)')
+      hpGradient.addColorStop(0.12, healthColor)
+      hpGradient.addColorStop(1, healthColor)
+      context.shadowColor = glowColor
+      context.shadowBlur = 16
+      context.fillStyle = hpGradient
+      context.fillRect(barX + 3, barY + 3, fillWidth, barHeight - 6)
+      context.shadowBlur = 0
+    }
+
+    context.strokeStyle = 'rgba(228, 255, 240, 0.24)'
     context.lineWidth = 1.5
     context.strokeRect(barX, barY, barWidth, barHeight)
-    const hpGradient = context.createLinearGradient(barX, 0, barX + barWidth, 0)
-    hpGradient.addColorStop(0, '#ff7ad3')
-    hpGradient.addColorStop(1, '#a1ff91')
-    context.fillStyle = hpGradient
-    context.fillRect(barX + 2, barY + 2, (barWidth - 4) * hpRatio, barHeight - 4)
+
+    const segments = 14
+    const segmentSpacing = barWidth / segments
+    context.strokeStyle = 'rgba(228, 255, 240, 0.12)'
+    context.lineWidth = 1
+    for (let i = 1; i < segments; i += 1) {
+      const x = barX + i * segmentSpacing
+      context.beginPath()
+      context.moveTo(x, barY + 2)
+      context.lineTo(x, barY + barHeight - 2)
+      context.stroke()
+    }
+
+    context.fillStyle = 'rgba(255,255,255,0.08)'
+    context.fillRect(barX + 3, barY + 3, Math.max(0, fillWidth * 0.55), 3)
     context.fillStyle = 'rgba(238,252,255,0.92)'
     context.font = '700 18px monospace'
     context.textAlign = 'center'
