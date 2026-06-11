@@ -467,8 +467,8 @@ canvas {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(env(safe-area-inset-bottom) + var(--touch-controls-bottom-offset, 0px) + 12px);
-  z-index: 3;
+  bottom: calc(env(safe-area-inset-bottom) + 24px);
+  z-index: 10;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
@@ -642,9 +642,19 @@ canvas {
     width: 108px;
     height: 108px;
   }
+
+  .touch-left,
+  .touch-right,
+  .touch-fire,
+  .touch-zone:active,
+  .touch-zone[data-pressed="true"],
+  .touch-fire:active,
+  .touch-fire[data-pressed="true"] {
+    filter: none;
+  }
 }
 
-@media (hover: hover) and (pointer: fine) {
+@media (hover: hover) and (pointer: fine) and (min-width: 769px) {
   .touch-controls {
     display: none;
   }

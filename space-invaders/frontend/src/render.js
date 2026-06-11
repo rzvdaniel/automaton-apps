@@ -181,6 +181,7 @@ function drawBackground(context, state) {
 function drawHud(context, state, desktopMode) {
   const hudAlpha = !state.running ? 0.72 : 1
   const valueColor = !state.running ? 'rgba(226, 236, 246, 0.82)' : PALETTE.white
+  const mobileHud = !desktopMode
   const hudY = 30
   const statIconBox = 58
   const valueY = hudY + 41
@@ -198,16 +199,20 @@ function drawHud(context, state, desktopMode) {
   context.textAlign = 'left'
   context.font = valueFont
   for (const stat of stats) {
-    context.save()
-    context.filter = 'brightness(1.22) saturate(1.14)'
-    context.shadowColor = 'rgba(110, 235, 255, 0.46)'
-    context.shadowBlur = 10
-    drawIconContain(context, stat.icon, stat.x + statIconBox / 2, hudY + statIconBox / 2, statIconBox)
-    context.restore()
+    if (mobileHud) {
+      drawIconContain(context, stat.icon, stat.x + statIconBox / 2, hudY + statIconBox / 2, statIconBox)
+    } else {
+      context.save()
+      context.filter = 'brightness(1.22) saturate(1.14)'
+      context.shadowColor = 'rgba(110, 235, 255, 0.46)'
+      context.shadowBlur = 10
+      drawIconContain(context, stat.icon, stat.x + statIconBox / 2, hudY + statIconBox / 2, statIconBox)
+      context.restore()
+    }
 
     context.fillStyle = stat.critical && !state.running ? 'rgba(255,106,122,0.96)' : valueColor
-    context.shadowColor = stat.critical && !state.running ? 'rgba(255,106,122,0.34)' : 'rgba(80, 220, 255, 0.14)'
-    context.shadowBlur = 6
+    context.shadowColor = mobileHud ? 'transparent' : stat.critical && !state.running ? 'rgba(255,106,122,0.34)' : 'rgba(80, 220, 255, 0.14)'
+    context.shadowBlur = mobileHud ? 0 : 6
     context.fillText(stat.value, stat.x + statIconBox + 8, valueY)
   }
   context.restore()
