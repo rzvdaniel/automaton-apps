@@ -41,11 +41,11 @@ export function createBoss(config = {}) {
     active: true,
     x: WORLD.width / 2,
     y: -240,
-    targetY: 640,
+    targetY: 560,
     width: targetWidth,
     height: targetWidth * 0.32,
-    hp: config.hp ?? 30,
-    maxHp: config.hp ?? 30,
+    hp: config.hp ?? 45,
+    maxHp: config.hp ?? 45,
     speed: config.speed ?? 82,
     direction: 1,
     attackSequence: config.attackSequence ?? ['burst', 'beam', 'burst', 'burst', 'beam'],
@@ -143,7 +143,7 @@ function fireBeamSupportWave(boss, shootEnemy) {
   const waveIndex = boss.beamSupportWave
   const waveSpread = waveIndex === 0
     ? { outer: 230, inner: 120, yOuter: 650, yInner: 710 }
-    : { outer: 185, inner: 68, yOuter: 700, yInner: 760 }
+    : { outer: 185, inner: 80, yOuter: 620, yInner: 680 }
 
   const lanes = [
     { origin: leftPod, offset: -16, velocity: { x: -waveSpread.outer, y: waveSpread.yOuter } },
@@ -257,7 +257,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
     boss.coreCharge = Math.min(1.35, 0.65 + (1 - boss.beamWarning / boss.beamWarningDuration) * 0.7)
     boss.beamSupportTimer = Math.max(0, boss.beamSupportTimer - dt)
 
-    if (boss.beamSupportWave < 2 && boss.beamSupportTimer === 0) {
+    if (boss.beamSupportWave < 1 && boss.beamSupportTimer === 0) {
       fireBeamSupportWave(boss, shootEnemy)
     }
 
