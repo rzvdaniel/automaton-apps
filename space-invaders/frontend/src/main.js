@@ -118,9 +118,12 @@ app.innerHTML = `
 `
 
 const shell = document.querySelector('.shell')
-shell.style.setProperty('--touch-left-button-image', "url('./images/touch-left-button.png')")
-shell.style.setProperty('--touch-right-button-image', "url('./images/touch-right-button.png')")
-shell.style.setProperty('--touch-fire-button-image', "url('./images/touch-fire-button.png')")
+const touchLeftButtonUrl = new URL('./images/touch-left-button.png', window.location.href).href
+const touchRightButtonUrl = new URL('./images/touch-right-button.png', window.location.href).href
+const touchFireButtonUrl = new URL('./images/touch-fire-button.png', window.location.href).href
+shell.style.setProperty('--touch-left-button-image', `url("${touchLeftButtonUrl}")`)
+shell.style.setProperty('--touch-right-button-image', `url("${touchRightButtonUrl}")`)
+shell.style.setProperty('--touch-fire-button-image', `url("${touchFireButtonUrl}")`)
 const startMenu = document.querySelector('.start-menu')
 const startPlayButton = document.querySelector('.start-play')
 const startSettingsButton = document.querySelector('.start-settings')

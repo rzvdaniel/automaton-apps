@@ -115,7 +115,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   function getPlayerSafeY(rect = canvas.getBoundingClientRect()) {
     const controlsTop = touchControls?.fire?.getBoundingClientRect().top
-    const preferredPlayerY = defaultPlayerY - state.composition.playerLiftWorld
+    const mobileShipLift = isMobileViewport() ? 12 : 0
+    const preferredPlayerY = defaultPlayerY - state.composition.playerLiftWorld - mobileShipLift
 
     if (!controlsTop || controlsTop <= rect.top) return preferredPlayerY
 

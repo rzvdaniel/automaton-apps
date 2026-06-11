@@ -467,15 +467,15 @@ canvas {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(env(safe-area-inset-bottom) + 24px);
+  bottom: calc(env(safe-area-inset-bottom) + 34px);
   z-index: 10;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
-  gap: 10px;
+  gap: 2px;
   width: min(100%, var(--touch-controls-max-width, 520px));
   margin: 0 auto;
-  padding: 0 14px;
+  padding: 0 6px;
   pointer-events: none;
   touch-action: none;
 }
@@ -502,8 +502,8 @@ canvas {
 
 .touch-left,
 .touch-right {
-  width: clamp(86px, 22vw, 110px);
-  height: clamp(86px, 22vw, 110px);
+  width: clamp(112px, 29vw, 128px);
+  height: clamp(112px, 29vw, 128px);
 }
 
 .touch-left {
@@ -520,25 +520,24 @@ canvas {
 
 .touch-fire {
   justify-self: center;
-  width: clamp(112px, 28vw, 140px);
-  height: clamp(112px, 28vw, 140px);
+  width: clamp(116px, 28vw, 128px);
+  height: clamp(116px, 28vw, 128px);
   background-image: var(--touch-fire-button-image);
   filter: drop-shadow(0 0 20px rgba(255, 110, 72, 0.45));
 }
 
 .touch-zone:active,
 .touch-zone[data-pressed="true"] {
-  transform: scale(0.94) translateZ(0);
-  filter:
-    brightness(1.35)
-    drop-shadow(0 0 28px rgba(80, 220, 255, 0.85));
+  transform: scale(0.975) translateZ(0);
+  outline: 2px solid rgba(120, 235, 255, 0.42);
+  outline-offset: -6px;
+  filter: brightness(1.12);
 }
 
 .touch-fire:active,
 .touch-fire[data-pressed="true"] {
-  filter:
-    brightness(1.45)
-    drop-shadow(0 0 34px rgba(255, 100, 60, 0.95));
+  outline-color: rgba(255, 180, 120, 0.48);
+  filter: brightness(1.16);
 }
 
 .shell[data-game-paused="true"][data-game-started="true"][data-game-running="true"] .touch-controls {
@@ -551,6 +550,12 @@ canvas {
 }
 
 @media (max-width: 768px) {
+  .game-over-menu {
+    place-items: start center;
+    padding-top: calc(env(safe-area-inset-top) + 42px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 180px);
+  }
+
   .top-actions {
     top: calc(env(safe-area-inset-top) + 10px);
     right: 14px;
@@ -628,19 +633,19 @@ canvas {
   }
 
   .touch-controls {
-    gap: 6px;
-    padding: 0 10px;
+    gap: 0;
+    padding: 0 2px;
   }
 
   .touch-left,
   .touch-right {
-    width: 84px;
-    height: 84px;
+    width: 124px;
+    height: 124px;
   }
 
   .touch-fire {
-    width: 108px;
-    height: 108px;
+    width: 124px;
+    height: 124px;
   }
 
   .touch-left,
@@ -651,6 +656,16 @@ canvas {
   .touch-fire:active,
   .touch-fire[data-pressed="true"] {
     filter: none;
+  }
+
+  .touch-zone:active,
+  .touch-zone[data-pressed="true"] {
+    outline: 2px solid rgba(120, 235, 255, 0.34);
+  }
+
+  .touch-fire:active,
+  .touch-fire[data-pressed="true"] {
+    outline-color: rgba(255, 180, 120, 0.4);
   }
 }
 
