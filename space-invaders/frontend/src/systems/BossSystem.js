@@ -21,9 +21,9 @@ function fireBossEnergyBurstShot(shootEnemy, origin, velocity, index) {
   shootEnemy({
     originX: origin.x,
     originY: origin.y,
-    projectileWidth: 46,
-    projectileHeight: 46,
-    projectileSpeed: 260,
+    projectileWidth: 66,
+    projectileHeight: 66,
+    projectileSpeed: 230,
     projectileVx: velocity.x,
     projectileVy: velocity.y,
     projectileKind: 'boss-energy-burst',

@@ -7,6 +7,8 @@ let scanlineCanvas = null
 const bossRenderer = new BossRenderer()
 const bossBeamChargeBulletSprite = new Image()
 bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.png'
+const bossEnergyBurstOrbSprite = new Image()
+bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.png'
 
 function createBuffer(width, height) {
   const buffer = document.createElement('canvas')
@@ -358,6 +360,35 @@ function drawBossBeamChargeBullet(context, bullet) {
   context.restore()
 }
 
+function drawBossEnergyBurstOrb(context, bullet, elapsed) {
+  const pulse = 1 + Math.sin(elapsed * 10 + (bullet.phase ?? 0)) * 0.08
+  const spriteSize = Math.max(62, Math.max(bullet.width, bullet.height) * 1.35 * pulse)
+
+  context.save()
+  context.translate(bullet.x, bullet.y)
+  context.globalCompositeOperation = 'screen'
+  context.shadowColor = bullet.glowColor ?? 'rgba(220, 92, 255, 0.9)'
+  context.shadowBlur = 24
+
+  if (bossEnergyBurstOrbSprite.complete && bossEnergyBurstOrbSprite.naturalWidth > 0) {
+    context.imageSmoothingEnabled = false
+    context.drawImage(
+      bossEnergyBurstOrbSprite,
+      -spriteSize / 2,
+      -spriteSize / 2,
+      spriteSize,
+      spriteSize
+    )
+  } else {
+    context.fillStyle = bullet.coreColor ?? '#ffd6ff'
+    context.beginPath()
+    context.arc(0, 0, spriteSize / 2, 0, Math.PI * 2)
+    context.fill()
+  }
+
+  context.restore()
+}
+
 function drawProjectiles(context, state) {
   for (const bullet of state.bullets) {
     context.save()
@@ -373,6 +404,11 @@ function drawProjectiles(context, state) {
   for (const bullet of state.enemyBullets) {
     if (bullet.kind === 'boss-beam-charge') {
       drawBossBeamChargeBullet(context, bullet)
+      continue
+    }
+
+    if (bullet.kind === 'boss-energy-burst') {
+      drawBossEnergyBurstOrb(context, bullet, state.elapsed)
       continue
     }
 
