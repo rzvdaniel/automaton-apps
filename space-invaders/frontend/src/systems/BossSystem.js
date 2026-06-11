@@ -1,5 +1,4 @@
 import { WORLD } from '../config.js'
-
 function fireBossChargeShot(shootEnemy, origin, velocity, index) {
   shootEnemy({
     originX: origin.x,
@@ -12,7 +11,8 @@ function fireBossChargeShot(shootEnemy, origin, velocity, index) {
     projectileKind: 'boss-beam-charge',
     projectileGlowColor: 'rgba(255, 84, 188, 0.9)',
     projectileCoreColor: '#ffd6ff',
-    projectileTailColor: index % 2 === 0 ? '#ff5ccc' : '#ff8ae8'
+    projectileTailColor: index % 2 === 0 ? '#ff5ccc' : '#ff8ae8',
+    ignoreEnemyBulletLimit: true
   })
 }
 
