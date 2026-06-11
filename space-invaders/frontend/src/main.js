@@ -1,5 +1,4 @@
 import './styles.css'
-import { createIcons, Pause, Play, Settings } from 'lucide'
 import { createGame } from './game/GameApp.js'
 import { setupDebugPanel } from './debug-panel.js'
 import { setupSettingsPanel } from './settings-panel.js'
@@ -27,14 +26,15 @@ app.innerHTML = `
       </section>
     </div>
     <div class="top-actions">
-      <button class="overlay-button overlay-button-icon pause-button" type="button" aria-label="Pause" title="Pause" data-state="pause">
-        <i class="toolbar-svg toolbar-svg-pause" data-lucide="pause" aria-hidden="true"></i>
-        <i class="toolbar-svg toolbar-svg-play" data-lucide="play" aria-hidden="true"></i>
+      <button class="overlay-button pause-button" type="button" aria-label="Pause" title="Pause" data-state="pause">
+        <img src="./images/hud-pause.png" alt="" aria-hidden="true" />
       </button>
-      <button class="overlay-button overlay-button-icon settings-button" type="button" aria-label="Settings" title="Settings">
-        <i class="toolbar-svg toolbar-svg-settings" data-lucide="settings" aria-hidden="true"></i>
+      <button class="overlay-button settings-button" type="button" aria-label="Settings" title="Settings">
+        <img src="./images/hud-settings.png" alt="" aria-hidden="true" />
       </button>
-      <button class="overlay-button install hidden" type="button">Install</button>
+      <button class="overlay-button install hidden" type="button" aria-label="Install" title="Install">
+        <img src="./images/hud-install.png" alt="" aria-hidden="true" />
+      </button>
     </div>
     <div class="game-dialog-layer pause-menu" aria-hidden="true">
       <section class="game-dialog game-dialog-pause" aria-labelledby="pause-menu-title">
@@ -116,13 +116,6 @@ app.innerHTML = `
     </div>
   </div>
 `
-
-createIcons({
-  icons: { Pause, Play, Settings },
-  attrs: {
-    'stroke-width': 1.9
-  }
-})
 
 const shell = document.querySelector('.shell')
 shell.style.setProperty('--touch-left-button-image', "url('./images/touch-left-button.png')")

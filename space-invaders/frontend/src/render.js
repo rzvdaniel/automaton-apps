@@ -9,6 +9,14 @@ const bossBeamChargeBulletSprite = new Image()
 bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.png'
 const bossEnergyBurstOrbSprite = new Image()
 bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.png'
+const hudScoreIcon = new Image()
+hudScoreIcon.src = './images/hud-score.png'
+const hudLevelIcon = new Image()
+hudLevelIcon.src = './images/hud-level.png'
+const hudWaveIcon = new Image()
+hudWaveIcon.src = './images/hud-wave.png'
+const hudLivesIcon = new Image()
+hudLivesIcon.src = './images/hud-lives.png'
 
 function createBuffer(width, height) {
   const buffer = document.createElement('canvas')
@@ -70,6 +78,26 @@ function drawPixelSprite(context, sprite, x, y, pixelSize, color, glow = color, 
   const startY = Math.round(y)
   const { buffer, padding } = getCachedSprite(sprite, unit, color, glow, spriteStyle)
   context.drawImage(buffer, startX - padding, startY - padding)
+}
+
+function drawIconContain(context, image, centerX, centerY, boxSize) {
+  if (!image?.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return
+
+  const scale = Math.min(
+    boxSize / image.naturalWidth,
+    boxSize / image.naturalHeight
+  )
+
+  const width = image.naturalWidth * scale
+  const height = image.naturalHeight * scale
+
+  context.drawImage(
+    image,
+    centerX - width / 2,
+    centerY - height / 2,
+    width,
+    height
+  )
 }
 
 function drawBackground(context, state) {
@@ -151,34 +179,32 @@ function drawBackground(context, state) {
 }
 
 function drawHud(context, state, desktopMode) {
-  const compactHud = window.matchMedia('(max-width: 380px)').matches
   const hudAlpha = !state.running ? 0.72 : 1
-  const labelColor = !state.running ? 'rgba(196, 216, 234, 0.78)' : PALETTE.white
   const valueColor = !state.running ? 'rgba(226, 236, 246, 0.82)' : PALETTE.white
+  const compactHud = window.matchMedia('(max-width: 380px)').matches
+  const hudY = compactHud ? 28 : 30
+  const statIconBox = compactHud ? 48 : 58
+  const valueY = hudY + (compactHud ? 30 : 36)
+  const valueFont = compactHud ? '700 36px monospace' : '700 40px monospace'
+  const stats = [
+    { icon: hudScoreIcon, value: String(state.score).padStart(6, '0'), x: compactHud ? 16 : 24 },
+    { icon: hudLevelIcon, value: String(state.level).padStart(2, '0'), x: compactHud ? 154 : 206 },
+    { icon: hudWaveIcon, value: String(state.waveInLevel).padStart(2, '0'), x: compactHud ? 274 : 362 },
+    { icon: hudLivesIcon, value: String(state.player.lives), x: compactHud ? 394 : 518, critical: true }
+  ]
 
   context.save()
   context.globalAlpha = hudAlpha
-  context.fillStyle = 'rgba(6, 10, 24, 0.28)'
-  context.fillRect(24, 32, WORLD.width - 48, 124)
-
-  const columns = [
-    { label: 'SCORE', value: String(state.score).padStart(6, '0'), x: 44 },
-    { label: 'LEVEL', value: String(state.level).padStart(2, '0'), x: compactHud ? 252 : 248 },
-    { label: 'WAVE', value: String(state.waveInLevel).padStart(2, '0'), x: compactHud ? 446 : 452 },
-    { label: 'LIVES', value: String(state.player.lives), x: compactHud ? 642 : 652 }
-  ]
 
   context.textAlign = 'left'
-  context.font = compactHud ? '700 28px monospace' : '700 30px monospace'
-  for (const column of columns) {
-    context.fillStyle = labelColor
-    context.fillText(column.label, column.x, 70)
-  }
+  context.font = valueFont
+  for (const stat of stats) {
+    drawIconContain(context, stat.icon, stat.x + statIconBox / 2, hudY + statIconBox / 2, statIconBox)
 
-  context.font = compactHud ? '700 38px monospace' : '700 42px monospace'
-  for (const column of columns) {
-    context.fillStyle = column.label === 'LIVES' && !state.running ? 'rgba(255,106,122,0.96)' : valueColor
-    context.fillText(column.value, column.x, 118)
+    context.fillStyle = stat.critical && !state.running ? 'rgba(255,106,122,0.96)' : valueColor
+    context.shadowColor = stat.critical && !state.running ? 'rgba(255,106,122,0.34)' : 'rgba(80, 220, 255, 0.14)'
+    context.shadowBlur = 6
+    context.fillText(stat.value, stat.x + statIconBox + 8, valueY)
   }
   context.restore()
 }

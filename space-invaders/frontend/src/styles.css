@@ -356,96 +356,46 @@ canvas {
 
 .top-actions {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 12px);
-  right: 12px;
+  top: calc(env(safe-area-inset-top) + 18px);
+  right: 14px;
   display: flex;
-  gap: 6px;
-  z-index: 3;
-}
-
-.settings-button {
-  display: inline-flex;
+  gap: 8px;
+  z-index: 5;
 }
 
 .overlay-button {
-  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(8, 18, 34, 0.82), rgba(4, 10, 20, 0.72));
+  display: flex;
   align-items: center;
   justify-content: center;
-  border: 0;
-  min-width: 36px;
-  min-height: 36px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: var(--chrome);
-  color: var(--text);
-  font: 700 0.8rem/1 monospace;
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow:
+    inset 0 0 0 1px rgba(140, 247, 255, 0.18),
+    inset 0 0 16px rgba(140, 247, 255, 0.06),
+    0 0 14px rgba(0, 0, 0, 0.18);
+  opacity: 1;
+  transition:
+    transform 80ms ease,
+    filter 80ms ease,
+    opacity 120ms ease;
 }
 
-.overlay-button-icon {
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
-  padding: 0;
-  font-size: 1rem;
-  line-height: 1;
+.overlay-button img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px rgba(80, 220, 255, 0.22));
 }
 
-.pause-button {
-  box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.22);
-}
-
-.settings-button {
-  font-size: 0.95rem;
-}
-
-.toolbar-svg {
-  display: block;
-  flex: 0 0 auto;
-}
-
-.toolbar-svg {
-  width: 15px;
-  height: 15px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.toolbar-svg-play {
-  display: none;
-  transform: translateX(1px);
-  fill: currentColor;
-  stroke: none;
-}
-
-.toolbar-svg-pause {
-  fill: currentColor;
-  stroke: none;
-}
-
-.pause-button[data-state="play"] .toolbar-svg-play {
-  display: block;
-}
-
-.pause-button[data-state="play"] .toolbar-svg-pause {
-  display: none;
-}
-
-.pause-button[data-state="pause"] .toolbar-svg-pause {
-  display: block;
-}
-
-.pause-button[data-state="pause"] .toolbar-svg-play {
-  display: none;
-}
-
-.toolbar-svg-settings {
-  width: 16px;
-  height: 16px;
+.overlay-button:hover,
+.overlay-button:active {
+  transform: scale(0.94);
+  filter: brightness(1.2);
 }
 
 .overlay-button:disabled {
@@ -600,20 +550,19 @@ canvas {
 
 @media (max-width: 768px) {
   .top-actions {
-    top: calc(env(safe-area-inset-top) + 12px);
-    right: 12px;
-    gap: 20px;
-    padding-left: 12px;
-    padding-right: 12px;
+    top: calc(env(safe-area-inset-top) + 18px);
+    right: 14px;
+    gap: 8px;
   }
 
-  .pause-button {
+  .overlay-button {
     width: 42px;
-    min-width: 42px;
     height: 42px;
-    min-height: 42px;
-    font-size: 0.98rem;
-    box-shadow: inset 0 0 0 1px rgba(140, 247, 255, 0.18);
+  }
+
+  .overlay-button img {
+    width: 28px;
+    height: 28px;
   }
 
   .game-dialog-layer {
@@ -631,34 +580,19 @@ canvas {
 
 @media (max-width: 420px) {
   .top-actions {
-    top: calc(env(safe-area-inset-top) + 12px);
-    right: 10px;
-    gap: 5px;
+    top: calc(env(safe-area-inset-top) + 18px);
+    right: 14px;
+    gap: 8px;
   }
 
   .overlay-button {
-    min-width: 30px;
-    min-height: 30px;
-    padding: 0 8px;
+    width: 40px;
+    height: 40px;
   }
 
-  .overlay-button-icon {
-    width: 30px;
-    min-width: 30px;
-    min-height: 30px;
-    font-size: 0.95rem;
-  }
-
-  .pause-button {
-    width: 30px;
-    min-width: 30px;
-    height: 30px;
-    min-height: 30px;
-    font-size: 0.9rem;
-  }
-
-  .shell[data-game-paused="false"] .top-actions {
-    right: 12px;
+  .overlay-button img {
+    width: 26px;
+    height: 26px;
   }
 
   .game-dialog-title-xl {
