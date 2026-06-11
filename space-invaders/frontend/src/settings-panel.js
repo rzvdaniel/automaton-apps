@@ -29,15 +29,6 @@ const SETTING_DEFINITIONS = [
     ]
   },
   {
-    id: 'controls',
-    label: 'Controls',
-    category: 'controls',
-    options: [
-      { value: 'buttons', label: 'Buttons' },
-      { value: 'zones', label: 'Touch Zones' }
-    ]
-  },
-  {
     id: 'sound',
     label: 'Sound',
     category: 'audio',
@@ -72,13 +63,6 @@ const SETTINGS_SECTIONS = [
     label: 'Graphics',
     summary(settings) {
       return settings.spriteStyle === 'smooth' ? 'Smooth holographics' : 'Crisp pixel glow'
-    }
-  },
-  {
-    id: 'controls',
-    label: 'Controls',
-    summary(settings) {
-      return settings.controls === 'zones' ? 'Touch zones engaged' : 'Button layout engaged'
     }
   },
   {

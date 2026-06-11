@@ -5,17 +5,11 @@ export const DEFAULT_SETTINGS = {
   screenShake: 'low',
   backgroundBlur: 'low',
   reducedMotion: false,
-  controls: 'buttons',
   keyboardHint: true
 }
 
 function getDefaultSettings() {
-  const prefersTouchZones = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
-
-  return {
-    ...DEFAULT_SETTINGS,
-    controls: prefersTouchZones ? 'zones' : DEFAULT_SETTINGS.controls
-  }
+  return { ...DEFAULT_SETTINGS }
 }
 
 export function loadSettings() {

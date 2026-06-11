@@ -204,7 +204,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     shell.dataset.gameStarted = state.started ? 'true' : 'false'
     shell.dataset.gameRunning = state.running ? 'true' : 'false'
     shell.dataset.settingsOpen = state.settingsOpen ? 'true' : 'false'
-    shell.dataset.controlsMode = state.settings.controls
     shell.dispatchEvent(
       new CustomEvent('game-state-change', {
         detail: {

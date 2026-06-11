@@ -1,5 +1,5 @@
 import './styles.css'
-import { ChevronLeft, ChevronRight, createIcons, Pause, Play, Settings } from 'lucide'
+import { createIcons, Pause, Play, Settings } from 'lucide'
 import { createGame } from './game/GameApp.js'
 import { setupDebugPanel } from './debug-panel.js'
 import { setupSettingsPanel } from './settings-panel.js'
@@ -110,25 +110,24 @@ app.innerHTML = `
       </form>
     </dialog>
     <div class="touch-controls" aria-hidden="true">
-      <button class="touch-zone touch-left" type="button" aria-label="Move left">
-        <i class="touch-icon" data-lucide="chevron-left" aria-hidden="true"></i>
-      </button>
-      <button class="touch-zone touch-fire" type="button"><span class="touch-fire-label">FIRE</span></button>
-      <button class="touch-zone touch-right" type="button" aria-label="Move right">
-        <i class="touch-icon" data-lucide="chevron-right" aria-hidden="true"></i>
-      </button>
+      <button class="touch-zone touch-left" type="button" aria-label="Move left"></button>
+      <button class="touch-zone touch-fire" type="button" aria-label="Fire"></button>
+      <button class="touch-zone touch-right" type="button" aria-label="Move right"></button>
     </div>
   </div>
 `
 
 createIcons({
-  icons: { ChevronLeft, ChevronRight, Pause, Play, Settings },
+  icons: { Pause, Play, Settings },
   attrs: {
     'stroke-width': 1.9
   }
 })
 
 const shell = document.querySelector('.shell')
+shell.style.setProperty('--touch-left-button-image', "url('./images/touch-left-button.png')")
+shell.style.setProperty('--touch-right-button-image', "url('./images/touch-right-button.png')")
+shell.style.setProperty('--touch-fire-button-image', "url('./images/touch-fire-button.png')")
 const startMenu = document.querySelector('.start-menu')
 const startPlayButton = document.querySelector('.start-play')
 const startSettingsButton = document.querySelector('.start-settings')
@@ -148,7 +147,6 @@ const victoryMainMenuButton = document.querySelector('.victory-main-menu')
 const settingsButton = document.querySelector('.settings-button')
 const pauseButton = document.querySelector('.pause-button')
 const touchFireButton = document.querySelector('.touch-fire')
-const touchFireLabel = document.querySelector('.touch-fire-label')
 const game = createGame({
   canvas: document.querySelector('.game'),
   shell,
@@ -188,7 +186,6 @@ function syncPauseMenu() {
   pauseButton.classList.toggle('hidden', !isStarted)
   pauseButton.disabled = !isStarted || !isRunning
   pauseButton.dataset.state = isPaused ? 'play' : 'pause'
-  touchFireLabel.textContent = isGameFinished ? 'RETRY' : 'FIRE'
   touchFireButton.setAttribute('aria-label', isGameFinished ? 'Retry game' : 'Fire')
 
   pauseButton.setAttribute('aria-label', isPaused ? 'Resume' : 'Pause')
