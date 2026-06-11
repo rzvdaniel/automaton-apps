@@ -356,7 +356,7 @@ canvas {
 
 .top-actions {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 18px);
+  top: calc(env(safe-area-inset-top) + 10px);
   right: 14px;
   display: flex;
   gap: 8px;
@@ -364,8 +364,8 @@ canvas {
 }
 
 .overlay-button {
-  width: 44px;
-  height: 44px;
+  width: 37px;
+  height: 37px;
   border: 0;
   padding: 0;
   border-radius: 999px;
@@ -385,17 +385,19 @@ canvas {
 }
 
 .overlay-button img {
-  width: 30px;
-  height: 30px;
+  width: 23px;
+  height: 23px;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 0 4px rgba(80, 220, 255, 0.22));
+  filter:
+    brightness(1.22)
+    saturate(1.14)
 }
 
 .overlay-button:hover,
 .overlay-button:active {
   transform: scale(0.94);
-  filter: brightness(1.2);
+  filter: brightness(1.28);
 }
 
 .overlay-button:disabled {
@@ -550,19 +552,19 @@ canvas {
 
 @media (max-width: 768px) {
   .top-actions {
-    top: calc(env(safe-area-inset-top) + 18px);
+    top: calc(env(safe-area-inset-top) + 10px);
     right: 14px;
     gap: 8px;
   }
 
   .overlay-button {
-    width: 42px;
-    height: 42px;
+    width: 34px;
+    height: 34px;
   }
 
   .overlay-button img {
-    width: 28px;
-    height: 28px;
+    width: 21px;
+    height: 21px;
   }
 
   .game-dialog-layer {
@@ -580,19 +582,19 @@ canvas {
 
 @media (max-width: 420px) {
   .top-actions {
-    top: calc(env(safe-area-inset-top) + 18px);
+    top: calc(env(safe-area-inset-top) + 10px);
     right: 14px;
-    gap: 8px;
+    gap: 6px;
   }
 
   .overlay-button {
-    width: 40px;
-    height: 40px;
+    width: 33px;
+    height: 33px;
   }
 
   .overlay-button img {
-    width: 26px;
-    height: 26px;
+    width: 19px;
+    height: 19px;
   }
 
   .game-dialog-title-xl {

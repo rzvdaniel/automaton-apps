@@ -181,16 +181,15 @@ function drawBackground(context, state) {
 function drawHud(context, state, desktopMode) {
   const hudAlpha = !state.running ? 0.72 : 1
   const valueColor = !state.running ? 'rgba(226, 236, 246, 0.82)' : PALETTE.white
-  const compactHud = window.matchMedia('(max-width: 380px)').matches
-  const hudY = compactHud ? 28 : 30
-  const statIconBox = compactHud ? 48 : 58
-  const valueY = hudY + (compactHud ? 30 : 36)
-  const valueFont = compactHud ? '700 36px monospace' : '700 40px monospace'
+  const hudY = 30
+  const statIconBox = 58
+  const valueY = hudY + 41
+  const valueFont = '700 40px monospace'
   const stats = [
-    { icon: hudScoreIcon, value: String(state.score).padStart(6, '0'), x: compactHud ? 16 : 24 },
-    { icon: hudLevelIcon, value: String(state.level).padStart(2, '0'), x: compactHud ? 154 : 206 },
-    { icon: hudWaveIcon, value: String(state.waveInLevel).padStart(2, '0'), x: compactHud ? 274 : 362 },
-    { icon: hudLivesIcon, value: String(state.player.lives), x: compactHud ? 394 : 518, critical: true }
+    { icon: hudScoreIcon, value: String(state.score).padStart(6, '0'), x: 24 },
+    { icon: hudLevelIcon, value: String(state.level).padStart(2, '0'), x: 255 },
+    { icon: hudWaveIcon, value: String(state.waveInLevel).padStart(2, '0'), x: 400 },
+    { icon: hudLivesIcon, value: String(state.player.lives), x: 546, critical: true }
   ]
 
   context.save()
@@ -199,7 +198,12 @@ function drawHud(context, state, desktopMode) {
   context.textAlign = 'left'
   context.font = valueFont
   for (const stat of stats) {
+    context.save()
+    context.filter = 'brightness(1.22) saturate(1.14)'
+    context.shadowColor = 'rgba(110, 235, 255, 0.46)'
+    context.shadowBlur = 10
     drawIconContain(context, stat.icon, stat.x + statIconBox / 2, hudY + statIconBox / 2, statIconBox)
+    context.restore()
 
     context.fillStyle = stat.critical && !state.running ? 'rgba(255,106,122,0.96)' : valueColor
     context.shadowColor = stat.critical && !state.running ? 'rgba(255,106,122,0.34)' : 'rgba(80, 220, 255, 0.14)'
