@@ -5,6 +5,8 @@ import { BossRenderer } from './rendering/BossRenderer.js'
 const spriteCache = new Map()
 let scanlineCanvas = null
 const bossRenderer = new BossRenderer()
+const bossBeamChargeBulletSprite = new Image()
+bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.png'
 
 function createBuffer(width, height) {
   const buffer = document.createElement('canvas')
@@ -329,6 +331,33 @@ function drawEnemyArrival(context, enemy, elapsed, settings, arrivalProgress) {
   context.restore()
 }
 
+function drawBossBeamChargeBullet(context, bullet) {
+  const vx = bullet.vx ?? 0
+  const vy = bullet.vy ?? bullet.speed ?? 1
+  const angle = Math.atan2(vy, vx) - Math.PI / 2
+  const spriteSize = Math.max(28, Math.max(bullet.width, bullet.height) * 1.45)
+
+  context.save()
+  context.translate(bullet.x, bullet.y)
+  context.rotate(angle)
+  context.globalCompositeOperation = 'screen'
+  context.shadowColor = bullet.glowColor ?? 'rgba(255, 84, 188, 0.9)'
+  context.shadowBlur = 18
+
+  if (bossBeamChargeBulletSprite.complete && bossBeamChargeBulletSprite.naturalWidth > 0) {
+    context.imageSmoothingEnabled = false
+    context.drawImage(
+      bossBeamChargeBulletSprite,
+      -spriteSize / 2,
+      -spriteSize / 2,
+      spriteSize,
+      spriteSize
+    )
+  }
+
+  context.restore()
+}
+
 function drawProjectiles(context, state) {
   for (const bullet of state.bullets) {
     context.save()
@@ -342,6 +371,11 @@ function drawProjectiles(context, state) {
   }
 
   for (const bullet of state.enemyBullets) {
+    if (bullet.kind === 'boss-beam-charge') {
+      drawBossBeamChargeBullet(context, bullet)
+      continue
+    }
+
     context.save()
     const glowColor = bullet.glowColor ?? 'rgba(255, 92, 140, 0.9)'
     const coreColor = bullet.coreColor ?? '#ff5c8c'
