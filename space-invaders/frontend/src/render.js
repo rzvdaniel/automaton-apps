@@ -258,17 +258,46 @@ function drawShip(context, state, elapsed) {
     context.fillRect(-18, -4, 36, 6)
     context.fillRect(12, 18, 18, 5)
   } else {
-    const flameHeight = 16 + thrust * 14 + Math.sin(elapsed * 16) * 4
+    const glowScale = 0.82 + thrust * 0.22 + fireFlash * 0.08
+    const leftFlameHeight = 16
+    const centerFlameHeight = 24
+    const rightFlameHeight = 16
+
+    context.save()
+    context.globalCompositeOperation = 'screen'
+
+    const engineGlows = [
+      { x: -22, y: 46, radius: 18 * glowScale, alpha: 0.16 + thrust * 0.04 },
+      { x: 0, y: 52, radius: 24 * glowScale, alpha: 0.22 + thrust * 0.06 + fireFlash * 0.05 },
+      { x: 22, y: 46, radius: 18 * glowScale, alpha: 0.16 + thrust * 0.04 }
+    ]
+
+    for (const glow of engineGlows) {
+      const halo = context.createRadialGradient(glow.x, glow.y + 4, 2, glow.x, glow.y + thruster * 0.55, glow.radius + thruster * 0.45)
+      halo.addColorStop(0, `rgba(140, 244, 255, ${glow.alpha})`)
+      halo.addColorStop(0.48, `rgba(93, 216, 255, ${glow.alpha * 0.72})`)
+      halo.addColorStop(0.78, `rgba(255, 151, 94, ${glow.alpha * 0.42})`)
+      halo.addColorStop(1, 'rgba(255, 151, 94, 0)')
+      context.fillStyle = halo
+      context.fillRect(
+        glow.x - glow.radius - 12,
+        glow.y - 14,
+        (glow.radius + 12) * 2,
+        glow.radius + thruster + 34
+      )
+    }
+
+    context.restore()
 
     context.fillStyle = 'rgba(255, 110, 92, 0.95)'
-    context.fillRect(-26, 38, 8, flameHeight)
-    context.fillRect(-4, 42, 8, flameHeight * 1.15)
-    context.fillRect(18, 38, 8, flameHeight)
+    context.fillRect(-26, 38, 8, leftFlameHeight)
+    context.fillRect(-4, 42, 8, centerFlameHeight)
+    context.fillRect(18, 38, 8, rightFlameHeight)
 
     context.fillStyle = 'rgba(255, 214, 160, 0.9)'
-    context.fillRect(-24, 38, 4, flameHeight * 0.55)
-    context.fillRect(-2, 42, 4, flameHeight * 0.7)
-    context.fillRect(20, 38, 4, flameHeight * 0.55)
+    context.fillRect(-24, 38, 4, 8)
+    context.fillRect(-2, 42, 4, 14)
+    context.fillRect(20, 38, 4, 8)
   }
 
   if (!destroyed && fireFlash > 0) {
