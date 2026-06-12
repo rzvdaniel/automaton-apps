@@ -627,7 +627,8 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
   drawParticles(context, state.particles)
   const intermissionActive = state.started && state.running && !state.paused && state.overlayTimer > 0
   const arrivalActive = state.running && state.waveArrivalTimer > 0 && state.waveArrivalDuration > 0
-  if (state.running && !intermissionActive) {
+  const showGameplayScene = (state.running || Boolean(state.victorySequence) || Boolean(state.finalDeathSequence)) && !intermissionActive
+  if (showGameplayScene) {
     if (arrivalActive) {
       const arrivalProgress = 1 - state.waveArrivalTimer / state.waveArrivalDuration
       for (const enemy of state.enemies) drawEnemyArrival(context, enemy, elapsed, state.settings, arrivalProgress)

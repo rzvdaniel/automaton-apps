@@ -7,17 +7,15 @@ export class BossRenderer {
     const wobble = settings.reducedMotion ? 0 : Math.sin(elapsed * 2.8 + boss.hoverPhase) * 4
     const x = boss.x
     const defeatElapsed = boss.defeatElapsed ?? 0
-    const defeatProgress = boss.defeated ? Math.min(1, defeatElapsed / 1.5) : 0
-    const y = boss.y + wobble + (boss.defeated ? defeatElapsed * 42 : 0)
+    const defeatDuration = 2
+    const defeatProgress = boss.defeated ? Math.min(1, defeatElapsed / defeatDuration) : 0
+    const y = boss.y + wobble
     const reactorPulse = 0.55 + ((Math.sin(boss.reactorPulse * 6.2) + 1) / 2) * 0.45 + (boss.coreCharge ?? 0) * 0.4
     const sprite = bossSprite ?? null
     const width = boss.width
     const height = width * (sprite?.naturalWidth > 0 ? sprite.naturalHeight / sprite.naturalWidth : boss.height / Math.max(1, boss.width))
-    const fadeAlpha = boss.defeated
-      ? defeatElapsed < 0.5
-        ? 1
-        : Math.max(0, 1 - (defeatElapsed - 0.5) / 1)
-      : 1
+    const fadeAlpha = boss.defeated ? Math.max(0, 1 - defeatProgress) : 1
+    const flashOn = boss.defeated && Math.floor(defeatElapsed / 0.15) % 2 === 0
 
     this._drawBeam(context, boss, elapsed)
 
@@ -25,7 +23,6 @@ export class BossRenderer {
     context.translate(x, y)
     if (boss.defeated) {
       context.globalAlpha = fadeAlpha
-      context.rotate(Math.min(0.12, defeatElapsed * 0.08))
     }
 
     const halo = context.createRadialGradient(0, 0, width * 0.08, 0, 0, width * 0.55)
@@ -38,8 +35,16 @@ export class BossRenderer {
 
     if (sprite?.complete && sprite.naturalWidth > 0) {
       context.drawImage(sprite, -width / 2, -height / 2, width, height)
+
+      if (boss.defeated && flashOn) {
+        context.save()
+        context.globalAlpha = 0.72
+        context.filter = 'brightness(2.8) grayscale(1)'
+        context.drawImage(sprite, -width / 2, -height / 2, width, height)
+        context.restore()
+      }
     } else {
-      context.fillStyle = '#132336'
+      context.fillStyle = boss.defeated && flashOn ? 'rgba(255, 255, 255, 0.7)' : '#132336'
       context.fillRect(-width / 2, -height / 2, width, height)
     }
 
@@ -64,20 +69,6 @@ export class BossRenderer {
       context.fillStyle = chargeGlow
       context.beginPath()
       context.arc(0, 0, chargeRadius, 0, Math.PI * 2)
-      context.fill()
-    }
-
-    if (boss.defeated) {
-      context.globalCompositeOperation = 'screen'
-      const blastRadius = width * (0.16 + defeatProgress * 0.18)
-      const blastGlow = context.createRadialGradient(0, 0, width * 0.03, 0, 0, blastRadius)
-      blastGlow.addColorStop(0, `rgba(255, 248, 230, ${0.34 + (1 - defeatProgress) * 0.28})`)
-      blastGlow.addColorStop(0.34, `rgba(255, 154, 88, ${0.28 + (1 - defeatProgress) * 0.22})`)
-      blastGlow.addColorStop(0.72, `rgba(255, 76, 90, ${0.14 + (1 - defeatProgress) * 0.16})`)
-      blastGlow.addColorStop(1, 'rgba(255, 76, 90, 0)')
-      context.fillStyle = blastGlow
-      context.beginPath()
-      context.arc(0, 0, blastRadius, 0, Math.PI * 2)
       context.fill()
     }
 

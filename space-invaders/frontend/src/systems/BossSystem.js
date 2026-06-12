@@ -77,7 +77,8 @@ export function createBoss(config = {}) {
     rightPodFlash: 0,
     coreFlash: 0,
     defeated: false,
-    defeatElapsed: 0
+    defeatElapsed: 0,
+    defeatNextSparkAt: 0.15
   }
 }
 
@@ -174,11 +175,9 @@ function fireBeamSupportWave(boss, shootEnemy) {
 function fireEnergyBurst(boss, shootEnemy) {
   const { leftPod, rightPod, core } = getBossHardpoints(boss)
   const shots = [
-    { origin: leftPod, velocity: { x: -165, y: 340, speed: 330 } },
-    { origin: leftPod, velocity: { x: -90, y: 390, speed: 350 } },
+    { origin: leftPod, velocity: { x: -120, y: 360, speed: 340 } },
     { origin: core, velocity: { x: 0, y: 430, speed: 380 } },
-    { origin: rightPod, velocity: { x: 90, y: 390, speed: 350 } },
-    { origin: rightPod, velocity: { x: 165, y: 340, speed: 330 } }
+    { origin: rightPod, velocity: { x: 120, y: 360, speed: 340 } }
   ]
 
   shots.forEach((shot, index) => {
@@ -311,6 +310,7 @@ export function tryHitBoss(boss, bulletRect) {
     boss.active = false
     boss.defeated = true
     boss.defeatElapsed = 0
+    boss.defeatNextSparkAt = 0.15
     boss.beamWarning = 0
     boss.beamActive = 0
     boss.energyBurstActive = 0

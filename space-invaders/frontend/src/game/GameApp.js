@@ -489,25 +489,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     if (!state.boss?.defeated) return
 
     state.boss.defeatElapsed += dt
-
-    if (state.boss.defeatElapsed >= 0.12 && !state.boss.defeatBurstA) {
-      state.boss.defeatBurstA = true
-      state.flash = Math.max(state.flash, 0.24)
-      triggerShake(3.4, 0.12)
-      addParticles(state.boss.x, state.boss.y, PALETTE.amber, 20, 320, 42)
-      addParticles(state.boss.x, state.boss.y, PALETTE.white, 10, 180, 16)
-    }
-
-    if (state.boss.defeatElapsed >= 0.48 && !state.boss.defeatBurstB) {
-      state.boss.defeatBurstB = true
-      triggerShake(2.4, 0.1)
-      addParticles(state.boss.x - state.boss.width * 0.12, state.boss.y, PALETTE.magenta, 18, 280, 34)
-      addParticles(state.boss.x + state.boss.width * 0.12, state.boss.y + 12, PALETTE.red, 18, 280, 34)
-    }
-
-    if (state.boss.defeatElapsed >= 0.9 && !state.boss.defeatBurstC) {
-      state.boss.defeatBurstC = true
-      addParticles(state.boss.x, state.boss.y + 18, PALETTE.white, 12, 160, 18)
+    while (state.boss.defeatElapsed >= (state.boss.defeatNextSparkAt ?? 0.15)) {
+      triggerShake(0.8, 0.05)
+      state.boss.defeatNextSparkAt += 0.15
     }
   }
 
@@ -524,7 +508,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.victory = false
     state.victorySequence = {
       elapsed: 0,
-      dialogAt: 1.8
+      dialogAt: 2.1
     }
     state.message = message
     state.overlayTimer = 999
@@ -725,24 +709,22 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     for (const bullet of state.bullets) {
       const bulletRect = rectFromCenter(bullet)
-      const bossHit = tryHitBoss(state.boss, bulletRect)
-      if (bossHit) {
-        bullet.y = -100
-        state.flash = 0.16
-        triggerShake(1.4, 0.06)
-        addParticles(bossHit.x, bossHit.y, PALETTE.magenta, bossHit.defeated ? 40 : 12, bossHit.defeated ? 420 : 180, 45)
-        addParticles(bossHit.x, bossHit.y, PALETTE.white, bossHit.defeated ? 22 : 6, bossHit.defeated ? 260 : 110, 20)
-        if (bossHit.defeated) {
-          state.score += 1500
-          state.flash = 0.34
-          triggerShake(5.2, 0.22)
-          addParticles(bossHit.x, bossHit.y, PALETTE.amber, 26, 380, 48)
-          addParticles(bossHit.x, bossHit.y, PALETTE.red, 18, 340, 42)
-          triggerVictorySequence()
-          return desktopMode
+        const bossHit = tryHitBoss(state.boss, bulletRect)
+        if (bossHit) {
+          bullet.y = -100
+          state.flash = 0.16
+          triggerShake(1.4, 0.06)
+          if (bossHit.defeated) {
+            state.score += 1500
+            state.flash = 0.2
+            triggerShake(1.2, 0.08)
+            triggerVictorySequence()
+            return desktopMode
+          }
+          addParticles(bossHit.x, bossHit.y, PALETTE.magenta, 12, 180, 45)
+          addParticles(bossHit.x, bossHit.y, PALETTE.white, 6, 110, 20)
+          continue
         }
-        continue
-      }
 
       const ufoHit = ufoEncounter.tryHit(bulletRect, state.wave, state.levelDefinition?.mechanics?.aggressiveUfo ?? null)
       if (ufoHit) {
