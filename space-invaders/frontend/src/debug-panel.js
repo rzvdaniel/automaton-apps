@@ -4,7 +4,11 @@ export function setupDebugPanel({ game, root }) {
   const debugLevelInput = root.querySelector('#debug-level')
   const debugWaveInput = root.querySelector('#debug-wave')
   const debugLivesInput = root.querySelector('#debug-lives')
+  const debugPerformanceInput = root.querySelector('#debug-performance')
   const debugCancel = root.querySelector('.debug-cancel')
+  const canvas = root.querySelector('.game')
+  let mobileDebugTapCount = 0
+  let mobileDebugTapTimer = 0
 
   function populateLevelOptions() {
     const levels = game.getAvailableLevels()
@@ -21,6 +25,7 @@ export function setupDebugPanel({ game, root }) {
 
   function openDebugDialog() {
     game.setPaused(true)
+    debugPerformanceInput.checked = game.isDebugOverlayEnabled()
     debugLevelInput.focus()
     debugDialog.showModal()
   }
@@ -30,6 +35,7 @@ export function setupDebugPanel({ game, root }) {
     const level = Number(debugLevelInput.value || 1)
     const waveInLevel = Number(debugWaveInput.value || 1)
     const lives = Number(debugLivesInput.value || 3)
+    game.setDebugOverlayEnabled(debugPerformanceInput.checked)
     closeDebugDialog(false)
     game.startAtLevel(level, waveInLevel, lives)
   })
@@ -55,6 +61,40 @@ export function setupDebugPanel({ game, root }) {
         debugLivesInput.value = String(Math.max(1, game.getLives()))
         openDebugDialog()
       }
+    }
+  })
+
+  canvas.addEventListener('pointerdown', (event) => {
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches
+    if (!isCoarsePointer) return
+
+    const rect = canvas.getBoundingClientRect()
+    const localX = event.clientX - rect.left
+    const localY = event.clientY - rect.top
+    const withinSecretZone = localX <= 72 && localY <= 72
+    if (!withinSecretZone) {
+      mobileDebugTapCount = 0
+      if (mobileDebugTapTimer) window.clearTimeout(mobileDebugTapTimer)
+      mobileDebugTapTimer = 0
+      return
+    }
+
+    mobileDebugTapCount += 1
+    if (mobileDebugTapTimer) window.clearTimeout(mobileDebugTapTimer)
+    mobileDebugTapTimer = window.setTimeout(() => {
+      mobileDebugTapCount = 0
+      mobileDebugTapTimer = 0
+    }, 1400)
+
+    if (mobileDebugTapCount >= 5) {
+      mobileDebugTapCount = 0
+      window.clearTimeout(mobileDebugTapTimer)
+      mobileDebugTapTimer = 0
+      const progression = game.getProgression()
+      debugLevelInput.value = String(Math.max(1, progression.level))
+      debugWaveInput.value = String(Math.max(1, progression.waveInLevel))
+      debugLivesInput.value = String(Math.max(1, game.getLives()))
+      openDebugDialog()
     }
   })
 

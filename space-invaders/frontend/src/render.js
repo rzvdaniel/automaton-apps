@@ -616,6 +616,40 @@ function drawOverlay(context, state, desktopMode) {
   }
 }
 
+function drawDebugOverlay(context, state, desktopMode) {
+  if (!state.debug?.overlayEnabled) return
+
+  const frameMs = state.debug.frameTimeMs ?? 0
+  const avgMs = state.debug.frameTimeAvgMs ?? 0
+  const fps = state.debug.fps ?? 0
+  const panelX = 26
+  const panelY = desktopMode ? 114 : 124
+  const panelWidth = desktopMode ? 252 : 314
+  const panelHeight = desktopMode ? 108 : 134
+  const titleY = panelY + (desktopMode ? 28 : 34)
+  const lineOneY = panelY + (desktopMode ? 56 : 72)
+  const lineTwoY = panelY + (desktopMode ? 80 : 100)
+  const lineThreeY = panelY + (desktopMode ? 104 : 128)
+
+  context.save()
+  context.fillStyle = 'rgba(5, 12, 22, 0.82)'
+  context.strokeStyle = 'rgba(140, 247, 255, 0.28)'
+  context.lineWidth = 2
+  context.fillRect(panelX, panelY, panelWidth, panelHeight)
+  context.strokeRect(panelX, panelY, panelWidth, panelHeight)
+
+  context.fillStyle = 'rgba(140, 247, 255, 0.92)'
+  context.font = desktopMode ? '700 18px monospace' : '700 24px monospace'
+  context.fillText('PERF', panelX + 14, titleY)
+
+  context.fillStyle = 'rgba(238, 252, 255, 0.94)'
+  context.font = desktopMode ? '600 17px monospace' : '600 22px monospace'
+  context.fillText(`frame ${frameMs.toFixed(1)} ms`, panelX + 14, lineOneY)
+  context.fillText(`avg   ${avgMs.toFixed(1)} ms`, panelX + 14, lineTwoY)
+  context.fillText(`fps   ${fps.toFixed(0)}`, panelX + 14, lineThreeY)
+  context.restore()
+}
+
 export function renderScene(context, canvas, state, elapsed, desktopMode) {
   const rect = canvas.getBoundingClientRect()
   context.fillStyle = '#030613'
@@ -654,6 +688,7 @@ export function renderScene(context, canvas, state, elapsed, desktopMode) {
   }
   drawShip(context, state, elapsed)
   drawHud(context, state, desktopMode)
+  drawDebugOverlay(context, state, desktopMode)
   drawOverlay(context, state, desktopMode)
   drawEffects(context, state)
   context.restore()

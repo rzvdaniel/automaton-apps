@@ -107,6 +107,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
   const projectileManager = new ProjectileManager()
   const scoreManager = new ScoreManager(state.highScore)
   const renderer = new Renderer(context, canvas)
+  const frameTimeSamples = []
+  const FRAME_TIME_SAMPLE_SIZE = 24
 
   function syncProjectilesToState() {
     state.bullets = projectileManager.playerBullets
@@ -820,9 +822,21 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     renderer.render(state, state.elapsed, desktopMode)
   }
 
+  function updateDebugMetrics(dt) {
+    const frameTimeMs = dt * 1000
+    frameTimeSamples.push(frameTimeMs)
+    if (frameTimeSamples.length > FRAME_TIME_SAMPLE_SIZE) frameTimeSamples.shift()
+
+    const frameTimeAvgMs = frameTimeSamples.reduce((sum, sample) => sum + sample, 0) / Math.max(1, frameTimeSamples.length)
+    state.debug.frameTimeMs = frameTimeMs
+    state.debug.frameTimeAvgMs = frameTimeAvgMs
+    state.debug.fps = frameTimeAvgMs > 0 ? 1000 / frameTimeAvgMs : 0
+  }
+
   const gameLoop = new GameLoop({
     onTick(dt) {
       state.elapsed += dt
+      updateDebugMetrics(dt)
       const desktopMode = update(dt)
       render(desktopMode)
     }
@@ -928,6 +942,12 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     setSettingsMenuState,
     isSettingsOpen() {
       return state.settingsOpen
+    },
+    isDebugOverlayEnabled() {
+      return state.debug.overlayEnabled
+    },
+    setDebugOverlayEnabled(value) {
+      state.debug.overlayEnabled = Boolean(value)
     }
   }
 }

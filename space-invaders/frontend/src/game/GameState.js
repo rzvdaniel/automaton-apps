@@ -62,6 +62,12 @@ export function createInitialState({ settings, backgroundImage = null, backgroun
     desktopMode: false,
     settingsOpen: false,
     settingsMenu: null,
+    debug: {
+      overlayEnabled: false,
+      frameTimeMs: 0,
+      frameTimeAvgMs: 0,
+      fps: 0
+    },
     settings: settings ?? {},
     player: {
       x: WORLD.width / 2,

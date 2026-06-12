@@ -103,6 +103,10 @@ app.innerHTML = `
         <input class="debug-input" id="debug-wave" name="wave" type="number" min="1" max="5" step="1" value="1" />
         <label class="debug-label" for="debug-lives">Starting lives</label>
         <input class="debug-input" id="debug-lives" name="lives" type="number" min="1" max="9" step="1" value="3" />
+        <label class="debug-toggle" for="debug-performance">
+          <input id="debug-performance" name="performance" type="checkbox" />
+          <span>Show in-game performance overlay</span>
+        </label>
         <div class="debug-actions">
           <button class="overlay-button debug-cancel" type="button">Cancel</button>
           <button class="overlay-button debug-start" type="submit">Start</button>
