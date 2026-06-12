@@ -164,9 +164,10 @@ function syncPauseMenu() {
   const isStarted = shell.dataset.gameStarted === 'true'
   const isPaused = shell.dataset.gamePaused === 'true'
   const isRunning = shell.dataset.gameRunning === 'true'
+  const isGameOverVisible = shell.dataset.gameOverVisible === 'true'
   const isSettingsOpen = shell.dataset.settingsOpen === 'true'
   const isVictory = game.hasVictory()
-  const isGameOver = isStarted && !isRunning && !isVictory
+  const isGameOver = isStarted && !isRunning && !isVictory && isGameOverVisible
   const isGameFinished = isStarted && !isRunning
   const progression = game.getProgression()
   startMenu.setAttribute('aria-hidden', !isStarted && !isSettingsOpen ? 'false' : 'true')

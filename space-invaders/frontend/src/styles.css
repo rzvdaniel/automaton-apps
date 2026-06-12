@@ -545,6 +545,10 @@ canvas {
   filter: saturate(0.4) brightness(0.72);
 }
 
+.shell[data-final-death-active="true"] .touch-controls {
+  display: none;
+}
+
 .hidden {
   display: none;
 }

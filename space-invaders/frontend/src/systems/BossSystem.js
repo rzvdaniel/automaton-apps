@@ -23,7 +23,7 @@ function fireBossEnergyBurstShot(shootEnemy, origin, velocity, index) {
     originY: origin.y,
     projectileWidth: 66,
     projectileHeight: 66,
-    projectileSpeed: 230,
+    projectileSpeed: velocity.speed ?? 320,
     projectileVx: velocity.x,
     projectileVy: velocity.y,
     projectileKind: 'boss-energy-burst',
@@ -61,6 +61,8 @@ export function createBoss(config = {}) {
     beamHitArmed: true,
     beamSupportWave: 0,
     beamSupportTimer: 0,
+    energyBurstDuration: config.energyBurstDuration ?? 0.54,
+    energyBurstCooldown: config.spreadCooldown ?? 1.35,
     energyBurstActive: 0,
     energyBurstShotsFired: false,
     damageFlash: 0,
@@ -120,7 +122,7 @@ function beginChargingBeam(boss) {
 
 function beginEnergyBurst(boss) {
   syncBeamToReactor(boss)
-  boss.energyBurstActive = 0.72
+  boss.energyBurstActive = boss.energyBurstDuration
   boss.energyBurstShotsFired = false
   boss.coreCharge = 0.9
   boss.coreFlash = 1
@@ -170,9 +172,11 @@ function fireBeamSupportWave(boss, shootEnemy) {
 function fireEnergyBurst(boss, shootEnemy) {
   const { leftPod, rightPod, core } = getBossHardpoints(boss)
   const shots = [
-    { origin: leftPod, velocity: { x: -95, y: 300 } },
-    { origin: core, velocity: { x: 0, y: 330 } },
-    { origin: rightPod, velocity: { x: 95, y: 300 } }
+    { origin: leftPod, velocity: { x: -165, y: 340, speed: 330 } },
+    { origin: leftPod, velocity: { x: -90, y: 390, speed: 350 } },
+    { origin: core, velocity: { x: 0, y: 430, speed: 380 } },
+    { origin: rightPod, velocity: { x: 90, y: 390, speed: 350 } },
+    { origin: rightPod, velocity: { x: 165, y: 340, speed: 330 } }
   ]
 
   shots.forEach((shot, index) => {
@@ -240,14 +244,14 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
     boss.energyBurstActive = Math.max(0, boss.energyBurstActive - dt)
     boss.coreCharge = 0.9
 
-    if (!boss.energyBurstShotsFired && boss.energyBurstActive <= 0.5) {
+    if (!boss.energyBurstShotsFired && boss.energyBurstActive <= boss.energyBurstDuration * 0.45) {
       boss.energyBurstShotsFired = true
       fireEnergyBurst(boss, shootEnemy)
     }
 
     if (boss.energyBurstActive === 0) {
       boss.coreCharge = 0
-      boss.attackTimer = 2.0
+      boss.attackTimer = boss.energyBurstCooldown
     }
     return
   }

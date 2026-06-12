@@ -138,6 +138,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     shell.dataset.gamePaused = state.paused ? 'true' : 'false'
     shell.dataset.gameStarted = state.started ? 'true' : 'false'
     shell.dataset.gameRunning = state.running ? 'true' : 'false'
+    shell.dataset.gameOverVisible = state.gameOverVisible ? 'true' : 'false'
+    shell.dataset.finalDeathActive = state.finalDeathSequence ? 'true' : 'false'
     shell.dataset.settingsOpen = state.settingsOpen ? 'true' : 'false'
     shell.dispatchEvent(
       new CustomEvent('game-state-change', {
@@ -145,6 +147,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
           paused: state.paused,
           started: state.started,
           running: state.running,
+          gameOverVisible: state.gameOverVisible,
+          finalDeathActive: Boolean(state.finalDeathSequence),
           muted: state.muted,
           settingsOpen: state.settingsOpen
         }
@@ -273,6 +277,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.waveLockDuration = 0
     state.restartLockTimer = 0
     state.restartInputArmed = true
+    state.gameOverVisible = false
+    state.finalDeathSequence = null
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
     state.boss = null
@@ -287,7 +293,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     projectileManager.clear()
     syncProjectilesToState()
     state.player.x = WORLD.width / 2
-    syncPlayerVerticalPosition()
     state.player.cooldown = 0
     state.player.lives = 3
     state.player.invulnerability = 0
@@ -301,6 +306,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.shake.cooldown = 0
     updatePauseButton()
     syncShellState()
+    syncPlayerVerticalPosition()
   }
 
   function resetGameToWave(startWave, { immediateStart = false, startingLives = 3 } = {}) {
@@ -324,6 +330,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.waveLockDuration = 0
     state.restartLockTimer = 0
     state.restartInputArmed = true
+    state.gameOverVisible = false
+    state.finalDeathSequence = null
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
     state.boss = null
@@ -340,7 +348,6 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     projectileManager.clear()
     syncProjectilesToState()
     state.player.x = WORLD.width / 2
-    syncPlayerVerticalPosition()
     state.player.cooldown = 0
     state.player.lives = clamp(Math.floor(startingLives) || 3, 1, 9)
     state.player.invulnerability = 0
@@ -354,6 +361,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     spawnWave(startWave)
     state.started = true
     syncShellState()
+    syncPlayerVerticalPosition()
   }
 
   function setMuted(value) {
@@ -419,11 +427,14 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   function hitPlayer() {
     if (state.player.invulnerability > 0) return
+    const isFinalLife = state.player.lives <= 1
     state.player.lives -= 1
     state.player.invulnerability = PLAYER_INVULNERABILITY
     state.flash = 0.22
     triggerShake(2.6, 0.09)
-    addParticles(state.player.x, state.player.y, PALETTE.cyan, 24, 320, 40)
+    if (!isFinalLife) {
+      addParticles(state.player.x, state.player.y, PALETTE.cyan, 24, 320, 40)
+    }
     audio.playerHit()
     if (state.player.lives <= 0) {
       state.running = false
@@ -440,14 +451,24 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       state.player.destroyedAt = state.elapsed
       state.player.visualTilt = -0.18
       state.player.thrust = 0
-      state.restartLockTimer = 1.2
+      state.restartLockTimer = 1.7
       state.restartInputArmed = false
+      state.gameOverVisible = false
+      state.finalDeathSequence = {
+        elapsed: 0,
+        vanishAt: 1.5,
+        dialogAt: 1.7
+      }
       projectileManager.clear()
       syncProjectilesToState()
-      addParticles(state.player.x, state.player.y - 10, PALETTE.red, 28, 420, 55)
-      addParticles(state.player.x, state.player.y + 8, PALETTE.white, 10, 240, 35)
+      state.flash = 0.34
+      triggerShake(5.4, 0.24)
+      audio.criticalFailure()
       persistHighScore()
+      inputController.clearPointer()
       syncShellState()
+    } else {
+      state.restartLockTimer = 0.6
     }
   }
 
@@ -508,6 +529,15 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     }
 
     if (!state.running) {
+      if (state.finalDeathSequence) {
+        state.finalDeathSequence.elapsed += dt
+        const { dialogAt, vanishAt } = state.finalDeathSequence
+        if (!state.gameOverVisible && state.finalDeathSequence.elapsed >= dialogAt) {
+          state.gameOverVisible = true
+          syncShellState()
+        }
+        return desktopMode
+      }
       if (!firing) {
         state.restartInputArmed = true
       }

@@ -130,6 +130,7 @@ export const LEVEL_DEFINITIONS = [
         hp: 50,
         speed: 210,
         spreadCooldown: 1.35,
+        energyBurstDuration: 0.54,
         beamCooldown: 4.6,
         beamWarningDuration: 0.85,
         descentInterval: 12,

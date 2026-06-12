@@ -84,6 +84,11 @@ export function createAudioManager() {
     playerHit() {
       pulse('triangle', 260, 0.24, 0.068, -140)
     },
+    criticalFailure() {
+      pulse('sawtooth', 170, 0.34, 0.082, -130)
+      pulse('triangle', 110, 0.52, 0.05, -38)
+      pulse('square', 720, 0.09, 0.024, -420)
+    },
     wave() {
       pulse('square', 620, 0.1, 0.042, 140)
       pulse('square', 820, 0.14, 0.036, 90)

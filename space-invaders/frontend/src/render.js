@@ -179,8 +179,9 @@ function drawBackground(context, state) {
 }
 
 function drawHud(context, state, desktopMode) {
-  const hudAlpha = !state.running ? 0.72 : 1
-  const valueColor = !state.running ? 'rgba(226, 236, 246, 0.82)' : PALETTE.white
+  const hudMuted = !state.running && state.gameOverVisible
+  const hudAlpha = hudMuted ? 0.72 : 1
+  const valueColor = hudMuted ? 'rgba(226, 236, 246, 0.82)' : PALETTE.white
   const mobileHud = !desktopMode
   const hudY = 30
   const statIconBox = 58
@@ -210,8 +211,8 @@ function drawHud(context, state, desktopMode) {
       context.restore()
     }
 
-    context.fillStyle = stat.critical && !state.running ? 'rgba(255,106,122,0.96)' : valueColor
-    context.shadowColor = mobileHud ? 'transparent' : stat.critical && !state.running ? 'rgba(255,106,122,0.34)' : 'rgba(80, 220, 255, 0.14)'
+    context.fillStyle = stat.critical && hudMuted ? 'rgba(255,106,122,0.96)' : valueColor
+    context.shadowColor = mobileHud ? 'transparent' : stat.critical && hudMuted ? 'rgba(255,106,122,0.34)' : 'rgba(80, 220, 255, 0.14)'
     context.shadowBlur = mobileHud ? 0 : 6
     context.fillText(stat.value, stat.x + statIconBox + 8, valueY)
   }
@@ -227,8 +228,11 @@ function drawShip(context, state, elapsed) {
   const sideBias = visualTilt * 18
   const muzzleFlash = fireFlash * 18
   const deathTime = destroyed ? Math.min(2.4, Math.max(0, elapsed - destroyedAt)) : 0
+  const finalDeath = state.finalDeathSequence
+  const vanishAt = finalDeath?.vanishAt ?? 2.4
   const shipY = destroyed ? y + deathTime * 34 : y
-  const shipRotation = destroyed ? visualTilt - deathTime * 0.24 : visualTilt
+  const shipRotation = destroyed ? visualTilt - deathTime * 1.25 : visualTilt
+  if (destroyed && deathTime >= vanishAt) return
   context.save()
   context.translate(x, shipY)
   context.rotate(shipRotation)
@@ -238,7 +242,9 @@ function drawShip(context, state, elapsed) {
   const spriteHeight = 132
 
   if (destroyed) {
-    context.globalAlpha = Math.max(0.45, 0.82 - deathTime * 0.18)
+    const fadeStart = Math.max(0.45, vanishAt - 0.22)
+    const fadeProgress = deathTime > fadeStart ? Math.min(1, (deathTime - fadeStart) / Math.max(0.001, vanishAt - fadeStart)) : 0
+    context.globalAlpha = Math.max(0, 0.88 - deathTime * 0.14 - fadeProgress * 0.82)
     context.filter = 'grayscale(0.4) brightness(0.85)'
   }
 
