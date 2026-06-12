@@ -89,6 +89,23 @@ export function createAudioManager() {
       pulse('triangle', 110, 0.52, 0.05, -38)
       pulse('square', 720, 0.09, 0.024, -420)
     },
+    bossDefeat() {
+      pulse('sawtooth', 210, 0.34, 0.11, -150)
+      pulse('square', 96, 0.26, 0.085, -60)
+      pulse('triangle', 150, 0.52, 0.08, -48)
+      pulse('square', 1320, 0.1, 0.04, -720)
+      pulse('triangle', 640, 0.32, 0.032, -240)
+    },
+    bossBeamCharge() {
+      pulse('triangle', 280, 0.22, 0.04, 90)
+      pulse('sawtooth', 360, 0.28, 0.028, 180)
+      pulse('square', 520, 0.18, 0.016, 110)
+    },
+    bossBeamFire() {
+      pulse('square', 980, 0.08, 0.034, -420)
+      pulse('sawtooth', 240, 0.26, 0.08, -120)
+      pulse('triangle', 180, 0.34, 0.05, -80)
+    },
     wave() {
       pulse('square', 620, 0.1, 0.042, 140)
       pulse('square', 820, 0.14, 0.036, 90)

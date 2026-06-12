@@ -194,7 +194,7 @@ function fireEnergyBurst(boss, shootEnemy) {
   boss.coreFlash = 1
 }
 
-export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
+export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   const boss = state.boss
   if (!boss?.active) return
 
@@ -271,6 +271,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
       boss.attackTimer = boss.beamCooldown
       boss.coreFlash = 1
       syncBeamToReactor(boss)
+      audio?.bossBeamFire()
     }
     return
   }
@@ -291,6 +292,9 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
   boss.coreCharge = Math.max(0, boss.coreCharge - dt * 2.4)
   boss.attackTimer = Math.max(0, boss.attackTimer - dt)
   if (boss.attackTimer === 0) {
+    if (audio && boss.attackSequence[boss.attackIndex % boss.attackSequence.length] === 'beam') {
+      audio.bossBeamCharge()
+    }
     beginNextAttack(boss)
   }
 }

@@ -658,7 +658,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     syncProjectilesToState()
 
     if (state.boss?.active) {
-      updateBoss(state, dt, { shootEnemy, hitPlayer })
+      updateBoss(state, dt, { shootEnemy, hitPlayer, audio })
     }
 
     const aliveEnemies = state.enemies.filter((enemy) => enemy.alive)
@@ -718,6 +718,8 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
             state.score += 1500
             state.flash = 0.2
             triggerShake(1.2, 0.08)
+            audio.explosion()
+            audio.bossDefeat()
             triggerVictorySequence()
             return desktopMode
           }
