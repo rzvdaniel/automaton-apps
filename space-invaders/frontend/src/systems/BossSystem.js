@@ -75,7 +75,9 @@ export function createBoss(config = {}) {
     coreCharge: 0,
     leftPodFlash: 0,
     rightPodFlash: 0,
-    coreFlash: 0
+    coreFlash: 0,
+    defeated: false,
+    defeatElapsed: 0
   }
 }
 
@@ -295,7 +297,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer }) {
 }
 
 export function tryHitBoss(boss, bulletRect) {
-  if (!boss?.active) return null
+  if (!boss?.active || boss.defeated) return null
 
   const hitbox = getBossHitbox(boss)
 
@@ -307,6 +309,12 @@ export function tryHitBoss(boss, bulletRect) {
   boss.damageFlash = 1
   if (boss.hp <= 0) {
     boss.active = false
+    boss.defeated = true
+    boss.defeatElapsed = 0
+    boss.beamWarning = 0
+    boss.beamActive = 0
+    boss.energyBurstActive = 0
+    boss.coreCharge = 0
     return { defeated: true, x: boss.x, y: boss.y }
   }
 

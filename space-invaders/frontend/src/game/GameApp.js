@@ -279,6 +279,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.restartInputArmed = true
     state.gameOverVisible = false
     state.finalDeathSequence = null
+    state.victorySequence = null
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
     state.boss = null
@@ -332,6 +333,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.restartInputArmed = true
     state.gameOverVisible = false
     state.finalDeathSequence = null
+    state.victorySequence = null
     state.divingAttackCooldown = 0
     state.divingAttackTimer = 0
     state.boss = null
@@ -472,19 +474,72 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     }
   }
 
-  function triggerVictory(message = 'MISSION COMPLETE') {
+  function updateParticles(dt) {
+    for (const particle of state.particles) {
+      particle.x += particle.vx * dt
+      particle.y += particle.vy * dt
+      particle.vx *= 0.985
+      particle.vy = particle.vy * 0.988 + particle.gravity * dt
+      particle.life -= dt
+    }
+    state.particles = state.particles.filter((particle) => particle.life > 0)
+  }
+
+  function updateBossDefeatSequence(dt) {
+    if (!state.boss?.defeated) return
+
+    state.boss.defeatElapsed += dt
+
+    if (state.boss.defeatElapsed >= 0.12 && !state.boss.defeatBurstA) {
+      state.boss.defeatBurstA = true
+      state.flash = Math.max(state.flash, 0.24)
+      triggerShake(3.4, 0.12)
+      addParticles(state.boss.x, state.boss.y, PALETTE.amber, 20, 320, 42)
+      addParticles(state.boss.x, state.boss.y, PALETTE.white, 10, 180, 16)
+    }
+
+    if (state.boss.defeatElapsed >= 0.48 && !state.boss.defeatBurstB) {
+      state.boss.defeatBurstB = true
+      triggerShake(2.4, 0.1)
+      addParticles(state.boss.x - state.boss.width * 0.12, state.boss.y, PALETTE.magenta, 18, 280, 34)
+      addParticles(state.boss.x + state.boss.width * 0.12, state.boss.y + 12, PALETTE.red, 18, 280, 34)
+    }
+
+    if (state.boss.defeatElapsed >= 0.9 && !state.boss.defeatBurstC) {
+      state.boss.defeatBurstC = true
+      addParticles(state.boss.x, state.boss.y + 18, PALETTE.white, 12, 160, 18)
+    }
+  }
+
+  function finalizeVictory(message = 'MISSION COMPLETE') {
     state.victory = true
+    state.victorySequence = null
+    state.boss = null
+    state.message = message
+    syncShellState()
+  }
+
+  function triggerVictorySequence(message = 'MISSION COMPLETE') {
     state.running = false
+    state.victory = false
+    state.victorySequence = {
+      elapsed: 0,
+      dialogAt: 1.8
+    }
     state.message = message
     state.overlayTimer = 999
-    state.restartLockTimer = 1.2
+    state.restartLockTimer = 1.8
     state.restartInputArmed = false
     state.enemyBullets = []
     state.bullets = []
+    state.enemies = []
     state.ufo = null
+    state.player.cooldown = 0
+    state.player.fireFlash = 0
     projectileManager.clear()
     syncProjectilesToState()
     persistHighScore()
+    inputController.clearPointer()
     syncShellState()
   }
 
@@ -531,11 +586,21 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     if (!state.running) {
       if (state.finalDeathSequence) {
         state.finalDeathSequence.elapsed += dt
-        const { dialogAt, vanishAt } = state.finalDeathSequence
+        const { dialogAt } = state.finalDeathSequence
         if (!state.gameOverVisible && state.finalDeathSequence.elapsed >= dialogAt) {
           state.gameOverVisible = true
           syncShellState()
         }
+        updateParticles(dt)
+        return desktopMode
+      }
+      if (state.victorySequence) {
+        state.victorySequence.elapsed += dt
+        updateBossDefeatSequence(dt)
+        if (!state.victory && state.victorySequence.elapsed >= state.victorySequence.dialogAt) {
+          finalizeVictory()
+        }
+        updateParticles(dt)
         return desktopMode
       }
       if (!firing) {
@@ -556,14 +621,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.fireFlash = Math.max(0, state.player.fireFlash - dt * 7.5)
 
     if (state.overlayTimer > 0) {
-      for (const particle of state.particles) {
-        particle.x += particle.vx * dt
-        particle.y += particle.vy * dt
-        particle.vx *= 0.985
-        particle.vy = particle.vy * 0.988 + particle.gravity * dt
-        particle.life -= dt
-      }
-      state.particles = state.particles.filter((particle) => particle.life > 0)
+      updateParticles(dt)
       return desktopMode
     }
 
@@ -584,14 +642,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
     if (state.waveArrivalTimer > 0) {
       state.waveArrivalTimer = Math.max(0, state.waveArrivalTimer - dt)
-      for (const particle of state.particles) {
-        particle.x += particle.vx * dt
-        particle.y += particle.vy * dt
-        particle.vx *= 0.985
-        particle.vy = particle.vy * 0.988 + particle.gravity * dt
-        particle.life -= dt
-      }
-      state.particles = state.particles.filter((particle) => particle.life > 0)
+      updateParticles(dt)
       if (state.waveArrivalTimer === 0 && state.waveLockDuration > 0) {
         state.waveLockTimer = state.waveLockDuration
         state.flash = Math.max(state.flash, 0.08)
@@ -683,7 +734,11 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
         addParticles(bossHit.x, bossHit.y, PALETTE.white, bossHit.defeated ? 22 : 6, bossHit.defeated ? 260 : 110, 20)
         if (bossHit.defeated) {
           state.score += 1500
-          triggerVictory()
+          state.flash = 0.34
+          triggerShake(5.2, 0.22)
+          addParticles(bossHit.x, bossHit.y, PALETTE.amber, 26, 380, 48)
+          addParticles(bossHit.x, bossHit.y, PALETTE.red, 18, 340, 42)
+          triggerVictorySequence()
           return desktopMode
         }
         continue
@@ -764,7 +819,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
         triggerShake(2.4, 0.12)
         addParticles(WORLD.width / 2, WORLD.height * 0.38, PALETTE.magenta, 38, 420, 40)
         addParticles(WORLD.width / 2, WORLD.height * 0.38, PALETTE.white, 24, 300, 20)
-        triggerVictory()
+        triggerVictorySequence()
         return desktopMode
       }
       triggerShake(1.8, 0.08)
@@ -772,14 +827,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
       return desktopMode
     }
 
-    for (const particle of state.particles) {
-      particle.x += particle.vx * dt
-      particle.y += particle.vy * dt
-      particle.vx *= 0.985
-      particle.vy = particle.vy * 0.988 + particle.gravity * dt
-      particle.life -= dt
-    }
-    state.particles = state.particles.filter((particle) => particle.life > 0)
+    updateParticles(dt)
 
     return desktopMode
   }

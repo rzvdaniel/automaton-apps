@@ -68,4 +68,9 @@ describe('GameState', () => {
     const state = createInitialState({ settings })
     expect(state.settings.spriteStyle).toBe('smooth')
   })
+
+  it('starts with no victory sequence active', () => {
+    const state = createInitialState()
+    expect(state.victorySequence).toBeNull()
+  })
 })

@@ -6,8 +6,8 @@ describe('BossSystem', () => {
   it('creates a boss from level 3 config', () => {
     const config = getLevelDefinition(3).mechanics.finalBoss
     const boss = createBoss(config)
-    expect(boss.hp).toBe(40)
-    expect(boss.maxHp).toBe(40)
+    expect(boss.hp).toBe(config.hp)
+    expect(boss.maxHp).toBe(config.hp)
     expect(boss.active).toBe(true)
     expect(boss.y).toBeLessThan(0)
   })
@@ -23,6 +23,8 @@ describe('BossSystem', () => {
 
     expect(hit?.defeated).toBe(true)
     expect(boss.active).toBe(false)
+    expect(boss.defeated).toBe(true)
+    expect(boss.defeatElapsed).toBe(0)
   })
 
   it('defines left pod, core, and right pod hardpoints', () => {

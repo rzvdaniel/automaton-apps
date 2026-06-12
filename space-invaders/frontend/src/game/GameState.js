@@ -32,6 +32,7 @@ export function createInitialState({ settings, backgroundImage = null, backgroun
     restartInputArmed: true,
     gameOverVisible: false,
     finalDeathSequence: null,
+    victorySequence: null,
     divingAttackCooldown: 0,
     divingAttackTimer: 0,
     boss: null,

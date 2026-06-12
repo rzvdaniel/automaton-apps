@@ -2,20 +2,31 @@ import { WORLD } from '../config.js'
 
 export class BossRenderer {
   draw(context, boss, bossSprite, elapsed, settings) {
-    if (!boss?.active) return
+    if (!boss || (!boss.active && !boss.defeated)) return
 
     const wobble = settings.reducedMotion ? 0 : Math.sin(elapsed * 2.8 + boss.hoverPhase) * 4
     const x = boss.x
-    const y = boss.y + wobble
+    const defeatElapsed = boss.defeatElapsed ?? 0
+    const defeatProgress = boss.defeated ? Math.min(1, defeatElapsed / 1.5) : 0
+    const y = boss.y + wobble + (boss.defeated ? defeatElapsed * 42 : 0)
     const reactorPulse = 0.55 + ((Math.sin(boss.reactorPulse * 6.2) + 1) / 2) * 0.45 + (boss.coreCharge ?? 0) * 0.4
     const sprite = bossSprite ?? null
     const width = boss.width
     const height = width * (sprite?.naturalWidth > 0 ? sprite.naturalHeight / sprite.naturalWidth : boss.height / Math.max(1, boss.width))
+    const fadeAlpha = boss.defeated
+      ? defeatElapsed < 0.5
+        ? 1
+        : Math.max(0, 1 - (defeatElapsed - 0.5) / 1)
+      : 1
 
     this._drawBeam(context, boss, elapsed)
 
     context.save()
     context.translate(x, y)
+    if (boss.defeated) {
+      context.globalAlpha = fadeAlpha
+      context.rotate(Math.min(0.12, defeatElapsed * 0.08))
+    }
 
     const halo = context.createRadialGradient(0, 0, width * 0.08, 0, 0, width * 0.55)
     halo.addColorStop(0, 'rgba(0, 0, 0, 0.18)')
@@ -56,8 +67,24 @@ export class BossRenderer {
       context.fill()
     }
 
+    if (boss.defeated) {
+      context.globalCompositeOperation = 'screen'
+      const blastRadius = width * (0.16 + defeatProgress * 0.18)
+      const blastGlow = context.createRadialGradient(0, 0, width * 0.03, 0, 0, blastRadius)
+      blastGlow.addColorStop(0, `rgba(255, 248, 230, ${0.34 + (1 - defeatProgress) * 0.28})`)
+      blastGlow.addColorStop(0.34, `rgba(255, 154, 88, ${0.28 + (1 - defeatProgress) * 0.22})`)
+      blastGlow.addColorStop(0.72, `rgba(255, 76, 90, ${0.14 + (1 - defeatProgress) * 0.16})`)
+      blastGlow.addColorStop(1, 'rgba(255, 76, 90, 0)')
+      context.fillStyle = blastGlow
+      context.beginPath()
+      context.arc(0, 0, blastRadius, 0, Math.PI * 2)
+      context.fill()
+    }
+
     context.restore()
-    this._drawHealthBar(context, boss)
+    if (!boss.defeated || fadeAlpha > 0.08) {
+      this._drawHealthBar(context, boss)
+    }
   }
 
   _fillConicalBeam(context, x, top, bottom, topWidth, bottomWidth, fillStyle) {
