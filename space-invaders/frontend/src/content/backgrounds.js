@@ -2,7 +2,7 @@ export const BACKGROUND_DEFINITIONS = [
   {
     id: 'planet-cinematic',
     name: 'Red Planet',
-    imageSrc: './images/planet-cinematic-bg.png',
+    imageSrc: './images/planet-cinematic-bg.webp',
     parallaxLayers: [],
     tint: null,
     glowColor: 'rgba(255, 164, 104, 0.08)'
@@ -10,7 +10,7 @@ export const BACKGROUND_DEFINITIONS = [
   {
     id: 'broken-orbit',
     name: 'Broken Orbit',
-    imageSrc: './images/broken-orbit-bg.png',
+    imageSrc: './images/broken-orbit-bg.webp',
     parallaxLayers: [],
     tint: null,
     glowColor: 'rgba(134, 180, 255, 0.1)'
@@ -18,7 +18,7 @@ export const BACKGROUND_DEFINITIONS = [
   {
     id: 'mothership-depths',
     name: 'Mothership Depths',
-    imageSrc: './images/mothership-depths-bg.png',
+    imageSrc: './images/mothership-depths-bg.webp',
     parallaxLayers: [],
     tint: null,
     glowColor: 'rgba(120, 255, 194, 0.08)'

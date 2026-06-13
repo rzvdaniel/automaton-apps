@@ -27,13 +27,13 @@ app.innerHTML = `
     </div>
     <div class="top-actions">
       <button class="overlay-button pause-button" type="button" aria-label="Pause" title="Pause" data-state="pause">
-        <img src="./images/hud-pause.png" alt="" aria-hidden="true" />
+        <img src="./images/hud-pause.webp" alt="" aria-hidden="true" />
       </button>
       <button class="overlay-button settings-button" type="button" aria-label="Settings" title="Settings">
-        <img src="./images/hud-settings.png" alt="" aria-hidden="true" />
+        <img src="./images/hud-settings.webp" alt="" aria-hidden="true" />
       </button>
       <button class="overlay-button install hidden" type="button" aria-label="Install" title="Install">
-        <img src="./images/hud-install.png" alt="" aria-hidden="true" />
+        <img src="./images/hud-install.webp" alt="" aria-hidden="true" />
       </button>
     </div>
     <div class="game-dialog-layer pause-menu" aria-hidden="true">
@@ -122,9 +122,9 @@ app.innerHTML = `
 `
 
 const shell = document.querySelector('.shell')
-const touchLeftButtonUrl = new URL('./images/touch-left-button.png', window.location.href).href
-const touchRightButtonUrl = new URL('./images/touch-right-button.png', window.location.href).href
-const touchFireButtonUrl = new URL('./images/touch-fire-button.png', window.location.href).href
+const touchLeftButtonUrl = new URL('./images/touch-left-button.webp', window.location.href).href
+const touchRightButtonUrl = new URL('./images/touch-right-button.webp', window.location.href).href
+const touchFireButtonUrl = new URL('./images/touch-fire-button.webp', window.location.href).href
 shell.style.setProperty('--touch-left-button-image', `url("${touchLeftButtonUrl}")`)
 shell.style.setProperty('--touch-right-button-image', `url("${touchRightButtonUrl}")`)
 shell.style.setProperty('--touch-fire-button-image', `url("${touchFireButtonUrl}")`)

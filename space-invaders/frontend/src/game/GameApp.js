@@ -87,7 +87,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   const state = createInitialState({ settings, backgroundImage, backgroundEffects })
   backgroundImage.src = state.backgroundDefinition.imageSrc
-  bossSprite.src = './images/mothership.png'
+  bossSprite.src = './images/mothership.webp'
   state.bossSprite = bossSprite
   bossSprite.addEventListener('load', () => {
     if (bossSprite.naturalWidth > 0) {

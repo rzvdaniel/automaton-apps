@@ -6,17 +6,17 @@ const spriteCache = new Map()
 let scanlineCanvas = null
 const bossRenderer = new BossRenderer()
 const bossBeamChargeBulletSprite = new Image()
-bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.png'
+bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.webp'
 const bossEnergyBurstOrbSprite = new Image()
-bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.png'
+bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.webp'
 const hudScoreIcon = new Image()
-hudScoreIcon.src = './images/hud-score.png'
+hudScoreIcon.src = './images/hud-score.webp'
 const hudLevelIcon = new Image()
-hudLevelIcon.src = './images/hud-level.png'
+hudLevelIcon.src = './images/hud-level.webp'
 const hudWaveIcon = new Image()
-hudWaveIcon.src = './images/hud-wave.png'
+hudWaveIcon.src = './images/hud-wave.webp'
 const hudLivesIcon = new Image()
-hudLivesIcon.src = './images/hud-lives.png'
+hudLivesIcon.src = './images/hud-lives.webp'
 
 function createBuffer(width, height) {
   const buffer = document.createElement('canvas')
