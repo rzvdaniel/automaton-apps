@@ -18,6 +18,23 @@ function fireBossEnergyBurstShot(shootEnemy, origin, velocity, index) {
   })
 }
 
+function fireBossSupportShot(shootEnemy, origin, velocity, index) {
+  const projectileKind = velocity.kind ?? 'boss-beam-charge'
+  shootEnemy({
+    originX: origin.x,
+    originY: origin.y,
+    projectileWidth: 30,
+    projectileHeight: 30,
+    projectileSpeed: velocity.speed ?? 340,
+    projectileVx: velocity.x,
+    projectileVy: velocity.y,
+    projectileKind,
+    projectileGlowColor: velocity.glowColor ?? 'rgba(255, 84, 188, 0.9)',
+    ignoreEnemyBulletLimit: true,
+    phase: index * 0.8 + Math.random() * 0.25
+  })
+}
+
 export function createBoss(config = {}) {
   const targetWidth = WORLD.width * 0.72
   return {
@@ -31,7 +48,7 @@ export function createBoss(config = {}) {
     maxHp: config.hp ?? 50,
     speed: config.speed ?? 82,
     direction: 1,
-    attackSequence: config.attackSequence ?? ['burst', 'beam', 'burst', 'burst', 'beam'],
+    attackSequence: config.attackSequence ?? ['burst', 'beam', 'tripleShot', 'burst', 'beam'],
     attackIndex: 0,
     attackTimer: config.attackInitialDelay ?? 1.8,
     beamCooldown: config.beamCooldown ?? 2.4,
@@ -42,10 +59,17 @@ export function createBoss(config = {}) {
     beamX: WORLD.width / 2,
     beamStartY: 0,
     beamHitArmed: true,
+    beamSupportShotsFired: false,
     energyBurstDuration: config.energyBurstDuration ?? 0.54,
     energyBurstCooldown: config.spreadCooldown ?? 1.35,
     energyBurstActive: 0,
     energyBurstShotsFired: false,
+    tripleShotActive: 0,
+    tripleShotDuration: config.tripleShotDuration ?? 0.56,
+    tripleShotDelay: config.tripleShotDelay ?? 0.32,
+    tripleShotCooldown: config.tripleShotCooldown ?? 1.15,
+    tripleShotWave: 0,
+    tripleShotTimer: 0,
     damageFlash: 0,
     reactorPulse: 0,
     hoverPhase: Math.random() * Math.PI * 2,
@@ -98,6 +122,7 @@ function beginChargingBeam(boss) {
   boss.beamWarning = boss.beamWarningDuration
   boss.beamActive = 0
   boss.beamHitArmed = true
+  boss.beamSupportShotsFired = false
   boss.coreCharge = 1
   boss.coreFlash = 1
 }
@@ -110,7 +135,7 @@ function beginEnergyBurst(boss) {
   boss.coreFlash = 1
 }
 
-function beginNextAttack(boss) {
+function beginNextAttack(boss, shootEnemy) {
   const attack = boss.attackSequence[boss.attackIndex % boss.attackSequence.length]
   boss.attackIndex += 1
 
@@ -119,7 +144,20 @@ function beginNextAttack(boss) {
     return
   }
 
+  if (attack === 'tripleShot') {
+    beginTripleShot(boss)
+    return
+  }
+
   beginEnergyBurst(boss)
+}
+
+function beginTripleShot(boss) {
+  syncBeamToReactor(boss)
+  boss.tripleShotActive = boss.tripleShotDuration
+  boss.tripleShotWave = 0
+  boss.tripleShotTimer = 0
+  boss.coreCharge = 0.4
 }
 
 function fireEnergyBurst(boss, shootEnemy) {
@@ -144,6 +182,50 @@ function fireEnergyBurst(boss, shootEnemy) {
   boss.coreFlash = 1
 }
 
+function fireTripleShot(boss, shootEnemy) {
+  if (!shootEnemy) return
+  const { leftPod, core, rightPod } = getBossHardpoints(boss)
+  const shots = [
+    { origin: leftPod, velocity: { x: 0, y: 388, speed: 350, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } },
+    { origin: core, velocity: { x: 0, y: 418, speed: 365, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } },
+    { origin: rightPod, velocity: { x: 0, y: 388, speed: 350, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } }
+  ]
+
+  shots.forEach((shot, index) => {
+    fireBossSupportShot(
+      shootEnemy,
+      { x: shot.origin.x, y: shot.origin.y + 10 },
+      shot.velocity,
+      index
+    )
+  })
+
+  boss.leftPodFlash = 1
+  boss.rightPodFlash = 1
+  boss.coreFlash = 0.7
+  boss.coreCharge = 0.4
+}
+
+function fireBeamSupportShots(boss, shootEnemy) {
+  const { leftPod, rightPod } = getBossHardpoints(boss)
+  const shots = [
+    { origin: leftPod, velocity: { x: -88, y: 365, speed: 340 } },
+    { origin: rightPod, velocity: { x: 88, y: 365, speed: 340 } }
+  ]
+
+  shots.forEach((shot, index) => {
+    fireBossSupportShot(
+      shootEnemy,
+      { x: shot.origin.x, y: shot.origin.y + 10 },
+      shot.velocity,
+      index
+    )
+  })
+
+  boss.leftPodFlash = 1
+  boss.rightPodFlash = 1
+}
+
 export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   const boss = state.boss
   if (!boss?.active) return
@@ -163,17 +245,20 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
     return
   }
 
-  boss.x += boss.direction * boss.speed * dt
+  const tripleShotHolding = boss.tripleShotActive > 0
+  if (!tripleShotHolding) {
+    boss.x += boss.direction * boss.speed * dt
 
-  const horizontalMargin = -36
-  const leftBound = horizontalMargin + boss.width / 2
-  const rightBound = WORLD.width - horizontalMargin - boss.width / 2
-  if (boss.x <= leftBound || boss.x >= rightBound) {
-    boss.x = Math.max(leftBound, Math.min(rightBound, boss.x))
-    boss.direction *= -1
+    const horizontalMargin = -36
+    const leftBound = horizontalMargin + boss.width / 2
+    const rightBound = WORLD.width - horizontalMargin - boss.width / 2
+    if (boss.x <= leftBound || boss.x >= rightBound) {
+      boss.x = Math.max(leftBound, Math.min(rightBound, boss.x))
+      boss.direction *= -1
+    }
   }
 
-  if (boss.beamWarning > 0 || boss.beamActive > 0 || boss.energyBurstActive > 0) {
+  if (boss.beamWarning > 0 || boss.beamActive > 0 || boss.energyBurstActive > 0 || boss.tripleShotActive > 0) {
     syncBeamToReactor(boss)
   }
 
@@ -181,7 +266,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   if (boss.descentTimer === 0) {
     boss.y += boss.descentStep
     boss.descentTimer = boss.descentInterval
-    if (boss.beamWarning > 0 || boss.beamActive > 0 || boss.energyBurstActive > 0) {
+    if (boss.beamWarning > 0 || boss.beamActive > 0 || boss.energyBurstActive > 0 || boss.tripleShotActive > 0) {
       syncBeamToReactor(boss)
     }
   }
@@ -211,12 +296,35 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
     boss.beamWarning = Math.max(0, boss.beamWarning - dt)
     boss.coreCharge = Math.min(1.35, 0.65 + (1 - boss.beamWarning / boss.beamWarningDuration) * 0.7)
 
+    if (!boss.beamSupportShotsFired && boss.beamWarning <= boss.beamWarningDuration * 0.45) {
+      boss.beamSupportShotsFired = true
+      fireBeamSupportShots(boss, shootEnemy)
+    }
+
     if (boss.beamWarning === 0) {
       boss.beamActive = boss.beamFireDuration
       boss.attackTimer = boss.beamCooldown
       boss.coreFlash = 1
       syncBeamToReactor(boss)
       audio?.bossBeamFire()
+    }
+    return
+  }
+
+  if (boss.tripleShotActive > 0) {
+    boss.tripleShotActive = Math.max(0, boss.tripleShotActive - dt)
+    boss.tripleShotTimer = Math.max(0, boss.tripleShotTimer - dt)
+    boss.coreCharge = 0.4
+
+    if (boss.tripleShotWave < 2 && boss.tripleShotTimer === 0) {
+      fireTripleShot(boss, shootEnemy)
+      boss.tripleShotWave += 1
+      boss.tripleShotTimer = boss.tripleShotWave < 2 ? boss.tripleShotDelay : boss.tripleShotActive
+    }
+
+    if (boss.tripleShotActive === 0) {
+      boss.coreCharge = 0
+      boss.attackTimer = boss.tripleShotCooldown
     }
     return
   }
@@ -240,7 +348,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
     if (audio && boss.attackSequence[boss.attackIndex % boss.attackSequence.length] === 'beam') {
       audio.bossBeamCharge()
     }
-    beginNextAttack(boss)
+    beginNextAttack(boss, shootEnemy)
   }
 }
 
@@ -263,6 +371,7 @@ export function tryHitBoss(boss, bulletRect) {
     boss.beamWarning = 0
     boss.beamActive = 0
     boss.energyBurstActive = 0
+    boss.tripleShotActive = 0
     boss.coreCharge = 0
     return { defeated: true, x: boss.x, y: boss.y }
   }

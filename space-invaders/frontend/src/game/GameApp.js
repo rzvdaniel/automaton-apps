@@ -24,6 +24,17 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
+function normalizeStartingLives(startingLives) {
+  if (startingLives === Infinity || startingLives === 'infinite') {
+    return { lives: Infinity, infiniteLives: true }
+  }
+
+  return {
+    lives: clamp(Math.floor(startingLives) || 3, 1, 9),
+    infiniteLives: false
+  }
+}
+
 function isCompactViewport() {
   return window.matchMedia('(max-width: 420px)').matches
 }
@@ -298,6 +309,7 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     state.player.x = WORLD.width / 2
     state.player.cooldown = 0
     state.player.lives = 3
+    state.player.infiniteLives = false
     state.player.invulnerability = 0
     state.player.visualTilt = 0
     state.player.thrust = 0
@@ -353,7 +365,9 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
     syncProjectilesToState()
     state.player.x = WORLD.width / 2
     state.player.cooldown = 0
-    state.player.lives = clamp(Math.floor(startingLives) || 3, 1, 9)
+    const startingLivesConfig = normalizeStartingLives(startingLives)
+    state.player.lives = startingLivesConfig.lives
+    state.player.infiniteLives = startingLivesConfig.infiniteLives
     state.player.invulnerability = 0
     state.player.visualTilt = 0
     state.player.thrust = 0
@@ -431,6 +445,14 @@ export function createGame({ canvas, shell, installButton, muteButton = null, pa
 
   function hitPlayer() {
     if (state.player.invulnerability > 0) return
+    if (state.player.infiniteLives) {
+      state.player.invulnerability = PLAYER_INVULNERABILITY
+      state.flash = 0.22
+      triggerShake(2.6, 0.09)
+      addParticles(state.player.x, state.player.y, PALETTE.cyan, 24, 320, 40)
+      audio.playerHit()
+      return
+    }
     const isFinalLife = state.player.lives <= 1
     state.player.lives -= 1
     state.player.invulnerability = PLAYER_INVULNERABILITY

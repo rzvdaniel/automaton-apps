@@ -77,6 +77,7 @@ export function createInitialState({ settings, backgroundImage = null, backgroun
       speed: 760,
       cooldown: 0,
       lives: 3,
+      infiniteLives: false,
       invulnerability: 0,
       visualTilt: 0,
       thrust: 0,

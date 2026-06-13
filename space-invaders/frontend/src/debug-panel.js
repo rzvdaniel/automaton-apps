@@ -17,6 +17,24 @@ export function setupDebugPanel({ game, root }) {
       .join('')
   }
 
+  function populateWaveOptions() {
+    debugWaveInput.innerHTML = Array.from({ length: 5 }, (_, index) => {
+      const wave = index + 1
+      return `<option value="${wave}">Wave ${wave}</option>`
+    }).join('')
+  }
+
+  function populateLivesOptions() {
+    debugLivesInput.innerHTML = [
+      { value: '1', label: '1 life' },
+      { value: '2', label: '2 lives' },
+      { value: '3', label: '3 lives' },
+      { value: 'infinite', label: 'Infinite lives' }
+    ]
+      .map((option) => `<option value="${option.value}">${option.label}</option>`)
+      .join('')
+  }
+
   function closeDebugDialog(resumeGame = true) {
     if (!debugDialog.open) return
     debugDialog.close()
@@ -34,7 +52,7 @@ export function setupDebugPanel({ game, root }) {
     event.preventDefault()
     const level = Number(debugLevelInput.value || 1)
     const waveInLevel = Number(debugWaveInput.value || 1)
-    const lives = Number(debugLivesInput.value || 3)
+    const lives = debugLivesInput.value === 'infinite' ? 'infinite' : Number(debugLivesInput.value || 3)
     game.setDebugOverlayEnabled(debugPerformanceInput.checked)
     closeDebugDialog(false)
     game.startAtLevel(level, waveInLevel, lives)
@@ -58,7 +76,7 @@ export function setupDebugPanel({ game, root }) {
         const progression = game.getProgression()
         debugLevelInput.value = String(Math.max(1, progression.level))
         debugWaveInput.value = String(Math.max(1, progression.waveInLevel))
-        debugLivesInput.value = String(Math.max(1, game.getLives()))
+        debugLivesInput.value = game.getLives() === Infinity ? 'infinite' : String(Math.max(1, game.getLives()))
         openDebugDialog()
       }
     }
@@ -93,10 +111,12 @@ export function setupDebugPanel({ game, root }) {
       const progression = game.getProgression()
       debugLevelInput.value = String(Math.max(1, progression.level))
       debugWaveInput.value = String(Math.max(1, progression.waveInLevel))
-      debugLivesInput.value = String(Math.max(1, game.getLives()))
+      debugLivesInput.value = game.getLives() === Infinity ? 'infinite' : String(Math.max(1, game.getLives()))
       openDebugDialog()
     }
   })
 
   populateLevelOptions()
+  populateWaveOptions()
+  populateLivesOptions()
 }

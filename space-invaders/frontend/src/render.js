@@ -7,6 +7,8 @@ let scanlineCanvas = null
 const bossRenderer = new BossRenderer()
 const bossBeamChargeBulletSprite = new Image()
 bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.webp'
+const bossTripleShotBulletSprite = new Image()
+bossTripleShotBulletSprite.src = './images/boss-triple-shot-bullet.svg'
 const bossEnergyBurstOrbSprite = new Image()
 bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.webp'
 const hudScoreIcon = new Image()
@@ -187,11 +189,12 @@ function drawHud(context, state, desktopMode) {
   const statIconBox = 58
   const valueY = hudY + 41
   const valueFont = '700 40px monospace'
+  const livesValue = state.player.infiniteLives ? '∞' : String(state.player.lives)
   const stats = [
     { icon: hudScoreIcon, value: String(state.score).padStart(6, '0'), x: 24 },
     { icon: hudLevelIcon, value: String(state.level).padStart(2, '0'), x: 255 },
     { icon: hudWaveIcon, value: String(state.waveInLevel).padStart(2, '0'), x: 400 },
-    { icon: hudLivesIcon, value: String(state.player.lives), x: 546, critical: true }
+    { icon: hudLivesIcon, value: livesValue, x: 546, critical: true }
   ]
 
   context.save()
@@ -430,6 +433,33 @@ function drawBossBeamChargeBullet(context, bullet) {
   context.restore()
 }
 
+function drawBossTripleShotBullet(context, bullet) {
+  const vx = bullet.vx ?? 0
+  const vy = bullet.vy ?? bullet.speed ?? 1
+  const angle = Math.atan2(vy, vx) - Math.PI / 2
+  const spriteSize = Math.max(28, Math.max(bullet.width, bullet.height) * 1.45)
+
+  context.save()
+  context.translate(bullet.x, bullet.y)
+  context.rotate(angle)
+  context.globalCompositeOperation = 'screen'
+  context.shadowColor = bullet.glowColor ?? 'rgba(255, 82, 82, 0.9)'
+  context.shadowBlur = 18
+
+  if (bossTripleShotBulletSprite.complete && bossTripleShotBulletSprite.naturalWidth > 0) {
+    context.imageSmoothingEnabled = false
+    context.drawImage(
+      bossTripleShotBulletSprite,
+      -spriteSize / 2,
+      -spriteSize / 2,
+      spriteSize,
+      spriteSize
+    )
+  }
+
+  context.restore()
+}
+
 function drawBossEnergyBurstOrb(context, bullet, elapsed) {
   const pulse = 1 + Math.sin(elapsed * 10 + (bullet.phase ?? 0)) * 0.08
   const spriteSize = Math.max(62, Math.max(bullet.width, bullet.height) * 1.35 * pulse)
@@ -474,6 +504,11 @@ function drawProjectiles(context, state) {
   for (const bullet of state.enemyBullets) {
     if (bullet.kind === 'boss-beam-charge') {
       drawBossBeamChargeBullet(context, bullet)
+      continue
+    }
+
+    if (bullet.kind === 'boss-triple-shot') {
+      drawBossTripleShotBullet(context, bullet)
       continue
     }
 
