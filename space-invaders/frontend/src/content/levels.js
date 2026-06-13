@@ -137,15 +137,15 @@ export const LEVEL_DEFINITIONS = [
           'burst',
           'tripleShot'
         ],
-        attackInitialDelay: 1.1,
-        spreadCooldown: 1.45,
+        attackInitialDelay: 0.6,
+        spreadCooldown: 1.1,
         energyBurstDuration: 0.54,
-        beamCooldown: 5.8,
+        beamCooldown: 5.2,
         beamWarningDuration: 0.9,
         beamFireDuration: 0.68,
         tripleShotDuration: 0.56,
-        tripleShotDelay: 0.36,
-        tripleShotCooldown: 1.25,
+        tripleShotDelay: 0.42,
+        tripleShotCooldown: 0.95,
         descentInterval: 11,
         descentStep: 12
       }
