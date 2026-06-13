@@ -1,22 +1,5 @@
 import { WORLD } from '../config.js'
 
-function fireBossChargeShot(shootEnemy, origin, velocity, index) {
-  shootEnemy({
-    originX: origin.x,
-    originY: origin.y,
-    projectileWidth: 12,
-    projectileHeight: 30,
-    projectileSpeed: 580,
-    projectileVx: velocity.x,
-    projectileVy: velocity.y,
-    projectileKind: 'boss-beam-charge',
-    projectileGlowColor: 'rgba(255, 84, 188, 0.9)',
-    projectileCoreColor: '#ffd6ff',
-    projectileTailColor: index % 2 === 0 ? '#ff5ccc' : '#ff8ae8',
-    ignoreEnemyBulletLimit: true
-  })
-}
-
 function fireBossEnergyBurstShot(shootEnemy, origin, velocity, index) {
   shootEnemy({
     originX: origin.x,
@@ -59,8 +42,6 @@ export function createBoss(config = {}) {
     beamX: WORLD.width / 2,
     beamStartY: 0,
     beamHitArmed: true,
-    beamSupportWave: 0,
-    beamSupportTimer: 0,
     energyBurstDuration: config.energyBurstDuration ?? 0.54,
     energyBurstCooldown: config.spreadCooldown ?? 1.35,
     energyBurstActive: 0,
@@ -117,8 +98,6 @@ function beginChargingBeam(boss) {
   boss.beamWarning = boss.beamWarningDuration
   boss.beamActive = 0
   boss.beamHitArmed = true
-  boss.beamSupportWave = 0
-  boss.beamSupportTimer = 0.2
   boss.coreCharge = 1
   boss.coreFlash = 1
 }
@@ -141,35 +120,6 @@ function beginNextAttack(boss) {
   }
 
   beginEnergyBurst(boss)
-}
-
-function fireBeamSupportWave(boss, shootEnemy) {
-  const { leftPod, rightPod } = getBossHardpoints(boss)
-  const waveIndex = boss.beamSupportWave
-  const waveSpread = waveIndex === 0
-    ? { outer: 230, inner: 120, yOuter: 650, yInner: 710 }
-    : { outer: 185, inner: 80, yOuter: 620, yInner: 680 }
-
-  const lanes = [
-    { origin: leftPod, offset: -16, velocity: { x: -waveSpread.outer, y: waveSpread.yOuter } },
-    { origin: leftPod, offset: 16, velocity: { x: -waveSpread.inner, y: waveSpread.yInner } },
-    { origin: rightPod, offset: -16, velocity: { x: waveSpread.inner, y: waveSpread.yInner } },
-    { origin: rightPod, offset: 16, velocity: { x: waveSpread.outer, y: waveSpread.yOuter } }
-  ]
-
-  lanes.forEach((lane, index) => {
-    fireBossChargeShot(
-      shootEnemy,
-      { x: lane.origin.x + lane.offset, y: lane.origin.y + 4 },
-      lane.velocity,
-      waveIndex * 4 + index
-    )
-  })
-
-  boss.leftPodFlash = 1
-  boss.rightPodFlash = 1
-  boss.beamSupportWave += 1
-  boss.beamSupportTimer = 0.5
 }
 
 function fireEnergyBurst(boss, shootEnemy) {
@@ -260,11 +210,6 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   if (boss.beamWarning > 0) {
     boss.beamWarning = Math.max(0, boss.beamWarning - dt)
     boss.coreCharge = Math.min(1.35, 0.65 + (1 - boss.beamWarning / boss.beamWarningDuration) * 0.7)
-    boss.beamSupportTimer = Math.max(0, boss.beamSupportTimer - dt)
-
-    if (boss.beamSupportWave < 1 && boss.beamSupportTimer === 0) {
-      fireBeamSupportWave(boss, shootEnemy)
-    }
 
     if (boss.beamWarning === 0) {
       boss.beamActive = boss.beamFireDuration
