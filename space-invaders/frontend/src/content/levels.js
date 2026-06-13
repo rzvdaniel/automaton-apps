@@ -140,12 +140,12 @@ export const LEVEL_DEFINITIONS = [
         attackInitialDelay: 0.6,
         spreadCooldown: 1.1,
         energyBurstDuration: 0.54,
-        beamCooldown: 5.2,
+        beamCooldown: 3.8,
         beamWarningDuration: 0.9,
         beamFireDuration: 0.68,
         tripleShotDuration: 0.56,
         tripleShotDelay: 0.42,
-        tripleShotCooldown: 0.95,
+        tripleShotCooldown: 0.8,
         descentInterval: 11,
         descentStep: 12
       }

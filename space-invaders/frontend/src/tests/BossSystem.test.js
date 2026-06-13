@@ -130,4 +130,51 @@ describe('BossSystem', () => {
     updateBoss(state, 0.1, { shootEnemy, hitPlayer: vi.fn(), audio: null })
     expect(boss.beamActive).toBeGreaterThan(0)
   })
+
+  it('fires passive standard bullets between specials', () => {
+    const boss = createBoss({
+      attackInitialDelay: 99,
+      passiveShotInterval: 0.1
+    })
+    boss.entered = true
+    boss.y = boss.targetY
+    boss.passiveShotTimer = 0
+
+    const shots = []
+    const shootEnemy = vi.fn((shot) => shots.push(shot))
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2)
+
+    updateBoss(
+      { boss, player: { x: boss.x, y: 1200 } },
+      0.01,
+      { shootEnemy, hitPlayer: vi.fn(), audio: null }
+    )
+
+    randomSpy.mockRestore()
+
+    expect(shots).toHaveLength(1)
+    expect(shots[0].projectileKind).toBeUndefined()
+    expect(shots[0].projectileWidth).toBe(10)
+    expect(boss.passiveShotTimer).toBe(0.1)
+  })
+
+  it('pauses passive bullets while a special attack is active', () => {
+    const boss = createBoss({
+      attackInitialDelay: 99,
+      passiveShotInterval: 0.1
+    })
+    boss.entered = true
+    boss.y = boss.targetY
+    boss.passiveShotTimer = 0
+    boss.beamWarning = 0.2
+
+    const shootEnemy = vi.fn()
+    updateBoss(
+      { boss, player: { x: boss.x, y: 1200 } },
+      0.01,
+      { shootEnemy, hitPlayer: vi.fn(), audio: null }
+    )
+
+    expect(shootEnemy).not.toHaveBeenCalledWith(expect.objectContaining({ projectileWidth: 10 }))
+  })
 })

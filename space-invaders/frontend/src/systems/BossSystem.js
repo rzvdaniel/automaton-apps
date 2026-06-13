@@ -37,6 +37,7 @@ function fireBossSupportShot(shootEnemy, origin, velocity, index) {
 
 export function createBoss(config = {}) {
   const targetWidth = WORLD.width * 0.72
+  const passiveShotInterval = config.passiveShotInterval ?? 1.45
   return {
     active: true,
     x: WORLD.width / 2,
@@ -51,6 +52,8 @@ export function createBoss(config = {}) {
     attackSequence: config.attackSequence ?? ['burst', 'beam', 'tripleShot', 'burst', 'beam'],
     attackIndex: 0,
     attackTimer: config.attackInitialDelay ?? 1.8,
+    passiveShotInterval,
+    passiveShotTimer: passiveShotInterval * 0.7,
     beamCooldown: config.beamCooldown ?? 2.4,
     beamWarningDuration: config.beamWarningDuration ?? 1.45,
     beamFireDuration: config.beamFireDuration ?? 0.72,
@@ -226,6 +229,26 @@ function fireBeamSupportShots(boss, shootEnemy) {
   boss.rightPodFlash = 1
 }
 
+function firePassiveShot(boss, shootEnemy) {
+  if (!shootEnemy) return
+  const { leftPod, core, rightPod } = getBossHardpoints(boss)
+  const roll = Math.random()
+  const origin = roll < 0.42 ? leftPod : roll < 0.84 ? rightPod : core
+
+  shootEnemy({
+    originX: origin.x,
+    originY: origin.y + 10,
+    projectileWidth: 10,
+    projectileHeight: 28,
+    projectileSpeed: 560,
+    ignoreEnemyBulletLimit: true
+  })
+
+  boss.leftPodFlash = origin === leftPod ? 0.75 : boss.leftPodFlash
+  boss.rightPodFlash = origin === rightPod ? 0.75 : boss.rightPodFlash
+  boss.coreFlash = origin === core ? 0.55 : boss.coreFlash
+}
+
 export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   const boss = state.boss
   if (!boss?.active) return
@@ -234,6 +257,7 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   boss.leftPodFlash = Math.max(0, boss.leftPodFlash - dt * 4)
   boss.rightPodFlash = Math.max(0, boss.rightPodFlash - dt * 4)
   boss.coreFlash = Math.max(0, boss.coreFlash - dt * 3.2)
+  boss.passiveShotTimer = Math.max(0, boss.passiveShotTimer - dt)
   boss.reactorPulse += dt
 
   if (!boss.entered) {
@@ -274,6 +298,12 @@ export function updateBoss(state, dt, { shootEnemy, hitPlayer, audio }) {
   if (boss.y + boss.height / 2 >= state.player.y - 24) {
     hitPlayer()
     return
+  }
+
+  const specialsActive = boss.energyBurstActive > 0 || boss.beamWarning > 0 || boss.beamActive > 0 || boss.tripleShotActive > 0
+  if (!specialsActive && boss.passiveShotTimer === 0) {
+    firePassiveShot(boss, shootEnemy)
+    boss.passiveShotTimer = boss.passiveShotInterval
   }
 
   if (boss.energyBurstActive > 0) {
@@ -372,6 +402,7 @@ export function tryHitBoss(boss, bulletRect) {
     boss.beamActive = 0
     boss.energyBurstActive = 0
     boss.tripleShotActive = 0
+    boss.passiveShotTimer = boss.passiveShotInterval
     boss.coreCharge = 0
     return { defeated: true, x: boss.x, y: boss.y }
   }
