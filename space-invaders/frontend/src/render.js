@@ -10,7 +10,7 @@ bossBeamChargeBulletSprite.src = './images/boss-beam-charge-bullet.webp'
 const bossTripleShotBulletSprite = new Image()
 bossTripleShotBulletSprite.src = './images/boss-triple-shot-bullet.svg'
 const bossEnergyBurstOrbSprite = new Image()
-bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.webp'
+bossEnergyBurstOrbSprite.src = './images/boss-energy-burst-orb.svg'
 const hudScoreIcon = new Image()
 hudScoreIcon.src = './images/hud-score.webp'
 const hudLevelIcon = new Image()
@@ -415,9 +415,6 @@ function drawBossBeamChargeBullet(context, bullet) {
   context.save()
   context.translate(bullet.x, bullet.y)
   context.rotate(angle)
-  context.globalCompositeOperation = 'screen'
-  context.shadowColor = bullet.glowColor ?? 'rgba(255, 84, 188, 0.9)'
-  context.shadowBlur = 18
 
   if (bossBeamChargeBulletSprite.complete && bossBeamChargeBulletSprite.naturalWidth > 0) {
     context.imageSmoothingEnabled = false
@@ -437,14 +434,11 @@ function drawBossTripleShotBullet(context, bullet) {
   const vx = bullet.vx ?? 0
   const vy = bullet.vy ?? bullet.speed ?? 1
   const angle = Math.atan2(vy, vx) - Math.PI / 2
-  const spriteSize = Math.max(28, Math.max(bullet.width, bullet.height) * 1.45)
+  const spriteSize = Math.max(26, Math.max(bullet.width, bullet.height) * 1.25)
 
   context.save()
   context.translate(bullet.x, bullet.y)
   context.rotate(angle)
-  context.globalCompositeOperation = 'screen'
-  context.shadowColor = bullet.glowColor ?? 'rgba(255, 82, 82, 0.9)'
-  context.shadowBlur = 18
 
   if (bossTripleShotBulletSprite.complete && bossTripleShotBulletSprite.naturalWidth > 0) {
     context.imageSmoothingEnabled = false
@@ -466,9 +460,6 @@ function drawBossEnergyBurstOrb(context, bullet, elapsed) {
 
   context.save()
   context.translate(bullet.x, bullet.y)
-  context.globalCompositeOperation = 'screen'
-  context.shadowColor = bullet.glowColor ?? 'rgba(220, 92, 255, 0.9)'
-  context.shadowBlur = 24
 
   if (bossEnergyBurstOrbSprite.complete && bossEnergyBurstOrbSprite.naturalWidth > 0) {
     context.imageSmoothingEnabled = false
@@ -492,8 +483,6 @@ function drawBossEnergyBurstOrb(context, bullet, elapsed) {
 function drawProjectiles(context, state) {
   for (const bullet of state.bullets) {
     context.save()
-    context.shadowColor = PALETTE.cyan
-    context.shadowBlur = 14
     context.fillStyle = PALETTE.white
     context.fillRect(bullet.x - 3, bullet.y - bullet.height / 2, 6, bullet.height)
     context.fillStyle = PALETTE.cyan
@@ -518,11 +507,8 @@ function drawProjectiles(context, state) {
     }
 
     context.save()
-    const glowColor = bullet.glowColor ?? 'rgba(255, 92, 140, 0.9)'
     const coreColor = bullet.coreColor ?? '#ff5c8c'
     const tailColor = bullet.tailColor ?? '#ffd37b'
-    context.shadowColor = glowColor
-    context.shadowBlur = bullet.kind === 'boss-core' ? 24 : 16
     context.fillStyle = coreColor
     context.fillRect(bullet.x - bullet.width / 2, bullet.y - bullet.height / 2, bullet.width, bullet.height)
     context.fillStyle = tailColor

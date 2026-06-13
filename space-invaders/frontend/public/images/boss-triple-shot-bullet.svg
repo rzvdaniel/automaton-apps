@@ -1,28 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
   <defs>
-    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
     <linearGradient id="core" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0%" stop-color="#fff7ec"/>
-      <stop offset="100%" stop-color="#ffffff"/>
+      <stop offset="0%" stop-color="#fff7f0"/>
+      <stop offset="28%" stop-color="#ffffff"/>
+      <stop offset="72%" stop-color="#ffd8c7"/>
+      <stop offset="100%" stop-color="#fff1e8"/>
     </linearGradient>
     <linearGradient id="shell" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0%" stop-color="#ff8f8f"/>
-      <stop offset="45%" stop-color="#ff3232"/>
-      <stop offset="100%" stop-color="#9b0000"/>
+      <stop offset="0%" stop-color="#ff8d8d"/>
+      <stop offset="24%" stop-color="#ff3535"/>
+      <stop offset="66%" stop-color="#d40000"/>
+      <stop offset="100%" stop-color="#7e0000"/>
     </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#ff8c8c" stop-opacity="0.95"/>
+      <stop offset="48%" stop-color="#ff3232" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ff3232" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <g filter="url(#glow)">
-    <path d="M32 4 L43 12 L49 24 L49 41 L43 53 L32 60 L21 53 L15 41 L15 24 L21 12 Z" fill="url(#shell)"/>
-    <path d="M32 9 L38 15 L41 23 L41 42 L38 50 L32 56 L26 50 L23 42 L23 23 L26 15 Z" fill="#ffb2b2" opacity="0.9"/>
-    <rect x="28" y="10" width="8" height="44" rx="4" fill="url(#core)"/>
-    <rect x="20" y="29" width="24" height="6" rx="3" fill="#ffd3d3" opacity="0.72"/>
-    <rect x="27" y="5" width="10" height="6" rx="3" fill="#fff2e8" opacity="0.92"/>
-    <rect x="27" y="53" width="10" height="6" rx="3" fill="#fff2e8" opacity="0.92"/>
-  </g>
+
+  <ellipse cx="48" cy="43" rx="30" ry="34" fill="url(#glow)"/>
+
+  <path d="M48 7
+           C60 11 70 25 72 40
+           C73 49 68 59 61 67
+           C56 73 52 81 48 92
+           C44 81 40 73 35 67
+           C28 59 23 49 24 40
+           C26 25 36 11 48 7Z"
+        fill="url(#shell)"/>
+
+  <path d="M48 14
+           C56 18 63 28 64 41
+           C65 48 61 55 56 62
+           C53 66 50 74 48 83
+           C46 74 43 66 40 62
+           C35 55 31 48 32 41
+           C33 28 40 18 48 14Z"
+        fill="#ffb1b1" opacity="0.82"/>
+
+  <path d="M48 16
+           C53 20 56 28 56 38
+           C56 48 53 57 50 66
+           C49 72 48.5 78 48 88
+           C47.5 78 47 72 46 66
+           C43 57 40 48 40 38
+           C40 28 43 20 48 16Z"
+        fill="url(#core)"/>
+
+  <path d="M48 10
+           L55 20
+           L48 27
+           L41 20Z"
+        fill="#fff7ef" opacity="0.88"/>
+
+  <path d="M34 35
+           C39 32 42 34 44 39
+           C41 46 38 49 34 50
+           C31 46 30 40 34 35Z"
+        fill="#8c0000" opacity="0.5"/>
+
+  <path d="M62 35
+           C57 32 54 34 52 39
+           C55 46 58 49 62 50
+           C65 46 66 40 62 35Z"
+        fill="#8c0000" opacity="0.5"/>
+
+  <path d="M48 29
+           C53 34 55 41 55 49
+           C55 55 52 62 48 69
+           C44 62 41 55 41 49
+           C41 41 43 34 48 29Z"
+        fill="#ff6a6a" opacity="0.34"/>
 </svg>

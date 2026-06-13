@@ -23,8 +23,8 @@ function fireBossSupportShot(shootEnemy, origin, velocity, index) {
   shootEnemy({
     originX: origin.x,
     originY: origin.y,
-    projectileWidth: 30,
-    projectileHeight: 30,
+    projectileWidth: velocity.size ?? 30,
+    projectileHeight: velocity.size ?? 30,
     projectileSpeed: velocity.speed ?? 340,
     projectileVx: velocity.x,
     projectileVy: velocity.y,
@@ -66,7 +66,7 @@ export function createBoss(config = {}) {
     energyBurstShotsFired: false,
     tripleShotActive: 0,
     tripleShotDuration: config.tripleShotDuration ?? 0.56,
-    tripleShotDelay: config.tripleShotDelay ?? 0.32,
+    tripleShotDelay: config.tripleShotDelay ?? 0.42,
     tripleShotCooldown: config.tripleShotCooldown ?? 1.15,
     tripleShotWave: 0,
     tripleShotTimer: 0,
@@ -186,9 +186,9 @@ function fireTripleShot(boss, shootEnemy) {
   if (!shootEnemy) return
   const { leftPod, core, rightPod } = getBossHardpoints(boss)
   const shots = [
-    { origin: leftPod, velocity: { x: 0, y: 388, speed: 350, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } },
-    { origin: core, velocity: { x: 0, y: 418, speed: 365, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } },
-    { origin: rightPod, velocity: { x: 0, y: 388, speed: 350, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } }
+    { origin: leftPod, velocity: { x: 0, y: 388, speed: 350, size: 38, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } },
+    { origin: core, velocity: { x: 0, y: 418, speed: 365, size: 42, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } },
+    { origin: rightPod, velocity: { x: 0, y: 388, speed: 350, size: 38, kind: 'boss-triple-shot', glowColor: 'rgba(255, 82, 82, 0.9)' } }
   ]
 
   shots.forEach((shot, index) => {

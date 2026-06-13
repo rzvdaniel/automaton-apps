@@ -127,13 +127,26 @@ export const LEVEL_DEFINITIONS = [
       },
       finalBoss: {
         waveInLevel: 5,
-        hp: 50,
+        hp: 75,
         speed: 210,
-        spreadCooldown: 1.35,
+        attackSequence: [
+          'burst',
+          'tripleShot',
+          'burst',
+          'beam',
+          'burst',
+          'tripleShot'
+        ],
+        attackInitialDelay: 1.1,
+        spreadCooldown: 1.45,
         energyBurstDuration: 0.54,
-        beamCooldown: 4.6,
-        beamWarningDuration: 0.85,
-        descentInterval: 12,
+        beamCooldown: 5.8,
+        beamWarningDuration: 0.9,
+        beamFireDuration: 0.68,
+        tripleShotDuration: 0.56,
+        tripleShotDelay: 0.36,
+        tripleShotCooldown: 1.25,
+        descentInterval: 11,
         descentStep: 12
       }
     }
