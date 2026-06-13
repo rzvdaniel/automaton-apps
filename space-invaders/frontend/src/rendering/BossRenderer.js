@@ -150,9 +150,7 @@ export class BossRenderer {
       const outerBottomWidth = outerTopWidth * 1.26
       const midTopWidth = 42 + growth * 16
       const midBottomWidth = midTopWidth * 1.24
-      const innerTopWidth = 24 + growth * 10
-      const innerBottomWidth = innerTopWidth * 1.22
-      const coreTopWidth = 12 + growth * 6
+      const coreTopWidth = 16 + growth * 8
       const coreBottomWidth = coreTopWidth * 1.2
 
       context.save()
@@ -160,44 +158,29 @@ export class BossRenderer {
 
       this._drawGlowStack(context, boss, beamTop, beamBottom, [
         {
-          topWidth: outerTopWidth * 1.45,
-          bottomWidth: outerBottomWidth * 1.55,
-          top: `rgba(90, 255, 74, ${0.12 * flicker})`,
-          mid: `rgba(55, 255, 124, ${0.18 * flicker})`,
-          bottom: `rgba(125, 255, 90, ${0.13 * flicker})`
+          topWidth: outerTopWidth * 1.2,
+          bottomWidth: outerBottomWidth * 1.28,
+          top: `rgba(90, 255, 74, ${0.18 * flicker})`,
+          mid: `rgba(55, 255, 124, ${0.26 * flicker})`,
+          bottom: `rgba(125, 255, 90, ${0.2 * flicker})`
         },
         {
           topWidth: outerTopWidth,
           bottomWidth: outerBottomWidth,
-          top: `rgba(118, 255, 76, ${0.23 * flicker})`,
-          mid: `rgba(50, 255, 120, ${0.34 * flicker})`,
-          bottom: `rgba(170, 255, 95, ${0.25 * flicker})`
+          top: `rgba(140, 255, 96, ${0.34 * flicker})`,
+          mid: `rgba(110, 255, 148, ${0.42 * flicker})`,
+          bottom: `rgba(190, 255, 120, ${0.32 * flicker})`
         },
         {
           topWidth: midTopWidth,
           bottomWidth: midBottomWidth,
-          top: `rgba(142, 255, 94, ${0.42 * flicker})`,
-          mid: `rgba(160, 255, 112, ${0.48 * flicker})`,
-          bottom: `rgba(190, 255, 130, ${0.38 * flicker})`
-        },
-        {
-          topWidth: innerTopWidth,
-          bottomWidth: innerBottomWidth,
-          top: `rgba(220, 255, 184, ${0.56 * flicker})`,
-          mid: `rgba(224, 255, 196, ${0.62 * flicker})`,
-          bottom: `rgba(232, 255, 204, ${0.54 * flicker})`
+          top: `rgba(250, 255, 240, ${0.76 * flicker})`,
+          mid: `rgba(250, 255, 240, ${0.84 * flicker})`,
+          bottom: `rgba(250, 255, 240, ${0.74 * flicker})`
         }
       ])
 
-      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, coreTopWidth, coreBottomWidth, `rgba(250, 255, 240, ${0.82 * flicker})`)
-
-      for (let i = 0; i < 9; i += 1) {
-        const offset = Math.sin(elapsed * 9 + i * 1.7) * (outerTopWidth * 0.42)
-        context.globalAlpha = 0.11
-        context.fillStyle = i % 2 === 0 ? 'rgba(210, 255, 160, 0.8)' : 'rgba(70, 255, 130, 0.8)'
-        context.fillRect(boss.beamX + offset - 1, beamTop, 2, beamHeight)
-      }
-      context.globalAlpha = 1
+      this._fillConicalBeam(context, boss.beamX, beamTop, beamBottom, coreTopWidth, coreBottomWidth, `rgba(255, 255, 248, ${0.96 * flicker})`)
       context.restore()
     }
   }
