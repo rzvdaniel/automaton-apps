@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import { authed, clearSessionId, type Post } from '../../api'
 
 const route = useRoute()
 const router = useRouter()
-const postId = route.params.id === undefined ? null : Number(route.params.id)
+const postId = computed(() => {
+  const id = route.params.id
+  return id === undefined ? null : Number(id)
+})
 const error = ref('')
+const loading = ref(false)
 const form = reactive({
   title: '',
   slug: '',
@@ -18,20 +22,24 @@ const form = reactive({
 })
 
 onMounted(async () => {
-  if (!postId) return
+  if (!postId.value) return
+  loading.value = true
   try {
-    const data = await authed<{ post: Post }>('getAdminPost', { id: postId })
+    const data = await authed<{ post: Post }>('getAdminPost', { id: postId.value })
     Object.assign(form, data.post)
   } catch {
     await router.replace('/admin/login')
+  } finally {
+    loading.value = false
   }
 })
 
 async function save(status = form.status) {
   error.value = ''
   try {
-    const payload = { ...form, status, id: postId }
-    const data = await authed<{ post: Post }>(postId ? 'updatePost' : 'createPost', payload)
+    const payload = { ...form, status, id: postId.value }
+    const data = await authed<{ post: Post }>(postId.value ? 'updatePost' : 'createPost', payload)
+    Object.assign(form, data.post)
     await router.replace(`/admin/posts/${data.post.id}`)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Save failed'
@@ -46,7 +54,7 @@ async function logout() {
 </script>
 
 <template>
-  <AdminLayout @logout="logout">
+  <AdminLayout v-if="!loading" @logout="logout">
     <div class="toolbar">
       <h1>{{ postId ? 'Edit post' : 'New post' }}</h1>
       <div class="actions">

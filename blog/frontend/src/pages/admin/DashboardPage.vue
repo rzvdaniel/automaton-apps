@@ -7,14 +7,18 @@ import { authed, callBlog, clearSessionId, type Post } from '../../api'
 const router = useRouter()
 const posts = ref<Post[]>([])
 const error = ref('')
+const loading = ref(true)
 
 async function load() {
+  loading.value = true
   try {
     const data = await authed<{ posts: Post[] }>('listAdminPosts')
     posts.value = data.posts
   } catch (err) {
     const status = await callBlog<{ hasAdmin: boolean }>('setupStatus')
     await router.replace(status.hasAdmin ? '/admin/login' : '/setup')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -33,7 +37,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AdminLayout @logout="logout">
+  <AdminLayout v-if="!loading" @logout="logout">
     <div class="toolbar">
       <h1>Posts</h1>
       <RouterLink class="button" to="/admin/posts/new">New post</RouterLink>
