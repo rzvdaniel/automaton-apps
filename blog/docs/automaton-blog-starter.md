@@ -105,7 +105,7 @@ docs/design/forkable-app-templates.md
 
 ## Authentication Direction
 
-Use session-based authentication, not JWT.
+Use server-side session authentication, not JWT.
 
 Do not require authentication environment variables.
 
@@ -123,11 +123,31 @@ Do not require an external identity provider.
 - no magic links in V1
 - SQLite users table
 - SQLite sessions table
-- HttpOnly cookies
-- Secure cookies in production
+- random opaque session ids
 - password hashes only
 
 This keeps the starter simple and immediately usable after deployment.
+
+### Session Transport
+
+The auth model is server-side sessions.
+
+The session record must live in SQLite. The browser only needs to carry an opaque session id that the backend validates against the sessions table.
+
+For the current Automaton backend controller contract, the frontend may store the opaque session token and pass it explicitly to authenticated backend actions.
+
+This is the current Automaton-compatible transport for server-side sessions.
+
+Future platform improvement:
+
+When Automaton backend actions support HTTP response headers, the preferred transport should become:
+
+- HttpOnly cookies
+- Secure cookies in production
+- SameSite=Lax or SameSite=Strict
+- server-side cookie clearing on logout
+
+Do not block Stage 1 implementation on HttpOnly cookie support.
 
 ---
 
@@ -195,11 +215,33 @@ Admin email + password
   ↓
 Validate credentials
   ↓
-Create random session id
+Create random opaque session id
   ↓
 Store session in SQLite
   ↓
-Send session id in HttpOnly cookie
+Return session id using the current Automaton-compatible session transport
+```
+
+Current transport:
+
+```text
+Backend action returns opaque session token
+  ↓
+Frontend stores session token
+  ↓
+Frontend passes session token to authenticated backend actions
+  ↓
+Backend validates token against SQLite sessions table
+```
+
+Future preferred transport:
+
+```text
+Backend action sets HttpOnly Secure SameSite cookie
+  ↓
+Browser sends cookie automatically on future requests
+  ↓
+Backend validates cookie session id against SQLite sessions table
 ```
 
 ### Logout Flow
@@ -209,7 +251,9 @@ Logout
   ↓
 Delete session from SQLite
   ↓
-Clear cookie
+Current transport: frontend removes stored session token
+  ↓
+Future preferred transport: backend clears HttpOnly cookie
 ```
 
 ### Users Table
@@ -710,12 +754,18 @@ Build the first official Blog starter as:
 
 ```text
 Vue 3 + FastAPI + SQLite
-Session auth with secure cookies
+Server-side session auth with current Automaton-compatible session token transport
 First-run /setup wizard
 Config-driven settings
 CSS theme system
 Reusable layout components
 Forkable Automaton app template
+```
+
+Future Automaton platform improvement:
+
+```text
+HttpOnly Secure SameSite cookie transport for backend action sessions
 ```
 
 Do not start with:
