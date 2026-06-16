@@ -7,17 +7,18 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-def data_dir() -> Path:
-    configured = os.environ.get("AUTOMATON_DATA_DIR") or os.environ.get("AUTOMATON_APP_DATA_DIR")
+def get_data_dir() -> Path:
+    configured = os.environ.get("AUTOMATON_APP_DATA_DIR")
     if configured:
         path = Path(configured)
     else:
+        # Local development fallback only. Runner persistence is AUTOMATON_APP_DATA_DIR.
         path = Path.home() / ".automaton-app-data" / "automaton-blog"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-DB_PATH = data_dir() / "blog.sqlite3"
+DB_PATH = get_data_dir() / "blog.sqlite3"
 
 
 def now() -> str:
@@ -37,7 +38,7 @@ def slugify(value: str) -> str:
     return "".join(cleaned).strip("-") or secrets.token_hex(4)
 
 
-def connect() -> sqlite3.Connection:
+def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -129,7 +130,7 @@ class BlogController:
         conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now(),))
 
     def setupStatus(self, inputs: dict) -> dict:
-        with connect() as conn:
+        with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             count = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
             site_name = conn.execute("SELECT value FROM settings WHERE key = 'siteName'").fetchone()
@@ -143,7 +144,7 @@ class BlogController:
             return fail("Enter a valid admin email.")
         if len(password) < 8:
             return fail("Password must be at least 8 characters.")
-        with connect() as conn:
+        with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             if conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0] > 0:
                 return fail("Setup has already been completed.")
@@ -160,7 +161,7 @@ class BlogController:
     def login(self, inputs: dict) -> dict:
         email = str(inputs.get("email", "")).strip().lower()
         password = str(inputs.get("password", ""))
-        with connect() as conn:
+        with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
             if not user or not verify_password(password, user["password_hash"]):
@@ -169,20 +170,20 @@ class BlogController:
 
     def logout(self, inputs: dict) -> dict:
         session_id = str(inputs.get("sessionId", ""))
-        with connect() as conn:
+        with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             if session_id:
                 conn.execute("DELETE FROM sessions WHERE id = ?", (hash_session_id(session_id),))
         return ok({"loggedOut": True})
 
     def listPublishedPosts(self, inputs: dict) -> dict:
-        with connect() as conn:
+        with get_connection() as conn:
             rows = conn.execute("SELECT * FROM posts WHERE status = 'published' ORDER BY COALESCE(published_at, created_at) DESC").fetchall()
             return ok({"posts": [row_to_post(row) for row in rows]})
 
     def getPublishedPost(self, inputs: dict) -> dict:
         slug = str(inputs.get("slug", ""))
-        with connect() as conn:
+        with get_connection() as conn:
             row = conn.execute("SELECT * FROM posts WHERE slug = ? AND status = 'published'", (slug,)).fetchone()
             if not row:
                 return fail("Post not found.")
@@ -192,7 +193,7 @@ class BlogController:
         auth = self._require_auth(inputs)
         if auth:
             return auth
-        with connect() as conn:
+        with get_connection() as conn:
             rows = conn.execute("SELECT * FROM posts ORDER BY updated_at DESC").fetchall()
             return ok({"posts": [row_to_post(row) for row in rows]})
 
@@ -200,7 +201,7 @@ class BlogController:
         auth = self._require_auth(inputs)
         if auth:
             return auth
-        with connect() as conn:
+        with get_connection() as conn:
             row = conn.execute("SELECT * FROM posts WHERE id = ?", (inputs.get("id"),)).fetchone()
             if not row:
                 return fail("Post not found.")
@@ -222,7 +223,7 @@ class BlogController:
         auth = self._require_auth(inputs)
         if auth:
             return auth
-        with connect() as conn:
+        with get_connection() as conn:
             conn.execute("DELETE FROM posts WHERE id = ?", (inputs.get("id"),))
         return ok({"deleted": True})
 
@@ -240,7 +241,7 @@ class BlogController:
         slug = slugify(str(inputs.get("slug", "")).strip() or title)
         excerpt = str(inputs.get("excerpt", "")).strip() or content[:180]
         author = str(inputs.get("authorName", "")).strip() or "Automaton Team"
-        with connect() as conn:
+        with get_connection() as conn:
             if post_id:
                 current = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
                 if not current:
@@ -280,7 +281,7 @@ class BlogController:
         session_id = str(inputs.get("sessionId", ""))
         if not session_id:
             return fail("Authentication required.")
-        with connect() as conn:
+        with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             session_hash = hash_session_id(session_id)
             row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_hash,)).fetchone()
