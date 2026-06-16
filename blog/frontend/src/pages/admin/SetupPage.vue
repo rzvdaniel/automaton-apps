@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { callBlog, setSessionToken, type SetupStatus } from '../../api'
+import { callBlog, setSessionId, type SetupStatus } from '../../api'
 
 const router = useRouter()
 const form = reactive({ siteName: 'Automaton Blog', email: '', password: '' })
@@ -15,8 +15,8 @@ onMounted(async () => {
 async function submit() {
   error.value = ''
   try {
-    const data = await callBlog<{ sessionToken: string }>('setup', form)
-    setSessionToken(data.sessionToken)
+    const data = await callBlog<{ sessionId: string }>('setup', form)
+    setSessionId(data.sessionId)
     await router.replace('/admin')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Setup failed'

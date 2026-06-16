@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
-import { authed, callBlog, clearSessionToken, type Post } from '../../api'
+import { authed, callBlog, clearSessionId, type Post } from '../../api'
 
 const router = useRouter()
 const posts = ref<Post[]>([])
@@ -25,7 +25,7 @@ async function removePost(id: number) {
 
 async function logout() {
   await authed('logout').catch(() => undefined)
-  clearSessionToken()
+  clearSessionId()
   await router.replace('/admin/login')
 }
 

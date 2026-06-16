@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { callBlog, setSessionToken } from '../../api'
+import { callBlog, setSessionId } from '../../api'
 
 const router = useRouter()
 const form = reactive({ email: '', password: '' })
@@ -10,8 +10,8 @@ const error = ref('')
 async function submit() {
   error.value = ''
   try {
-    const data = await callBlog<{ sessionToken: string }>('login', form)
-    setSessionToken(data.sessionToken)
+    const data = await callBlog<{ sessionId: string }>('login', form)
+    setSessionId(data.sessionId)
     await router.replace('/admin')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Login failed'

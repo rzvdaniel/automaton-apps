@@ -13,18 +13,18 @@ export type Post = {
 
 export type SetupStatus = { hasAdmin: boolean; siteName: string; tagline: string }
 
-const TOKEN_KEY = 'automaton_blog_session'
+const SESSION_KEY = 'automaton_blog_session'
 
-export function getSessionToken() {
-  return localStorage.getItem(TOKEN_KEY) || ''
+export function getSessionId() {
+  return sessionStorage.getItem(SESSION_KEY) || ''
 }
 
-export function setSessionToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token)
+export function setSessionId(sessionId: string) {
+  sessionStorage.setItem(SESSION_KEY, sessionId)
 }
 
-export function clearSessionToken() {
-  localStorage.removeItem(TOKEN_KEY)
+export function clearSessionId() {
+  sessionStorage.removeItem(SESSION_KEY)
 }
 
 export async function callBlog<T>(action: string, inputs: Record<string, unknown> = {}): Promise<T> {
@@ -35,5 +35,5 @@ export async function callBlog<T>(action: string, inputs: Record<string, unknown
 }
 
 export async function authed<T>(action: string, inputs: Record<string, unknown> = {}) {
-  return callBlog<T>(action, { ...inputs, sessionToken: getSessionToken() })
+  return callBlog<T>(action, { ...inputs, sessionId: getSessionId() })
 }

@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
-import { authed, clearSessionToken, type Post } from '../../api'
+import { authed, clearSessionId, type Post } from '../../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,7 +40,7 @@ async function save(status = form.status) {
 
 async function logout() {
   await authed('logout').catch(() => undefined)
-  clearSessionToken()
+  clearSessionId()
   await router.replace('/admin/login')
 }
 </script>

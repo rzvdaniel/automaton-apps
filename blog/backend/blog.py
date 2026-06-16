@@ -7,7 +7,17 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-DB_PATH = Path(__file__).with_name("blog.sqlite3")
+def data_dir() -> Path:
+    configured = os.environ.get("AUTOMATON_DATA_DIR") or os.environ.get("AUTOMATON_APP_DATA_DIR")
+    if configured:
+        path = Path(configured)
+    else:
+        path = Path.home() / ".automaton-app-data" / "automaton-blog"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+DB_PATH = data_dir() / "blog.sqlite3"
 
 
 def now() -> str:
@@ -95,6 +105,10 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(hash_password(password, salt), f"pbkdf2_sha256${salt}${digest}")
 
 
+def hash_session_id(session_id: str) -> str:
+    return hashlib.sha256(session_id.encode()).hexdigest()
+
+
 def row_to_post(row: sqlite3.Row) -> dict:
     return {
         "id": row["id"],
@@ -111,8 +125,12 @@ def row_to_post(row: sqlite3.Row) -> dict:
 
 
 class BlogController:
+    def _cleanup_expired_sessions(self, conn: sqlite3.Connection) -> None:
+        conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now(),))
+
     def setupStatus(self, inputs: dict) -> dict:
         with connect() as conn:
+            self._cleanup_expired_sessions(conn)
             count = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
             site_name = conn.execute("SELECT value FROM settings WHERE key = 'siteName'").fetchone()
             return ok({"hasAdmin": count > 0, "siteName": site_name["value"] if site_name else "Automaton Blog", "tagline": "Built and hosted on Automaton"})
@@ -126,6 +144,7 @@ class BlogController:
         if len(password) < 8:
             return fail("Password must be at least 8 characters.")
         with connect() as conn:
+            self._cleanup_expired_sessions(conn)
             if conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0] > 0:
                 return fail("Setup has already been completed.")
             ts = now()
@@ -135,22 +154,25 @@ class BlogController:
             )
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('siteName', ?)", (site_name,))
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('tagline', 'Built and hosted on Automaton.')")
-            token = self._create_session(conn, cursor.lastrowid)
-            return ok({"sessionToken": token})
+            session_id = self._create_session(conn, cursor.lastrowid)
+            return ok({"sessionId": session_id})
 
     def login(self, inputs: dict) -> dict:
         email = str(inputs.get("email", "")).strip().lower()
         password = str(inputs.get("password", ""))
         with connect() as conn:
+            self._cleanup_expired_sessions(conn)
             user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
             if not user or not verify_password(password, user["password_hash"]):
                 return fail("Invalid email or password.")
-            return ok({"sessionToken": self._create_session(conn, user["id"])})
+            return ok({"sessionId": self._create_session(conn, user["id"])})
 
     def logout(self, inputs: dict) -> dict:
-        token = str(inputs.get("sessionToken", ""))
+        session_id = str(inputs.get("sessionId", ""))
         with connect() as conn:
-            conn.execute("DELETE FROM sessions WHERE id = ?", (token,))
+            self._cleanup_expired_sessions(conn)
+            if session_id:
+                conn.execute("DELETE FROM sessions WHERE id = ?", (hash_session_id(session_id),))
         return ok({"loggedOut": True})
 
     def listPublishedPosts(self, inputs: dict) -> dict:
@@ -245,21 +267,26 @@ class BlogController:
             return ok({"post": row_to_post(row)})
 
     def _create_session(self, conn: sqlite3.Connection, user_id: int) -> str:
-        token = secrets.token_urlsafe(32)
+        session_id = secrets.token_urlsafe(32)
         ts = now()
         expires = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
-        conn.execute("INSERT INTO sessions (id, user_id, expires_at, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)", (token, user_id, expires, ts, ts))
-        return token
+        conn.execute(
+            "INSERT INTO sessions (id, user_id, expires_at, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)",
+            (hash_session_id(session_id), user_id, expires, ts, ts),
+        )
+        return session_id
 
     def _require_auth(self, inputs: dict) -> dict | None:
-        token = str(inputs.get("sessionToken", ""))
-        if not token:
+        session_id = str(inputs.get("sessionId", ""))
+        if not session_id:
             return fail("Authentication required.")
         with connect() as conn:
-            row = conn.execute("SELECT * FROM sessions WHERE id = ?", (token,)).fetchone()
+            self._cleanup_expired_sessions(conn)
+            session_hash = hash_session_id(session_id)
+            row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_hash,)).fetchone()
             if not row or row["expires_at"] <= now():
                 return fail("Authentication required.")
-            conn.execute("UPDATE sessions SET last_seen_at = ? WHERE id = ?", (now(), token))
+            conn.execute("UPDATE sessions SET last_seen_at = ? WHERE id = ?", (now(), session_hash))
             return None
 
 
