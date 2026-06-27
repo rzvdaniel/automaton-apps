@@ -11,7 +11,9 @@ const postId = computed(() => {
   return id === undefined ? null : Number(id)
 })
 const error = ref('')
+const savedMessage = ref('')
 const loading = ref(false)
+const savingStatus = ref<'draft' | 'published' | ''>('')
 const form = reactive({
   title: '',
   slug: '',
@@ -36,13 +38,18 @@ onMounted(async () => {
 
 async function save(status = form.status) {
   error.value = ''
+  savedMessage.value = ''
+  savingStatus.value = status as 'draft' | 'published'
   try {
     const payload = { ...form, status, id: postId.value }
     const data = await authed<{ post: Post }>(postId.value ? 'updatePost' : 'createPost', payload)
     Object.assign(form, data.post)
+    savedMessage.value = status === 'published' ? 'Post published.' : 'Draft saved.'
     await router.replace(`/admin/posts/${data.post.id}`)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Save failed'
+  } finally {
+    savingStatus.value = ''
   }
 }
 
@@ -58,17 +65,22 @@ async function logout() {
     <div class="toolbar">
       <h1>{{ postId ? 'Edit post' : 'New post' }}</h1>
       <div class="actions">
-        <button type="button" @click="save('draft')">Save draft</button>
-        <button type="button" @click="save('published')">Publish</button>
+        <button type="button" :disabled="!!savingStatus" @click="save('draft')">
+          {{ savingStatus === 'draft' ? 'Saving...' : 'Save draft' }}
+        </button>
+        <button type="button" :disabled="!!savingStatus" @click="save('published')">
+          {{ savingStatus === 'published' ? 'Publishing...' : 'Publish' }}
+        </button>
       </div>
     </div>
     <form class="editor" @submit.prevent="save()">
+      <p v-if="savedMessage" class="notice success">{{ savedMessage }}</p>
+      <p v-if="error" class="notice">{{ error }}</p>
       <label>Title <input v-model="form.title" required /></label>
       <label>Slug <input v-model="form.slug" placeholder="generated from title if blank" /></label>
       <label>Excerpt <textarea v-model="form.excerpt" rows="3" /></label>
       <label>Content <textarea v-model="form.contentMarkdown" rows="16" required /></label>
       <label>Author <input v-model="form.authorName" /></label>
-      <p v-if="error" class="notice">{{ error }}</p>
     </form>
   </AdminLayout>
 </template>

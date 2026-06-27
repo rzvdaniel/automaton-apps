@@ -7,18 +7,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-def get_data_dir() -> Path:
-    configured = os.environ.get("AUTOMATON_APP_DATA_DIR")
-    if configured:
-        path = Path(configured)
-    else:
-        # Local development fallback only. Runner persistence is AUTOMATON_APP_DATA_DIR.
-        path = Path.home() / ".automaton-app-data" / "automaton-blog"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
+DATA_DIR = Path(os.environ["AUTOMATON_APP_DATA_DIR"])
+DB_DIR = DATA_DIR / "db"
+DB_DIR.mkdir(parents=True, exist_ok=True)
 
-DB_PATH = get_data_dir() / "blog.sqlite3"
+DB_PATH = DB_DIR / "blog.sqlite3"
+LEGACY_DB_PATH = DATA_DIR / "blog.sqlite3"
+if LEGACY_DB_PATH.exists() and not DB_PATH.exists():
+    LEGACY_DB_PATH.replace(DB_PATH)
 
 
 def now() -> str:
