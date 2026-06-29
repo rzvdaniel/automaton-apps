@@ -127,16 +127,19 @@ class BlogController:
         conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now(),))
 
     def setupStatus(self, inputs: dict) -> dict:
+        print("setupStatus: checking blog setup state")
         with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             count = conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
             site_name = conn.execute("SELECT value FROM settings WHERE key = 'siteName'").fetchone()
+            print(f"setupStatus: hasAdmin={count > 0}")
             return ok({"hasAdmin": count > 0, "siteName": site_name["value"] if site_name else "Automaton Blog", "tagline": "Built and hosted on Automaton"})
 
     def setup(self, inputs: dict) -> dict:
         site_name = str(inputs.get("siteName", "Automaton Blog")).strip() or "Automaton Blog"
         email = str(inputs.get("email", "")).strip().lower()
         password = str(inputs.get("password", ""))
+        print(f"setup: starting setup for admin={email} siteName={site_name!r}")
         if "@" not in email:
             return fail("Enter a valid admin email.")
         if len(password) < 8:
@@ -144,6 +147,7 @@ class BlogController:
         with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             if conn.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0] > 0:
+                print("setup: already completed")
                 return fail("Setup has already been completed.")
             ts = now()
             cursor = conn.execute(
@@ -153,20 +157,25 @@ class BlogController:
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('siteName', ?)", (site_name,))
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('tagline', 'Built and hosted on Automaton.')")
             session_id = self._create_session(conn, cursor.lastrowid)
+            print(f"setup: admin created successfully user_id={cursor.lastrowid}")
             return ok({"sessionId": session_id})
 
     def login(self, inputs: dict) -> dict:
         email = str(inputs.get("email", "")).strip().lower()
         password = str(inputs.get("password", ""))
+        print(f"login: attempting login for {email}")
         with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
             if not user or not verify_password(password, user["password_hash"]):
+                print(f"login: invalid credentials for {email}")
                 return fail("Invalid email or password.")
+            print(f"login: successful login for user_id={user['id']}")
             return ok({"sessionId": self._create_session(conn, user["id"])})
 
     def logout(self, inputs: dict) -> dict:
         session_id = str(inputs.get("sessionId", ""))
+        print("logout: ending session")
         with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             if session_id:
@@ -174,27 +183,34 @@ class BlogController:
         return ok({"loggedOut": True})
 
     def listPublishedPosts(self, inputs: dict) -> dict:
+        print("listPublishedPosts: loading published posts")
         with get_connection() as conn:
             rows = conn.execute("SELECT * FROM posts WHERE status = 'published' ORDER BY COALESCE(published_at, created_at) DESC").fetchall()
+            print(f"listPublishedPosts: returned {len(rows)} posts")
             return ok({"posts": [row_to_post(row) for row in rows]})
 
     def getPublishedPost(self, inputs: dict) -> dict:
         slug = str(inputs.get("slug", ""))
+        print(f"getPublishedPost: loading slug={slug}")
         with get_connection() as conn:
             row = conn.execute("SELECT * FROM posts WHERE slug = ? AND status = 'published'", (slug,)).fetchone()
             if not row:
+                print(f"getPublishedPost: post not found for slug={slug}")
                 return fail("Post not found.")
             return ok({"post": row_to_post(row)})
 
     def listAdminPosts(self, inputs: dict) -> dict:
+        print("listAdminPosts: loading admin posts")
         auth = self._require_auth(inputs)
         if auth:
             return auth
         with get_connection() as conn:
             rows = conn.execute("SELECT * FROM posts ORDER BY updated_at DESC").fetchall()
+            print(f"listAdminPosts: returned {len(rows)} posts")
             return ok({"posts": [row_to_post(row) for row in rows]})
 
     def getAdminPost(self, inputs: dict) -> dict:
+        print(f"getAdminPost: loading id={inputs.get('id')}")
         auth = self._require_auth(inputs)
         if auth:
             return auth
@@ -205,31 +221,38 @@ class BlogController:
             return ok({"post": row_to_post(row)})
 
     def createPost(self, inputs: dict) -> dict:
+        print(f"createPost: title={str(inputs.get('title', '')).strip()!r}")
         auth = self._require_auth(inputs)
         if auth:
             return auth
         return self._save_post(inputs, None)
 
     def updatePost(self, inputs: dict) -> dict:
+        print(f"updatePost: id={inputs.get('id')} title={str(inputs.get('title', '')).strip()!r}")
         auth = self._require_auth(inputs)
         if auth:
             return auth
         return self._save_post(inputs, int(inputs.get("id") or 0))
 
     def deletePost(self, inputs: dict) -> dict:
+        print(f"deletePost: id={inputs.get('id')}")
         auth = self._require_auth(inputs)
         if auth:
             return auth
         with get_connection() as conn:
             conn.execute("DELETE FROM posts WHERE id = ?", (inputs.get("id"),))
+        print(f"deletePost: deleted id={inputs.get('id')}")
         return ok({"deleted": True})
 
     def _save_post(self, inputs: dict, post_id: int | None) -> dict:
         title = str(inputs.get("title", "")).strip()
+        print(f"_save_post: post_id={post_id} requested_status={inputs.get('status', 'draft')}")
         content = str(inputs.get("contentMarkdown", "")).strip()
         if not title:
+            print("_save_post: validation failed because title is missing")
             return fail("Title is required.")
         if not content:
+            print("_save_post: validation failed because content is missing")
             return fail("Content is required.")
         status = str(inputs.get("status", "draft"))
         if status not in {"draft", "published"}:
@@ -242,6 +265,7 @@ class BlogController:
             if post_id:
                 current = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
                 if not current:
+                    print(f"_save_post: post not found for id={post_id}")
                     return fail("Post not found.")
                 published_at = current["published_at"] or (ts if status == "published" else None)
                 conn.execute(
@@ -262,6 +286,7 @@ class BlogController:
                 )
                 post_id = cursor.lastrowid
             row = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+            print(f"_save_post: saved post id={post_id} status={row['status']}")
             return ok({"post": row_to_post(row)})
 
     def _create_session(self, conn: sqlite3.Connection, user_id: int) -> str:
@@ -277,12 +302,14 @@ class BlogController:
     def _require_auth(self, inputs: dict) -> dict | None:
         session_id = str(inputs.get("sessionId", ""))
         if not session_id:
+            print("_require_auth: missing session")
             return fail("Authentication required.")
         with get_connection() as conn:
             self._cleanup_expired_sessions(conn)
             session_hash = hash_session_id(session_id)
             row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_hash,)).fetchone()
             if not row or row["expires_at"] <= now():
+                print("_require_auth: expired or missing session")
                 return fail("Authentication required.")
             conn.execute("UPDATE sessions SET last_seen_at = ? WHERE id = ?", (now(), session_hash))
             return None
@@ -292,16 +319,19 @@ _controller = BlogController()
 
 
 def handle(action_name: str, inputs: dict) -> dict:
+    print(f"handle: action={action_name}")
     method = getattr(_controller, action_name, None)
     if method is None or action_name.startswith("_"):
         return fail(f"Unknown action: {action_name}")
     try:
         return method(inputs or {})
     except sqlite3.IntegrityError as exc:
+        print(f"handle: integrity error for action={action_name}: {exc}")
         if "posts.slug" in str(exc):
             return fail("That slug is already in use.")
         if "users.email" in str(exc):
             return fail("That email is already in use.")
         return fail("Database constraint failed.")
     except Exception as exc:
+        print(f"handle: unhandled error for action={action_name}: {exc}")
         return fail(str(exc))

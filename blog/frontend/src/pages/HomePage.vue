@@ -8,10 +8,13 @@ const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
+  console.log('[HomePage] loading published posts')
   try {
     const data = await callBlog<{ posts: Post[] }>('listPublishedPosts')
     posts.value = data.posts
+    console.log('[HomePage] loaded published posts', { count: data.posts.length })
   } catch (err) {
+    console.error('[HomePage] failed to load published posts', err)
     error.value = err instanceof Error ? err.message : 'Unable to load posts'
   } finally {
     loading.value = false

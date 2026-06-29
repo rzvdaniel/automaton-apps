@@ -29,9 +29,18 @@ export function clearSessionId() {
 
 export async function callBlog<T>(action: string, inputs: Record<string, unknown> = {}): Promise<T> {
   if (!window.automatonApi) {
+    console.error('[blog api] Automaton backend is unavailable', { action })
     throw new Error('Automaton backend is not available in this preview. Deploy or run with an Automaton runner.')
   }
-  return window.automatonApi.callController('blog', action, inputs) as Promise<T>
+  console.log('[blog api] calling action', { action })
+  try {
+    const result = await window.automatonApi.callController('blog', action, inputs) as T
+    console.log('[blog api] action succeeded', { action })
+    return result
+  } catch (error) {
+    console.error('[blog api] action failed', { action, error })
+    throw error
+  }
 }
 
 export async function authed<T>(action: string, inputs: Record<string, unknown> = {}) {
