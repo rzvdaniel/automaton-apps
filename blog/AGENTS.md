@@ -30,11 +30,11 @@ Do not invent a generic project structure before making that decision.
 
 ## Read first
 
-1. `.automaton/agents/references/llms.txt`
-2. `.automaton/agents/instructions.md`
-2. `.automaton/agents/references/llms/automaton-cli-deploy.md` when deploying
-3. `.automaton/agents/references/llms/automaton-cli-install.md` when installing, logging in, or resetting auth
-4. `.automaton/agents/references/llms/automaton-mcp.md` only when MCP is available or explicitly requested
+1. `.automaton/agents/skills/automaton-app/SKILL.md`
+2. `.automaton/agents/references/llms/`
+3. `.automaton/agents/references/llms/automaton-cli-deploy.md` when deploying
+4. `.automaton/agents/references/llms/automaton-cli-install.md` when installing, logging in, or resetting auth
+5. `.automaton/agents/references/llms/automaton-mcp.md` only when MCP is available or explicitly requested
 
 ## App layout
 
@@ -42,7 +42,7 @@ Do not invent a generic project structure before making that decision.
 - Backend source, when needed, normally lives in `backend/`.
 - Public frontend runtime normally comes from `frontend/dist/`.
 - `automaton.json` defines the real deploy contract.
-- Durable runtime app data belongs under `AUTOMATON_APP_DATA_DIR`; read `.automaton/agents/references/llms.txt` for the recommended `media/`, `db/`, `generated/`, `cache/`, `logs/`, and `tmp/` convention.
+- Durable runtime app data belongs under `AUTOMATON_APP_DATA_DIR`; read the guidance files under `.automaton/agents/references/llms/` for the recommended `media/`, `db/`, `generated/`, `cache/`, `logs/`, and `tmp/` convention.
 - `AUTOMATON_APP_DATA_DIR` is created and injected by the Automaton runner. Do not hardcode its physical path.
 
 ## Shortest path
@@ -57,8 +57,10 @@ automaton deploy
 ## Default behavior
 
 - Default to frontend-only unless the requested feature truly needs backend execution.
-- If backend behavior is required, use Automaton Python controllers under `backend/`.
-- Do not create FastAPI, Flask, Express, or custom HTTP servers inside an Automaton backend.
+- If backend behavior is required, create an ordinary HTTP backend under `backend/`; the initial supported Python convention is FastAPI/ASGI with `main:app`.
+- Expose normal same-origin HTTP routes under `/api` and call them from the frontend with `fetch` or an equivalent HTTP client.
+- Add a small amount of useful backend logging around meaningful actions and error paths.
+- Keep frontend console logging minimal. Prefer `console.warn(...)` and `console.error(...)` for real issues, and never log secrets or sensitive user data.
 - Do not say the app is done until `automaton deploy` succeeds.
 
 ## Publishing rules
@@ -70,6 +72,6 @@ automaton deploy
 
 ## Canonical source
 
-The canonical Automaton rules live in `.automaton/agents/references/`. Do not treat this file as the full policy.
+The canonical Automaton rules live in `.automaton/agents/references/llms/`. Do not treat this file as the full policy.
 
 Run `automaton sync-ai` to refresh this local guidance pack after a CLI upgrade or if the generated files were removed.
