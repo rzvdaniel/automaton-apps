@@ -25,3 +25,5 @@ Thumbs.db
 # Common temporary outputs
 coverage/
 *.log
+
+__pycache__/

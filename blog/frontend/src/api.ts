@@ -28,19 +28,17 @@ export function clearSessionId() {
 }
 
 export async function callBlog<T>(action: string, inputs: Record<string, unknown> = {}): Promise<T> {
-  if (!window.automatonApi) {
-    console.error('[blog api] Automaton backend is unavailable', { action })
-    throw new Error('Automaton backend is not available in this preview. Deploy or run with an Automaton runner.')
+  const routes: Record<string, [string, string]> = {
+    setupStatus: ['GET', 'api/setup/status'], setup: ['POST', 'api/setup'], login: ['POST', 'api/auth/login'], logout: ['POST', 'api/auth/logout'],
+    listPublishedPosts: ['GET', 'api/posts'], getPublishedPost: ['GET', `api/posts/${encodeURIComponent(String(inputs.slug || ''))}`],
+    listAdminPosts: ['GET', 'api/admin/posts'], getAdminPost: ['GET', `api/admin/posts/${inputs.id}`], createPost: ['POST', 'api/admin/posts'], updatePost: ['PUT', `api/admin/posts/${inputs.id}`], deletePost: ['DELETE', `api/admin/posts/${inputs.id}`]
   }
-  console.log('[blog api] calling action', { action })
-  try {
-    const result = await window.automatonApi.callController('blog', action, inputs) as T
-    console.log('[blog api] action succeeded', { action })
-    return result
-  } catch (error) {
-    console.error('[blog api] action failed', { action, error })
-    throw error
-  }
+  const [method, url] = routes[action] || ['', '']
+  if (!url) throw new Error(`Unknown API operation: ${action}`)
+  const response = await fetch(url, { method, credentials: 'include', headers: method === 'GET' ? { 'X-Session-ID': getSessionId() } : { 'Content-Type': 'application/json', 'X-Session-ID': getSessionId() }, body: method === 'GET' || method === 'DELETE' ? undefined : JSON.stringify(inputs) })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.detail || 'Request failed')
+  return body as T
 }
 
 export async function authed<T>(action: string, inputs: Record<string, unknown> = {}) {
