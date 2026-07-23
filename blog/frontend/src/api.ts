@@ -29,9 +29,9 @@ export function clearSessionId() {
 
 export async function callBlog<T>(action: string, inputs: Record<string, unknown> = {}): Promise<T> {
   const routes: Record<string, [string, string]> = {
-    setupStatus: ['GET', 'api/setup/status'], setup: ['POST', 'api/setup'], login: ['POST', 'api/auth/login'], logout: ['POST', 'api/auth/logout'],
-    listPublishedPosts: ['GET', 'api/posts'], getPublishedPost: ['GET', `api/posts/${encodeURIComponent(String(inputs.slug || ''))}`],
-    listAdminPosts: ['GET', 'api/admin/posts'], getAdminPost: ['GET', `api/admin/posts/${inputs.id}`], createPost: ['POST', 'api/admin/posts'], updatePost: ['PUT', `api/admin/posts/${inputs.id}`], deletePost: ['DELETE', `api/admin/posts/${inputs.id}`]
+    setupStatus: ['GET', '/api/setup/status'], setup: ['POST', '/api/setup'], login: ['POST', '/api/auth/login'], logout: ['POST', '/api/auth/logout'],
+    listPublishedPosts: ['GET', '/api/posts'], getPublishedPost: ['GET', `/api/posts/${encodeURIComponent(String(inputs.slug || ''))}`],
+    listAdminPosts: ['GET', '/api/admin/posts'], getAdminPost: ['GET', `/api/admin/posts/${inputs.id}`], createPost: ['POST', '/api/admin/posts'], updatePost: ['PUT', `/api/admin/posts/${inputs.id}`], deletePost: ['DELETE', `/api/admin/posts/${inputs.id}`]
   }
   const [method, url] = routes[action] || ['', '']
   if (!url) throw new Error(`Unknown API operation: ${action}`)

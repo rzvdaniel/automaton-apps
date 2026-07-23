@@ -1,16 +1,40 @@
 # Patterns excluded by automaton deploy
-# Add one pattern per line. Use a trailing / for directories.
+# Add one pattern per line. Use /pattern for project-root paths,
+# a trailing / for directories, and !pattern to re-include files.
 # Blank lines and lines starting with # are ignored.
 
-.automaton/
+# Version-control and editor files
 .github/
-.git/
-node_modules/
-obj/
-bin/
 .vs/
 .idea/
+
+# Automaton and AI tooling
 AGENTS.md
 CLAUDE.md
-automaton.json
-.automatonignore
+
+# Node and frontend build output
+node_modules/
+dist/
+.vite/
+.angular/
+.next/
+out/
+coverage/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# .NET
+bin/
+obj/
+
+# Local environment, logs, and databases
+.env
+.env.*
+!.env.example
+*.log
+*.db
+*.sqlite
+*.sqlite3
