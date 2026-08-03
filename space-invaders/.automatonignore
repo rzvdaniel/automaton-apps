@@ -5,6 +5,7 @@
 
 # Version-control and editor files
 .github/
+.gitignore
 .vs/
 .idea/
 
@@ -33,7 +34,6 @@ obj/
 # Local environment, logs, and databases
 .env
 .env.*
-!.env.example
 *.log
 *.db
 *.sqlite
