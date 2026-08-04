@@ -1,0 +1,10 @@
+{
+  "name": "Automaton Sentinel",
+  "frontend": {
+    "build": "cd frontend \u0026\u0026 npm install \u0026\u0026 npm run build",
+    "deployDir": "frontend/dist"
+  },
+  "backend": {
+    "deployDir": "backend"
+  }
+}

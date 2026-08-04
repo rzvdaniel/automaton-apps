@@ -1,0 +1,17 @@
+# Local Automaton credentials and environment selection
+.automaton/environments/
+.automaton/environment.json
+
+# Dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# Python caches and test artifacts
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.pytest_cache/
+
+# Local environments and logs
+.venv/
+*.log
