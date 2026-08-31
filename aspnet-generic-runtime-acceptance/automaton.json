@@ -1,0 +1,36 @@
+{
+  "name": "ASP.NET Core Generic Runtime Acceptance",
+  "application": {
+    "build": {
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "build.sh"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "out",
+      "timeoutSeconds": 900
+    },
+    "runtime": {
+      "command": {
+        "executable": "out/GenericRuntimeAspNet",
+        "arguments": [
+        ],
+        "workingDirectory": ".",
+        "environment": {
+          "ACCEPTANCE_VERSION": "v1"
+        }
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    }
+  }
+}
