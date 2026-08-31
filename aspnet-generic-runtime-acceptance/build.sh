@@ -2,7 +2,7 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-build_root=${AUTOMATON_BUILD_WORKSPACE:-"$project_dir/.automaton-build"}
+build_root=${AUTOMATON_BUILD_WORKSPACE:-"$project_dir/../.automaton-build"}
 sdk_dir="$build_root/dotnet-sdk"
 sdk_archive="$build_root/dotnet-sdk.tar.gz"
 sdk_version=${DOTNET_SDK_VERSION:-9.0.317}
