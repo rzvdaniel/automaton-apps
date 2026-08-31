@@ -20,8 +20,7 @@ app.MapGet("/acceptance", () => Results.Json(new
 {
     stack = "aspnet-core",
     version = Environment.GetEnvironmentVariable("ACCEPTANCE_VERSION") ?? "unknown",
-    dataMarker = File.ReadAllText(markerPath),
-    dataDirectory
+    dataMarker = File.ReadAllText(markerPath).Trim()
 }));
 
 await app.RunAsync();

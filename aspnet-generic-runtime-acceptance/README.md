@@ -5,9 +5,13 @@ application contract. It owns its HTTP server and uses only generic contract
 fields for build, runtime, health, and durable application data.
 
 The app writes a marker under `AUTOMATON_APP_DATA_DIR` on first startup and
-returns it from `/acceptance`. That makes v1/v2 replacement and Runner restart
-checks observable without putting durable state in the runtime artifact.
+returns the marker value from `/acceptance` without exposing the filesystem
+path. That makes v1/v2 replacement and Runner restart checks observable
+without putting durable state in the runtime artifact.
 
-The runtime executable is the PATH-resolved `dotnet` command. Its argument is
-`out/GenericRuntimeAspNet.dll`, relative to the runtime artifact root, while
-the working directory remains `.`.
+The build uses `build.sh`, which downloads and extracts the pinned .NET 9 SDK
+into the application-owned `.automaton-build/dotnet-sdk` directory when needed
+using only `curl` and `tar`, then publishes a Linux self-contained single-file
+executable into `out/`. The runtime command is the artifact-relative
+`out/GenericRuntimeAspNet` executable; it does not depend on a .NET runtime
+installed on the Runner.

@@ -8,6 +8,7 @@
 bin/
 obj/
 out/
+.automaton-build/
 
 # Local environment and logs
 .env

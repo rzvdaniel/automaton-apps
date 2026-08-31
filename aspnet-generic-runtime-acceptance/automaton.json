@@ -3,14 +3,9 @@
   "application": {
     "build": {
       "command": {
-        "executable": "dotnet",
+        "executable": "sh",
         "arguments": [
-          "publish",
-          "GenericRuntimeAspNet.csproj",
-          "-c",
-          "Release",
-          "-o",
-          "out"
+          "build.sh"
         ],
         "workingDirectory": "."
       },
@@ -19,9 +14,8 @@
     },
     "runtime": {
       "command": {
-        "executable": "dotnet",
+        "executable": "out/GenericRuntimeAspNet",
         "arguments": [
-          "out/GenericRuntimeAspNet.dll"
         ],
         "workingDirectory": ".",
         "environment": {

@@ -6,4 +6,8 @@
     <AssemblyName>GenericRuntimeAspNet</AssemblyName>
     <RootNamespace>GenericRuntimeAspNet</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="automaton.json" />
+    <Content Remove="automaton.json" />
+  </ItemGroup>
 </Project>
