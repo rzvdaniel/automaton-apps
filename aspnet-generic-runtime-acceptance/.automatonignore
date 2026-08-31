@@ -1,0 +1,18 @@
+# Local Automaton state and source-control metadata
+.automaton/
+.git/
+.github/
+.gitignore
+
+# Build output and local SDK state
+bin/
+obj/
+out/
+
+# Local environment and logs
+.env
+.env.*
+*.log
+*.db
+*.sqlite
+*.sqlite3
