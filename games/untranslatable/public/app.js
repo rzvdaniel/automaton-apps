@@ -4,7 +4,7 @@ const POLL_MS = 1000;
 const RETRY_MS = 2000;
 const REVEAL_STEP_MS = 1100;
 const SEAL_PAUSE_MS = 900;
-const FAREWELL_DELAY_MS = 2800;
+const FAREWELL_DELAY_MS = 1200;
 const THANKS = ['Tak', 'Mulțumesc', 'Danke', 'Merci', 'Gracias', 'Obrigado', 'Grazie', 'Dziękuję', 'Kiitos', 'ありがとう',
   '谢谢', 'Köszönöm', 'Takk', 'Tack', 'Dank je', 'Děkuji', 'Ευχαριστώ', 'Teşekkürler', 'Спасибо', 'شكرا', 'Asante',
   'Terima kasih', '감사합니다', 'Diolch', 'Hvala', 'Aitäh', 'Paldies', 'Ačiū', 'Mahalo', 'Thank you'];
@@ -165,6 +165,7 @@ function nameField() {
 
 function renderHome() {
   session.screen = 'home';
+  document.body.classList.remove('in-room');
   badge.innerHTML = '';
   app.innerHTML = `
     <div class="home">
@@ -198,6 +199,7 @@ function renderHome() {
 
 async function renderJoin(code) {
   session.screen = 'join';
+  document.body.classList.remove('in-room');
   badge.innerHTML = '';
   let info;
   try {
@@ -253,6 +255,7 @@ function enterRoom(code, token) {
   session.code = code;
   session.token = token;
   session.screen = null;
+  document.body.classList.add('in-room');
   history.replaceState(null, '', `?room=${code}`);
   poll();
 }
@@ -305,6 +308,11 @@ function apply(state) {
   }
 
   renderBadge(state);
+  // On the farewell day, greet everyone with the message as they enter a room.
+  if (state.farewell && session.farewellShownFor !== state.code) {
+    session.farewellShownFor = state.code;
+    setTimeout(() => showFarewell(state.farewell), FAREWELL_DELAY_MS);
+  }
   if (screen !== session.screen) {
     session.screen = screen;
     RENDERERS[state.phase](state);
@@ -593,12 +601,6 @@ function renderReveal(state) {
         : `<p class="waiting">Waiting for ${esc(hostName(state))} to continue…</p>`}
     </div>
   `, 'Scores');
-
-  const farewellKey = `${state.code}:${state.game}`;
-  if (state.farewell && session.farewellShownFor !== farewellKey) {
-    session.farewellShownFor = farewellKey;
-    setTimeout(() => showFarewell(state.farewell), sealBreaksAt + FAREWELL_DELAY_MS);
-  }
 }
 
 function renderFinal(state) {

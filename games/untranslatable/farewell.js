@@ -1,18 +1,12 @@
 'use strict';
 
-// A farewell from Razvan. Throughout FAREWELL_DATE, every game ends with the
-// word "Saudade", and the message is shown to everyone after its reveal,
-// whoever plays and however often. On any other day it never appears.
+// A farewell from Razvan. Throughout FAREWELL_DATE, everyone sees the message
+// as a surprise when they enter a room, whoever plays and however often.
+// On any other day it never appears.
 
 const FAREWELL_DATE = process.env.FAREWELL_DATE || '2026-10-30';
 const TIME_ZONE = 'Europe/Copenhagen';
 const PREVIEW_KEY = 'obrigado-razvan-7f3k';
-
-const word = {
-  word: 'Saudade',
-  language: 'Portuguese',
-  meaning: 'A deep, bittersweet longing for someone or something you love that is no longer with you'
-};
 
 const message = {
   kicker: 'One more thing…',
@@ -43,4 +37,4 @@ function preview(key) {
 
 console.log(`Farewell scheduled for ${FAREWELL_DATE} (${TIME_ZONE}).`);
 
-module.exports = { word, message, isFarewellDay, preview };
+module.exports = { message, isFarewellDay, preview };

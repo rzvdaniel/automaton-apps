@@ -88,6 +88,26 @@ p { margin: 0; }
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
 }
 
+.top-right { display: flex; align-items: center; gap: 12px; }
+.links { display: flex; gap: 8px; }
+.links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--parchment-2);
+  text-decoration: none;
+  font: 500 0.8rem var(--label);
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border: 1px solid rgba(217, 178, 90, 0.35);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  transition: color 0.15s, border-color 0.15s;
+}
+.links a:hover, .links a:focus-visible { color: var(--gold-2); border-color: var(--gold-2); }
+.links svg { width: 16px; height: 16px; fill: currentColor; }
+body.in-room .links { display: none; }
+
 .room-code {
   color: var(--parchment-2);
   font: 500 0.85rem var(--label);
@@ -715,3 +735,9 @@ input:focus, select:focus, textarea:focus {
 
 /* Almendra reads best bold at heading sizes. */
 .page .title, .form h2, .margin-head h3, .ornament, .prompt, .award strong, .step .name { font-weight: 700; }
+
+@media (max-width: 560px) {
+  .links .wide { display: none; }
+  .links a { padding: 5px 9px; font-size: 0.7rem; gap: 5px; }
+  .links svg { width: 14px; height: 14px; }
+}

@@ -75,8 +75,6 @@ class Room {
     this.current = null;
     this.deadline = null;
     this.phaseMs = null;
-    this.farewellArmed = false;
-    this.farewellMessage = null;
     this.version = 0;
     this.touchedAt = now;
   }
@@ -204,9 +202,6 @@ class Room {
     }
     this.game++;
     this.words = this.pickWords(this.settings.rounds);
-    this.farewellArmed = this.farewell.isFarewellDay(now);
-    if (this.farewellArmed) this.words[this.words.length - 1] = this.farewell.word;
-    this.farewellMessage = null;
     this.round = 0;
     this.beginRound(now);
   }
@@ -273,10 +268,6 @@ class Room {
     for (const [playerId, points] of deltas) this.players.get(playerId).score += points;
     this.current.deltas = Object.fromEntries(deltas);
     this.setPhase('reveal', null, now);
-
-    if (this.farewellArmed && this.round === this.words.length) {
-      this.farewellMessage = this.farewell.message;
-    }
   }
 
   next(now) {
@@ -352,7 +343,8 @@ class Room {
         done: progress ? progress.has(entry.id) : false
       })),
       remainingMs: this.deadline ? Math.max(0, this.deadline - now) : null,
-      phaseMs: this.phaseMs
+      phaseMs: this.phaseMs,
+      farewell: this.farewell.isFarewellDay(now) ? this.farewell.message : null
     };
 
     if (['write', 'vote', 'reveal'].includes(this.phase)) {
@@ -370,7 +362,6 @@ class Room {
         results: this.current.results.map(({ id, text, authorId, voterIds }) => ({ id, text, real: authorId === null, authorId, voterIds })),
         deltas: this.current.deltas
       };
-      view.farewell = this.farewellMessage;
     }
     if (this.phase === 'final') {
       view.awards = this.awards();
