@@ -1,10 +1,11 @@
 'use strict';
 
-// A farewell from Razvan. Throughout FAREWELL_DATE, everyone sees the message
-// as a surprise when they enter a room, whoever plays and however often.
-// On any other day it never appears.
+// A farewell from Razvan. Throughout the FAREWELL_DATES, everyone sees the
+// message as a surprise when they enter a room, whoever plays and however
+// often. On any other day it never appears.
 
-const FAREWELL_DATE = process.env.FAREWELL_DATE || '2026-10-30';
+// 2026-10-29 is the rehearsal day; 2026-10-30 is the real farewell.
+const FAREWELL_DATES = (process.env.FAREWELL_DATES || '2026-10-29,2026-10-30').split(',');
 const TIME_ZONE = 'Europe/Copenhagen';
 const PREVIEW_KEY = 'obrigado-razvan-7f3k';
 
@@ -28,13 +29,13 @@ function localDate(now) {
 }
 
 function isFarewellDay(now) {
-  return localDate(now) === FAREWELL_DATE;
+  return FAREWELL_DATES.includes(localDate(now));
 }
 
 function preview(key) {
   return key === PREVIEW_KEY ? message : null;
 }
 
-console.log(`Farewell scheduled for ${FAREWELL_DATE} (${TIME_ZONE}).`);
+console.log(`Farewell scheduled for ${FAREWELL_DATES.join(', ')} (${TIME_ZONE}).`);
 
 module.exports = { message, isFarewellDay, preview };
