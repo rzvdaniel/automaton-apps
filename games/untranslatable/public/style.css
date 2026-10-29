@@ -741,3 +741,5 @@ input:focus, select:focus, textarea:focus {
   .links a { padding: 5px 9px; font-size: 0.7rem; gap: 5px; }
   .links svg { width: 14px; height: 14px; }
 }
+
+.foot .credit { display: block; margin-top: 6px; color: var(--gold-2); }
