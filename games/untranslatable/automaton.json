@@ -1,0 +1,26 @@
+{
+  "name": "Untranslatable",
+  "application": {
+    "build": {
+      "timeoutSeconds": 900
+    },
+    "runtime": {
+      "image": "node:22-bookworm-slim",
+      "command": {
+        "executable": "node",
+        "arguments": ["server.js"],
+        "workingDirectory": "."
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "isStaticSite": false
+  }
+}
