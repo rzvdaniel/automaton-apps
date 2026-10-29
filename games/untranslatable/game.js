@@ -12,6 +12,7 @@ const VOTE_SECONDS = 35;
 const ACTIVE_MS = 10_000;
 const HOST_HANDOVER_MS = 20_000;
 const ROOM_IDLE_MS = 3 * 60 * 60 * 1000;
+const MAX_ROOMS = 200;
 const MAX_PLAYERS = 20;
 const MAX_NAME = 24;
 const MAX_PASSWORD = 40;
@@ -376,6 +377,7 @@ class RoomRegistry {
   }
 
   create({ name, password, rounds, writeSeconds }, now) {
+    if (this.rooms.size >= MAX_ROOMS) throw new GameError(503, 'Too many rooms are open right now. Please try again later.');
     const room = new Room(this.newCode(), password, this.farewell, now);
     room.applySettings({ rounds, writeSeconds });
     const player = room.join(name, password, now);
