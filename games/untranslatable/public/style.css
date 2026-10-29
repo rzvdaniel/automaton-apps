@@ -102,6 +102,7 @@ p { margin: 0; }
   border: 1px solid rgba(217, 178, 90, 0.35);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
   transition: color 0.15s, border-color 0.15s;
 }
 .links a:hover, .links a:focus-visible { color: var(--gold-2); border-color: var(--gold-2); }
