@@ -18,7 +18,7 @@ A game of 7 words takes about 15 minutes. The host creates a room (optionally wi
 - `server.js`: a dependency-free Node.js HTTP server that serves the frontend and the JSON game API.
 - `game.js`: rooms, players, phases, and scoring. Rooms live in memory.
 - `words.js`: the curated word bank.
-- `farewell.js`: a one-time farewell message, shown once and then never again (tracked in `AUTOMATON_APP_DATA_DIR`).
+- `farewell.js`: a farewell message that ends every game played on one specific day, and never appears on any other day.
 - `public/`: the plain HTML, CSS, and JavaScript frontend. Browsers poll the room state once a second, because Automaton's runtime routing does not support WebSockets.
 
 ## Run locally

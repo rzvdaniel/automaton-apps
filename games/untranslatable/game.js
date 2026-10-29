@@ -204,7 +204,7 @@ class Room {
     }
     this.game++;
     this.words = this.pickWords(this.settings.rounds);
-    this.farewellArmed = this.farewell.canArm(active.map(player => player.name), now);
+    this.farewellArmed = this.farewell.isFarewellDay(now);
     if (this.farewellArmed) this.words[this.words.length - 1] = this.farewell.word;
     this.farewellMessage = null;
     this.round = 0;
@@ -275,7 +275,7 @@ class Room {
     this.setPhase('reveal', null, now);
 
     if (this.farewellArmed && this.round === this.words.length) {
-      this.farewellMessage = this.farewell.consume();
+      this.farewellMessage = this.farewell.message;
     }
   }
 

@@ -20,7 +20,7 @@ const session = {
   screen: null,
   deadlineAt: null,
   revealDoneAt: 0,
-  farewellShown: false,
+  farewellShownFor: null,
   pollTimer: null
 };
 
@@ -594,8 +594,9 @@ function renderReveal(state) {
     </div>
   `, 'Scores');
 
-  if (state.farewell && !session.farewellShown) {
-    session.farewellShown = true;
+  const farewellKey = `${state.code}:${state.game}`;
+  if (state.farewell && session.farewellShownFor !== farewellKey) {
+    session.farewellShownFor = farewellKey;
     setTimeout(() => showFarewell(state.farewell), sealBreaksAt + FAREWELL_DELAY_MS);
   }
 }
