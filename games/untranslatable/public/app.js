@@ -4,7 +4,6 @@ const POLL_MS = 1000;
 const RETRY_MS = 2000;
 const REVEAL_STEP_MS = 1100;
 const SEAL_PAUSE_MS = 900;
-const FAREWELL_DELAY_MS = 1200;
 const THANKS = ['Tak', 'Mulțumesc', 'Danke', 'Merci', 'Gracias', 'Obrigado', 'Grazie', 'Dziękuję', 'Kiitos', 'ありがとう',
   '谢谢', 'Köszönöm', 'Takk', 'Tack', 'Dank je', 'Děkuji', 'Ευχαριστώ', 'Teşekkürler', 'Спасибо', 'شكرا', 'Asante',
   'Terima kasih', '감사합니다', 'Diolch', 'Hvala', 'Aitäh', 'Paldies', 'Ačiū', 'Mahalo', 'Thank you'];
@@ -20,7 +19,6 @@ const session = {
   screen: null,
   deadlineAt: null,
   revealDoneAt: 0,
-  farewellShownFor: null,
   pollTimer: null
 };
 
@@ -308,11 +306,6 @@ function apply(state) {
   }
 
   renderBadge(state);
-  // On the farewell day, greet everyone with the message as they enter a room.
-  if (state.farewell && session.farewellShownFor !== state.code) {
-    session.farewellShownFor = state.code;
-    setTimeout(() => showFarewell(state.farewell), FAREWELL_DELAY_MS);
-  }
   if (screen !== session.screen) {
     session.screen = screen;
     RENDERERS[state.phase](state);
@@ -667,9 +660,6 @@ function showFarewell(message) {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', `A message from ${message.signature}`);
-  const lineStart = 3.2;
-  const lineStep = 1.7;
-  const end = lineStart + message.lines.length * lineStep;
   overlay.innerHTML = `
     <div class="thanks" aria-hidden="true">
       ${THANKS.map(word => `<span style="left:${random(2, 88)}%;top:${random(2, 92)}%;font-size:${random(1, 2.2).toFixed(2)}rem;animation-delay:-${random(0, 24).toFixed(1)}s;animation-duration:${random(18, 30).toFixed(1)}s">${esc(word)}</span>`).join('')}
@@ -682,13 +672,13 @@ function showFarewell(message) {
         <p class="def-line"><em>(n.)</em> ${esc(message.definitionLabel)} <strong>${esc(message.definition)}</strong></p>
         <p class="divider" aria-hidden="true">❦</p>
         <div class="lines">
-          ${message.lines.map((line, index) => `<p class="line" style="animation-delay:${lineStart + index * lineStep}s">${emphasis(line)}</p>`).join('')}
+          ${message.lines.map(line => `<p class="line">${emphasis(line)}</p>`).join('')}
         </div>
-        <div class="sign-off" style="animation-delay:${end}s">
+        <div class="sign-off">
           <p class="signature">${esc(message.signature)}</p>
           ${waxSeal([...message.signature][0], 'seal-small')}
         </div>
-        <button class="btn" style="animation-delay:${end + 1.4}s">Continue</button>
+        <button class="btn">Continue</button>
       </div>
       <span class="rod bottom"></span>
     </div>`;
@@ -734,6 +724,16 @@ app.addEventListener('change', event => {
 
 // ---------- Boot ----------
 
+// On farewell days, everyone sees the message as soon as the page loads.
+async function showFarewellOnLoad() {
+  try {
+    const { message } = await api('GET', '/api/farewell');
+    if (message) showFarewell(message);
+  } catch {
+    // The game works without the farewell.
+  }
+}
+
 async function boot() {
   const params = new URLSearchParams(location.search);
   const previewKey = params.get('preview');
@@ -748,6 +748,7 @@ async function boot() {
     return;
   }
 
+  showFarewellOnLoad();
   const code = params.get('room')?.trim().toUpperCase();
   if (!code) return renderHome();
   const token = storage.get(tokenKey(code));

@@ -343,8 +343,7 @@ class Room {
         done: progress ? progress.has(entry.id) : false
       })),
       remainingMs: this.deadline ? Math.max(0, this.deadline - now) : null,
-      phaseMs: this.phaseMs,
-      farewell: this.farewell.isFarewellDay(now) ? this.farewell.message : null
+      phaseMs: this.phaseMs
     };
 
     if (['write', 'vote', 'reveal'].includes(this.phase)) {

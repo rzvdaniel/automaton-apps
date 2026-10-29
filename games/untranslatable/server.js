@@ -54,6 +54,9 @@ async function handleApi(req, res, url) {
   const now = Date.now();
   const [, , resource, code, action] = url.pathname.split('/');
 
+  if (resource === 'farewell' && req.method === 'GET') {
+    return sendJson(res, 200, { message: farewell.isFarewellDay(now) ? farewell.message : null });
+  }
   if (resource === 'farewell-preview' && req.method === 'GET') {
     const message = farewell.preview(url.searchParams.get('key'));
     if (!message) throw new GameError(404, 'Not found.');

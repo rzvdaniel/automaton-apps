@@ -609,7 +609,6 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
   background: radial-gradient(ellipse at 50% 40%, rgba(80, 52, 24, 0.9), rgba(16, 10, 6, 0.97));
   backdrop-filter: blur(6px);
-  animation: fade 1.2s ease both;
 }
 .farewell.closing { animation: fade-out 0.6s ease both; }
 
@@ -622,7 +621,7 @@ input:focus, select:focus, textarea:focus {
   animation: drift linear infinite alternate;
 }
 
-.scroll { position: relative; width: min(600px, 100%); margin: 20px 0; animation: rise 0.8s 0.3s ease both; }
+.scroll { position: relative; width: min(600px, 100%); margin: 20px 0; }
 .rod {
   position: absolute;
   left: -14px;
@@ -644,8 +643,8 @@ input:focus, select:focus, textarea:focus {
 }
 .rod::before { left: -6px; }
 .rod::after { right: -6px; }
-.rod.top { top: calc(50% - 11px); animation: rod-top 1.6s 0.6s cubic-bezier(0.3, 0.7, 0.2, 1) forwards; }
-.rod.bottom { top: calc(50% - 11px); animation: rod-bottom 1.6s 0.6s cubic-bezier(0.3, 0.7, 0.2, 1) forwards; }
+.rod.top { top: -11px; }
+.rod.bottom { top: calc(100% - 11px); }
 
 .scroll-paper {
   text-align: center;
@@ -655,22 +654,19 @@ input:focus, select:focus, textarea:focus {
     var(--paper),
     radial-gradient(ellipse at 50% 40%, var(--parchment) 45%, var(--parchment-2) 100%);
   box-shadow: inset 0 0 80px rgba(140, 95, 35, 0.4);
-  clip-path: inset(50% 0 50% 0);
-  animation: unroll 1.6s 0.6s cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
 }
 .farewell .kicker { font: 700 0.8rem var(--label); letter-spacing: 0.22em; text-transform: uppercase; color: var(--rubric); }
-.farewell .the-word { font-size: clamp(2.6rem, 10vw, 4rem); margin: 6px 0; animation-delay: 1.4s; }
-.farewell .def-line { color: var(--ink-soft); font-size: 1.2rem; font-style: italic; animation: rise 0.8s 1.9s ease both; }
+.farewell .the-word { font-size: clamp(2.6rem, 10vw, 4rem); margin: 6px 0; animation: none; }
+.farewell .def-line { color: var(--ink-soft); font-size: 1.2rem; font-style: italic; }
 .farewell .def-line strong { color: var(--ink); font-style: normal; font-weight: 600; }
-.divider { color: var(--rubric); font-size: 1.6rem; margin: 14px 0 6px; animation: fade 0.8s 2.4s ease both; }
+.divider { color: var(--rubric); font-size: 1.6rem; margin: 14px 0 6px; }
 .farewell .lines { display: grid; gap: 10px; }
-.farewell .line { font-size: 1.35rem; line-height: 1.4; opacity: 0; animation: ink 1s ease both; }
+.farewell .line { font-size: 1.35rem; line-height: 1.4; }
 .farewell .line strong { color: var(--verdigris); font-weight: 600; }
-.sign-off { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0 16px; opacity: 0; animation: ink 1s ease both; }
+.sign-off { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0 16px; }
 .signature { font: 3.2rem/1 var(--script); color: var(--ink); }
 .signature::before { content: '— '; font-family: var(--body); font-size: 1.6rem; vertical-align: middle; }
 .seal-small { width: 64px; height: 64px; transform: rotate(-12deg); filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35)); }
-.farewell .btn { opacity: 0; animation: rise 0.8s ease both; }
 
 /* ---------- Motion ---------- */
 
@@ -685,9 +681,6 @@ input:focus, select:focus, textarea:focus {
 @keyframes wobble { 50% { transform: rotate(-6deg) scale(1.04); } }
 @keyframes seal-break { 40% { transform: scale(1.08); } to { opacity: 0; transform: scale(1.25); visibility: hidden; } }
 @keyframes unseal { from { opacity: 0; transform: scale(0.97); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
-@keyframes unroll { to { clip-path: inset(0 0 0 0); } }
-@keyframes rod-top { to { top: -11px; } }
-@keyframes rod-bottom { to { top: calc(100% - 11px); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition: none !important; }
