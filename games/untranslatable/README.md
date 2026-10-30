@@ -11,7 +11,7 @@ A bluffing party game for 3 to 20 players about real words that have no neat Eng
 3. All fakes are shuffled with the real meaning, and everyone votes for the one they believe.
 4. Finding the real meaning scores **+2**. Every colleague who falls for your fake gives you **+1**.
 
-A game of 7 words takes about 15 minutes. The host creates a room (optionally with a password), shares the link, and controls when the next word starts.
+A game of 5 words takes about 10 minutes. The host creates a room (optionally with a password), shares the link, and controls when the next word starts.
 
 ## How it works
 
