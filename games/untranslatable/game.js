@@ -313,9 +313,9 @@ class Room {
     };
     const times = count => ({ 1: 'once', 2: 'twice' })[count] ?? `${count} times`;
     return [
-      { emoji: '✒️', title: 'Master Forger', stat: 'fooled', note: count => `fooled colleagues ${times(count)}` },
-      { emoji: '🗝️', title: 'Keeper of Truth', stat: 'truths', note: count => `found the real meaning ${times(count)}` },
-      { emoji: '🐑', title: 'Most Credulous Pilgrim', stat: 'fooledBy', note: count => `fell for ${count} ${count === 1 ? 'fake' : 'fakes'}` }
+      { emoji: '🎭', title: 'Master Forger', stat: 'fooled', note: count => `fooled colleagues ${times(count)}` },
+      { emoji: '📜', title: 'Keeper of Truth', stat: 'truths', note: count => `found the real meaning ${times(count)}` },
+      { emoji: '🚶', title: 'Most Credulous Pilgrim', stat: 'fooledBy', note: count => `fell for ${count} ${count === 1 ? 'fake' : 'fakes'}` }
     ].map(({ emoji, title, stat, note }) => {
       const winner = best(stat);
       return winner && { emoji, title, playerId: winner.playerId, note: note(winner.value) };

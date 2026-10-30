@@ -119,22 +119,6 @@ const BOOK = `
     <path d="M318 40l-14 6M314 60l-16 6M310 80l-16 6M306 100l-12 6" stroke="#2b1d0e" stroke-width="1" opacity=".6"/>
   </svg>`;
 
-function laurel() {
-  const leaves = [];
-  // Leaves run from the bottom of the wreath up the left side; the right side mirrors them.
-  for (let i = 0; i < 8; i++) {
-    const degrees = 105 + i * 20;
-    const angle = degrees * Math.PI / 180;
-    const x = 60 + 48 * Math.cos(angle);
-    const y = 60 + 48 * Math.sin(angle);
-    const rotation = degrees + 90 + 25;
-    leaves.push(`<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="9" ry="4" transform="rotate(${rotation} ${x.toFixed(1)} ${y.toFixed(1)})"/>`);
-    const mirrorX = 120 - x;
-    leaves.push(`<ellipse cx="${mirrorX.toFixed(1)}" cy="${y.toFixed(1)}" rx="9" ry="4" transform="rotate(${180 - rotation} ${mirrorX.toFixed(1)} ${y.toFixed(1)})"/>`);
-  }
-  return `<svg class="laurel" viewBox="0 0 120 120" aria-hidden="true"><g fill="#b8892b" stroke="#7a5a18" stroke-width=".8">${leaves.join('')}</g></svg>`;
-}
-
 function candle() {
   return `
     <span class="candle" aria-hidden="true">
@@ -609,7 +593,7 @@ function renderFinal(state) {
     <div class="podium">
       ${[podium[1], podium[0], podium[2]].map(player => player ? `
         <div class="step ${places[ranking.indexOf(player)]}">
-          <div class="crest">${ranking.indexOf(player) === 0 ? laurel() : ''}${avatar(player)}</div>
+          <div class="crest">${avatar(player)}</div>
           <span class="name">${esc(player.name)}</span>
           <span class="score">${player.score} points</span>
           <div class="block">${['I', 'II', 'III'][ranking.indexOf(player)]}</div>
