@@ -1,0 +1,25 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Off-site backup
+  key: upload
+  description: Copy the newest encrypted server backup to S3-compatible storage and apply retention.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 1800
+  schedulable: true
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  output:
+    type: object
+    properties:
+      uploaded:
+        type: boolean
+      backup:
+        type: string
+      retained:
+        type: integer
+      deleted:
+        type: integer
