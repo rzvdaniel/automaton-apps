@@ -84,15 +84,12 @@ class OffsiteBackupTests(unittest.TestCase):
             with self.assertRaises(main.BackupError):
                 main.run({})
 
-    def test_no_encrypted_backup_returns_schema_valid_result(self):
+    def test_no_encrypted_backup_fails_and_keeps_offsite_copies(self):
         self.status["backups"] = [{"name": self.name, "archiveSizeBytes": None, "archiveSha256": None}]
-        with patch.object(main, "make_s3_client", return_value=self.s3), \
-                patch.object(main, "api_urlopen", side_effect=self.api_responses()):
-            result = main.run({})
-
-        self.assertEqual(result["backup"], "")
-        self.assertEqual(result["message"], "No encrypted local backups are available.")
-        self.assertFalse(result["uploaded"])
+        with patch.object(main, "make_s3_client", return_value=self.s3) as client,                 patch.object(main, "api_urlopen", side_effect=self.api_responses()):
+            with self.assertRaises(main.BackupError):
+                main.run({})
+        client.assert_not_called()
 
     def test_api_redirects_are_rejected(self):
         handler = main.RejectRedirectHandler()

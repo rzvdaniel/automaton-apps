@@ -88,7 +88,9 @@ def make_s3_client(endpoint: str, region: str, access_key: str, secret_key: str)
         region_name=region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"},
+                      # Newer boto3 adds CRC32 checksums by default; Backblaze B2 and older MinIO reject them.
+                      request_checksum_calculation="when_required", response_checksum_validation="when_required"),
     )
 
 
@@ -147,7 +149,10 @@ def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_b
             key = item["Key"]
             name = key[len(prefix):-len(".tar.age")] if key.startswith(prefix) and key.endswith(".tar.age") else ""
             if BACKUP_NAME.fullmatch(name):
-                objects.append((parse_timestamp(name), key))
+                try:
+                    objects.append((parse_timestamp(name), key))
+                except BackupError:
+                    continue  # matches the pattern but is not a real date; leave it alone
 
     objects.sort(reverse=True)
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
@@ -200,10 +205,8 @@ def run(input_data: dict) -> dict:
             eligible.append(item)
     eligible.sort(key=lambda item: parse_timestamp(item["name"]), reverse=True)
     if not eligible:
-        retained, deleted = apply_retention(make_s3_client(endpoint, region, access_key, secret_key), bucket,
-                                            prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
-        return {"uploaded": False, "backup": "", "retained": retained, "deleted": deleted,
-                "message": "No encrypted local backups are available."}
+        # Fail loudly and leave the off-site copies untouched: the server may have stopped encrypting backups.
+        raise BackupError("No encrypted local backups are available. Check the server's nightly backup.")
 
     backup = eligible[0]
     name = backup.get("name", "")
