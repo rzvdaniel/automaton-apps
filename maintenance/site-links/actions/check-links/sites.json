@@ -1,0 +1,5 @@
+[
+  { "key": "website", "name": "Automaton website", "root": "https://automaton.monster/" },
+  { "key": "docs", "name": "Automaton docs", "root": "https://automaton.monster/docs/" },
+  { "key": "store", "name": "Automaton store", "root": "https://store.automaton.monster/" }
+]

@@ -13,6 +13,7 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | IIS Tracker | [iis-tracker-v2](iis-tracker-v2/) |
 | Image Converter Studio | [image-converter-studio](image-converter-studio/) |
 | Space Invaders | [space-invaders](space-invaders/) |
+| Site Links — nightly link checker for Automaton sites | [maintenance/site-links](maintenance/site-links/) |
 
 Each app has its own source, dependencies, and `automaton.json`. Some examples use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 
