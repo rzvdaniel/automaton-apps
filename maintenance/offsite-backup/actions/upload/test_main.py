@@ -56,7 +56,7 @@ class OffsiteBackupTests(unittest.TestCase):
 
     def test_streams_new_backup_to_s3_and_skips_matching_object(self):
         with patch.object(main, "make_s3_client", return_value=self.s3), \
-                patch.object(main, "urlopen", side_effect=self.api_responses()) as open_url:
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()) as open_url:
             first = main.run({"apiBaseUrl": "https://attacker.invalid"})
             self.assertTrue(first["uploaded"])
             self.assertEqual(first["backup"], self.name)
@@ -73,7 +73,7 @@ class OffsiteBackupTests(unittest.TestCase):
     def test_aborts_upload_when_download_hash_does_not_match(self):
         self.status["backups"][1]["archiveSha256"] = "0" * 64
         with patch.object(main, "make_s3_client", return_value=self.s3), \
-                patch.object(main, "urlopen", side_effect=self.api_responses()):
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()):
             with self.assertRaises(main.BackupError):
                 main.run({})
         objects = self.s3.list_objects_v2(Bucket="automaton-backups")
@@ -86,12 +86,21 @@ class OffsiteBackupTests(unittest.TestCase):
     def test_no_encrypted_backup_returns_schema_valid_result(self):
         self.status["backups"] = [{"name": self.name, "archiveSizeBytes": None, "archiveSha256": None}]
         with patch.object(main, "make_s3_client", return_value=self.s3), \
-                patch.object(main, "urlopen", side_effect=self.api_responses()):
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()):
             result = main.run({})
 
         self.assertEqual(result["backup"], "")
         self.assertEqual(result["message"], "No encrypted local backups are available.")
         self.assertFalse(result["uploaded"])
+
+    def test_api_redirects_are_rejected(self):
+        handler = main.RejectRedirectHandler()
+        request = main.Request(
+            "https://automaton.test/api/install/backups",
+            headers={"Authorization": "Bearer scoped-test-key"},
+        )
+        self.assertIsNone(handler.redirect_request(
+            request, None, 302, "Found", {}, "https://attacker.example/collect"))
 
     def test_retention_keeps_recent_objects_and_seven_oldest_survivors(self):
         prefix = "automaton/automaton.test/"

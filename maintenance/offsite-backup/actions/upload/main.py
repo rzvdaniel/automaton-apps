@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import BinaryIO
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import boto3
 from botocore.config import Config
@@ -27,6 +27,15 @@ DEFAULT_MINIMUM_BACKUPS = 7
 
 class BackupError(RuntimeError):
     """A safe-to-report failure that does not include credential values."""
+
+
+class RejectRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        return None
+
+
+def api_urlopen(request, timeout: int):
+    return build_opener(RejectRedirectHandler()).open(request, timeout=timeout)
 
 
 def required_secret(name: str) -> str:
@@ -51,7 +60,7 @@ def api_json(base_url: str, path: str, api_key: str) -> dict:
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
     )
     try:
-        with urlopen(request, timeout=60) as response:
+        with api_urlopen(request, timeout=60) as response:
             return json.load(response)
     except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
         raise BackupError("Could not read backup metadata from the Automaton API.") from error
@@ -63,7 +72,7 @@ def download_stream(base_url: str, name: str, api_key: str) -> BinaryIO:
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/octet-stream"},
     )
     try:
-        return urlopen(request, timeout=120)
+        return api_urlopen(request, timeout=120)
     except (HTTPError, URLError, TimeoutError, OSError) as error:
         raise BackupError("Could not download the selected encrypted backup.") from error
 
