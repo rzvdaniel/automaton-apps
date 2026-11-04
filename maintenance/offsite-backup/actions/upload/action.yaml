@@ -1,0 +1,45 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Off-site backup
+  key: upload
+  description: Copy the newest encrypted server backup to S3-compatible storage and apply retention.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 1800
+  schedulable: true
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  input:
+    type: object
+    required:
+      - apiBaseUrl
+    properties:
+      apiBaseUrl:
+        type: string
+        description: Base URL of the Automaton server, without a trailing slash.
+      retentionDays:
+        type: integer
+        description: Retain backups newer than this many days, plus the newest backups.
+      minimumBackups:
+        type: integer
+        description: Minimum number of newest backups to retain.
+      region:
+        type: string
+        description: Optional S3 region; defaults to us-east-1.
+      prefix:
+        type: string
+        description: Optional object key prefix; defaults to automaton/<server host>/.
+  output:
+    type: object
+    properties:
+      uploaded:
+        type: boolean
+      backup:
+        type: string
+      retained:
+        type: integer
+      deleted:
+        type: integer
