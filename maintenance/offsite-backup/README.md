@@ -5,10 +5,9 @@ An Actions-only Automaton app that copies the newest encrypted server backup to 
 ## Setup
 
 1. Deploy this app to the server and approve its `backups:read` permission.
-2. Set `API_BASE_URL` to this server's API base URL and set `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` with `automaton secrets set`. Keep `API_BASE_URL` owner-managed; it is not a schedule input.
+2. Set `API_BASE_URL` to this server's API base URL and set `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` with `automaton secrets set`. Keep `API_BASE_URL` owner-managed; it is not a schedule input. Optional `S3_REGION` and `S3_PREFIX` settings default to `us-east-1` and `automaton/<server host>/`.
 3. In Studio, schedule the `upload` Action daily at 04:30 server time, after the 03:00 local backup.
-4. Optional schedule inputs `region` and `prefix` override the S3 region (`us-east-1`) and choose a sub-prefix under `automaton/<server host>/`.
-5. The Action keeps backups from the last 30 days and at least the 7 newest.
+4. The Action keeps backups from the last 30 days and at least the 7 newest.
 
 The Action skips an object whose `sha256` metadata already matches the newest local archive. New archives stream into a multipart upload; size and SHA-256 are checked before the upload is completed. Retention only removes timestamped Automaton backup archives under the configured prefix.
 

@@ -80,8 +80,9 @@ class OffsiteBackupTests(unittest.TestCase):
         self.assertEqual(objects.get("KeyCount", 0), 0)
 
     def test_prefix_cannot_escape_the_server_object_namespace(self):
-        with self.assertRaises(main.BackupError):
-            main.run({"prefix": "automaton/another-host/"})
+        with patch.dict(os.environ, {"S3_PREFIX": "automaton/another-host/"}):
+            with self.assertRaises(main.BackupError):
+                main.run({})
 
     def test_no_encrypted_backup_returns_schema_valid_result(self):
         self.status["backups"] = [{"name": self.name, "archiveSizeBytes": None, "archiveSha256": None}]

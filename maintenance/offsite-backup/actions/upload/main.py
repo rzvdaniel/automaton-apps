@@ -173,9 +173,9 @@ def run(input_data: dict) -> dict:
     endpoint = required_secret("S3_ENDPOINT")
     access_key = required_secret("S3_ACCESS_KEY_ID")
     secret_key = required_secret("S3_SECRET_ACCESS_KEY")
-    region = str(input_data.get("region", "")).strip() or "us-east-1"
+    region = os.environ.get("S3_REGION", "").strip() or "us-east-1"
     default_prefix = f"automaton/{parsed.netloc}/"
-    requested_prefix = str(input_data.get("prefix", "")).strip()
+    requested_prefix = os.environ.get("S3_PREFIX", "").strip()
     if requested_prefix.startswith("/") or ".." in requested_prefix.split("/"):
         raise BackupError("prefix must be relative and cannot contain '..' segments.")
     prefix = requested_prefix.rstrip("/") + "/" if requested_prefix else default_prefix

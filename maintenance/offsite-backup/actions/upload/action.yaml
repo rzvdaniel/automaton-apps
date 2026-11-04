@@ -12,15 +12,6 @@ spec:
   allowedExecutionScopes:
     - AppRunner
   defaultConcurrencyPolicy: SkipIfRunning
-  input:
-    type: object
-    properties:
-      region:
-        type: string
-        description: Optional S3 region; defaults to us-east-1.
-      prefix:
-        type: string
-        description: Optional prefix under automaton/<server host>/; defaults to that server prefix.
   output:
     type: object
     properties:
