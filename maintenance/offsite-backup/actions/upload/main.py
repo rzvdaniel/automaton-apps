@@ -37,9 +37,12 @@ def required_secret(name: str) -> str:
 
 
 def parse_timestamp(name: str) -> datetime:
-    if not BACKUP_NAME.fullmatch(name):
+    if not isinstance(name, str) or not BACKUP_NAME.fullmatch(name):
         raise BackupError("The backup API returned an invalid backup name.")
-    return datetime.strptime(name.removeprefix("automaton-"), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    try:
+        return datetime.strptime(name.removeprefix("automaton-"), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    except ValueError as error:
+        raise BackupError("The backup API returned an invalid backup timestamp.") from error
 
 
 def api_json(base_url: str, path: str, api_key: str) -> dict:
@@ -151,11 +154,11 @@ def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_b
 
 
 def run(input_data: dict) -> dict:
-    base_url = str(input_data.get("apiBaseUrl", "")).strip().rstrip("/")
+    base_url = required_secret("API_BASE_URL").rstrip("/")
     parsed = urlparse(base_url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password \
             or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
-        raise BackupError("Input apiBaseUrl must be an HTTP(S) server base URL.")
+        raise BackupError("API_BASE_URL must be this server's HTTP(S) API base URL.")
     api_key = required_secret("APP_AUTOMATON_API_KEY")
     bucket = required_secret("S3_BUCKET")
     endpoint = required_secret("S3_ENDPOINT")
@@ -163,14 +166,12 @@ def run(input_data: dict) -> dict:
     secret_key = required_secret("S3_SECRET_ACCESS_KEY")
     region = str(input_data.get("region", "")).strip() or "us-east-1"
     default_prefix = f"automaton/{parsed.netloc}/"
-    prefix = str(input_data.get("prefix", "")).strip() or default_prefix
-    if prefix.startswith("/") or ".." in prefix.split("/"):
-        raise BackupError("S3_PREFIX must be a relative object key prefix without '..' segments.")
-    prefix = prefix.rstrip("/") + "/"
-    retention_days = int(input_data.get("retentionDays", DEFAULT_RETENTION_DAYS))
-    minimum_backups = int(input_data.get("minimumBackups", DEFAULT_MINIMUM_BACKUPS))
-    if retention_days < 1 or not 1 <= minimum_backups <= 1000:
-        raise BackupError("Retention must be at least one day and minimumBackups must be from 1 to 1000.")
+    requested_prefix = str(input_data.get("prefix", "")).strip()
+    if requested_prefix.startswith("/") or ".." in requested_prefix.split("/"):
+        raise BackupError("prefix must be relative and cannot contain '..' segments.")
+    prefix = requested_prefix.rstrip("/") + "/" if requested_prefix else default_prefix
+    if not prefix.startswith(default_prefix):
+        raise BackupError("prefix must stay within this server's default object key prefix.")
 
     status = api_json(base_url, "/api/install/backups", api_key)
     backups = status.get("backups")
@@ -191,7 +192,7 @@ def run(input_data: dict) -> dict:
     eligible.sort(key=lambda item: parse_timestamp(item["name"]), reverse=True)
     if not eligible:
         retained, deleted = apply_retention(make_s3_client(endpoint, region, access_key, secret_key), bucket,
-                                            prefix, retention_days, minimum_backups)
+                                            prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
         return {"uploaded": False, "backup": None, "retained": retained, "deleted": deleted,
                 "message": "No encrypted local backups are available."}
 
@@ -207,7 +208,7 @@ def run(input_data: dict) -> dict:
         with download_stream(base_url, name, api_key) as archive:
             upload_multipart(s3, bucket, key, archive, expected_size, expected_hash)
         uploaded = True
-    retained, deleted = apply_retention(s3, bucket, prefix, retention_days, minimum_backups)
+    retained, deleted = apply_retention(s3, bucket, prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
     return {"uploaded": uploaded, "backup": name, "retained": retained, "deleted": deleted}
 
 

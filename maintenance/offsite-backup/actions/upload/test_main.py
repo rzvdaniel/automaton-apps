@@ -31,6 +31,7 @@ class OffsiteBackupTests(unittest.TestCase):
         }
         self.environment = patch.dict(os.environ, {
             "APP_AUTOMATON_API_KEY": "scoped-test-key",
+            "API_BASE_URL": "https://automaton.test",
             "S3_ENDPOINT": "https://s3.example.invalid",
             "S3_BUCKET": "automaton-backups",
             "S3_ACCESS_KEY_ID": "test-access",
@@ -44,6 +45,7 @@ class OffsiteBackupTests(unittest.TestCase):
 
         def open_url(request, timeout):
             self.assertEqual(request.get_header("Authorization"), "Bearer scoped-test-key")
+            self.assertTrue(request.full_url.startswith("https://automaton.test/"))
             if request.full_url.endswith("/api/install/backups"):
                 return io.BytesIO(json.dumps(self.status).encode())
             if request.full_url.endswith("/archive"):
@@ -55,7 +57,7 @@ class OffsiteBackupTests(unittest.TestCase):
     def test_streams_new_backup_to_s3_and_skips_matching_object(self):
         with patch.object(main, "make_s3_client", return_value=self.s3), \
                 patch.object(main, "urlopen", side_effect=self.api_responses()) as open_url:
-            first = main.run({"apiBaseUrl": "https://automaton.test"})
+            first = main.run({"apiBaseUrl": "https://attacker.invalid"})
             self.assertTrue(first["uploaded"])
             self.assertEqual(first["backup"], self.name)
             self.assertEqual(first["retained"], 1)
@@ -64,7 +66,7 @@ class OffsiteBackupTests(unittest.TestCase):
             self.assertEqual(stored["Body"].read(), self.archive)
             self.assertEqual(stored["Metadata"]["sha256"], self.digest)
 
-            second = main.run({"apiBaseUrl": "https://automaton.test"})
+            second = main.run({})
             self.assertFalse(second["uploaded"])
             self.assertEqual(open_url.call_count, 3)  # Two metadata reads, one archive download.
 
@@ -73,9 +75,13 @@ class OffsiteBackupTests(unittest.TestCase):
         with patch.object(main, "make_s3_client", return_value=self.s3), \
                 patch.object(main, "urlopen", side_effect=self.api_responses()):
             with self.assertRaises(main.BackupError):
-                main.run({"apiBaseUrl": "https://automaton.test"})
+                main.run({})
         objects = self.s3.list_objects_v2(Bucket="automaton-backups")
         self.assertEqual(objects.get("KeyCount", 0), 0)
+
+    def test_prefix_cannot_escape_the_server_object_namespace(self):
+        with self.assertRaises(main.BackupError):
+            main.run({"prefix": "automaton/another-host/"})
 
     def test_retention_keeps_recent_objects_and_seven_oldest_survivors(self):
         prefix = "automaton/automaton.test/"

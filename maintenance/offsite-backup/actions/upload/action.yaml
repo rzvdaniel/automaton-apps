@@ -14,24 +14,13 @@ spec:
   defaultConcurrencyPolicy: SkipIfRunning
   input:
     type: object
-    required:
-      - apiBaseUrl
     properties:
-      apiBaseUrl:
-        type: string
-        description: Base URL of the Automaton server, without a trailing slash.
-      retentionDays:
-        type: integer
-        description: Retain backups newer than this many days, plus the newest backups.
-      minimumBackups:
-        type: integer
-        description: Minimum number of newest backups to retain.
       region:
         type: string
         description: Optional S3 region; defaults to us-east-1.
       prefix:
         type: string
-        description: Optional object key prefix; defaults to automaton/<server host>/.
+        description: Optional prefix under automaton/<server host>/; defaults to that server prefix.
   output:
     type: object
     properties:
