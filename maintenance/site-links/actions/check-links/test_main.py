@@ -180,6 +180,24 @@ class SiteLinksTests(unittest.TestCase):
         self.assertEqual(self.fake_github.created, 2)
         self.assertEqual(self.external_calls, ["HEAD", "GET"])
 
+    def test_one_failing_site_does_not_stop_the_others(self):
+        (self.config / "sites.json").write_text(json.dumps([
+            {"key": "first", "name": "First", "root": self.root},
+            {"key": "second", "name": "Second", "root": self.root},
+        ]), encoding="utf-8")
+        original = self.issues.report
+        def report(site, broken):
+            if site["key"] == "first":
+                raise main.SiteLinksError("GitHub issue API request failed (HTTP 502).")
+            return original(site, broken)
+        with patch.object(main, "is_public_host", return_value=True), patch.dict("os.environ", {"GITHUB_TOKEN": "test-token"}),                 patch.object(self.issues, "report", side_effect=report):
+            with self.assertRaises(main.SiteRunFailed) as raised:
+                main.run(self.config, self.http, self.issues)
+        sites = raised.exception.result["sites"]
+        self.assertEqual([site["site"] for site in sites], ["first", "second"])
+        self.assertIn("error", sites[0])
+        self.assertIn("issue", sites[1])
+
     def test_private_hosts_are_blocked_before_network_access(self):
         opened = []
         client = main.RateLimitedHttp(interval=0, opener=lambda request, timeout: opened.append(request))

@@ -445,13 +445,29 @@ def run(directory: Path, http: RateLimitedHttp | None = None, issues: GitHubIssu
     results = []
     total_pages = 0
     external_cache: dict[str, tuple[bool, str]] = {}
+    failed = []
     for site in sites:
-        crawler = SiteCrawler(http, ignored, external_cache=external_cache)
-        broken, pages = crawler.crawl(site)
-        total_pages += pages
-        status = issues.report(site, broken)
-        results.append({"site": site["key"], "pagesChecked": pages, "brokenLinks": len(broken), "issue": status})
-    return {"sites": results, "pagesChecked": total_pages}
+        try:
+            crawler = SiteCrawler(http, ignored, external_cache=external_cache)
+            broken, pages = crawler.crawl(site)
+            total_pages += pages
+            status = issues.report(site, broken)
+            results.append({"site": site["key"], "pagesChecked": pages, "brokenLinks": len(broken), "issue": status})
+        except Exception as error:  # one site's failure must not stop the others
+            reason = str(error) if isinstance(error, SiteLinksError) else type(error).__name__
+            print(f"Site {site['key']} failed: {reason}", file=sys.stderr)
+            failed.append(site["key"])
+            results.append({"site": site["key"], "error": reason})
+    result = {"sites": results, "pagesChecked": total_pages}
+    if failed:
+        raise SiteRunFailed(result, failed)
+    return result
+
+
+class SiteRunFailed(SiteLinksError):
+    def __init__(self, result: dict, failed: list[str]):
+        super().__init__(f"Sites failed: {', '.join(failed)}.")
+        self.result = result
 
 
 def main() -> int:
@@ -460,6 +476,8 @@ def main() -> int:
         print(json.dumps(result, separators=(",", ":")))
         return 0
     except SiteLinksError as error:
+        if isinstance(error, SiteRunFailed):
+            print(json.dumps(error.result, separators=(",", ":")))
         print(str(error), file=sys.stderr)
         return 1
     except Exception as error:
