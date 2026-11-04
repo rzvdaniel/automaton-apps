@@ -1,0 +1,8 @@
+{
+  "name": "Automaton Site Links",
+  "application": {
+    "secrets": [
+      { "name": "GITHUB_TOKEN", "description": "Fine-grained token with Issues read/write on rzvdaniel/automaton" }
+    ]
+  }
+}
