@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from html.parser import HTMLParser
+import http.client
 import ipaddress
 import json
 import os
@@ -15,7 +16,8 @@ import sys
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote, urlencode, urljoin, urlsplit, urlunsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+from urllib.request import (HTTPHandler, HTTPRedirectHandler, HTTPSHandler, ProxyHandler,
+                            Request, build_opener, urlopen)
 
 
 USER_AGENT = "automaton-site-links"
@@ -54,16 +56,16 @@ class RateLimitedHttp:
             self.public_hosts[host] = is_public_host(host)
         if not self.public_hosts[host]:
             return HttpResult(None, {}, b"", url, "blocked non-public host")
-        now = time.monotonic()
-        wait = self.interval - (now - self.last_request)
-        if wait > 0:
-            time.sleep(wait)
-        self.last_request = time.monotonic()
+        self.wait_for_request()
         request_headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,*/*"}
         request_headers.update(headers or {})
         request = Request(url, data=body, method=method, headers=request_headers)
         try:
-            with self.opener(request, timeout=20) as response:
+            if self.opener is safe_urlopen:
+                response_context = self.opener(request, timeout=20, before_redirect=self.wait_for_request)
+            else:
+                response_context = self.opener(request, timeout=20)
+            with response_context as response:
                 body = response.read(read_limit + 1) if read_limit else b""
                 return HttpResult(response.status, lower_headers(response.headers), body, response.geturl())
         except HTTPError as error:
@@ -73,8 +75,18 @@ class RateLimitedHttp:
         except (URLError, TimeoutError, OSError, ValueError) as error:
             return HttpResult(None, {}, b"", url, type(error).__name__)
 
+    def wait_for_request(self):
+        wait = self.interval - (time.monotonic() - self.last_request)
+        if wait > 0:
+            time.sleep(wait)
+        self.last_request = time.monotonic()
+
 
 class PublicRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, before_redirect=None):
+        super().__init__()
+        self.before_redirect = before_redirect
+
     def redirect_request(self, request, response, code, message, headers, new_url):
         target = normalize_url(urljoin(request.full_url, new_url))
         source_host = (urlsplit(request.full_url).hostname or "").lower()
@@ -82,11 +94,55 @@ class PublicRedirectHandler(HTTPRedirectHandler):
         carries_auth = request.has_header("Authorization")
         if target is None or not is_public_host(target_host) or (carries_auth and source_host != target_host):
             raise URLError("blocked redirect to non-public host")
+        if self.before_redirect:
+            self.before_redirect()
         return super().redirect_request(request, response, code, message, headers, target)
 
 
-def safe_urlopen(request, timeout=20):
-    return build_opener(PublicRedirectHandler()).open(request, timeout=timeout)
+def connect_to_public_address(connection):
+    host = connection.host.strip("[]")
+    addresses = socket.getaddrinfo(host, connection.port, type=socket.SOCK_STREAM)
+    if not addresses or any(not ipaddress.ip_address(address[4][0]).is_global for address in addresses):
+        raise OSError("blocked non-public host")
+    last_error = None
+    for family, socktype, protocol, _, sockaddr in addresses:
+        sock = socket.socket(family, socktype, protocol)
+        sock.settimeout(connection.timeout)
+        try:
+            sock.connect(sockaddr)
+            connection.sock = sock
+            return
+        except OSError as error:
+            last_error = error
+            sock.close()
+    raise last_error or OSError("unable to connect to public host")
+
+
+class PublicHTTPConnection(http.client.HTTPConnection):
+    def connect(self):
+        connect_to_public_address(self)
+
+
+class PublicHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self):
+        connect_to_public_address(self)
+        self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+
+
+class PublicHTTPHandler(HTTPHandler):
+    def http_open(self, request):
+        return self.do_open(PublicHTTPConnection, request)
+
+
+class PublicHTTPSHandler(HTTPSHandler):
+    def https_open(self, request):
+        return self.do_open(PublicHTTPSConnection, request, context=self._context)
+
+
+def safe_urlopen(request, timeout=20, before_redirect=None):
+    opener = build_opener(ProxyHandler({}), PublicHTTPHandler(), PublicHTTPSHandler(),
+                          PublicRedirectHandler(before_redirect))
+    return opener.open(request, timeout=timeout)
 
 
 def lower_headers(headers) -> dict[str, str]:

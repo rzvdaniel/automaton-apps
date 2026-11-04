@@ -5,9 +5,10 @@ import threading
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import main
 
@@ -186,6 +187,25 @@ class SiteLinksTests(unittest.TestCase):
             result = client.request("http://127.0.0.1/private")
         self.assertEqual(result.error, "blocked non-public host")
         self.assertEqual(opened, [])
+
+    def test_public_connection_rejects_private_dns_answer_at_connect_time(self):
+        connection = SimpleNamespace(host="rebound.example", port=80, timeout=1)
+        answer = (2, 1, 6, "", ("127.0.0.1", 80))
+        with patch.object(main.socket, "getaddrinfo", return_value=[answer]), \
+                patch.object(main.socket, "socket") as create_socket:
+            with self.assertRaises(OSError):
+                main.connect_to_public_address(connection)
+        create_socket.assert_not_called()
+
+    def test_redirect_hops_are_rate_limited(self):
+        wait = Mock()
+        handler = main.PublicRedirectHandler(wait)
+        with patch.object(main, "is_public_host", return_value=True):
+            redirect = handler.redirect_request(
+                main.Request("https://source.example/"), None, 302, "Found", {},
+                "https://target.example/next")
+        self.assertEqual(redirect.full_url, "https://target.example/next")
+        wait.assert_called_once_with()
 
     def test_normalization_rejects_userinfo_and_non_http_schemes(self):
         self.assertIsNone(main.normalize_url("https://user:pass@example.com/"))
