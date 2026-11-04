@@ -83,6 +83,16 @@ class OffsiteBackupTests(unittest.TestCase):
         with self.assertRaises(main.BackupError):
             main.run({"prefix": "automaton/another-host/"})
 
+    def test_no_encrypted_backup_returns_schema_valid_result(self):
+        self.status["backups"] = [{"name": self.name, "archiveSizeBytes": None, "archiveSha256": None}]
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "urlopen", side_effect=self.api_responses()):
+            result = main.run({})
+
+        self.assertEqual(result["backup"], "")
+        self.assertEqual(result["message"], "No encrypted local backups are available.")
+        self.assertFalse(result["uploaded"])
+
     def test_retention_keeps_recent_objects_and_seven_oldest_survivors(self):
         prefix = "automaton/automaton.test/"
         now = datetime.now(timezone.utc)

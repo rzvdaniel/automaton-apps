@@ -193,7 +193,7 @@ def run(input_data: dict) -> dict:
     if not eligible:
         retained, deleted = apply_retention(make_s3_client(endpoint, region, access_key, secret_key), bucket,
                                             prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
-        return {"uploaded": False, "backup": None, "retained": retained, "deleted": deleted,
+        return {"uploaded": False, "backup": "", "retained": retained, "deleted": deleted,
                 "message": "No encrypted local backups are available."}
 
     backup = eligible[0]
