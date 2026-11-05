@@ -33,8 +33,10 @@ class Github:
             with self.opener(Request(API + path, headers=headers), timeout=30) as response:
                 return json.loads(response.read())
         except HTTPError as error:
-            if error.code in (401, 403, 404):
+            if error.code == 404:
                 return None
+            if error.code in (401, 403):
+                raise RuntimeError(f"GitHub refused the request ({error.code}): rate limit or missing token permission")
             raise
 
     def post(self, path: str, body: dict, method: str = "POST"):
@@ -53,9 +55,11 @@ def find_pr(gh: Github, repo: str, issue: int):
     """The merged (else latest) PR that references the issue, from the issue timeline."""
     events = gh.get(f"/repos/{repo}/issues/{issue}/timeline?per_page=100") or []
     numbers = [e["source"]["issue"]["number"] for e in events
-               if e.get("event") == "cross-referenced" and "pull_request" in e.get("source", {}).get("issue", {})]
+               if e.get("event") == "cross-referenced" and "pull_request" in e.get("source", {}).get("issue", {})
+               and e["source"]["issue"].get("repository", {}).get("full_name") == repo]
     prs = [p for p in (gh.get(f"/repos/{repo}/pulls/{n}") for n in dict.fromkeys(numbers)) if p]
-    prs = [p for p in prs if p["base"]["ref"] == "main"]
+    ref = re.compile(rf"#{issue}\b")
+    prs = [p for p in prs if p["base"]["ref"] == "main" and ref.search((p.get("title") or "") + " " + (p.get("body") or ""))]
     merged = [p for p in prs if p.get("merged_at")]
     return (merged or prs or [None])[-1]
 
@@ -70,8 +74,9 @@ def check_review(gh, repo, pr) -> dict:
     if last["commit_id"] != head:
         return result("review", "fail", f"last review is on {last['commit_id'][:7]}, final commit is {head[:7]}")
     same = last["user"]["login"] == pr["user"]["login"]
-    return result("review", "pass", f"review on final commit by {last['user']['login']}"
-                  + (" (same login as the PR author)" if same else ""))
+    if same:
+        return result("review", "warn", f"review on final commit is by the PR author's login ({last['user']['login']}); agents share it, so independence cannot be checked")
+    return result("review", "pass", f"review on final commit by {last['user']['login']}")
 
 
 def check_tests(gh, repo, pr) -> dict:
@@ -141,6 +146,8 @@ def check_issue(gh, repo, issue, token, version) -> dict:
     else:
         checks = [check_review(gh, repo, pr), check_tests(gh, repo, pr), check_ci(gh, repo, pr),
                   check_proof(gh, repo, issue, token), check_production(gh, repo, pr, version)]
+        if info["state"] == "open" and checks[-1]["status"] == "fail":
+            checks[-1] = result("production", "warn", checks[-1]["detail"] + " (issue is still open)")
         if info["state"] == "closed" and not ({"verified", "live"} & set(labels)):
             checks.append(result("label", "fail", "closed without the verified or live label"))
     return {"issue": issue, "title": info["title"], "state": info["state"], "labels": labels, "pr": pr and pr["number"],
@@ -151,6 +158,7 @@ def recent_issues(gh, repo) -> list[int]:
     since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 7 * 86400))
     closed = gh.get(f"/repos/{repo}/issues?state=closed&since={since}&per_page=50") or []
     verified = gh.get(f"/repos/{repo}/issues?state=open&labels=verified&per_page=50") or []
+    closed = [i for i in closed if i.get("state_reason") != "not_planned" and (i.get("closed_at") or "") >= since]
     return sorted({i["number"] for i in closed + verified if "pull_request" not in i})
 
 
@@ -196,13 +204,22 @@ def run(issue: int | None, env=os.environ, gh: Github | None = None, version=Non
 
 def main(argv: list[str]) -> int:
     issue = int(argv[argv.index("--issue") + 1]) if "--issue" in argv else None
+    scheduled = False
+    if issue is None and not sys.stdin.isatty():
+        try:  # Action input arrives as one JSON value on stdin
+            data = json.loads(sys.stdin.read() or "null")
+            issue = int(data["issue"]) if isinstance(data, dict) and data.get("issue") else None
+        except (ValueError, TypeError):
+            print("Input must be JSON like {\"issue\": 680}.", file=sys.stderr)
+            return 2
+        scheduled = issue is None
     try:
         outcome = run(issue)
     except Exception as error:  # report, never a traceback with request details
         print(f"Flow check failed ({type(error).__name__}).", file=sys.stderr)
         return 1
     print(json.dumps(outcome, indent=2))
-    return 1 if any(o.get("gaps") for o in outcome["issues"]) else 0
+    return 1 if issue and any(o.get("gaps") for o in outcome["issues"]) else 0
 
 
 if __name__ == "__main__":

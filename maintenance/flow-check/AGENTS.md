@@ -1,4 +1,4 @@
-﻿# Automaton app
+# Automaton app
 
 This folder contains an Automaton app. The local workflow is in
 `.automaton/agents/skills/automaton-app/SKILL.md`.

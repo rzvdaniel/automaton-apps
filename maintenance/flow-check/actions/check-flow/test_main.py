@@ -61,6 +61,17 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(out["mode"], "read-only")
         self.assertEqual(gh.posts, [])
 
+    def test_other_repo_pr_ignored(self):
+        ev = [{"event": "cross-referenced", "source": {"issue": {"number": 15, "pull_request": {}, "repository": {"full_name": "o/other"}}}}]
+        self.assertIsNone(main.find_pr(Fake({"/repos/r/issues/1/timeline?per_page=100": ev}), "r", 1))
+
+    def test_open_issue_production_is_warn(self):
+        gh = Fake({"/repos/r/issues/1": {"state": "open", "title": "t", "labels": []},
+                   "/repos/r/issues/1/timeline?per_page=100": [{"event": "cross-referenced", "source": {"issue": {"number": 5, "pull_request": {}, "repository": {"full_name": "r"}}}}],
+                   "/repos/r/pulls/5": dict(PR, title="x (#1)", body="")})
+        out = main.check_issue(gh, "r", 1, "", None)
+        self.assertEqual([c["status"] for c in out["checks"] if c["check"] == "production"], ["warn"])
+
     def test_report_comments_and_labels_once(self):
         gh = Fake({})
         o = {"issue": 1, "gaps": ["ci"], "labels": [], "checks": [{"check": "ci", "status": "fail", "detail": "d"}]}
