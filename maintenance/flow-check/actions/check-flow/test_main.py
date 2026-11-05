@@ -61,6 +61,10 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(out["mode"], "read-only")
         self.assertEqual(gh.posts, [])
 
+    def test_version_may_carry_tag_prefix(self):
+        gh = Fake({"/repos/r/git/ref/tags/server-v1.0.0": {"ref": "x"}, "/repos/r/compare/" + "b" * 40 + "...server-v1.0.0": {"status": "identical"}})
+        self.assertEqual(main.check_production(gh, "r", PR, "server-v1.0.0")["status"], "pass")
+
     def test_other_repo_pr_ignored(self):
         ev = [{"event": "cross-referenced", "source": {"issue": {"number": 15, "pull_request": {}, "repository": {"full_name": "o/other"}}}}]
         self.assertIsNone(main.find_pr(Fake({"/repos/r/issues/1/timeline?per_page=100": ev}), "r", 1))

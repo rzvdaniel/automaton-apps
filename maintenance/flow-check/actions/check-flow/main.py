@@ -125,6 +125,7 @@ def check_production(gh, repo, pr, version) -> dict:
         return result("production", "fail", "the PR is not merged")
     if not version:
         return result("production", "fail", "production does not report its version, so the merge commit cannot be confirmed")
+    version = re.sub(r"^server-v", "", str(version))  # /health may report the tag name
     tag = gh.get(f"/repos/{repo}/git/ref/tags/server-v{version}")
     if not tag:
         return result("production", "fail", f"no release tag server-v{version}")
