@@ -97,6 +97,18 @@ class SiteLinksTests(unittest.TestCase):
                     '<link rel="stylesheet" href="/a.css"><a href="/x">x</a>')
         self.assertEqual(parser.links, ["/a.css", "/x"])
 
+    def test_links_resolve_against_the_page_after_a_redirect(self):
+        def opener(request, timeout):
+            if request.full_url == "https://a.example/old":
+                return FakeResponse(b'<a href="/style.css">s</a>', 200, "https://b.example/", {"content-type": "text/html"})
+            return FakeResponse(b"", 200, request.full_url)
+        crawler = main.SiteCrawler(main.RateLimitedHttp(interval=0, opener=opener), [])
+        with patch.object(main, "is_public_host", return_value=True):
+            seen = []
+            crawler.check_external = lambda url: seen.append(url) or (False, "200")
+            crawler.crawl({"key": "k", "root": "https://a.example/old"})
+        self.assertEqual(seen, ["https://b.example/style.css"])
+
     def setUp(self):
         FixtureSiteHandler.broken = True
         FixtureSiteHandler.extra_broken = False
