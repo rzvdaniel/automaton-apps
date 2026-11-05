@@ -15,6 +15,7 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | Space Invaders | [space-invaders](space-invaders/) |
 | Automaton Off-site Backup — encrypted server backup copy for S3-compatible storage | [maintenance/offsite-backup](maintenance/offsite-backup/) |
 | Site Links — nightly link checker for Automaton sites | [maintenance/site-links](maintenance/site-links/) |
+| Flow Check — checks that issues went through review, tests, CI, proof and production | [maintenance/flow-check](maintenance/flow-check/) |
 
 Each app has its own source, dependencies, and `automaton.json`. Some examples use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 
