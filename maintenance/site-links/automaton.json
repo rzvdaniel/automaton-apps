@@ -1,26 +1,8 @@
 {
   "name": "Automaton Site Links",
   "application": {
-    "build": {
-      "timeoutSeconds": 900
-    },
-    "runtime": {
-      "port": 8080
-    },
-    "health": {
-      "startupTimeoutSeconds": 60
-    },
-    "storage": {
-      "dataDirectory": "data",
-      "mounts": []
-    },
     "secrets": [
-      {
-        "name": "GITHUB_TOKEN",
-        "description": "Fine-grained token with Issues read/write on rzvdaniel/automaton"
-      }
-    ],
-    "permissions": [],
-    "isStaticSite": false
+      { "name": "GITHUB_TOKEN", "description": "Fine-grained token with Issues read/write on rzvdaniel/automaton" }
+    ]
   }
 }
