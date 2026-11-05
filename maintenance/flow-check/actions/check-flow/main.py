@@ -191,6 +191,8 @@ def report(gh, repo, outcome) -> str:
 def run(issue: int | None, env=os.environ, gh: Github | None = None, version=None) -> dict:
     repo = env.get("REPO", "").strip() or "rzvdaniel/automaton"
     token = env.get("GITHUB_TOKEN", "").strip()
+    if token.lower() in ("none", "unset", "-"):  # Studio needs some value for every declared secret
+        token = ""
     gh = gh or Github(token)
     version = version or production_version(env.get("PRODUCTION_API_URL", "").strip() or "https://api.automaton.monster")
     numbers = [issue] if issue else recent_issues(gh, repo)
