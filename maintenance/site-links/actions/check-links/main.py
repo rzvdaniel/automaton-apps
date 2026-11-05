@@ -272,8 +272,10 @@ class SiteCrawler:
                 parser = LinkParser()
                 parser.feed(response.body[:MAX_PAGE_BYTES].decode(encoding, errors="replace"))
                 anchors = parser.anchors
-                base = normalize_url(urljoin(current, parser.base_href)) if parser.base_href else current
-                links = [urljoin(base or current, href) for href in parser.links]
+                # Resolve links against the page we landed on: a redirect may have moved us to another host.
+                landed = response.final_url or current
+                base = normalize_url(urljoin(landed, parser.base_href)) if parser.base_href else landed
+                links = [urljoin(base or landed, href) for href in parser.links]
             page = Page(current, response.status, content_type, anchors, links, response.error)
             pages[current] = page
             if len(response.body) > MAX_PAGE_BYTES:
