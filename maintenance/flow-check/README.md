@@ -21,7 +21,7 @@ Without input it checks issues closed in the last 7 days plus open `verified` on
 
 ## Settings and secret
 
-`REPO` (default `rzvdaniel/automaton`), `PRODUCTION_API_URL`. Secret `GITHUB_TOKEN` is optional: **without it the app is read-only** (public data only, 60 requests an hour, issue proof artifacts cannot be read so `proof` is `unknown`, nothing is posted). With a token (Issues read/write, Pull requests read) the nightly run adds the `flow-gap` label and one comment per issue when a check fails, and removes the label when the gaps are gone. It changes no other label.
+`REPO` (default `rzvdaniel/automaton`), `PRODUCTION_API_URL`. Secret `GITHUB_TOKEN`: Studio asks for a value for every secret, so enter `none` to run read-only. With `none` the app is read-only (public data only, 60 requests an hour, issue proof artifacts cannot be read so `proof` is `unknown`, nothing is posted). With a token (Issues read/write, Pull requests read) the nightly run adds the `flow-gap` label and one comment per issue when a check fails, and removes the label when the gaps are gone. It changes no other label.
 
 The manifest offers a nightly schedule (03:00 UTC).
 

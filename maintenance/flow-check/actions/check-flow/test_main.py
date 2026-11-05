@@ -72,6 +72,10 @@ class FlowTests(unittest.TestCase):
         out = main.check_issue(gh, "r", 1, "", None)
         self.assertEqual([c["status"] for c in out["checks"] if c["check"] == "production"], ["warn"])
 
+    def test_placeholder_token_is_read_only(self):
+        gh = Fake({"/repos/r/issues/1": {"state": "closed", "title": "t", "labels": []}})
+        self.assertEqual(main.run(1, {"REPO": "r", "GITHUB_TOKEN": "none"}, gh, "1.0.0")["mode"], "read-only")
+
     def test_report_comments_and_labels_once(self):
         gh = Fake({})
         o = {"issue": 1, "gaps": ["ci"], "labels": [], "checks": [{"check": "ci", "status": "fail", "detail": "d"}]}

@@ -6,7 +6,7 @@
       { "name": "PRODUCTION_API_URL", "description": "Public API URL of the production server (its /health reports the version)", "default": "https://api.automaton.monster" }
     ],
     "secrets": [
-      { "name": "GITHUB_TOKEN", "description": "Optional. Fine-grained token with Issues read/write and Pull requests read; without it the app only reads public data and posts nothing" }
+      { "name": "GITHUB_TOKEN", "description": "Fine-grained token (enter none for read-only) with Issues read/write and Pull requests read; none = reads public data only and posts nothing" }
     ],
     "schedules": [
       { "name": "Nightly flow check", "action": "check-flow", "cron": "0 3 * * *", "timeZone": "Etc/UTC", "input": {} }
