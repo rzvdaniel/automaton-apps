@@ -9,7 +9,7 @@ Install the app from the store page in Studio (**Install on your server**). The 
 - settings: `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and an optional `S3_PREFIX`;
 - secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`;
 - approval of the `backups:read` permission (a system administrator approves it);
-- the nightly schedule (04:30 UTC, after the 03:00 server backup), which you can skip.
+- the nightly schedule (04:30 UTC; move it if your server's 03:00 backup time is not UTC), which you can skip.
 
 | Provider | `S3_ENDPOINT` | `S3_REGION` |
 |---|---|---|
@@ -20,7 +20,7 @@ Install the app from the store page in Studio (**Install on your server**). The 
 
 Set `S3_REGION` for every provider except MinIO; a wrong region makes signing fail.
 
-Each install keeps its copies under `automaton/<server host>/<app ID>/` (the app ID comes from `AUTOMATON_APP_ID`), so two installs with different destinations or the same bucket never delete each other's copies. A custom `S3_PREFIX` must stay under `automaton/<server host>/`; give each install its own.
+Each install keeps its copies under `automaton/<server host>/<app ID>/` (the app ID comes from `AUTOMATON_APP_ID`), so two installs with different destinations or the same bucket never delete each other's copies. A custom `S3_PREFIX` must stay inside the install's own folder, for example `automaton/<server host>/<app ID>/weekly`; other prefixes are refused. Changing the API host name starts a new folder. Copies written by earlier versions of this app directly under `automaton/<server host>/` are no longer listed or pruned; delete them in the bucket when you no longer need them.
 
 If the server has no encrypted backup, the run fails and nothing in the bucket is deleted. Otherwise the Action keeps backups from the last 30 days and at least the 7 newest.
 

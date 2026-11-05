@@ -80,6 +80,17 @@ class OffsiteBackupTests(unittest.TestCase):
         keys = [o["Key"] for o in self.s3.list_objects_v2(Bucket="automaton-backups")["Contents"]]
         self.assertEqual(sorted(k.split("/")[2] for k in keys), ["app-one", "app-two"])
 
+    def test_custom_prefix_must_stay_in_the_installs_own_folder(self):
+        with patch.dict(os.environ, {"S3_PREFIX": "automaton/automaton.test/app-two/"}):
+            with self.assertRaises(main.BackupError):
+                main.run({})
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()), \
+                patch.dict(os.environ, {"S3_PREFIX": "automaton/automaton.test/app-one/weekly"}):
+            self.assertTrue(main.run({})["uploaded"])
+        keys = [o["Key"] for o in self.s3.list_objects_v2(Bucket="automaton-backups")["Contents"]]
+        self.assertTrue(keys[0].startswith("automaton/automaton.test/app-one/weekly/"))
+
     def test_missing_app_id_fails(self):
         with patch.dict(os.environ, {"AUTOMATON_APP_ID": ""}):
             with self.assertRaises(main.BackupError):

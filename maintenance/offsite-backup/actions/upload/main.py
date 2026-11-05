@@ -195,8 +195,8 @@ def run(input_data: dict) -> dict:
     if requested_prefix.startswith("/") or ".." in requested_prefix.split("/"):
         raise BackupError("prefix must be relative and cannot contain '..' segments.")
     prefix = requested_prefix.rstrip("/") + "/" if requested_prefix else default_prefix
-    if not prefix.startswith(server_prefix):
-        raise BackupError("prefix must stay within this server's default object key prefix.")
+    if not prefix.startswith(default_prefix):
+        raise BackupError("prefix must stay within this install's own folder (automaton/<server host>/<app ID>/).")
 
     status = api_json(base_url, "/api/install/backups", api_key)
     backups = status.get("backups")
