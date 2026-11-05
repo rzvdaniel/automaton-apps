@@ -2,22 +2,27 @@
 
 An Actions-only Automaton app that copies the newest encrypted server backup to S3-compatible storage. It requests only `backups:read`; it cannot read the server's private backup key or unencrypted backup folders.
 
-## Setup
+## Install
 
-1. Deploy this app to the server and approve its `backups:read` permission.
-2. Set `API_BASE_URL` to this server's API base URL and set `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` with `automaton secrets set`. Keep `API_BASE_URL` owner-managed; it is not a schedule input. Optional `S3_REGION` and `S3_PREFIX` settings default to `us-east-1` and `automaton/<server host>/`.
-   These settings are stored as app secrets because apps have no plain settings yet; only the access keys are really secret. Examples:
+Install the app from the store page in Studio (**Install on your server**). The install page asks for:
 
-   | Provider | `S3_ENDPOINT` | `S3_REGION` |
-   |---|---|---|
-   | Hetzner Object Storage | `https://fsn1.your-objectstorage.com` | `fsn1` (or `nbg1`, `hel1`) |
-   | Backblaze B2 | `https://s3.eu-central-003.backblazeb2.com` | `eu-central-003` |
-   | AWS S3 | `https://s3.eu-central-1.amazonaws.com` | `eu-central-1` |
-   | MinIO | your MinIO URL | `us-east-1` |
+- settings: `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and an optional `S3_PREFIX`;
+- secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`;
+- approval of the `backups:read` permission (a system administrator approves it);
+- the nightly schedule (04:30 UTC; move it if your server's 03:00 backup time is not UTC), which you can skip.
 
-   Set `S3_REGION` for every provider except MinIO; a wrong region makes signing fail. Use the server's public API URL for `API_BASE_URL` and keep it stable: the default prefix is built from its host, so a new host name starts a new folder in the bucket.
-3. In Studio, schedule the `upload` Action daily at 04:30 server time, after the 03:00 local backup. App manifests cannot declare schedules yet, so this step is needed after every fresh deploy.
-4. If the server has no encrypted backup, the run fails and nothing in the bucket is deleted. Otherwise the Action keeps backups from the last 30 days and at least the 7 newest.
+| Provider | `S3_ENDPOINT` | `S3_REGION` |
+|---|---|---|
+| Hetzner Object Storage | `https://fsn1.your-objectstorage.com` | `fsn1` (or `nbg1`, `hel1`) |
+| Backblaze B2 | `https://s3.eu-central-003.backblazeb2.com` | `eu-central-003` |
+| AWS S3 | `https://s3.eu-central-1.amazonaws.com` | `eu-central-1` |
+| MinIO | your MinIO URL | `us-east-1` |
+
+Set `S3_REGION` for every provider except MinIO; a wrong region makes signing fail.
+
+Each install keeps its copies under `automaton/<server host>/<app ID>/` (the app ID comes from `AUTOMATON_APP_ID`), so two installs with different destinations or the same bucket never delete each other's copies. A custom `S3_PREFIX` must stay inside the install's own folder, for example `automaton/<server host>/<app ID>/weekly`; other prefixes are refused. Changing the API host name starts a new folder. Copies written by earlier versions of this app directly under `automaton/<server host>/` are no longer listed or pruned; delete them in the bucket when you no longer need them.
+
+If the server has no encrypted backup, the run fails and nothing in the bucket is deleted. Otherwise the Action keeps backups from the last 30 days and at least the 7 newest.
 
 The Action skips an object whose `sha256` metadata already matches the newest local archive. New archives stream into a multipart upload; size and SHA-256 are checked before the upload is completed. Retention only removes timestamped Automaton backup archives under the configured prefix.
 

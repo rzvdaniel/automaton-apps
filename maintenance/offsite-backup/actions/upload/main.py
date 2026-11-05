@@ -45,6 +45,13 @@ def required_secret(name: str) -> str:
     return value
 
 
+def required_setting(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise BackupError(f"Required app setting {name} is not set.")
+    return value
+
+
 def parse_timestamp(name: str) -> datetime:
     if not isinstance(name, str) or not BACKUP_NAME.fullmatch(name):
         raise BackupError("The backup API returned an invalid backup name.")
@@ -168,24 +175,28 @@ def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_b
 
 
 def run(input_data: dict) -> dict:
-    base_url = required_secret("API_BASE_URL").rstrip("/")
+    base_url = required_setting("API_BASE_URL").rstrip("/")
     parsed = urlparse(base_url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password \
             or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
         raise BackupError("API_BASE_URL must be this server's HTTP(S) API base URL.")
     api_key = required_secret("APP_AUTOMATON_API_KEY")
-    bucket = required_secret("S3_BUCKET")
-    endpoint = required_secret("S3_ENDPOINT")
+    bucket = required_setting("S3_BUCKET")
+    endpoint = required_setting("S3_ENDPOINT")
     access_key = required_secret("S3_ACCESS_KEY_ID")
     secret_key = required_secret("S3_SECRET_ACCESS_KEY")
     region = os.environ.get("S3_REGION", "").strip() or "us-east-1"
-    default_prefix = f"automaton/{parsed.netloc}/"
+    app_id = os.environ.get("AUTOMATON_APP_ID", "").strip()
+    if not app_id or "/" in app_id:
+        raise BackupError("AUTOMATON_APP_ID is not set; run this Action from an installed app.")
+    server_prefix = f"automaton/{parsed.netloc}/"
+    default_prefix = f"{server_prefix}{app_id}/"
     requested_prefix = os.environ.get("S3_PREFIX", "").strip()
     if requested_prefix.startswith("/") or ".." in requested_prefix.split("/"):
         raise BackupError("prefix must be relative and cannot contain '..' segments.")
     prefix = requested_prefix.rstrip("/") + "/" if requested_prefix else default_prefix
     if not prefix.startswith(default_prefix):
-        raise BackupError("prefix must stay within this server's default object key prefix.")
+        raise BackupError("prefix must stay within this install's own folder (automaton/<server host>/<app ID>/).")
 
     status = api_json(base_url, "/api/install/backups", api_key)
     backups = status.get("backups")

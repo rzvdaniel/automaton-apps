@@ -32,6 +32,7 @@ class OffsiteBackupTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {
             "APP_AUTOMATON_API_KEY": "scoped-test-key",
             "API_BASE_URL": "https://automaton.test",
+            "AUTOMATON_APP_ID": "app-one",
             "S3_ENDPOINT": "https://s3.example.invalid",
             "S3_BUCKET": "automaton-backups",
             "S3_ACCESS_KEY_ID": "test-access",
@@ -62,13 +63,38 @@ class OffsiteBackupTests(unittest.TestCase):
             self.assertEqual(first["backup"], self.name)
             self.assertEqual(first["retained"], 1)
             self.assertEqual(first["deleted"], 0)
-            stored = self.s3.get_object(Bucket="automaton-backups", Key=f"automaton/automaton.test/{self.name}.tar.age")
+            stored = self.s3.get_object(Bucket="automaton-backups", Key=f"automaton/automaton.test/app-one/{self.name}.tar.age")
             self.assertEqual(stored["Body"].read(), self.archive)
             self.assertEqual(stored["Metadata"]["sha256"], self.digest)
 
             second = main.run({})
             self.assertFalse(second["uploaded"])
             self.assertEqual(open_url.call_count, 3)  # Two metadata reads, one archive download.
+
+    def test_two_installs_keep_copies_under_their_own_prefix(self):
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()):
+            main.run({})
+            with patch.dict(os.environ, {"AUTOMATON_APP_ID": "app-two"}):
+                self.assertTrue(main.run({})["uploaded"])
+        keys = [o["Key"] for o in self.s3.list_objects_v2(Bucket="automaton-backups")["Contents"]]
+        self.assertEqual(sorted(k.split("/")[2] for k in keys), ["app-one", "app-two"])
+
+    def test_custom_prefix_must_stay_in_the_installs_own_folder(self):
+        with patch.dict(os.environ, {"S3_PREFIX": "automaton/automaton.test/app-two/"}):
+            with self.assertRaises(main.BackupError):
+                main.run({})
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()), \
+                patch.dict(os.environ, {"S3_PREFIX": "automaton/automaton.test/app-one/weekly"}):
+            self.assertTrue(main.run({})["uploaded"])
+        keys = [o["Key"] for o in self.s3.list_objects_v2(Bucket="automaton-backups")["Contents"]]
+        self.assertTrue(keys[0].startswith("automaton/automaton.test/app-one/weekly/"))
+
+    def test_missing_app_id_fails(self):
+        with patch.dict(os.environ, {"AUTOMATON_APP_ID": ""}):
+            with self.assertRaises(main.BackupError):
+                main.run({})
 
     def test_aborts_upload_when_download_hash_does_not_match(self):
         self.status["backups"][1]["archiveSha256"] = "0" * 64
