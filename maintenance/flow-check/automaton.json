@@ -1,0 +1,15 @@
+{
+  "name": "Automaton Flow Check",
+  "application": {
+    "settings": [
+      { "name": "REPO", "description": "GitHub repository to check, owner/name", "default": "rzvdaniel/automaton" },
+      { "name": "PRODUCTION_API_URL", "description": "Public API URL of the production server (its /health reports the version)", "default": "https://api.automaton.monster" }
+    ],
+    "secrets": [
+      { "name": "GITHUB_TOKEN", "description": "Optional. Fine-grained token with Issues read/write and Pull requests read; without it the app only reads public data and posts nothing" }
+    ],
+    "schedules": [
+      { "name": "Nightly flow check", "action": "check-flow", "cron": "0 3 * * *", "timeZone": "Etc/UTC", "input": {} }
+    ]
+  }
+}
