@@ -216,6 +216,9 @@ class LinkParser(HTMLParser):
         if tag.lower() == "base" and self.base_href is None:
             self.base_href = values.get("href")
         if tag.lower() in ("a", "area", "link") and "href" in values:
+            rel = values.get("rel", "").lower().split()
+            if tag.lower() == "link" and ({"preconnect", "dns-prefetch"} & set(rel)):
+                return
             self.links.append(values["href"])
 
 

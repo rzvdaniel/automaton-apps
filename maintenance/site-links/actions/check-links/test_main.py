@@ -91,6 +91,12 @@ class FakeGithub:
 
 
 class SiteLinksTests(unittest.TestCase):
+    def test_parser_ignores_preconnect_and_dns_prefetch_hints(self):
+        parser = main.LinkParser()
+        parser.feed('<link rel="preconnect" href="https://f.example/"><link rel="dns-prefetch" href="https://d.example/">'
+                    '<link rel="stylesheet" href="/a.css"><a href="/x">x</a>')
+        self.assertEqual(parser.links, ["/a.css", "/x"])
+
     def setUp(self):
         FixtureSiteHandler.broken = True
         FixtureSiteHandler.extra_broken = False
