@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Builds catalog.json, the index every Automaton server reads, from catalog-apps.json and each app's automaton.json.
 
-  generate_catalog.py            write catalog.json
-  generate_catalog.py --validate fail when an entry is invalid (used on pull requests, where pinned commits are not final)
-  generate_catalog.py --check    fail when catalog.json is out of date or an entry is invalid
+  generate_catalog.py [--out FILE]  write the catalog (default: catalog.json next to the README, which git ignores)
+  generate_catalog.py --validate    fail when an entry is invalid (used on pull requests, where pinned commits are not final)
+  generate_catalog.py --check FILE  fail when FILE differs from the catalog generated now
 
 Each app is pinned to the last commit that changed its folder, so an install always gets the files that were listed.
 """
@@ -75,13 +75,14 @@ def main() -> int:
         return 1
     if "--validate" in sys.argv:
         return 0
-    target = ROOT / "catalog.json"
     text = render(catalog)
     if "--check" in sys.argv:
+        target = Path(sys.argv[sys.argv.index("--check") + 1])
         if not target.exists() or target.read_text(encoding="utf-8") != text:
-            print("catalog.json is out of date; it is regenerated when a change is merged to main.", file=sys.stderr)
+            print(f"{target} is not the catalog generated from main.", file=sys.stderr)
             return 1
         return 0
+    target = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else ROOT / "catalog.json"
     target.write_text(text, encoding="utf-8")
     return 0
 

@@ -1,7 +1,8 @@
 name: Catalog
 
-# catalog.json is the index every Automaton server reads. Pull requests check that every entry is valid;
-# a merge to main regenerates it (each app is pinned to the last commit that changed its folder) and verifies it.
+# catalog.json is the index every Automaton server reads. Pull requests check that every entry is valid.
+# A merge to main regenerates it (each app is pinned to the last commit that changed its folder), publishes it as the
+# only file of the `catalog` branch (main requires pull requests, so a workflow cannot commit there) and verifies it.
 on:
   pull_request:
   push:
@@ -24,15 +25,21 @@ jobs:
       - name: Check every entry (pull request)
         if: github.event_name == 'pull_request'
         run: python tools/generate_catalog.py --validate
-      - name: Regenerate and publish (main)
+      - name: Regenerate and publish to the catalog branch (main)
         if: github.event_name == 'push'
         run: |
-          python tools/generate_catalog.py
-          if ! git diff --quiet -- catalog.json || [ -n "$(git ls-files --others --exclude-standard catalog.json)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add catalog.json
-            git commit -m "Update catalog.json"
-            git push
-          fi
-          python tools/generate_catalog.py --check
+          mkdir "$RUNNER_TEMP/catalog"
+          python tools/generate_catalog.py --out "$RUNNER_TEMP/catalog/catalog.json"
+          cd "$RUNNER_TEMP/catalog"
+          git init -q -b catalog
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog.json
+          git commit -q -m "catalog.json generated from ${GITHUB_SHA}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" catalog
+      - name: Verify the published catalog (main)
+        if: github.event_name == 'push'
+        run: |
+          git fetch -q origin catalog
+          git show origin/catalog:catalog.json > "$RUNNER_TEMP/published.json"
+          python tools/generate_catalog.py --check "$RUNNER_TEMP/published.json"
