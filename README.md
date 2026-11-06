@@ -9,10 +9,6 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | App | Source |
 | --- | --- |
 | Untranslatable — a multiplayer word-bluffing game | [games/untranslatable](games/untranslatable/) |
-| Automaton Blog | [blog](blog/) |
-| IIS Tracker | [iis-tracker-v2](iis-tracker-v2/) |
-| Image Converter Studio | [image-converter-studio](image-converter-studio/) |
-| Space Invaders | [space-invaders](space-invaders/) |
 | Automaton Off-site Backup — encrypted server backup copy for S3-compatible storage | [maintenance/offsite-backup](maintenance/offsite-backup/) |
 | Site Links — nightly link checker for Automaton sites | [maintenance/site-links](maintenance/site-links/) |
 | Flow Check — checks that issues went through review, tests, CI, proof and production | [maintenance/flow-check](maintenance/flow-check/) |
