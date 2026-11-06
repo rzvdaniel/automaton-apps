@@ -11,6 +11,11 @@ on:
 permissions:
   contents: write
 
+# Publishing runs one at a time and in order, so an older run cannot overwrite a newer catalog.
+concurrency:
+  group: catalog-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
 jobs:
   catalog:
     runs-on: ubuntu-latest
@@ -41,5 +46,5 @@ jobs:
         if: github.event_name == 'push'
         run: |
           git fetch -q origin catalog
-          git show origin/catalog:catalog.json > "$RUNNER_TEMP/published.json"
+          git show FETCH_HEAD:catalog.json > "$RUNNER_TEMP/published.json"
           python tools/generate_catalog.py --check "$RUNNER_TEMP/published.json"
