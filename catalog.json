@@ -30,7 +30,7 @@
       "summary": "Crawls the public website, docs and store and opens a GitHub issue when links break.",
       "category": "Maintenance",
       "folder": "maintenance/site-links",
-      "commit": "fe2c35c94903181f40d9bf20bb8878cf5d6955b1",
+      "commit": "24e520bb7fb45e666a75b146f07b1c2f9ac7f502",
       "minServerVersion": "0.2.31",
       "permissions": []
     }
