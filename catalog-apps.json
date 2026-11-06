@@ -1,24 +1,7 @@
 {
   "apps": [
-    {
-      "folder": "maintenance/offsite-backup",
-      "category": "Maintenance",
-      "minServerVersion": "0.2.31"
-    },
-    {
-      "folder": "maintenance/flow-check",
-      "category": "Maintenance",
-      "minServerVersion": "0.2.31"
-    },
-    {
-      "folder": "maintenance/site-links",
-      "category": "Maintenance",
-      "minServerVersion": "0.2.31"
-    },
-    {
-      "folder": "maintenance/e2e-catalog-test",
-      "category": "Testing",
-      "minServerVersion": "0.2.31"
-    }
+    { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.31" },
+    { "folder": "maintenance/flow-check", "category": "Maintenance", "minServerVersion": "0.2.31" },
+    { "folder": "maintenance/site-links", "category": "Maintenance", "minServerVersion": "0.2.31" }
   ]
 }
