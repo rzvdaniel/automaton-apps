@@ -17,3 +17,7 @@ Each issue has a hidden `site-links:<key>` marker and the `maintenance` label. E
 ```sh
 python3 -m unittest discover -s actions/check-links -p 'test_*.py'
 ```
+
+## Install
+
+Install it from **Apps → Catalog** on your Automaton server; the install is pinned to the commit the catalog lists.
