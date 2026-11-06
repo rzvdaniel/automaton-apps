@@ -15,7 +15,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(app["permissions"], ["backups:read"])
 
     def test_problems_report_bad_entries(self):
-        bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "commit": "abc", "minServerVersion": "1"}]}
+        bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}
         self.assertEqual(len(g.problems(bad)), 3)
 
     def test_folder_names_servers_would_reject_are_reported(self):
