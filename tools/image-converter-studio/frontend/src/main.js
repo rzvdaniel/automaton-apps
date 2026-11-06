@@ -287,6 +287,13 @@ function renderPresets() {
   `;
 }
 
+function renderSvgImage(container, svgText) {
+  const image = document.createElement('img');
+  image.alt = 'SVG preview';
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+  container.replaceChildren(image);
+}
+
 function renderSvgPreview() {
   if (!state.svgText || !state.metadata) {
     elements.svgPreview.hidden = true;
@@ -298,7 +305,7 @@ function renderSvgPreview() {
 
   elements.svgPreview.hidden = false;
   elements.svgEmptyState.hidden = true;
-  elements.svgPreview.innerHTML = state.svgText;
+  renderSvgImage(elements.svgPreview, state.svgText);
   elements.svgDimensions.textContent = `${Math.round(state.metadata.width)} x ${Math.round(state.metadata.height)} source`;
 }
 
@@ -367,7 +374,7 @@ function renderControls() {
   elements.dropzoneThumb.hidden = !hasUploadedFile;
   elements.dropzoneMeta.hidden = !hasUploadedFile;
   if (hasUploadedFile) {
-    elements.dropzoneThumbPreview.innerHTML = state.svgText;
+    renderSvgImage(elements.dropzoneThumbPreview, state.svgText);
     elements.dropzoneFileName.textContent = state.sourceLabel || 'SVG file';
     elements.dropzoneFileName.title = state.sourceLabel || 'SVG file';
     elements.dropzoneFileDimensions.textContent = `${Math.round(state.metadata.width)}x${Math.round(state.metadata.height)} px`;
