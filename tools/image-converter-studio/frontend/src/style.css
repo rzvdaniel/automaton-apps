@@ -305,7 +305,7 @@ textarea:focus-visible {
   padding: 6px;
 }
 
-.dropzone__thumb-preview svg {
+.dropzone__thumb-preview img {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -709,7 +709,7 @@ input[type='color'] {
   transition: transform 220ms ease, filter 220ms ease;
 }
 
-.preview-render svg,
+.preview-render img,
 #png-preview {
   width: 100%;
   height: 100%;
