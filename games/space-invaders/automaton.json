@@ -1,0 +1,25 @@
+{
+  "name": "Space Invaders",
+  "summary": "Play a fast arcade space shooter in your browser.",
+  "description": "An instantly playable arcade game inspired by Space Invaders.",
+  "category": "Games",
+  "application": {
+    "build": {
+      "image": "node:22-bookworm-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "npm ci && npm run build"
+        ],
+        "workingDirectory": "frontend"
+      },
+      "outputDirectory": "frontend/dist",
+      "timeoutSeconds": 900
+    },
+    "health": {
+      "path": "/index.html"
+    },
+    "isStaticSite": true
+  }
+}
