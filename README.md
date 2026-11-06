@@ -30,3 +30,7 @@ Keep changes within the relevant app folder, document any new setup requirements
 ## License
 
 This repository is licensed under the [Apache License 2.0](LICENSE). Third-party dependencies and assets retain their respective licenses.
+
+## Catalog
+
+`catalog.json` is the index every Automaton server reads to list installable apps (Apps → Catalog). It is generated: do not edit it. To list an app, add its folder to `catalog-apps.json` (category and the oldest Automaton Server version that can run it) and give the app a `name` and `summary` in its `automaton.json`. CI checks every entry on pull requests and, when a change is merged to `main`, regenerates `catalog.json` and pins each app to the last commit that changed its folder. A server contacts `raw.githubusercontent.com` to read it, so GitHub sees the server's IP address; nothing else about the server is sent.
