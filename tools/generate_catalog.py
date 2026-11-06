@@ -18,6 +18,7 @@ SCHEMA_VERSION = 1
 ROOT = Path(__file__).resolve().parent.parent
 SHA = re.compile(r"^[0-9a-f]{40}$")
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+FOLDER = re.compile(r"^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$")  # the same rule servers apply
 
 
 def pinned_commit(folder: str) -> str:
@@ -52,6 +53,8 @@ def problems(catalog: dict) -> list:
     for app in catalog["apps"]:
         if not SHA.match(app["commit"]):
             found.append(f"{app['id']}: no pinned commit (is the folder committed?)")
+        if not FOLDER.match(app["folder"]) or len(app["folder"]) > 300 or ".." in app["folder"].split("/"):
+            found.append(f"{app['id']}: folder name is not allowed")
         if not VERSION.match(app["minServerVersion"]):
             found.append(f"{app['id']}: minServerVersion must look like 1.2.3")
         for field in ("name", "summary", "category"):
