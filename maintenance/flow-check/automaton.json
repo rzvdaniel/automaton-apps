@@ -1,5 +1,7 @@
 {
   "name": "Automaton Flow Check",
+  "summary": "Checks whether an issue really went through review, tests, CI, proof and production.",
+  "description": "Reads GitHub and reports pass, warn or fail per issue for the review, tests, CI, proof and production checks.",
   "application": {
     "settings": [
       { "name": "REPO", "description": "GitHub repository to check, owner/name", "default": "rzvdaniel/automaton" },
