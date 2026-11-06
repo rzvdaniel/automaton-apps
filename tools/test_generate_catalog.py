@@ -1,3 +1,4 @@
+import json
 import unittest
 
 import generate_catalog as g
@@ -21,6 +22,13 @@ class CatalogTests(unittest.TestCase):
     def test_folder_names_servers_would_reject_are_reported(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "a/./b", "commit": "a" * 40, "minServerVersion": "1.2.3"}]}
         self.assertEqual(len(g.problems(bad)), 1)
+
+    def test_committed_catalog_is_valid_and_lives_at_the_repository_root(self):
+        committed = g.ROOT / "catalog.json"
+        self.assertTrue(committed.exists(), "catalog.json must be committed in main")
+        catalog = json.loads(committed.read_text(encoding="utf-8"))
+        self.assertEqual(catalog["schemaVersion"], 1)
+        self.assertEqual(g.problems(catalog), [])
 
 
 if __name__ == "__main__":
