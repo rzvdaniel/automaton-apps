@@ -53,7 +53,7 @@ def problems(catalog: dict) -> list:
     for app in catalog["apps"]:
         if not SHA.match(app["commit"]):
             found.append(f"{app['id']}: no pinned commit (is the folder committed?)")
-        if not FOLDER.match(app["folder"]) or len(app["folder"]) > 300 or ".." in app["folder"].split("/"):
+        if not FOLDER.fullmatch(app["folder"]) or len(app["folder"]) > 300 or {".", ".."} & set(app["folder"].split("/")):
             found.append(f"{app['id']}: folder name is not allowed")
         if not VERSION.match(app["minServerVersion"]):
             found.append(f"{app['id']}: minServerVersion must look like 1.2.3")

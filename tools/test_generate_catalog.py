@@ -19,7 +19,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(len(g.problems(bad)), 3)
 
     def test_folder_names_servers_would_reject_are_reported(self):
-        bad = {"apps": [{"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "my apps/x", "commit": "a" * 40, "minServerVersion": "1.2.3"}]}
+        bad = {"apps": [{"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "a/./b", "commit": "a" * 40, "minServerVersion": "1.2.3"}]}
         self.assertEqual(len(g.problems(bad)), 1)
 
 
