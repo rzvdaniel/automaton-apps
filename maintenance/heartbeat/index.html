@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heartbeat</title>
+<style>
+  body{font:16px system-ui,sans-serif;margin:2rem auto;max-width:60rem;padding:0 1rem}
+  table{border-collapse:collapse;width:100%} td,th{padding:.4rem .5rem;border-bottom:1px solid #8884;text-align:left;vertical-align:middle}
+  input{font:inherit;padding:.3rem .4rem} input.url{width:100%;box-sizing:border-box;font-size:.8rem}
+  .up{color:#157f3b}.late{color:#b3261e}.new{color:#8a6100}.error{color:#b3261e} form{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+  button{font:inherit;padding:.3rem .8rem;cursor:pointer}
+</style>
+</head>
+<body>
+<h1>Heartbeat</h1>
+<form id="login"><input id="token" type="password" placeholder="Admin token" autocomplete="current-password" required><button>Sign in</button></form>
+<p id="message" class="error"></p>
+<section id="app" hidden>
+  <form id="create">
+    <input id="name" placeholder="Name, e.g. db-dump" maxlength="80" required>
+    <input id="period" placeholder="Every, e.g. 24h" size="10" required>
+    <input id="grace" placeholder="Grace, e.g. 1h" size="10">
+    <button>Create check</button>
+  </form>
+  <table><thead><tr><th>Name</th><th>Status</th><th>Every</th><th>Grace</th><th>Last check-in</th><th>Check-in URL</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+  <p><small>Your job calls the check-in URL (GET or POST) after each run, for example <code>curl -fsS URL</code>. Anyone with the URL can check in for that job; keep it private.</small></p>
+</section>
+<script>
+const $ = id => document.getElementById(id);
+const secs = n => n < 60 ? n + 's' : [[86400,'d'],[3600,'h'],[60,'m']].reduce((o, [s, u]) => { const k = Math.floor(n / s); n -= k * s; return k ? o + k + u + ' ' : o; }, '').trim();
+async function api(method, path, body) {
+  const response = await fetch('/api/checks' + path, { method, headers: { Authorization: 'Bearer ' + sessionStorage.getItem('token'), 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  if (response.status === 401 || response.status === 503) { sessionStorage.removeItem('token'); $('app').hidden = true; $('login').hidden = false; }
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Request failed (' + response.status + ')');
+  return response.status === 204 ? null : response.json();
+}
+async function refresh() {
+  try {
+    const checks = await api('GET', '');
+    $('message').textContent = ''; $('login').hidden = true; $('app').hidden = false;
+    const rows = $('rows'); rows.replaceChildren();
+    for (const c of checks) {
+      const tr = rows.insertRow();
+      tr.insertCell().textContent = c.name;
+      const st = tr.insertCell(); st.textContent = c.status === 'late' ? 'LATE' : c.status === 'new' ? 'waiting' : 'OK'; st.className = c.status;
+      tr.insertCell().textContent = secs(c.period); tr.insertCell().textContent = secs(c.grace) || '0';
+      tr.insertCell().textContent = c.last_ping ? new Date(c.last_ping * 1000).toLocaleString() : 'never';
+      const input = document.createElement('input'); input.className = 'url'; input.readOnly = true; input.value = location.origin + '/ping/' + c.token;
+      input.onfocus = () => input.select(); tr.insertCell().append(input);
+      const del = document.createElement('button'); del.textContent = 'Delete';
+      del.onclick = async () => { if (confirm('Delete check ' + c.name + '?')) { try { await api('DELETE', '/' + c.id); refresh(); } catch (e) { $('message').textContent = e.message; } } };
+      tr.insertCell().append(del);
+    }
+  } catch (e) { $('message').textContent = e.message; }
+}
+$('login').onsubmit = e => { e.preventDefault(); sessionStorage.setItem('token', $('token').value); $('token').value = ''; refresh(); };
+$('create').onsubmit = async e => {
+  e.preventDefault();
+  try { await api('POST', '', { name: $('name').value, period: $('period').value, grace: $('grace').value }); e.target.reset(); refresh(); }
+  catch (err) { $('message').textContent = err.message; }
+};
+if (sessionStorage.getItem('token')) refresh();
+setInterval(() => sessionStorage.getItem('token') && refresh(), 30000);
+</script>
+</body>
+</html>
