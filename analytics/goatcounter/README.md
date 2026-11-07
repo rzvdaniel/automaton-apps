@@ -15,9 +15,10 @@ Asked when you install, used the first time the database is created:
 
 Statistics (SQLite) are kept in the app data directory, so they survive redeploys and restarts. GoatCounter reserves environment variables that start with `GOATCOUNTER_`, so the settings use the `GC_` prefix.
 
-## Known limits on the platform (until fixed)
+## Platform notes (Automaton server 0.2.55 or later)
 
-- GoatCounter picks the site from the request's `Host` header, but Automaton passes the address of its own proxy instead of the public host ([#805](https://github.com/rzvdaniel/automaton/issues/805)), and drops the body of web form posts ([#802](https://github.com/rzvdaniel/automaton/issues/802)). Signing in and counting page views through the public address therefore do not work yet.
+The platform passes the visitor's `Host` and form bodies to the app, so sign-in and page counting work at the app address.
+
 - The container runs as uid 1000 (`runtime.user`) so the Runner (also uid 1000) can delete the app's data ([#804](https://github.com/rzvdaniel/automaton/issues/804)).
 
 ## How it is sourced (approach B, built from a pinned release)
