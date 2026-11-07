@@ -20,7 +20,7 @@
         "executable": "sh",
         "arguments": [
           "-c",
-          "D=\"$AUTOMATON_APP_DATA_DIR\" && rm -rf \"$D/code\" && mkdir -p \"$D/code\" \"$D/state/favicons\" \"$D/state/previews\" \"$D/state/assets\" && cd /etc/linkding && for f in *; do [ \"$f\" = data ] || cp -r \"$f\" \"$D/code/\"; done && ln -s /etc/linkding/.venv \"$D/code/.venv\" && ln -s \"$D/state\" \"$D/code/data\" && cd \"$D/code\" && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && { python manage.py run_huey -f & } && grep -vE \"^(uid|gid) *=\" uwsgi.ini > /tmp/uwsgi.ini && exec uwsgi --http \"[::]:$AUTOMATON_PORT\" /tmp/uwsgi.ini"
+          "D=\"$AUTOMATON_APP_DATA_DIR\" && rm -rf \"$D/code\" && mkdir -p \"$D/code\" \"$D/state/favicons\" \"$D/state/previews\" \"$D/state/assets\" && cd /etc/linkding && for f in *; do [ \"$f\" = data ] || cp -r \"$f\" \"$D/code/\" || exit 1; done && ln -s /etc/linkding/.venv \"$D/code/.venv\" && ln -s \"$D/state\" \"$D/code/data\" && cd \"$D/code\" && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && python manage.py migrate_tasks && { python manage.py run_huey -f & } && grep -vE \"^(uid|gid) *=\" uwsgi.ini > /tmp/uwsgi.ini && exec uwsgi --http \"[::]:$AUTOMATON_PORT\" /tmp/uwsgi.ini"
         ],
         "workingDirectory": "."
       },
