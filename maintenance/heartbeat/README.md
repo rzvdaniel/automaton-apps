@@ -38,9 +38,9 @@ If the webhook is unreachable the alert is retried on the next pass.
 ## Security
 
 - Check-in URLs hold a random 192-bit token. Anyone who has a URL can check in for that job, so keep them like passwords; delete the check to invalidate its URL. An unknown token gets 404.
-- The app's address is public, but the page only offers a sign-in: the list, create and delete need the admin token (sent as a Bearer token; wrong tokens are slowed down). Use a long random one.
+- The app's address is public, but the page only offers a sign-in: the list, create and delete need the admin token (sent as a Bearer token). Use a long random one: a wrong token only costs a short delay per attempt.
 - Logs, and the request log, never contain check-in tokens, the admin token or the webhook URL. The alert text names the check, not its URL.
-- Checks and their tokens are stored in the app's data directory (`checks.json`, owner-only), so a restart does not repeat alerts.
+- Checks and their tokens are stored in the app's data directory (`checks.json`, owner-only), so a restart does not repeat alerts. If that file is damaged the app refuses to start (the log says why) instead of overwriting it.
 
 ## API
 

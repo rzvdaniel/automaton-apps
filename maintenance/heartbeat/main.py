@@ -66,11 +66,19 @@ class App:
         return self.post(self.webhook, {"text": text, "content": text, "event": event, "check": name})
 
     def check_overdue(self) -> int:
+        """Finds overdue checks and sends their alerts. The webhook is called without the lock, so a slow or
+        failing webhook never delays check-ins."""
         with self.lock:
-            sent = heartbeat.run_pass(self.checks, self.now(), self.send)
-            if sent:
+            plan = heartbeat.plan_alerts(self.checks, self.now())
+        delivered = [(check_id, event) for check_id, event, text, name in plan if self.send(event, text, name)]
+        if delivered:
+            with self.lock:
+                for check_id, event in delivered:
+                    check = next((c for c in self.checks if c["id"] == check_id), None)
+                    if check:
+                        heartbeat.confirm(check, event)
                 heartbeat.save_checks(self.path, self.checks)
-            return sent
+        return len(delivered)
 
     def loop(self) -> None:
         while True:
@@ -171,7 +179,7 @@ def make_handler(app: App, page: bytes):
             elif not rest and self.command == "POST":
                 try:
                     length = int(self.headers.get("Content-Length", 0))
-                    if length > MAX_BODY:
+                    if length < 0 or length > MAX_BODY:
                         return self.json(413, {"error": "request too large"})
                     body = json.loads(self.rfile.read(length) or b"{}")
                     if not isinstance(body, dict):
@@ -198,7 +206,11 @@ def make_handler(app: App, page: bytes):
 
 
 def main() -> int:
-    app = App()
+    try:
+        app = App()
+    except heartbeat.CorruptState as error:
+        log(f"cannot start: {error}")
+        return 1
     if len(app.admin_token) < MIN_ADMIN_TOKEN:
         log(f"ADMIN_TOKEN is not set (or shorter than {MIN_ADMIN_TOKEN} characters): checks cannot be managed, existing check-ins still work")
     page = (Path(__file__).parent / "index.html").read_bytes()

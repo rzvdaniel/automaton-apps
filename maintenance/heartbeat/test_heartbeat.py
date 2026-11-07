@@ -127,10 +127,18 @@ class Storage(unittest.TestCase):
             heartbeat.save_checks(path, [check])
             self.assertEqual(heartbeat.load_checks(path), [check])
             self.assertEqual(os.stat(path).st_mode & 0o077, 0)
-            Path(path).write_text("[1, {\"id\": 1}]")
-            self.assertEqual(heartbeat.load_checks(path), [])
-            Path(path).write_text("{broken")
-            self.assertEqual(heartbeat.load_checks(path), [])
+            for damaged in ("[1, {\"id\": 1}]", "{broken", "{}", ""):
+                Path(path).write_text(damaged)
+                with self.assertRaises(heartbeat.CorruptState, msg=damaged):
+                    heartbeat.load_checks(path)
+                self.assertEqual(Path(path).read_text(), damaged)   # never rewritten by loading
+
+    def test_old_records_get_defaults(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "checks.json")
+            Path(path).write_text(json.dumps([{"id": "a", "name": "n", "token": "t", "period": 60, "grace": 0, "created": 1}]))
+            check = heartbeat.load_checks(path)[0]
+            self.assertEqual((check["last_ping"], check["pings"], check["alerted"]), (None, 0, "up"))
 
 
 class Server(unittest.TestCase):
@@ -219,6 +227,32 @@ class Server(unittest.TestCase):
         self.assertEqual(self.request("DELETE", "/api/checks/" + check["id"])[0], 204)
         self.assertEqual(self.request("DELETE", "/api/checks/" + check["id"])[0], 404)
         self.assertEqual(self.request("GET", "/ping/" + check["token"], token=None)[0], 404)
+
+    def test_slow_webhook_does_not_block_check_ins(self):
+        check = self.create()
+        self.clock[0] += 200000
+        release, started = threading.Event(), threading.Event()
+        def slow_post(url, payload):
+            started.set(); release.wait(5); return True
+        self.app.post = slow_post
+        worker = threading.Thread(target=self.app.check_overdue)
+        worker.start()
+        self.assertTrue(started.wait(5))
+        self.assertEqual(self.request("GET", "/ping/" + check["token"], token=None)[0], 200)   # not blocked by the send
+        release.set(); worker.join(5)
+        self.app.check_overdue()
+        self.assertEqual(self.request("GET", "/api/checks")[1][0]["status"], "up")
+
+    def test_negative_content_length_is_refused(self):
+        connection = http.client.HTTPConnection("127.0.0.1", self.httpd.server_port, timeout=5)
+        connection.request("POST", "/api/checks", body=b"", headers={"Authorization": "Bearer " + TOKEN, "Content-Length": "-5"})
+        self.assertIn(connection.getresponse().status, (400, 413))
+        connection.close()
+
+    def test_app_refuses_to_start_on_a_damaged_file(self):
+        Path(self.folder.name, "checks.json").write_text("{broken")
+        with self.assertRaises(heartbeat.CorruptState):
+            main.App({"AUTOMATON_APP_DATA_DIR": self.folder.name})
 
     def test_page_health_and_unknown_routes(self):
         self.assertEqual(self.request("GET", "/", token=None), (200, b"<html>page</html>"))

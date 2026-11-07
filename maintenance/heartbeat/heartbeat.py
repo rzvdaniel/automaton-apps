@@ -19,6 +19,10 @@ MAX_NAME = 80
 _UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 
 
+class CorruptState(RuntimeError):
+    """The stored checks cannot be used; the app refuses to start rather than overwrite them."""
+
+
 class InvalidInput(ValueError):
     """A request value the caller can fix; the message is safe to show."""
 
@@ -119,13 +123,22 @@ def message(event: str, check: dict, now: float) -> str:
     return f"RECOVERED: {name} checked in again"
 
 
-def run_pass(checks: list[dict], now: float, send) -> int:
-    """Sends the alerts that changed state. `send(event, text, name)` returns True when delivered. Returns the number sent."""
-    sent = 0
+def plan_alerts(checks: list[dict], now: float) -> list[tuple[str, str, str, str]]:
+    """The alerts to send now, as (check id, event, text, name). Nothing is changed until `confirm`."""
+    plan = []
     for check in checks:
         event = decide(check, now)
-        if event and send(event, message(event, check, now), check["name"]):
-            confirm(check, event)
+        if event:
+            plan.append((check["id"], event, message(event, check, now), check["name"]))
+    return plan
+
+
+def run_pass(checks: list[dict], now: float, send) -> int:
+    """Plans, sends and confirms in one go. `send(event, text, name)` returns True when delivered."""
+    sent = 0
+    for check_id, event, text, name in plan_alerts(checks, now):
+        if send(event, text, name):
+            confirm(next(c for c in checks if c["id"] == check_id), event)
             sent += 1
     return sent
 
@@ -139,20 +152,43 @@ def public_view(check: dict, now: float, with_token: bool = True) -> dict:
     return view
 
 
+_REQUIRED = {"id": str, "name": str, "token": str, "period": (int, float), "grace": (int, float), "created": (int, float)}
+
+
+def _valid(check) -> bool:
+    return isinstance(check, dict) and all(isinstance(check.get(k), t) and not isinstance(check.get(k), bool)
+                                           for k, t in _REQUIRED.items())
+
+
 def load_checks(path: str) -> list[dict]:
+    """Reads the checks. A file that cannot be read raises CorruptState, so the app does not start with an empty
+    list that the next change would save over it."""
     try:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
-        return [c for c in data if isinstance(c, dict) and {"id", "name", "token", "period", "grace", "created"} <= c.keys()] \
-            if isinstance(data, list) else []
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return []
+    except (OSError, ValueError) as error:
+        raise CorruptState(f"{os.path.basename(path)} cannot be read ({type(error).__name__}); fix or remove it") from error
+    if not isinstance(data, list):
+        raise CorruptState(f"{os.path.basename(path)} is not a list of checks; fix or remove it")
+    checks = []
+    for check in data:
+        if not _valid(check):
+            raise CorruptState(f"{os.path.basename(path)} holds a damaged check record; fix or remove it")
+        check.setdefault("last_ping", None)
+        check.setdefault("pings", 0)
+        check.setdefault("alerted", "up")
+        checks.append(check)
+    return checks
 
 
 def save_checks(path: str, checks: list[dict]) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     temp = path + ".tmp"
-    with open(temp, "w", encoding="utf-8") as handle:
-        os.chmod(temp, 0o600)
+    descriptor = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(checks, handle)
+        handle.flush()
+        os.fsync(handle.fileno())
     os.replace(temp, path)
