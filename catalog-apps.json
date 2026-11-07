@@ -3,6 +3,7 @@
     { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/flow-check", "category": "Maintenance", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/site-links", "category": "Maintenance", "minServerVersion": "0.2.31" },
-    { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" }
+    { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" },
+    { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" }
   ]
 }

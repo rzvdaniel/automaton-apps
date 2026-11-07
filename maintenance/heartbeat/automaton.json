@@ -1,0 +1,32 @@
+{
+  "name": "Heartbeat",
+  "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
+  "description": "Create a check for each cron job or backup with how often it should check in and how much grace it gets. Your job calls the check's secret URL after each run; when a check-in is missed you get one alert, and one message when it checks in again. Works with Slack, Discord, Telegram or any webhook URL.",
+  "application": {
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": ["-c", "python -m py_compile main.py heartbeat.py && mkdir -p dist && cp main.py heartbeat.py index.html dist/"],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": { "executable": "python", "arguments": ["main.py"], "workingDirectory": "dist" },
+      "port": 8080
+    },
+    "health": { "path": "/health", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "settings": [
+      { "name": "CHECK_INTERVAL_SECONDS", "description": "How often overdue checks are looked for (5 to 3600 seconds)", "default": "30" }
+    ],
+    "secrets": [
+      { "name": "ADMIN_TOKEN", "description": "Password for the check list at the app's address: at least 16 random characters. Without it checks cannot be created or listed (existing check-in URLs keep working)" },
+      { "name": "WEBHOOK_URL", "description": "Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log" }
+    ]
+  }
+}
