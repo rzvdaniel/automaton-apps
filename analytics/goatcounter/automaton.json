@@ -1,0 +1,28 @@
+{
+  "name": "GoatCounter",
+  "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
+  "description": "GoatCounter by Martin Tournoij (arp242), built from a pinned upstream release on the Runner. Statistics live in SQLite under the app data directory and survive redeploys.",
+  "application": {
+    "build": {
+      "image": "golang:1.25.14-bookworm",
+      "command": { "executable": "sh", "arguments": ["build.sh"], "workingDirectory": "." },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 1200
+    },
+    "runtime": {
+      "image": "debian:12.13-slim",
+      "user": "1000:1000",
+      "command": { "executable": "sh", "arguments": ["run.sh"], "workingDirectory": "dist" },
+      "port": 8080
+    },
+    "health": { "path": "/status", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "secrets": [
+      { "name": "GC_PASSWORD", "description": "Password of the first administrator (used when the database is created)" }
+    ],
+    "settings": [
+      { "name": "GC_DOMAIN", "description": "Address the site is opened at, without https://, for example stats.example.com", "required": true },
+      { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
+    ]
+  }
+}
