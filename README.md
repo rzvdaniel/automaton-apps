@@ -15,6 +15,7 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
 | IT-Tools — handy online tools for developers, packaged from the upstream project (GPL-3.0) | [utilities/it-tools](utilities/it-tools/) |
+| linkding — self-hosted bookmark manager, packaged from the upstream image (MIT) | [bookmarks/linkding](bookmarks/linkding/) |
 
 Each app has its own source, dependencies, and `automaton.json`. Some examples use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 

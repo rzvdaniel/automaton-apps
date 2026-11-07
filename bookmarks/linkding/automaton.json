@@ -1,0 +1,56 @@
+{
+  "name": "linkding",
+  "summary": "Self-hosted bookmark manager: save, tag and search links, with a browser extension and an API.",
+  "description": "linkding by Sascha Ißbrücker, run from its published container image. Bookmarks live in SQLite under the app data directory and survive redeploys.",
+  "application": {
+    "build": {
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "true"
+        ],
+        "workingDirectory": "."
+      },
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "sissbruecker/linkding:1.47.0",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "D=\"$AUTOMATON_APP_DATA_DIR\" && rm -rf \"$D/code\" && mkdir -p \"$D/code\" \"$D/state/favicons\" \"$D/state/previews\" \"$D/state/assets\" && cd /etc/linkding && for f in *; do [ \"$f\" = data ] || cp -r \"$f\" \"$D/code/\"; done && ln -s /etc/linkding/.venv \"$D/code/.venv\" && ln -s \"$D/state\" \"$D/code/data\" && cd \"$D/code\" && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && { python manage.py run_huey -f & } && grep -vE \"^(uid|gid) *=\" uwsgi.ini > /tmp/uwsgi.ini && exec uwsgi --http \"[::]:$AUTOMATON_PORT\" /tmp/uwsgi.ini"
+        ],
+        "workingDirectory": "."
+      },
+      "port": 9090,
+      "user": "1000:1000"
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 120
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "secrets": [
+      {
+        "name": "LD_SUPERUSER_PASSWORD",
+        "description": "Password of the first administrator account (used when the database is created)"
+      }
+    ],
+    "settings": [
+      {
+        "name": "LD_SUPERUSER_NAME",
+        "description": "Username of the first administrator account",
+        "default": "admin"
+      },
+      {
+        "name": "LD_CSRF_TRUSTED_ORIGINS",
+        "description": "Address(es) you open linkding at, comma separated, e.g. https://app-<id>.apps.example.com (needed to sign in until Automaton passes the public host to apps; see the README)"
+      }
+    ]
+  }
+}
