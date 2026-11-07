@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Server Console: a dashboard for the health of your Automaton server, with 24 hours of history and webhook warnings.
+
+Runs as an Automaton app (a page plus a background check every few minutes), or from a terminal:
+  python3 main.py --once      run one check, print the result as JSON and exit
+"""
+
+from __future__ import annotations
+
+import hmac
+import json
+import os
+import sys
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
+
+import console
+
+MIN_ADMIN_TOKEN = 16
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Only these files are served; the page itself holds no data.
+STATIC = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
+    "/ui/app.css": (os.path.join("ui", "app.css"), "text/css; charset=utf-8"),
+    "/ui/app.js": (os.path.join("ui", "app.js"), "text/javascript; charset=utf-8"),
+}
+
+
+def log(text: str) -> None:
+    print(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), text, flush=True)
+
+
+def state_path(env=None) -> str:
+    return os.path.join((os.environ if env is None else env).get("AUTOMATON_APP_DATA_DIR", "data"), "state.json")
+
+
+def post_webhook(url: str, payload: dict, timeout: float = 15) -> bool:
+    """POSTs JSON to the webhook. Never logs the URL, which holds a secret."""
+    host = urlsplit(url).hostname or "?"
+    request = Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": console.USER_AGENT})
+    try:
+        with urlopen(request, timeout=timeout):
+            return True
+    except HTTPError as error:
+        log(f"webhook request to {host} failed: HTTP {error.code}")
+    except (URLError, OSError, ValueError) as error:
+        log(f"webhook request to {host} failed: {type(error).__name__}")
+    return False
+
+
+class Console:
+    def __init__(self, env=None):
+        self.env = os.environ if env is None else env
+        self.path = state_path(self.env)
+        self.lock = threading.Lock()
+        self.state = console.load_state(self.path)
+        self.settings = console.Settings(self.env)
+
+    def send(self, event: str, condition: str, text: str) -> bool:
+        log(text)
+        # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
+        return post_webhook(self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition})
+
+    def run_once(self) -> None:
+        try:
+            self.settings = console.Settings(self.env)
+            with self.lock:
+                console.run_cycle(self.settings, self.state, time.time(), self.send)
+                console.save_state(self.path, self.state)
+            if self.state["status"] != "ok":
+                log(f"no figures: {self.state['status']}: {self.state['message']}")
+        except Exception as error:  # a bad setting or a full disk must not stop the loop
+            with self.lock:
+                self.state["status"], self.state["message"] = "error", f"{type(error).__name__}: {error}"
+            log(f"check failed: {self.state['message']}")
+
+    def loop(self) -> None:
+        while True:
+            self.run_once()
+            time.sleep(self.settings.interval)
+
+    def view(self) -> dict:
+        with self.lock:
+            return console.snapshot(self.state, self.settings, time.time())
+
+    def token_configured(self) -> bool:
+        return len(self.settings.admin_token) >= MIN_ADMIN_TOKEN
+
+    def authorized(self, header: str) -> bool:
+        given = header[7:].strip() if header.lower().startswith("bearer ") else ""
+        return self.token_configured() and hmac.compare_digest(given.encode(), self.settings.admin_token.encode())
+
+
+def make_handler(app: Console):
+    class Handler(BaseHTTPRequestHandler):
+        server_version = "ServerConsole"
+
+        def log_message(self, format, *args):  # request lines carry nothing worth logging
+            pass
+
+        def send_body(self, status: int, body: bytes, content_type: str) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def json(self, status: int, payload: dict) -> None:
+            self.send_body(status, json.dumps(payload).encode(), "application/json")
+
+        def do_GET(self):  # noqa: N802
+            path = urlsplit(self.path).path
+            if path == "/health":
+                return self.send_body(200, b"ok", "text/plain")
+            if path == "/api/status":  # public and harmless: lets the page explain what is missing before sign-in
+                with app.lock:
+                    status = app.state.get("status")
+                return self.json(200, {"tokenConfigured": app.token_configured(), "status": status})
+            if path == "/api/state":
+                if not app.token_configured():
+                    return self.json(503, {"error": f"Set the ADMIN_TOKEN secret (at least {MIN_ADMIN_TOKEN} characters) to open the console"})
+                if not app.authorized(self.headers.get("Authorization", "")):
+                    return self.json(401, {"error": "Enter the ADMIN_TOKEN"})
+                return self.json(200, app.view())
+            entry = STATIC.get(path)
+            if not entry:
+                return self.json(404, {"error": "Not found"})
+            try:
+                with open(os.path.join(HERE, entry[0]), "rb") as handle:
+                    return self.send_body(200, handle.read(), entry[1])
+            except OSError:
+                return self.json(404, {"error": "Not found"})
+
+    return Handler
+
+
+def main(argv: list[str]) -> int:
+    try:
+        app = Console()
+    except console.ConfigError as error:
+        print(f"Invalid setting: {error}", file=sys.stderr)
+        return 2
+    if "--once" in argv:
+        app.run_once()
+        print(json.dumps(app.view(), indent=2))
+        return 0 if app.state["status"] == "ok" else 1
+    threading.Thread(target=app.loop, daemon=True).start()
+    if not app.token_configured():
+        log(f"ADMIN_TOKEN is not set (or shorter than {MIN_ADMIN_TOKEN} characters): the console stays closed")
+    port = int(os.environ.get("AUTOMATON_PORT", "8080"))
+    log(f"Server Console listening on port {port}")
+    ThreadingHTTPServer(("0.0.0.0", port), make_handler(app)).serve_forever()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
