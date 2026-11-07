@@ -20,7 +20,6 @@ It only asks for the `server:read` permission, so it cannot change anything on t
 | Name | Kind | Meaning |
 | --- | --- | --- |
 | `API_BASE_URL` | setting, required | Address of this server's API, for example `https://api.example.com`. |
-| `ADMIN_TOKEN` | secret | Password for the page: at least 16 random characters. The app's address is public, so without it the page stays closed. |
 | `WEBHOOK_URL` | secret | Where warnings go: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: warnings only appear in the log and on the page. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
 | `DISK_FREE_WARN_PERCENT` | setting | Default 15. |
@@ -37,7 +36,7 @@ The warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `
 
 The app calls `GET /api/server/health` of your server with its `APP_AUTOMATON_API_KEY`. The Machine Management Runner measures the host every 5 minutes, so figures are at most a few minutes old; Docker disk use and update counts come from the host (update counts need Ubuntu's update notifier and show "no data" elsewhere). History (24 hours, one point per check) and warning state are kept in `AUTOMATON_APP_DATA_DIR`.
 
-The page shell and `/api/status` (only whether a token is set and whether the permission is approved) are public; everything else needs the `ADMIN_TOKEN`.
+The app has no password of its own. Automaton asks everyone who opens its private address to sign in: the owner, administrators and the people or projects you share the app with get through, everyone else gets `403`. **Do not publish this app**: publishing makes the page open to anyone. Needs Automaton Server 0.2.63 or newer; older servers left the private address open, which is why earlier versions of this app asked for an `ADMIN_TOKEN`.
 
 The background check runs inside the app rather than as an Automaton Action, because an Action has no access to the app's data directory, where the history has to live.
 
@@ -47,7 +46,7 @@ The background check runs inside the app rather than as an Automaton Action, bec
 API_BASE_URL=https://api.example.com APP_AUTOMATON_API_KEY=... python3 main.py --once
 ```
 
-Prints the page's data as JSON and exits with 1 when no figures could be read. Without `--once`, `python3 main.py` serves the page on `AUTOMATON_PORT` (default 8080). Run the tests with `python3 -m unittest discover -p 'test_*.py'`.
+Prints the page's data as JSON and exits with 1 when no figures could be read. Without `--once`, `python3 main.py` serves the page on `AUTOMATON_PORT` (default 8080), with no sign-in: outside Automaton put your own login in front of it. Run the tests with `python3 -m unittest discover -p 'test_*.py'`.
 
 ## The page
 

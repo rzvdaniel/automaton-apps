@@ -64,10 +64,6 @@
     ],
     "secrets": [
       {
-        "name": "ADMIN_TOKEN",
-        "description": "Password for the page at the app's address: at least 16 random characters. Without it the console stays closed"
-      },
-      {
         "name": "WEBHOOK_URL",
         "description": "Where warnings are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: warnings only appear in the log and on the page"
       }

@@ -7,12 +7,8 @@
   var view = document.getElementById("view");
   var overall = document.getElementById("overall");
   var subtitle = document.getElementById("subtitle");
-  var signout = document.getElementById("signout");
-  var TOKEN_KEY = "server-console-token";
   var LABELS = { ok: "OK", warning: "Warning", critical: "Critical", unknown: "No data" };
 
-  function token() { try { return window.sessionStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
-  function setToken(value) { try { if (value) window.sessionStorage.setItem(TOKEN_KEY, value); else window.sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* kept for this page only */ } }
 
   function pill(status, text) {
     var cls = status === "ok" || status === "warning" || status === "critical" ? " a-pill--" + status : "";
@@ -158,28 +154,6 @@
     subtitle.textContent = "Permission not approved yet";
   }
 
-  function needToken() {
-    waiting("Set an access token",
-      "This page shows your server's details, so it stays closed until you protect it with a token.",
-      ["In Studio open this app's <strong>Settings</strong> and add the secret <span class=\"a-mono\">ADMIN_TOKEN</span>: at least 16 random characters.",
-        "Restart the app so it picks the secret up, then reload this page and sign in with the token."]);
-    subtitle.textContent = "Not protected yet";
-  }
-
-  function login(error) {
-    overall.hidden = true;
-    view.innerHTML = '<section class="a-card" style="max-width:440px;margin:0 auto"><div class="a-card__head"><h2 class="a-card__title">Sign in</h2></div>' +
-      '<form class="a-form" id="login"><div class="a-field"><label class="a-label" for="token">Access token</label>' +
-      '<input class="a-input" id="token" type="password" autocomplete="current-password" required><span class="a-hint">The ADMIN_TOKEN secret of this app.</span></div>' +
-      (error ? '<p class="a-note a-note--critical">' + esc(error) + "</p>" : "") + '<button class="a-btn a-btn--primary" type="submit">Open the console</button></form></section>';
-    subtitle.textContent = "Sign in to continue";
-    document.getElementById("login").addEventListener("submit", function (event) {
-      event.preventDefault();
-      setToken(document.getElementById("token").value.trim());
-      load();
-    });
-  }
-
   function problem(data) {
     var message = data.status === "not_configured" ? "Set the <span class=\"a-mono\">API_BASE_URL</span> setting to the address of your server's API, then restart the app."
       : data.status === "unavailable" ? "This server does not offer server health yet. Update Automaton, then reload."
@@ -191,20 +165,8 @@
   }
 
   function load() {
-    var headers = token() ? { Authorization: "Bearer " + token() } : {};
-    fetch("api/state", { headers: headers, cache: "no-store" }).then(function (response) {
-      if (response.status === 503) { signout.hidden = true; return fetch("api/status").then(function (r) { return r.json(); }).then(function (s) { if (s.status === "no_key" || s.status === "not_approved") needApproval(s.status); else needToken(); }); }
-      if (response.status === 401) {
-        signout.hidden = true;
-        var hadToken = !!token();
-        setToken("");
-        return fetch("api/status").then(function (r) { return r.json(); }).then(function (s) {
-          if (s.status === "no_key" || s.status === "not_approved") needApproval(s.status);
-          else login(hadToken ? "That token was not accepted." : "");
-        });
-      }
+    fetch("api/state", { cache: "no-store" }).then(function (response) {
       return response.json().then(function (data) {
-        signout.hidden = false;
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);
         if (!data.health) return problem(data);
         dashboard(data);
@@ -214,7 +176,6 @@
     });
   }
 
-  signout.addEventListener("click", function () { setToken(""); signout.hidden = true; load(); });
   UI.bindThemeToggle();
   load();
   setInterval(load, 30000);
