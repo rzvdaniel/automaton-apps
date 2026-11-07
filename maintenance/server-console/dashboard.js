@@ -133,7 +133,7 @@
     var history = data.history || [];
     view.innerHTML = activeAlerts(data) + '<div class="a-grid a-grid--wide"><div class="a-stack">' + serverCard(h, a) + updatesCard(h, a) + "</div>" +
       resourcesCard(h, a, history) + "</div>" +
-      '<div class="a-grid" style="margin-top:16px">' + runnersCard(h, a) + backupsCard(h, a) + certificatesCard(h, a) + "</div>";
+      '<div class="a-grid a-grid--wide" style="margin-top:16px">' + runnersCard(h, a) + '<div class="a-stack">' + backupsCard(h, a) + certificatesCard(h, a) + "</div></div>";
     overall.hidden = false;
     overall.className = "a-pill a-pill--large" + (a.overall !== "unknown" ? " a-pill--" + a.overall : "");
     overall.textContent = a.overall === "ok" ? "All good" : a.overall === "warning" ? "Needs attention" : a.overall === "critical" ? "Action needed" : "No data";
