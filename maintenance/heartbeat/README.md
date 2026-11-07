@@ -44,7 +44,7 @@ If the webhook is unreachable the alert is retried on the next pass.
 
 ## API
 
-With `Authorization: Bearer <ADMIN_TOKEN>`: `GET /api/checks`, `POST /api/checks` with `{"name": "db-dump", "period": "24h", "grace": "1h"}`, `DELETE /api/checks/<id>`.
+With `Authorization: Bearer <ADMIN_TOKEN>` and, for POST, `Content-Type: application/json` (without it the request body does not reach the app): `GET /api/checks`, `POST /api/checks` with `{"name": "db-dump", "period": "24h", "grace": "1h"}`, `DELETE /api/checks/<id>`.
 
 ## Run it without Automaton
 
