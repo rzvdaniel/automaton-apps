@@ -63,6 +63,16 @@
       "commit": "6cf8cf7d2383d86434ca31d16edf3e0b36d63fbb",
       "minServerVersion": "0.2.31",
       "permissions": []
+    },
+    {
+      "id": "goatcounter",
+      "name": "GoatCounter",
+      "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
+      "category": "Analytics",
+      "folder": "analytics/goatcounter",
+      "commit": "18753def5a1ca1bb8f30c9664027e86250d70888",
+      "minServerVersion": "0.2.55",
+      "permissions": []
     }
   ]
 }
