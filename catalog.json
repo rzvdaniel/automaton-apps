@@ -45,6 +45,18 @@
       "permissions": []
     },
     {
+      "id": "server-console",
+      "name": "Server Console",
+      "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and webhook warnings.",
+      "category": "Monitoring",
+      "folder": "maintenance/server-console",
+      "commit": "547c62d3a00a4418770b55dc149fedea578726f6",
+      "minServerVersion": "0.2.56",
+      "permissions": [
+        "server:read"
+      ]
+    },
+    {
       "id": "heartbeat",
       "name": "Heartbeat",
       "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
