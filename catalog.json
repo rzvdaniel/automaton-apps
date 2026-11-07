@@ -43,6 +43,16 @@
       "commit": "00b392f830d0a3f756c73e7c71bcd5f8c64e585f",
       "minServerVersion": "0.2.31",
       "permissions": []
+    },
+    {
+      "id": "heartbeat",
+      "name": "Heartbeat",
+      "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
+      "category": "Monitoring",
+      "folder": "maintenance/heartbeat",
+      "commit": "877de6f30bb0b6647fce545c2ea0fa4598f26414",
+      "minServerVersion": "0.2.31",
+      "permissions": []
     }
   ]
 }
