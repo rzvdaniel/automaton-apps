@@ -171,7 +171,7 @@ def main(argv: list[str]) -> int:
         for site in app.snapshot()["sites"]:
             print(("UP   " if site["up"] else "DOWN ") + site["site"], site["error"] or "", f'cert {site["cert_days"]}d' if site["cert_days"] is not None else "")
         return 0 if ok and all(s["up"] for s in app.snapshot()["sites"]) else 1
-    app = Monitor()  # settings are read on every run, so a wrong setting shows on the status page instead of crashing the app
+    app = Monitor()  # settings are parsed on every run, so a wrong setting shows on the status page instead of crashing the app
     threading.Thread(target=app.loop, daemon=True).start()
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))
     log(f"Website Monitor listening on port {port}")

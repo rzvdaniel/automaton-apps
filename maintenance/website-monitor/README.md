@@ -7,7 +7,7 @@ Checks your websites (hosted anywhere, not only on this Automaton server) every 
 For each site, on every run:
 
 - **Status:** the final HTTP status (redirects are followed) must be below 400, or equal the expected status you give.
-- **Keyword:** optionally, the first MiB of the page must contain a word or phrase.
+- **Keyword:** optionally, the first MiB of the page must contain a word or phrase (matched as UTF-8 text, so HTML entities and other encodings do not match).
 - **Response time:** shown on the status page.
 - **Certificate:** days left on the HTTPS certificate. A warning is sent once when it falls to `CERT_WARN_DAYS` or fewer, a note when it is renewed, and a site whose certificate has expired counts as down.
 
@@ -26,7 +26,7 @@ Install it from **Apps → Catalog** on your Automaton server, fill in the setti
 | `WEBHOOK_URL` | secret | Where alerts go (below). Empty: alerts are only logged and shown on the status page. |
 | `HEARTBEAT_URL` | secret, optional | Pinged with GET after every successful run (below). |
 
-Settings and secrets are read on every run, so a change applies at the next run without a redeploy.
+Settings and secrets reach the app as environment variables when it starts, so after changing one in Studio, redeploy (restart) the app.
 
 ### Alerts
 
@@ -45,7 +45,7 @@ Create a free check at an outside service such as healthchecks.io, set its URL a
 
 ## Status page
 
-The app's address shows each site's status, response time and certificate days (host and path only, never query strings or keywords), and `/status.json` returns the same as JSON. If the last run failed, the page says why. `/health` answers `ok`.
+The app's address shows each site's status, response time and certificate days (host and path only, never query strings; a failed keyword check names the keyword in its detail), and `/status.json` returns the same as JSON. If the last run failed, the page says why. `/health` answers `ok`.
 
 State (the last result per site, and what you were already told) is stored in the app's data directory, so a restart does not repeat alerts. Logs contain the alert texts and errors, never the webhook or heartbeat URLs.
 
