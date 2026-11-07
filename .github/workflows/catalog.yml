@@ -33,6 +33,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tools -p 'test_*.py'
+      - name: Check vendored UI kit copies
+        run: python tools/check_vendored_ui.py
       - name: Check every entry (pull request)
         if: github.event_name == 'pull_request'
         run: python tools/generate_catalog.py --validate

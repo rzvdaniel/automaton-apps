@@ -1,0 +1,27 @@
+name: Server Console tests
+
+on:
+  pull_request:
+    paths:
+      - 'maintenance/server-console/**'
+      - 'design/automaton-app-ui/**'
+      - '.github/workflows/server-console-tests.yml'
+  push:
+    paths:
+      - 'maintenance/server-console/**'
+      - 'design/automaton-app-ui/**'
+      - '.github/workflows/server-console-tests.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: maintenance/server-console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -p 'test_*.py'
+      - run: python ../../tools/check_vendored_ui.py

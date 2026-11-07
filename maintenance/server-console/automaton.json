@@ -1,0 +1,76 @@
+{
+  "name": "Server Console",
+  "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and webhook warnings.",
+  "description": "Shows how your Automaton server and its Runners are doing, read-only: CPU, memory, disk and load with 24 hours of history, Docker disk use, OS name and uptime, pending and security updates, restart required, server and Runner versions and whether a newer release exists, certificate expiry and the last backup. Sends one webhook warning when disk space runs low, security updates wait too long or a restart is overdue, and one message when it is resolved. It only asks for server:read, so it cannot change anything on the server.",
+  "application": {
+    "permissions": ["server:read"],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "python -m py_compile main.py console.py && mkdir -p dist/ui && cp main.py console.py index.html dashboard.js dist/ && cp ui/app.css ui/app.js dist/ui/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "python",
+        "arguments": ["main.py"],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "settings": [
+      {
+        "name": "API_BASE_URL",
+        "description": "Base URL of this Automaton server's API, for example https://api.example.com",
+        "required": true
+      },
+      {
+        "name": "CHECK_INTERVAL_SECONDS",
+        "description": "Seconds between checks (60 to 3600)",
+        "default": "300"
+      },
+      {
+        "name": "DISK_FREE_WARN_PERCENT",
+        "description": "Warn when less than this percent of the disk is free",
+        "default": "15"
+      },
+      {
+        "name": "SECURITY_UPDATE_DAYS",
+        "description": "Warn when security updates have been waiting longer than this many days",
+        "default": "7"
+      },
+      {
+        "name": "REBOOT_DAYS",
+        "description": "Warn when a restart has been required longer than this many days",
+        "default": "3"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "ADMIN_TOKEN",
+        "description": "Password for the page at the app's address: at least 16 random characters. Without it the console stays closed"
+      },
+      {
+        "name": "WEBHOOK_URL",
+        "description": "Where warnings are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: warnings only appear in the log and on the page"
+      }
+    ]
+  }
+}

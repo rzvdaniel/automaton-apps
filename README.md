@@ -18,6 +18,10 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 
 Each app has its own source, dependencies, and `automaton.json`. Some examples use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 
+## App design kit
+
+Apps with a page are built from [design/automaton-app-ui](design/automaton-app-ui/): one stylesheet and a small script, copied into each app's `ui/` folder. CI fails when a copy differs from the kit.
+
 ## Packaging an open-source project
 
 Some apps here package a well-known upstream project without changing its source. Each folder holds `automaton.json`, a `README.md` (upstream project and link, license, packaged version, configuration) and the upstream license file. There are two ways to get the upstream code, always pinned to one version:

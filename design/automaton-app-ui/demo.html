@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automaton app UI kit</title>
+<link rel="stylesheet" href="app.css">
+<script src="app.js"></script>
+</head>
+<body>
+<main class="a-page">
+  <header class="a-header">
+    <div class="a-brand" aria-hidden="true">&gt;_</div>
+    <div class="a-header__text">
+      <h1 class="a-header__title">Example app</h1>
+      <p class="a-header__sub">Updated <time datetime="2026-01-01T00:00:00Z" data-rel></time></p>
+    </div>
+    <div class="a-header__actions">
+      <span class="a-pill a-pill--ok a-pill--large">All good</span>
+      <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button>
+    </div>
+  </header>
+
+  <div class="a-grid">
+    <section class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Stat tiles</h2><span class="a-pill a-pill--ok">ok</span></div>
+      <div class="a-stats">
+        <div class="a-stat"><div class="a-stat__label">Uptime</div><div class="a-stat__value">12 <small>days</small></div></div>
+        <div class="a-stat a-stat--warning"><div class="a-stat__label">Updates</div><div class="a-stat__value">7</div><div class="a-stat__hint">2 security</div></div>
+        <div class="a-stat a-stat--critical"><div class="a-stat__label">Disk free</div><div class="a-stat__value">9<small>%</small></div></div>
+      </div>
+      <p class="a-card__foot">Footer text with a note.</p>
+    </section>
+
+    <section class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Meters and sparklines</h2><span class="a-pill a-pill--warning">warning</span></div>
+      <div class="a-metric">
+        <div class="a-metric__row"><span class="a-metric__name">CPU</span><span class="a-metric__value">38%</span></div>
+        <div class="a-meter" style="--value:38%"><span></span></div>
+        <div class="a-metric__spark" id="spark-ok"></div>
+      </div>
+      <div class="a-metric">
+        <div class="a-metric__row"><span class="a-metric__name">Disk used</span><span class="a-metric__value">88%</span></div>
+        <div class="a-meter a-meter--critical" style="--value:88%"><span></span></div>
+        <div class="a-metric__spark" id="spark-critical"></div>
+      </div>
+    </section>
+
+    <section class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Key values and list</h2><span class="a-pill">neutral</span></div>
+      <dl class="a-kv"><dt>Version</dt><dd>0.2.6</dd><dt>OS</dt><dd>Ubuntu 24.04 LTS</dd></dl>
+      <ul class="a-list" style="margin-top:14px">
+        <li><span class="a-mono">studio.example.com</span><span class="a-pill a-pill--ok">62 days</span></li>
+        <li><span class="a-mono">api.example.com</span><span class="a-pill a-pill--warning">12 days</span></li>
+      </ul>
+    </section>
+
+    <section class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Table</h2></div>
+      <div class="a-table-wrap"><table class="a-table">
+        <thead><tr><th>Name</th><th class="a-num">Version</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>runner-01</td><td class="a-num">1.4.2</td><td><span class="a-pill a-pill--ok">online</span></td></tr>
+          <tr><td>runner-02</td><td class="a-num">1.3.9</td><td><span class="a-pill a-pill--critical">offline</span></td></tr>
+        </tbody></table></div>
+    </section>
+
+    <section class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Form and buttons</h2></div>
+      <form class="a-form" onsubmit="return false">
+        <div class="a-field"><label class="a-label" for="demo-token">Access token</label>
+          <input class="a-input" id="demo-token" type="password" placeholder="Paste the token">
+          <span class="a-hint">Shown only in this browser.</span></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="a-btn a-btn--primary" type="submit">Open</button><button class="a-btn" type="button">Cancel</button></div>
+      </form>
+    </section>
+
+    <section class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Notes and empty state</h2></div>
+      <div class="a-stack">
+        <p class="a-note">A neutral note.</p>
+        <p class="a-note a-note--warning">A warning note.</p>
+        <p class="a-note a-note--critical">A critical note.</p>
+        <div class="a-empty"><div class="a-empty__title">Nothing here yet</div>Data appears after the first check.</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="a-waiting" style="margin-top:16px">
+    <h2 class="a-waiting__title">Waiting for approval</h2>
+    <p>This app asks for a permission an administrator has not approved yet.</p>
+    <ol class="a-steps"><li>Open Studio as an administrator.</li><li>Go to Admin, Apps and choose Review.</li><li>Approve the permission.</li></ol>
+  </section>
+  <p class="a-footer">Automaton app UI kit 1.0.0</p>
+</main>
+<script>
+  var up = [30,32,35,31,40,44,42,38,36,41,45,39,33,31,37,38,44,47,42,38];
+  var down = [70,72,73,75,77,80,82,84,85,86,86,87,87,88,88,88,88,88,88,88];
+  document.getElementById("spark-ok").innerHTML = AutomatonUI.sparkline(up, { min: 0, max: 100, label: "CPU, last 24 hours" });
+  document.getElementById("spark-critical").innerHTML = AutomatonUI.sparkline(down, { min: 0, max: 100, status: "critical", label: "Disk used, last 24 hours" });
+  document.querySelector("time[data-rel]").setAttribute("datetime", new Date(Date.now() - 4 * 60000).toISOString());
+  AutomatonUI.updateRelativeTimes();
+  AutomatonUI.bindThemeToggle();
+</script>
+</body>
+</html>

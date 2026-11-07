@@ -4,6 +4,7 @@
     { "folder": "maintenance/flow-check", "category": "Maintenance", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/site-links", "category": "Maintenance", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" },
+    { "folder": "maintenance/server-console", "category": "Monitoring", "minServerVersion": "0.2.56" },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "utilities/it-tools", "category": "Utilities", "minServerVersion": "0.2.31" }
   ]
