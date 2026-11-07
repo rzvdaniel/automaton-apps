@@ -9,7 +9,7 @@
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py monitor.py && mkdir -p dist && cp main.py monitor.py dist/"
+          "python -m py_compile main.py monitor.py && mkdir -p dist/ui && cp main.py monitor.py dist/ && cp ui/app.css ui/app.js ui/theme.js dist/ui/"
         ],
         "workingDirectory": "."
       },
