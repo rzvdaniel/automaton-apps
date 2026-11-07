@@ -19,12 +19,12 @@
     ],
     "runtime": {
       "image": "sissbruecker/linkding@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522",
-      "user": "33:0",
+      "user": "0:0",
       "command": {
         "executable": "sh",
         "arguments": [
           "-ec",
-          "cd /etc/linkding && rm -rf data && ln -s \"$AUTOMATON_APP_DATA_DIR\" data && mkdir -p data/favicons data/previews data/assets && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && python manage.py migrate_tasks && exec uwsgi --http \"0.0.0.0:$AUTOMATON_PORT\" uwsgi.ini --uid 33 --gid 0"
+          "cd /etc/linkding && rm -rf data && ln -s \"$AUTOMATON_APP_DATA_DIR\" data && mkdir -p data/favicons data/previews data/assets && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && python manage.py migrate_tasks && sed '/^uid = /d; /^gid = /d' uwsgi.ini > /tmp/linkding-uwsgi.ini && exec uwsgi --ini /tmp/linkding-uwsgi.ini --http \"0.0.0.0:$AUTOMATON_PORT\""
         ],
         "workingDirectory": "."
       },
