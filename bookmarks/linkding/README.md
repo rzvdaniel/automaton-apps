@@ -11,7 +11,7 @@
 Asked when you install:
 
 - `LD_SUPERUSER_NAME` (setting, default `admin`) and `LD_SUPERUSER_PASSWORD` (secret): the first administrator, created the first time the database is created. Changing them later does not change an existing account; use linkding's own account pages.
-- `LD_CSRF_TRUSTED_ORIGINS` (setting, optional): the address you open linkding at, for example `https://app-<id>.apps.example.com` (comma separated for several). Automaton does not pass the public host to apps, so linkding needs it to accept its own sign-in form. Leave it empty at install (the address is not known yet), then set it in the app's settings and redeploy.
+- `LD_CSRF_TRUSTED_ORIGINS` (setting, optional): the address you open linkding at, for example `https://app-<id>.apps.example.com` (comma separated for several). Automaton does not pass the public host to apps ([#805](https://github.com/rzvdaniel/automaton/issues/805)), so linkding needs it to accept its own sign-in form. Leave it empty at install (the address is not known yet), then set it in the app's settings and redeploy.
 
 Other [linkding options](https://linkding.link/options/) can be set as app settings or secrets of the install.
 
