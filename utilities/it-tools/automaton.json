@@ -1,0 +1,14 @@
+{
+  "name": "IT-Tools",
+  "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
+  "description": "IT-Tools by Corentin Thomasset, built from a pinned upstream release. A static site: nothing you type leaves your browser.",
+  "application": {
+    "build": {
+      "image": "python:3.12-slim-bookworm",
+      "command": { "executable": "sh", "arguments": ["build.sh"], "workingDirectory": "." },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "health": { "path": "/index.html", "startupTimeoutSeconds": 60 }
+  }
+}

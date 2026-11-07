@@ -14,8 +14,16 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | Flow Check — checks that issues went through review, tests, CI, proof and production | [maintenance/flow-check](maintenance/flow-check/) |
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
+| IT-Tools — handy online tools for developers, packaged from the upstream project (GPL-3.0) | [utilities/it-tools](utilities/it-tools/) |
 
 Each app has its own source, dependencies, and `automaton.json`. Some examples use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
+
+## Packaging an open-source project
+
+Some apps here package a well-known upstream project without changing its source. Each folder holds `automaton.json`, a `README.md` (upstream project and link, license, packaged version, configuration) and the upstream license file. There are two ways to get the upstream code, always pinned to one version:
+
+- **B, from a pinned release (default):** `automaton.json` runs a build command (a script in the folder) that downloads one upstream release, verifies its SHA-256 and builds it on the Runner. Use it whenever the build fits a 2 vCPU / 4 GB Runner and the build timeout. When compiling is too heavy but the project publishes a ready-built release archive, the script unpacks that archive instead (same pinned version and checksum; [IT-Tools](utilities/it-tools/) does this), and the README says so.
+- **A, upstream image:** `application.runtime.image` is the project's own published image, pinned to a version (never `latest`), with no build. Use it when a build is too heavy for a small Runner, and say so in the app's README.
 
 ## Get started
 
