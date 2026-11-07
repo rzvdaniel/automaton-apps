@@ -166,6 +166,9 @@ def make_handler(app: App, page: bytes):
                 self.reply(200, b"ok", "text/plain")
             elif path == "/" and self.command in ("GET", "HEAD"):
                 self.reply(200, page, "text/html; charset=utf-8")
+            elif path in ("/ui/app.css", "/ui/app.js", "/heartbeat.css") and self.command in ("GET", "HEAD"):
+                asset = Path(__file__).parent / path.lstrip("/")
+                self.reply(200, asset.read_bytes(), "text/css" if path.endswith(".css") else "text/javascript")
             elif parts[0] == "api" and parts[1:2] == ["checks"]:
                 self.api(parts[2:])
             else:

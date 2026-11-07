@@ -1,0 +1,4 @@
+.a-form--checks { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto; align-items: end; }
+.check-url { min-width: 220px; font: 12px var(--mono); }
+#message { margin-bottom: 16px; }
+@media (max-width: 640px) { .a-form--checks { grid-template-columns: 1fr; } }

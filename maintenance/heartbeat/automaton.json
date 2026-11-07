@@ -7,7 +7,7 @@
       "image": "python:3.12-slim",
       "command": {
         "executable": "sh",
-        "arguments": ["-c", "python -m py_compile main.py heartbeat.py && mkdir -p dist && cp main.py heartbeat.py index.html dist/"],
+        "arguments": ["-c", "python -m py_compile main.py heartbeat.py && mkdir -p dist/ui && cp main.py heartbeat.py index.html heartbeat.css dist/ && cp ui/app.css ui/app.js dist/ui/"],
         "workingDirectory": "."
       },
       "outputDirectory": "dist",
