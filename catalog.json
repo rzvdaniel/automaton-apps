@@ -53,6 +53,16 @@
       "commit": "08bbd77d8e7ba483574110013342c561b545ea93",
       "minServerVersion": "0.2.31",
       "permissions": []
+    },
+    {
+      "id": "it-tools",
+      "name": "IT-Tools",
+      "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
+      "category": "Utilities",
+      "folder": "utilities/it-tools",
+      "commit": "06cc4dd1d6354ee3635907283ee62801b50f5864",
+      "minServerVersion": "0.2.31",
+      "permissions": []
     }
   ]
 }
