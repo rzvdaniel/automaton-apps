@@ -4,7 +4,13 @@
   "description": "The MIT-licensed linkding bookmark manager, packaged from its upstream container image with SQLite data in Automaton's durable app directory.",
   "category": "Productivity",
   "application": {
-    "build": {},
+    "build": {
+      "command": {
+        "executable": "sh",
+        "arguments": ["-ec", "test -f automaton.json && test -f LICENSE.upstream.txt"],
+        "workingDirectory": "."
+      }
+    },
     "secrets": [
       { "name": "LD_SUPERUSER_PASSWORD", "description": "Password for the initial linkding administrator" }
     ],
