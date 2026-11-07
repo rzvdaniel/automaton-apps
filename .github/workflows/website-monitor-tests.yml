@@ -1,0 +1,24 @@
+name: Website Monitor tests
+
+on:
+  pull_request:
+    paths:
+      - 'maintenance/website-monitor/**'
+      - '.github/workflows/website-monitor-tests.yml'
+  push:
+    paths:
+      - 'maintenance/website-monitor/**'
+      - '.github/workflows/website-monitor-tests.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: maintenance/website-monitor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -p 'test_*.py'

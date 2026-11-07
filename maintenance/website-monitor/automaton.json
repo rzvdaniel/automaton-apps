@@ -1,0 +1,72 @@
+{
+  "name": "Website Monitor",
+  "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
+  "description": "Checks the sites you list every few minutes (status, optional keyword, response time, days left on the TLS certificate) and sends one alert when a site goes down and one when it recovers. Works with Slack, Discord, Telegram or any webhook URL. Can ping a heartbeat URL after every good run so an outside service notices if this server stops.",
+  "application": {
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "python -m py_compile main.py monitor.py && mkdir -p dist && cp main.py monitor.py dist/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "python",
+        "arguments": [
+          "main.py"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "settings": [
+      {
+        "name": "SITES",
+        "description": "Sites to check, one per line or separated by ';'. Each is a URL, optionally followed by |expected status and |keyword, for example https://example.com|200|Welcome",
+        "required": true
+      },
+      {
+        "name": "CHECK_INTERVAL_SECONDS",
+        "description": "Seconds between checks (60 to 86400)",
+        "default": "300"
+      },
+      {
+        "name": "CERT_WARN_DAYS",
+        "description": "Warn when a certificate has this many days left or fewer",
+        "default": "14"
+      },
+      {
+        "name": "TIMEOUT_SECONDS",
+        "description": "Seconds to wait for a site before it counts as failed",
+        "default": "10"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "WEBHOOK_URL",
+        "description": "Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log and on the status page"
+      },
+      {
+        "name": "HEARTBEAT_URL",
+        "description": "Optional. Pinged (GET) after every successful run, for example a healthchecks.io check URL"
+      }
+    ]
+  }
+}
