@@ -7,7 +7,6 @@ Runs as an Automaton app (a page plus a background check every few minutes), or 
 
 from __future__ import annotations
 
-import hmac
 import json
 import os
 import sys
@@ -20,7 +19,6 @@ from urllib.request import Request, urlopen
 
 import console
 
-MIN_ADMIN_TOKEN = 16
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Only these files are served; the page itself holds no data.
 STATIC = {
@@ -88,13 +86,6 @@ class Console:
         with self.lock:
             return console.snapshot(self.state, self.settings, time.time())
 
-    def token_configured(self) -> bool:
-        return len(self.settings.admin_token) >= MIN_ADMIN_TOKEN
-
-    def authorized(self, header: str) -> bool:
-        given = header[7:].strip() if header.lower().startswith("bearer ") else ""
-        return self.token_configured() and hmac.compare_digest(given.encode(), self.settings.admin_token.encode())
-
 
 def make_handler(app: Console):
     class Handler(BaseHTTPRequestHandler):
@@ -120,15 +111,11 @@ def make_handler(app: Console):
             path = urlsplit(self.path).path
             if path == "/health":
                 return self.send_body(200, b"ok", "text/plain")
-            if path == "/api/status":  # public and harmless: lets the page explain what is missing before sign-in
+            if path == "/api/status":  # lets the page explain what is missing before any figures exist
                 with app.lock:
                     status = app.state.get("status")
-                return self.json(200, {"tokenConfigured": app.token_configured(), "status": status})
+                return self.json(200, {"status": status})
             if path == "/api/state":
-                if not app.token_configured():
-                    return self.json(503, {"error": f"Set the ADMIN_TOKEN secret (at least {MIN_ADMIN_TOKEN} characters) to open the console"})
-                if not app.authorized(self.headers.get("Authorization", "")):
-                    return self.json(401, {"error": "Enter the ADMIN_TOKEN"})
                 return self.json(200, app.view())
             entry = STATIC.get(path)
             if not entry:
@@ -153,8 +140,6 @@ def main(argv: list[str]) -> int:
         print(json.dumps(app.view(), indent=2))
         return 0 if app.state["status"] == "ok" else 1
     threading.Thread(target=app.loop, daemon=True).start()
-    if not app.token_configured():
-        log(f"ADMIN_TOKEN is not set (or shorter than {MIN_ADMIN_TOKEN} characters): the console stays closed")
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))
     log(f"Server Console listening on port {port}")
     ThreadingHTTPServer(("0.0.0.0", port), make_handler(app)).serve_forever()

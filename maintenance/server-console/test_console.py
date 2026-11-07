@@ -247,7 +247,7 @@ class SnapshotTests(unittest.TestCase):
 class ServerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        env = {"AUTOMATON_APP_DATA_DIR": self.directory.name, "ADMIN_TOKEN": "t" * 20, "API_BASE_URL": "https://api.example.com"}
+        env = {"AUTOMATON_APP_DATA_DIR": self.directory.name, "API_BASE_URL": "https://api.example.com"}
         self.app = main.Console(env)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
@@ -274,21 +274,14 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.get("/console.py")[0], 404)
         self.assertEqual(self.get("/../main.py")[0], 404)
 
-    def test_the_state_needs_the_token(self):
-        self.assertEqual(self.get("/api/state")[0], 401)
-        self.assertEqual(self.get("/api/state", "wrong")[0], 401)
-        status, body = self.get("/api/state", "t" * 20)
+    def test_the_state_is_served_without_a_token_because_the_platform_signs_visitors_in(self):
+        status, body = self.get("/api/state")
         self.assertEqual(status, 200)
         self.assertIsNone(json.loads(body)["health"])
 
-    def test_without_a_configured_token_the_console_stays_closed(self):
-        self.app.settings.admin_token = ""
-        self.assertEqual(self.get("/api/state", "")[0], 503)
-        self.assertEqual(json.loads(self.get("/api/status")[1])["tokenConfigured"], False)
-
-    def test_public_status_reveals_only_the_permission_state(self):
+    def test_status_reveals_only_the_permission_state(self):
         self.app.state["status"] = "not_approved"
-        self.assertEqual(json.loads(self.get("/api/status")[1]), {"tokenConfigured": True, "status": "not_approved"})
+        self.assertEqual(json.loads(self.get("/api/status")[1]), {"status": "not_approved"})
 
 
 if __name__ == "__main__":

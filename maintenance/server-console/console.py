@@ -42,7 +42,6 @@ class Settings:
         env = os.environ if env is None else env
         self.api_base_url = env.get("API_BASE_URL", "").strip().rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
-        self.admin_token = env.get("ADMIN_TOKEN", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
         self.interval = env_int(env, "CHECK_INTERVAL_SECONDS", 300, 60, 3600)
         self.disk_free_percent = env_int(env, "DISK_FREE_WARN_PERCENT", 15, 1, 99)
