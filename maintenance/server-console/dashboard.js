@@ -121,9 +121,10 @@
   }
 
   function activeAlerts(data) {
+    var stale = data.status === "error" ? '<div class="a-note a-note--warning" style="margin-bottom:16px">The last check failed (' + esc(data.message || "unknown error") + "), so these figures are from the last good check.</div>" : "";
     var names = Object.keys(data.alerts || {});
-    if (!names.length) return "";
-    return '<div class="a-note a-note--warning" style="margin-bottom:16px"><strong>Active warnings:</strong> ' +
+    if (!names.length) return stale;
+    return stale + '<div class="a-note a-note--warning" style="margin-bottom:16px"><strong>Active warnings:</strong> ' +
       names.map(function (n) { return esc(data.alerts[n].message); }).join("; ") + "</div>";
   }
 

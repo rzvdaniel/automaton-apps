@@ -227,6 +227,23 @@ class AlertTests(unittest.TestCase):
         self.assertIsNone(console.snapshot(state, settings(), NOW)["health"])
 
 
+class SnapshotTests(unittest.TestCase):
+    def test_revoking_hides_history_and_warnings_too(self):
+        state = console.new_state()
+        cycle(state, settings(), health(disk_free_gb=5), Recorder())
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("not_approved", None, "refused"))
+        view = console.snapshot(state, settings(), NOW)
+        self.assertEqual((view["health"], view["history"], view["alerts"]), (None, [], {}))
+
+    def test_a_passing_error_keeps_the_last_figures_and_says_so(self):
+        state = console.new_state()
+        cycle(state, settings(), health(), Recorder())
+        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: ("error", None, "timeout"))
+        view = console.snapshot(state, settings(), NOW + 300)
+        self.assertIsNotNone(view["health"])
+        self.assertEqual((view["status"], len(view["history"])), ("error", 1))
+
+
 class ServerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()

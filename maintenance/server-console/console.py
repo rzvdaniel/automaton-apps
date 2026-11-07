@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -155,7 +156,6 @@ def _age(timestamp, now) -> float | None:
     if not timestamp:
         return None
     try:
-        from datetime import datetime, timezone
         moment = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
         if moment.tzinfo is None:
             moment = moment.replace(tzinfo=timezone.utc)
@@ -236,7 +236,7 @@ def conditions(health: dict, state: dict, settings: Settings, now: float) -> dic
     return result
 
 
-def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliver: bool) -> list[str]:
+def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliver: bool, now: float) -> list[str]:
     """Sends one warning when a condition starts and one recovery message when it ends.
 
     `send(event, condition, text)` returns True when delivered. A warning that could not be delivered is retried on
@@ -250,7 +250,7 @@ def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliv
         active, message = found[name]
         if active and name not in alerts:
             if not deliver or send("warning", name, "Server Console warning: " + message + "."):
-                alerts[name] = {"since": int(time.time()), "message": message}
+                alerts[name] = {"since": int(now), "message": message}
                 sent.append(f"warning:{name}")
         elif not active and name in alerts:
             if not deliver or send("recovered", name, f"Server Console: recovered, {message}."):
@@ -266,13 +266,16 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
     if status == "ok" and health:
         state["health"], state["fetchedAt"] = health, int(now)
         record(state, health, now)
-        evaluate_alerts(state, conditions(health, state, settings, now), send, bool(settings.webhook))
+        evaluate_alerts(state, conditions(health, state, settings, now), send, bool(settings.webhook), now)
     return state
 
 
 def snapshot(state: dict, settings: Settings, now: float) -> dict:
-    """What the page receives."""
-    health = state.get("health") if state.get("status") == "ok" else None  # no approval, no data
-    return {"status": state.get("status"), "message": state.get("message"), "fetchedAt": state.get("fetchedAt"),
+    """What the page receives. Without approval nothing from the server is shown; a passing error keeps the last figures."""
+    status = state.get("status")
+    shown = status in ("ok", "error")
+    health = state.get("health") if shown else None
+    return {"status": status, "message": state.get("message"), "fetchedAt": state.get("fetchedAt"),
             "now": int(now), "health": health, "assessment": assess(health, state, settings, now),
-            "history": state.get("history", []), "alerts": state.get("alerts", {}), "settings": settings.public()}
+            "history": state.get("history", []) if shown else [], "alerts": state.get("alerts", {}) if shown else {},
+            "settings": settings.public()}

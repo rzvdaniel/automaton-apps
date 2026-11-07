@@ -37,6 +37,8 @@ The warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `
 
 The app calls `GET /api/server/health` of your server with its `APP_AUTOMATON_API_KEY`. The Machine Management Runner measures the host every 5 minutes, so figures are at most a few minutes old; Docker disk use and update counts come from the host (update counts need Ubuntu's update notifier and show "no data" elsewhere). History (24 hours, one point per check) and warning state are kept in `AUTOMATON_APP_DATA_DIR`.
 
+The page shell and `/api/status` (only whether a token is set and whether the permission is approved) are public; everything else needs the `ADMIN_TOKEN`.
+
 The background check runs inside the app rather than as an Automaton Action, because an Action has no access to the app's data directory, where the history has to live.
 
 ## Run it without Automaton
