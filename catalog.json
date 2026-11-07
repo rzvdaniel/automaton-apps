@@ -50,7 +50,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "877de6f30bb0b6647fce545c2ea0fa4598f26414",
+      "commit": "08bbd77d8e7ba483574110013342c561b545ea93",
       "minServerVersion": "0.2.31",
       "permissions": []
     }
