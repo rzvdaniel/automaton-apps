@@ -1,0 +1,36 @@
+{
+  "name": "linkding",
+  "summary": "Save, tag and search bookmarks on your own server.",
+  "description": "The MIT-licensed linkding bookmark manager, packaged from its upstream container image with SQLite data in Automaton's durable app directory.",
+  "category": "Productivity",
+  "application": {
+    "build": {
+      "command": {
+        "executable": "sh",
+        "arguments": ["-ec", "test -f automaton.json && test -f LICENSE.upstream.txt"],
+        "workingDirectory": "."
+      }
+    },
+    "secrets": [
+      { "name": "LD_SUPERUSER_PASSWORD", "description": "Password for the initial linkding administrator" }
+    ],
+    "settings": [
+      { "name": "LD_SUPERUSER_NAME", "description": "Username for the initial linkding administrator", "default": "admin" }
+    ],
+    "runtime": {
+      "image": "sissbruecker/linkding@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522",
+      "user": "33:0",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-ec",
+          "rm -rf \"$AUTOMATON_APP_DATA_DIR/runtime-code\" && mkdir -p \"$AUTOMATON_APP_DATA_DIR/runtime-code\" \"$AUTOMATON_APP_DATA_DIR/state\" && cp -r /etc/linkding/. \"$AUTOMATON_APP_DATA_DIR/runtime-code/\" && cd \"$AUTOMATON_APP_DATA_DIR/runtime-code\" && rm -rf data && ln -s \"$AUTOMATON_APP_DATA_DIR/state\" data && mkdir -p data/favicons data/previews data/assets && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && python manage.py migrate_tasks && exec uwsgi --ini uwsgi.ini --http \"0.0.0.0:$AUTOMATON_PORT\" --uid 33 --gid 0"
+        ],
+        "workingDirectory": "."
+      },
+      "port": 9090
+    },
+    "health": { "path": "/health", "startupTimeoutSeconds": 120 },
+    "storage": { "dataDirectory": "data", "mounts": [] }
+  }
+}
