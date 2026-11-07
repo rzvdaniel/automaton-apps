@@ -24,7 +24,7 @@ Each app has its own source, dependencies, and `automaton.json`. Some examples u
 Some apps here package a well-known upstream project without changing its source. Each folder holds `automaton.json`, a `README.md` (upstream project and link, license, packaged version, configuration) and the upstream license file. There are two ways to get the upstream code, always pinned to one version:
 
 - **B, from a pinned release (default):** `automaton.json` runs a build command (a script in the folder) that downloads one upstream release, verifies its SHA-256 and builds it on the Runner. Use it whenever the build fits a 2 vCPU / 4 GB Runner and the build timeout. When compiling is too heavy but the project publishes a ready-built release archive, the script unpacks that archive instead (same pinned version and checksum; [IT-Tools](utilities/it-tools/) does this), and the README says so.
-- **A, upstream image:** `application.runtime.image` is the project's own published image, pinned to a version (never `latest`), with no build. Use it when a build is too heavy for a small Runner, and say so in the app's README.
+- **A, upstream image:** `application.runtime.image` is the project's own published image, pinned to a version (never `latest`), with no build. Use it when a build is too heavy for a small Runner, and say so in the app's README ([linkding](bookmarks/linkding/) does this).
 
 ## Get started
 
