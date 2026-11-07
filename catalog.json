@@ -85,6 +85,16 @@
       "commit": "18753def5a1ca1bb8f30c9664027e86250d70888",
       "minServerVersion": "0.2.55",
       "permissions": []
+    },
+    {
+      "id": "linkding",
+      "name": "linkding",
+      "summary": "Save, tag and search bookmarks on your own server.",
+      "category": "Productivity",
+      "folder": "productivity/linkding",
+      "commit": "85fc71bf2e0934452a3c6f45df05ead1e430c73d",
+      "minServerVersion": "0.2.55",
+      "permissions": []
     }
   ]
 }
