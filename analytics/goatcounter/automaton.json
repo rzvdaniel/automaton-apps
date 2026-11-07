@@ -12,7 +12,7 @@
     "runtime": {
       "image": "debian:12.13-slim",
       "user": "1000:1000",
-      "command": { "executable": "sh", "arguments": ["run.sh"], "workingDirectory": "." },
+      "command": { "executable": "sh", "arguments": ["run.sh"], "workingDirectory": "dist" },
       "port": 8080
     },
     "health": { "path": "/status", "startupTimeoutSeconds": 60 },
