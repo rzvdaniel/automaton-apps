@@ -192,7 +192,7 @@ def check_site(site: Site, timeout: float = 10, retry_delay: float | None = None
     if cert_days is not None and cert_days < 0:
         result.ok = False
         expired = f"certificate expired {-cert_days} day{'s' if cert_days != -1 else ''} ago"
-        result.error = expired if not result.error or "certificate" in result.error else f"{expired}; {result.error}"
+        result.error = expired
     return result
 
 

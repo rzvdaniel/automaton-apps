@@ -45,7 +45,7 @@ Create a free check at an outside service such as healthchecks.io, set its URL a
 
 ## Status page
 
-The app's address shows each site's status, response time and certificate days (host and path only, never query strings; a failed keyword check names the keyword in its detail), and `/status.json` returns the same as JSON. If the last run failed, the page says why. `/health` answers `ok`.
+The app's address is public (anyone with the link can open it), so it shows only what is safe to share: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. `/status.json` returns the same as JSON. If the last run failed, the page says why. `/health` answers `ok`.
 
 State (the last result per site, and what you were already told) is stored in the app's data directory, so a restart does not repeat alerts. Logs contain the alert texts and errors, never the webhook or heartbeat URLs.
 
