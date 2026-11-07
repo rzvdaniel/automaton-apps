@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "repo": "rzvdaniel/automaton-apps",
+  "apps": [
+    {
+      "id": "offsite-backup",
+      "name": "Automaton Off-site Backup",
+      "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
+      "category": "Maintenance",
+      "folder": "maintenance/offsite-backup",
+      "commit": "fe2c35c94903181f40d9bf20bb8878cf5d6955b1",
+      "minServerVersion": "0.2.31",
+      "permissions": [
+        "backups:read"
+      ]
+    },
+    {
+      "id": "flow-check",
+      "name": "Automaton Flow Check",
+      "summary": "Checks whether an issue really went through review, tests, CI, proof and production.",
+      "category": "Maintenance",
+      "folder": "maintenance/flow-check",
+      "commit": "fe2c35c94903181f40d9bf20bb8878cf5d6955b1",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    },
+    {
+      "id": "site-links",
+      "name": "Automaton Site Links",
+      "summary": "Crawls the public website, docs and store and opens a GitHub issue when links break.",
+      "category": "Maintenance",
+      "folder": "maintenance/site-links",
+      "commit": "24e520bb7fb45e666a75b146f07b1c2f9ac7f502",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    },
+    {
+      "id": "website-monitor",
+      "name": "Website Monitor",
+      "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
+      "category": "Monitoring",
+      "folder": "maintenance/website-monitor",
+      "commit": "00b392f830d0a3f756c73e7c71bcd5f8c64e585f",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    },
+    {
+      "id": "heartbeat",
+      "name": "Heartbeat",
+      "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
+      "category": "Monitoring",
+      "folder": "maintenance/heartbeat",
+      "commit": "08bbd77d8e7ba483574110013342c561b545ea93",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    },
+    {
+      "id": "it-tools",
+      "name": "IT-Tools",
+      "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
+      "category": "Utilities",
+      "folder": "utilities/it-tools",
+      "commit": "06cc4dd1d6354ee3635907283ee62801b50f5864",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    }
+  ]
+}
