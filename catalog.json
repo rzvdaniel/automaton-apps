@@ -40,7 +40,7 @@
       "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "00b392f830d0a3f756c73e7c71bcd5f8c64e585f",
+      "commit": "c2d3c05faa7419950c8c31a486a3a002131f3f0c",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -62,7 +62,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "08bbd77d8e7ba483574110013342c561b545ea93",
+      "commit": "1c1b0dbf615daf3758b34ac262013ecc6eb9fef5",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
