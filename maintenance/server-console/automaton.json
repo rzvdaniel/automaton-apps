@@ -1,7 +1,7 @@
 {
   "name": "Server Console",
   "summary": "A dashboard for your Automaton server with charts: CPU, memory and disk over 24 hours, current values, certificates, backups and OS update badges. Installs with nothing to fill in.",
-  "description": "Shows how your Automaton server and its Runners are doing, read-only: CPU, memory and disk as 24 hour charts, current values, load, Docker disk use, OS name and uptime, pending and security updates and restart-needed badges, server and Runner versions, certificate expiry and the last backup. Nothing to fill in when you install it: it finds your server's API address by itself. Alerts to a Slack, Discord or Telegram webhook can be turned on later in the app. It only asks for server:read, so it cannot change anything on the server.",
+  "description": "Shows how your Automaton server and its Runners are doing, read-only: CPU, memory and disk as 24 hour charts, current values, load, Docker disk use, OS name and uptime, pending and security updates and restart-needed badges, server and Runner versions, certificate expiry and the last backup. Nothing to fill in when you install it: it finds your server's API address by itself. Alerts to a Slack, Discord or Telegram webhook can be turned on later by adding a WEBHOOK_URL secret in Studio. It only asks for server:read, so it cannot change anything on the server.",
   "application": {
     "kind": "web",
     "description": "A dashboard for your Automaton server with charts: CPU, memory and disk over 24 hours, current values, certificates, backups and OS update badges. Installs with nothing to fill in.",
@@ -71,6 +71,12 @@
         "name": "REBOOT_DAYS",
         "description": "Warn when a restart has been required longer than this many days",
         "default": "3"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "WEBHOOK_URL",
+        "description": "Optional. Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts are off and warnings only appear on the page and in the log."
       }
     ]
   }

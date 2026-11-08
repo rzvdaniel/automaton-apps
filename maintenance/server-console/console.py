@@ -41,7 +41,8 @@ def env_int(env, name: str, default: int, minimum: int, maximum: int) -> int:
 class Settings:
     def __init__(self, env=None):
         env = os.environ if env is None else env
-        self.api_base_url = env.get("API_BASE_URL", "").strip().rstrip("/")
+        # The server's own AUTOMATON_API_URL wins when it provides one; API_BASE_URL is the manual override.
+        self.api_base_url = (env.get("AUTOMATON_API_URL") or env.get("API_BASE_URL", "")).strip().rstrip("/")
         self.api_source = "setting" if self.api_base_url else "none"
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
@@ -118,7 +119,7 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
 
 def new_state() -> dict:
     return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None,
-            "alerts": {}, "securitySince": None, "webhook": "", "derivedApiBase": None}
+            "alerts": {}, "securitySince": None, "derivedApiBase": None}
 
 
 def load_state(path: str) -> dict:
@@ -292,8 +293,6 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
     """One poll: fetch, record, judge, warn. Returns the updated state."""
     if not settings.api_base_url and state.get("derivedApiBase"):
         settings.api_base_url, settings.api_source = state["derivedApiBase"], "derived"
-    if state.get("webhook"):  # set in the app; takes the place of the WEBHOOK_URL environment variable
-        settings.webhook = state["webhook"]
     status, health, message = fetch(settings)
     state["status"], state["message"] = status, message
     if status == "ok" and health:

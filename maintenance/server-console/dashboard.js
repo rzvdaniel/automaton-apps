@@ -160,39 +160,12 @@
 
   function alertsCard(data) {
     var s = data.settings || {};
-    var state = s.webhookConfigured
-      ? "Alerts are on and go to <span class=\"a-mono\">" + esc(s.webhookHost || "your webhook") + "</span>."
-      : "Alerts are off. Warnings only appear on this page and in the log.";
-    var body = "<p>" + state + " One message is sent when the disk runs low (under " + esc(String(s.diskFreePercent)) + "% free), security updates wait over " + esc(String(s.securityUpdateDays)) +
-      " days or a restart is overdue by " + esc(String(s.rebootDays)) + " days, and one when it is resolved.</p>" +
-      '<form class="a-form c-alerts" id="alerts-form"><label class="a-field"><span class="a-muted">Webhook address (Slack, Discord, Telegram or any URL that accepts a JSON POST)</span>' +
-      '<input class="a-input" type="url" name="webhook" id="alerts-url" placeholder="' + (s.webhookConfigured ? "Saved. Paste a new address to replace it" : "https://hooks.example.com/...") + '" autocomplete="off"></label>' +
-      '<div class="c-alerts__buttons"><button class="a-btn a-btn--primary" type="submit">Save and turn alerts on</button>' +
-      (s.webhookConfigured ? '<button class="a-btn" type="button" id="alerts-off">Turn alerts off</button>' : "") + '</div><p class="a-muted" id="alerts-msg" role="status"></p></form>';
-    return card("Alerts", s.webhookConfigured ? "ok" : "unknown", body);
-  }
-
-  function saveWebhook(url) {
-    var msg = document.getElementById("alerts-msg");
-    msg.textContent = "Saving...";
-    fetch("api/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ webhook: url }) })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (r) {
-        if (!r.ok) { msg.textContent = r.d.error || "Could not save."; return; }
-        load();
-      }).catch(function () { msg.textContent = "Could not reach the app."; });
-  }
-
-  function bindAlerts() {
-    var form = document.getElementById("alerts-form");
-    if (!form) return;
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var url = document.getElementById("alerts-url").value.trim();
-      if (url) saveWebhook(url); else document.getElementById("alerts-msg").textContent = "Paste a webhook address first.";
-    });
-    var off = document.getElementById("alerts-off");
-    if (off) off.addEventListener("click", function () { saveWebhook(""); });
+    var body = s.webhookConfigured
+      ? "<p>Alerts are on and go to <span class=\"a-mono\">" + esc(s.webhookHost || "your webhook") + "</span>. One message is sent when the disk runs low (under " + esc(String(s.diskFreePercent)) +
+        "% free), security updates wait over " + esc(String(s.securityUpdateDays)) + " days or a restart is overdue by " + esc(String(s.rebootDays)) + " days, and one when it is resolved.</p>"
+      : "<p>Alerts are off. Add a <span class=\"a-mono\">WEBHOOK_URL</span> secret in Studio to turn them on.</p>";
+    return card("Alerts", s.webhookConfigured ? "ok" : "unknown", body,
+      s.webhookConfigured ? "" : "In Studio: the app's Settings, Secrets, Add a secret. Use a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST, then redeploy.");
   }
 
   function activeAlerts(data) {
@@ -211,7 +184,6 @@
       '<div class="a-grid a-grid--wide c-charts" style="margin-top:16px">' + chart("CPU", history, "cpu", a.cpu, now) + chart("Memory", history, "mem", a.memory, now) + chart("Disk", history, "disk", a.disk, now) + "</div>" +
       '<div class="a-grid a-grid--wide" style="margin-top:16px"><div class="a-stack">' + statusRows(h, a) + badges(h, a) + '</div><div class="a-stack">' + serverCard(h, a) + runnersCard(h, a) + "</div></div>" +
       '<div style="margin-top:16px">' + alertsCard(data) + "</div>";
-    bindAlerts();
     overall.hidden = false;
     overall.className = "a-pill a-pill--large" + (a.overall !== "unknown" ? " a-pill--" + a.overall : "");
     overall.textContent = a.overall === "ok" ? "All good" : a.overall === "warning" ? "Needs attention" : a.overall === "critical" ? "Action needed" : "No data";
@@ -247,8 +219,6 @@
   }
 
   function load() {
-    var typing = document.activeElement && document.activeElement.id === "alerts-url";
-    if (typing && view.querySelector("#alerts-form")) return;
     fetch("api/state", { cache: "no-store" }).then(function (response) {
       return response.json().then(function (data) {
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);

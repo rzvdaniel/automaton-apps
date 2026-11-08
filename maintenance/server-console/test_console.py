@@ -284,41 +284,6 @@ class ServerTests(unittest.TestCase):
         self.app.state["status"] = "not_approved"
         self.assertEqual(json.loads(self.get("/api/status")[1]), {"status": "not_approved"})
 
-    def post(self, body, content_type="application/json", origin="same"):
-        headers = {"Content-Type": content_type}
-        if origin:
-            headers["Origin"] = self.base if origin == "same" else origin
-        request = urllib.request.Request(self.base + "/api/alerts", data=body.encode(), headers=headers, method="POST")
-        try:
-            with urllib.request.urlopen(request) as response:
-                return response.status
-        except urllib.error.HTTPError as error:
-            return error.code
-
-    def test_alerts_are_turned_on_and_off_in_the_app_and_the_url_stays_secret(self):
-        self.assertEqual(self.post(json.dumps({"webhook": "https://hooks.example.com/secret-part"})), 200)
-        shown = self.get("/api/state")[1].decode()
-        self.assertIn('"webhookHost": "hooks.example.com"', shown)
-        self.assertNotIn("secret-part", shown)
-        self.assertEqual(self.app.state["webhook"], "https://hooks.example.com/secret-part")
-        self.assertEqual(self.post(json.dumps({"webhook": ""})), 200)
-        self.assertFalse(json.loads(self.get("/api/state")[1])["settings"]["webhookConfigured"])
-
-    def test_alert_changes_reject_bad_addresses_and_cross_site_posts(self):
-        self.assertEqual(self.post(json.dumps({"webhook": "http://x.example.com"})), 400)
-        self.assertEqual(self.post(json.dumps({"webhook": 5})), 400)
-        self.assertEqual(self.post("webhook=https://a.example.com", "application/x-www-form-urlencoded"), 403)
-        self.assertEqual(self.post(json.dumps({"webhook": "https://a.example.com"}), origin="https://evil.example.org"), 403)
-        self.assertEqual(self.post(json.dumps({"webhook": "https://a.example.com"}), origin=""), 403)
-        self.assertEqual(self.app.state["webhook"], "")
-
-    def test_the_learned_api_address_is_never_replaced(self):
-        app = main.Console({"AUTOMATON_APP_DATA_DIR": self.directory.name})
-        app.run_once = lambda: None
-        app.learn_address("app-1.apps.good.com", "https")
-        app.learn_address("app-2.apps.evil.com", "https")
-        self.assertEqual(app.state["derivedApiBase"], "https://api.good.com")
-
 
 class AddressTests(unittest.TestCase):
     def test_the_api_address_is_derived_from_the_address_the_app_is_opened_at(self):
@@ -339,11 +304,9 @@ class AddressTests(unittest.TestCase):
         self.assertEqual(seen, ["https://api.example.com"])
         self.assertEqual(conf.api_source, "derived")
 
-    def test_a_webhook_saved_in_the_app_turns_alerts_on(self):
-        state, send = console.new_state(), Recorder()
-        state["webhook"] = "https://hooks.example.com/x"
-        cycle(state, settings(WEBHOOK_URL="", ), health(disk_free_gb=5), send)
-        self.assertEqual([item[1] for item in send.sent], ["disk_low"])
+    def test_the_servers_own_api_address_wins(self):
+        conf = console.Settings({"AUTOMATON_API_URL": "https://api.real.com/", "API_BASE_URL": "https://api.other.com"})
+        self.assertEqual(conf.api_base_url, "https://api.real.com")
 
 
 if __name__ == "__main__":

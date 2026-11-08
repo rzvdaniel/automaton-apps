@@ -15,19 +15,20 @@ It only asks for the `server:read` permission, so it cannot change anything on t
 
 1. Install it from **Apps -> Catalog** (needs Automaton Server 0.2.56 or newer, with a Machine Management Runner that has been upgraded to report host figures). There is nothing to fill in.
 2. An administrator approves `server:read` in Studio: **Admin -> Apps -> Review -> Permissions -> Approve**. Until then the page says **Waiting for approval** and the app gets nothing. `automaton permissions status` shows the request.
-3. Optional: turn alerts on in the app (the **Alerts** card at the bottom of the page): paste a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. The address is stored in the app's data directory and only its host name is ever shown again.
+3. Optional: turn alerts on later in Studio: the app's **Settings -> Secrets -> Add a secret**, name `WEBHOOK_URL`, a Slack, Discord or Telegram webhook (or any URL that accepts a JSON POST), then redeploy. Without it the **Alerts** card says alerts are off.
 
-The server does not hand apps its API address, so the console works it out from the address you open it at (`app-<id>.apps.example.com` gives `https://api.example.com`) the first time someone opens the page. Until the page has been opened once the app says it does not know the server address. If your server does not follow that naming, set the optional `API_BASE_URL` setting and redeploy.
+The console uses `AUTOMATON_API_URL` when the server provides it. Servers that do not yet provide it leave the console to work the address out from the address you open it at (`app-<id>.apps.example.com` gives `https://api.example.com`) the first time someone opens the page. Until the page has been opened once the app says it does not know the server address. If your server does not follow that naming, set the optional `API_BASE_URL` setting and redeploy.
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
+| `WEBHOOK_URL` | secret, optional | Where alerts go. Empty: alerts are off. |
 | `API_BASE_URL` | setting, optional | Address of this server's API, only if it cannot be worked out. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
 | `DISK_FREE_WARN_PERCENT` | setting | Default 15. |
 | `SECURITY_UPDATE_DAYS` | setting | Default 7. Counted from when the console first saw the updates waiting. |
 | `REBOOT_DAYS` | setting | Default 3. |
 
-Settings reach the app as environment variables when it starts, so redeploy (restart) after changing one. `WEBHOOK_URL` is still read when it is set in the environment (for running it yourself), but a webhook saved in the app takes its place.
+Settings reach the app as environment variables when it starts, so redeploy (restart) after changing one.
 
 ## Warnings
 
