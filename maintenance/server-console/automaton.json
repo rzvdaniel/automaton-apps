@@ -1,19 +1,26 @@
 {
   "name": "Server Console",
-  "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and webhook warnings.",
-  "description": "Shows how your Automaton server and its Runners are doing, read-only: CPU, memory, disk and load with 24 hours of history, Docker disk use, OS name and uptime, pending and security updates, restart required, server and Runner versions and whether a newer release exists, certificate expiry and the last backup. Sends one webhook warning when disk space runs low, security updates wait too long or a restart is overdue, and one message when it is resolved. It only asks for server:read, so it cannot change anything on the server.",
+  "summary": "A dashboard for your Automaton server with charts: CPU, memory and disk over 24 hours, current values, certificates, backups and OS update badges. Installs with nothing to fill in.",
+  "description": "Shows how your Automaton server and its Runners are doing, read-only: CPU, memory and disk as 24 hour charts, current values, load, Docker disk use, OS name and uptime, pending and security updates and restart-needed badges, server and Runner versions, certificate expiry and the last backup. Nothing to fill in when you install it: it finds your server's API address by itself. Alerts to a Slack, Discord or Telegram webhook can be turned on later by adding a WEBHOOK_URL secret in Studio. It only asks for server:read, so it cannot change anything on the server.",
   "application": {
     "kind": "web",
-    "description": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and webhook warnings.",
-    "pages": [{ "path": "/", "label": "Server dashboard" }],
-    "permissions": ["server:read"],
+    "description": "A dashboard for your Automaton server with charts: CPU, memory and disk over 24 hours, current values, certificates, backups and OS update badges. Installs with nothing to fill in.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Server dashboard"
+      }
+    ],
+    "permissions": [
+      "server:read"
+    ],
     "build": {
       "image": "python:3.12-slim",
       "command": {
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py console.py && mkdir -p dist/ui && cp main.py console.py index.html dashboard.js dist/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py console.py && mkdir -p dist/ui && cp main.py console.py index.html dashboard.js console.css dist/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },
@@ -25,7 +32,9 @@
       "user": "1000:1000",
       "command": {
         "executable": "python",
-        "arguments": ["main.py"],
+        "arguments": [
+          "main.py"
+        ],
         "workingDirectory": "dist"
       },
       "port": 8080
@@ -41,8 +50,7 @@
     "settings": [
       {
         "name": "API_BASE_URL",
-        "description": "Base URL of this Automaton server's API, for example https://api.example.com",
-        "required": true
+        "description": "Only if the console cannot find your server's API by itself: its base URL, for example https://api.example.com"
       },
       {
         "name": "CHECK_INTERVAL_SECONDS",
@@ -68,7 +76,7 @@
     "secrets": [
       {
         "name": "WEBHOOK_URL",
-        "description": "Where warnings are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: warnings only appear in the log and on the page"
+        "description": "Optional. Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts are off and warnings only appear on the page and in the log."
       }
     ]
   }

@@ -271,6 +271,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.get("/")[0], 200)
         self.assertEqual(self.get("/ui/app.css")[0], 200)
         self.assertEqual(self.get("/dashboard.js")[0], 200)
+        self.assertEqual(self.get("/console.css")[0], 200)
         self.assertEqual(self.get("/console.py")[0], 404)
         self.assertEqual(self.get("/../main.py")[0], 404)
 
@@ -282,6 +283,18 @@ class ServerTests(unittest.TestCase):
     def test_status_reveals_only_the_permission_state(self):
         self.app.state["status"] = "not_approved"
         self.assertEqual(json.loads(self.get("/api/status")[1]), {"status": "not_approved"})
+
+
+class AddressTests(unittest.TestCase):
+    def test_without_an_api_address_no_call_is_made(self):
+        conf = console.Settings({"APP_AUTOMATON_API_KEY": "key"})
+        status, health_, message = console.fetch_health(conf, opener=object())
+        self.assertEqual((status, health_), ("not_configured", None))
+        self.assertIn("0.2.80", message)
+
+    def test_the_servers_own_api_address_wins(self):
+        conf = console.Settings({"AUTOMATON_API_URL": "https://api.real.com/", "API_BASE_URL": "https://api.other.com"})
+        self.assertEqual(conf.api_base_url, "https://api.real.com")
 
 
 if __name__ == "__main__":

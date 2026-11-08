@@ -76,44 +76,96 @@
     return card("Updates", a.updates, body, foot);
   }
 
-  function resourcesCard(h, a, history) {
+  var DAY_SECONDS = 86400;
+
+  /* Inline SVG area chart of one series over the last 24 hours. Colours come from console.css. */
+  function chart(name, history, key, status, now) {
+    var W = 600, H = 150, L = 34, R = 8, T = 8, B = 8;
+    var pw = W - L - R, ph = H - T - B;
+    var start = now - DAY_SECONDS;
+    var points = history.filter(function (i) { return typeof i[key] === "number" && i.t >= start; });
+    var cls = status === "warning" || status === "critical" ? " c-chart--" + status : "";
+    var grid = [0, 50, 100].map(function (v) {
+      var y = T + ph - ph * v / 100;
+      return '<line class="c-chart__grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>' +
+        '<text class="c-chart__tick" x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + v + "%</text>";
+    }).join("");
+    var summary = "No data in the last 24 hours.";
+    var plot = "";
+    if (points.length) {
+      var xy = points.map(function (i) {
+        return [L + pw * (i.t - start) / DAY_SECONDS, T + ph - ph * Math.max(0, Math.min(100, i[key])) / 100];
+      });
+      var line = xy.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
+      var last = xy[xy.length - 1], first = xy[0];
+      plot = '<polygon class="c-chart__area" points="' + first[0].toFixed(1) + "," + (T + ph) + " " + line + " " + last[0].toFixed(1) + "," + (T + ph) + '"/>' +
+        '<polyline class="c-chart__line" points="' + line + '"/><circle class="c-chart__dot" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="3.5"/>';
+      var values = points.map(function (i) { return i[key]; });
+      var avg = values.reduce(function (x, y) { return x + y; }, 0) / values.length;
+      summary = "Lowest " + Math.round(Math.min.apply(null, values)) + "%, average " + Math.round(avg) + "%, highest " + Math.round(Math.max.apply(null, values)) + "%.";
+    }
+    var svg = '<svg class="c-chart__svg" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(name + ", last 24 hours. " + summary) + '">' + grid + plot + "</svg>";
+    return '<section class="a-card c-chart' + cls + '"><div class="a-card__head"><h2 class="a-card__title">' + esc(name) + " &middot; 24 hours</h2>" + pill(status) + "</div>" +
+      svg + '<div class="c-chart__axis" aria-hidden="true"><span>24 h ago</span><span>12 h ago</span><span>now</span></div><p class="a-card__foot">' + esc(summary) + "</p></section>";
+  }
+
+  function tiles(h, a) {
     var host = h.host || {};
     var memoryUsed = typeof host.memoryTotalBytes === "number" && host.memoryTotalBytes > 0 ? 100 - 100 * host.memoryAvailableBytes / host.memoryTotalBytes : null;
     var diskUsed = typeof host.diskTotalBytes === "number" && host.diskTotalBytes > 0 ? 100 - 100 * host.diskAvailableBytes / host.diskTotalBytes : null;
     var docker = (host.dockerImagesBytes || 0) + (host.dockerContainersBytes || 0) + (host.dockerVolumesBytes || 0) + (host.dockerBuildCacheBytes || 0);
-    var load = typeof host.load1 === "number" ? [host.load1, host.load5, host.load15].map(function (v) { return v.toFixed(2); }).join(" / ") : "-";
-    var body = metric("CPU", host.cpuPercent, a.cpu, history, "cpu") +
-      metric("Memory used" + (typeof host.memoryTotalBytes === "number" ? " of " + UI.formatBytes(host.memoryTotalBytes) : ""), memoryUsed, a.memory, history, "mem") +
-      metric("Disk used" + (typeof host.diskTotalBytes === "number" ? " of " + UI.formatBytes(host.diskTotalBytes) : ""), diskUsed, a.disk, history, "disk") +
-      '<dl class="a-kv" style="margin-top:6px"><dt>Disk free</dt><dd>' + (typeof host.diskAvailableBytes === "number" ? esc(UI.formatBytes(host.diskAvailableBytes)) : "-") +
-      "</dd><dt>Load 1 / 5 / 15 min" + (host.cpuCount ? " (" + esc(String(host.cpuCount)) + " CPUs)" : "") + '</dt><dd class="a-mono">' + esc(load) +
-      "</dd><dt>Docker disk use</dt><dd>" + (docker > 0 ? esc(UI.formatBytes(docker)) : "-") + "</dd></dl>";
-    var stale = a.freshness === "warning" ? '<p class="a-note a-note--warning" style="margin-top:12px">The Runner has not reported for a while; these figures are old.</p>' : "";
-    var foot = "History: the last 24 hours, one point every few minutes.";
-    return card("Resources", a.resources, body + stale, foot);
+    function p(v) { return v === null ? "-" : Math.round(v) + " <small>%</small>"; }
+    return '<div class="a-card"><div class="a-stats c-tiles">' +
+      stat("CPU", p(typeof host.cpuPercent === "number" ? host.cpuPercent : null), host.cpuCount ? esc(String(host.cpuCount)) + " CPUs" : "", a.cpu) +
+      stat("Memory", p(memoryUsed), typeof host.memoryTotalBytes === "number" ? "of " + esc(UI.formatBytes(host.memoryTotalBytes)) : "", a.memory) +
+      stat("Disk", p(diskUsed), typeof host.diskAvailableBytes === "number" ? esc(UI.formatBytes(host.diskAvailableBytes)) + " free" : "", a.disk) +
+      stat("Load (5 min)", typeof host.load5 === "number" ? esc(host.load5.toFixed(2)) : "-", host.cpuCount ? "per " + esc(String(host.cpuCount)) + " CPUs" : "", a.load) +
+      stat("Docker disk use", docker > 0 ? esc(UI.formatBytes(docker)) : "-", "", "") + "</div></div>";
   }
 
-  function backupsCard(h, a) {
+  function badges(h, a) {
+    var host = h.host || {};
+    var reboot = host.rebootRequired === true ? pill(a.reboot, "Restart required") : host.rebootRequired === false ? pill("ok", "No restart needed") : pill("unknown", "Restart: no data");
+    var sec = typeof host.securityUpdates === "number" ? pill(a.security, host.securityUpdates + (host.securityUpdates === 1 ? " security update" : " security updates")) : pill("unknown", "Security updates: no data");
+    var pend = typeof host.updatesPending === "number" ? pill(a.pending, host.updatesPending + " pending") : pill("unknown", "Updates: no data");
+    var hint = a.securityDays !== null && a.securityDays !== undefined ? "Security updates have been waiting " + esc(String(a.securityDays)) + " days. " : "";
+    var since = host.rebootRequired === true && host.rebootRequiredSinceUtc ? "Restart required since " + when(host.rebootRequiredSinceUtc) + ". " : "";
+    var foot = hint + since + (host.updatesPending === null || host.updatesPending === undefined ? "Update counts need Ubuntu's update notifier on the server." : "");
+    return card("Operating system updates", a.updates, '<div class="c-badges">' + reboot + sec + pend + "</div>", foot);
+  }
+
+  function statusRows(h, a) {
     var b = h.backup || {};
-    var body;
+    var rows = [];
     if (!b.available) {
-      body = '<div class="a-empty"><div class="a-empty__title">No backup status</div>Run the latest server update to enable nightly backups.</div>';
+      rows.push('<li><span>Backup</span>' + pill("unknown", "No backup status") + "</li>");
     } else {
-      var age = typeof b.lastSuccessAgeHours === "number" ? (b.lastSuccessAgeHours < 48 ? Math.round(b.lastSuccessAgeHours) + " hours" : Math.round(b.lastSuccessAgeHours / 24) + " days") : "-";
-      body = '<div class="a-stats">' + stat("Last successful backup", b.lastSuccessAt ? esc(age) + " <small>ago</small>" : "never", "", a.backup) + "</div>" +
-        (b.lastError ? '<p class="a-note a-note--critical" style="margin-top:12px">' + esc(b.lastError) + "</p>" : "");
+      var age = typeof b.lastSuccessAgeHours === "number" ? (b.lastSuccessAgeHours < 48 ? Math.round(b.lastSuccessAgeHours) + " hours ago" : Math.round(b.lastSuccessAgeHours / 24) + " days ago") : "never";
+      rows.push("<li><span>Last backup</span>" + pill(a.backup, b.lastSuccessAt ? age : "Never succeeded") + "</li>");
+      if (b.lastError) rows.push('<li><span class="a-muted">' + esc(b.lastError) + "</span></li>");
     }
-    return card("Backups", a.backup, body);
+    (h.certificates || []).forEach(function (c) {
+      var unreadable = c.daysRemaining === null || c.daysRemaining === undefined;
+      var status = unreadable || c.daysRemaining <= 7 ? "critical" : c.daysRemaining <= 14 ? "warning" : "ok";
+      rows.push('<li><span class="a-mono">' + esc(c.host) + "</span>" + pill(status, unreadable ? "Unreadable" : "Expires in " + c.daysRemaining + (c.daysRemaining === 1 ? " day" : " days")) + "</li>");
+    });
+    return card("Backups and certificates", UI_worst([a.backup, a.certificates]), '<ul class="a-list">' + rows.join("") + "</ul>",
+      "Certificates show days until each public host name expires.");
   }
 
-  function certificatesCard(h, a) {
-    var certs = h.certificates || [];
-    var body = certs.length ? '<ul class="a-list">' + certs.map(function (c) {
-      var status = c.daysRemaining === null || c.daysRemaining === undefined ? "critical" : c.daysRemaining <= 7 ? "critical" : c.daysRemaining <= 14 ? "warning" : "ok";
-      var text = c.daysRemaining === null || c.daysRemaining === undefined ? "Unreadable" : c.daysRemaining + (c.daysRemaining === 1 ? " day" : " days");
-      return '<li><span class="a-mono">' + esc(c.host) + "</span>" + pill(status, text) + "</li>";
-    }).join("") + "</ul>" : '<div class="a-empty"><div class="a-empty__title">No certificates</div>The server is not using HTTPS host names.</div>';
-    return card("Certificates", a.certificates, body, "Days until the certificate of each public host name expires.");
+  function UI_worst(list) {
+    var rank = { critical: 3, warning: 2, ok: 1, unknown: 0 };
+    return list.reduce(function (w, x) { return (rank[x] || 0) > (rank[w] || 0) ? x : w; }, "unknown");
+  }
+
+  function alertsCard(data) {
+    var s = data.settings || {};
+    var body = s.webhookConfigured
+      ? "<p>Alerts are on and go to <span class=\"a-mono\">" + esc(s.webhookHost || "your webhook") + "</span>. One message is sent when the disk runs low (under " + esc(String(s.diskFreePercent)) +
+        "% free), security updates wait over " + esc(String(s.securityUpdateDays)) + " days or a restart is overdue by " + esc(String(s.rebootDays)) + " days, and one when it is resolved.</p>"
+      : "<p>Alerts are off. Add a <span class=\"a-mono\">WEBHOOK_URL</span> secret in Studio to turn them on.</p>";
+    return card("Alerts", s.webhookConfigured ? "ok" : "unknown", body,
+      s.webhookConfigured ? "" : "In Studio: the app's Settings, Secrets, Add a secret. Use a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST, then redeploy.");
   }
 
   function activeAlerts(data) {
@@ -127,9 +179,11 @@
   function dashboard(data) {
     var h = data.health, a = data.assessment;
     var history = data.history || [];
-    view.innerHTML = activeAlerts(data) + '<div class="a-grid a-grid--wide"><div class="a-stack">' + serverCard(h, a) + updatesCard(h, a) + "</div>" +
-      resourcesCard(h, a, history) + "</div>" +
-      '<div class="a-grid a-grid--wide" style="margin-top:16px">' + runnersCard(h, a) + '<div class="a-stack">' + backupsCard(h, a) + certificatesCard(h, a) + "</div></div>";
+    var now = data.now || Math.floor(Date.now() / 1000);
+    view.innerHTML = activeAlerts(data) + tiles(h, a) +
+      '<div class="a-grid a-grid--wide c-charts" style="margin-top:16px">' + chart("CPU", history, "cpu", a.cpu, now) + chart("Memory", history, "mem", a.memory, now) + chart("Disk", history, "disk", a.disk, now) + "</div>" +
+      '<div class="a-grid a-grid--wide" style="margin-top:16px"><div class="a-stack">' + statusRows(h, a) + badges(h, a) + '</div><div class="a-stack">' + serverCard(h, a) + runnersCard(h, a) + "</div></div>" +
+      '<div style="margin-top:16px">' + alertsCard(data) + "</div>";
     overall.hidden = false;
     overall.className = "a-pill a-pill--large" + (a.overall !== "unknown" ? " a-pill--" + a.overall : "");
     overall.textContent = a.overall === "ok" ? "All good" : a.overall === "warning" ? "Needs attention" : a.overall === "critical" ? "Action needed" : "No data";
@@ -155,7 +209,7 @@
   }
 
   function problem(data) {
-    var message = data.status === "not_configured" ? "Set the <span class=\"a-mono\">API_BASE_URL</span> setting to the address of your server's API, then restart the app."
+    var message = data.status === "not_configured" ? "This console needs Automaton server <strong>0.2.80</strong> or newer. Update your server, or set the <span class=\"a-mono\">API_BASE_URL</span> setting to the address of its API, then redeploy."
       : data.status === "unavailable" ? "This server does not offer server health yet. Update Automaton, then reload."
       : data.status === "starting" ? "The first check is still running. This page refreshes by itself."
       : "The server could not be read right now: " + esc(data.message || "unknown error") + ".";

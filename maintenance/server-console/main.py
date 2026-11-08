@@ -24,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
+    "/console.css": ("console.css", "text/css; charset=utf-8"),
     "/ui/app.css": (os.path.join("ui", "app.css"), "text/css; charset=utf-8"),
     "/ui/app.js": (os.path.join("ui", "app.js"), "text/javascript; charset=utf-8"),
 }

@@ -40,7 +40,8 @@ def env_int(env, name: str, default: int, minimum: int, maximum: int) -> int:
 class Settings:
     def __init__(self, env=None):
         env = os.environ if env is None else env
-        self.api_base_url = env.get("API_BASE_URL", "").strip().rstrip("/")
+        # The server's own AUTOMATON_API_URL wins when it provides one; API_BASE_URL is the manual override.
+        self.api_base_url = (env.get("AUTOMATON_API_URL") or env.get("API_BASE_URL", "")).strip().rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
         self.interval = env_int(env, "CHECK_INTERVAL_SECONDS", 300, 60, 3600)
@@ -53,7 +54,12 @@ class Settings:
     def public(self) -> dict:
         return {"intervalSeconds": self.interval, "diskFreePercent": self.disk_free_percent,
                 "securityUpdateDays": self.security_days, "rebootDays": self.reboot_days,
-                "webhookConfigured": bool(self.webhook)}
+                "webhookConfigured": bool(self.webhook), "webhookHost": webhook_host(self.webhook)}
+
+
+def webhook_host(url: str) -> str | None:
+    """Only the host of a webhook is ever shown: the rest of the URL is a secret."""
+    return (urlsplit(url).hostname or None) if url else None
 
 
 # --- Reading the platform API ---------------------------------------------------------------------------------------
@@ -66,7 +72,7 @@ class _NoRedirect(HTTPRedirectHandler):
 def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[str, dict | None, str | None]:
     """Returns (status, health, message). Status is ok, no_key, not_approved, not_configured, unavailable or error."""
     if not settings.api_base_url:
-        return "not_configured", None, "API_BASE_URL is not set."
+        return "not_configured", None, "This console needs Automaton server 0.2.80 or newer."
     if not settings.api_key:
         return "no_key", None, "The app has no server:read key yet."
     request = Request(settings.api_base_url + "/api/server/health",
