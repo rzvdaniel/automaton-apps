@@ -3,6 +3,9 @@
   "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
   "description": "GoatCounter by Martin Tournoij (arp242), built from a pinned upstream release on the Runner. Statistics live in SQLite under the app data directory and survive redeploys.",
   "application": {
+    "kind": "web",
+    "description": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
+    "pages": [{ "path": "/", "label": "Dashboard" }],
     "build": {
       "image": "golang:1.25.14-bookworm",
       "command": { "executable": "sh", "arguments": ["build.sh"], "workingDirectory": "." },

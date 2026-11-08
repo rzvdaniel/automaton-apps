@@ -3,6 +3,9 @@
   "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
   "description": "Create a check for each cron job or backup with how often it should check in and how much grace it gets. Your job calls the check's secret URL after each run; when a check-in is missed you get one alert, and one message when it checks in again. Works with Slack, Discord, Telegram or any webhook URL.",
   "application": {
+    "kind": "web",
+    "description": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
+    "pages": [{ "path": "/", "label": "Check-ins" }],
     "build": {
       "image": "python:3.12-slim",
       "command": {

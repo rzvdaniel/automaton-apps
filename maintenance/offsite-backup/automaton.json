@@ -3,6 +3,7 @@
   "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
   "description": "An Actions-only app that uploads the newest encrypted backup to your own bucket. It only asks for backups:read and cannot read the backup key.",
   "application": {
+    "description": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
     "permissions": ["backups:read"],
     "settings": [
       { "name": "S3_ENDPOINT", "description": "S3-compatible object storage endpoint URL", "required": true },
