@@ -3,6 +3,7 @@
   "summary": "Checks whether an issue really went through review, tests, CI, proof and production.",
   "description": "Reads GitHub and reports pass, warn or fail per issue for the review, tests, CI, proof and production checks.",
   "application": {
+    "description": "Checks whether an issue really went through review, tests, CI, proof and production.",
     "settings": [
       { "name": "REPO", "description": "GitHub repository to check, owner/name", "default": "rzvdaniel/automaton" },
       { "name": "PRODUCTION_API_URL", "description": "Public API URL of the production server (its /health reports the version)", "default": "https://api.automaton.monster" }

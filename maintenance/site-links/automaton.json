@@ -3,6 +3,7 @@
   "summary": "Crawls the public website, docs and store and opens a GitHub issue when links break.",
   "description": "Checks links on the configured sites (typically on a nightly schedule), opens or updates one GitHub issue per site when links fail, and closes it when they are fixed.",
   "application": {
+    "description": "Crawls the public website, docs and store and opens a GitHub issue when links break.",
     "secrets": [
       { "name": "GITHUB_TOKEN", "description": "Fine-grained token with Issues read/write on rzvdaniel/automaton" }
     ]

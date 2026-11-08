@@ -1,6 +1,9 @@
 {
   "name": "Untranslatable",
   "application": {
+    "kind": "web",
+    "description": "Find the words no other language has a word for.",
+    "pages": [{ "path": "/", "label": "Play" }],
     "build": {
       "timeoutSeconds": 900
     },

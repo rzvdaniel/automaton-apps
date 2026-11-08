@@ -3,6 +3,9 @@
   "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
   "description": "Checks the sites you list every few minutes (status, optional keyword, response time, days left on the TLS certificate) and sends one alert when a site goes down and one when it recovers. Works with Slack, Discord, Telegram or any webhook URL. Can ping a heartbeat URL after every good run so an outside service notices if this server stops.",
   "application": {
+    "kind": "web",
+    "description": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
+    "pages": [{ "path": "/", "label": "Monitors" }],
     "build": {
       "image": "python:3.12-slim",
       "command": {

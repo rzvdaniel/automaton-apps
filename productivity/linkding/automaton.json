@@ -4,6 +4,9 @@
   "description": "The MIT-licensed linkding bookmark manager, packaged from its upstream container image with SQLite data in Automaton's durable app directory.",
   "category": "Productivity",
   "application": {
+    "kind": "web",
+    "description": "Save, tag and search bookmarks on your own server.",
+    "pages": [{ "path": "/", "label": "Bookmarks" }],
     "build": {
       "command": {
         "executable": "sh",
