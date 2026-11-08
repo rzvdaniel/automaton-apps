@@ -286,31 +286,11 @@ class ServerTests(unittest.TestCase):
 
 
 class AddressTests(unittest.TestCase):
-    def test_the_api_address_is_derived_from_the_address_the_app_is_opened_at(self):
-        d = console.derive_api_base
-        self.assertEqual(d("app-0123456789abcdef0123456789abcdef.apps.automaton.monster"), "https://api.automaton.monster")
-        self.assertEqual(d("clock.apps.example.com:443", "https"), "https://api.example.com")
-        self.assertEqual(d("app-1.example.com"), "https://api.example.com")
-        self.assertIsNone(d("x.attacker.com"))
-        for bad in (None, "", "localhost", "127.0.0.1", "10.0.0.5", "a.b", "evil host.example.com"):
-            self.assertIsNone(d(bad), bad)
-
-    def test_a_derived_address_is_used_when_no_setting_exists(self):
-        state = console.new_state()
-        state["derivedApiBase"] = "https://api.example.com"
-        seen = []
+    def test_without_an_api_address_no_call_is_made(self):
         conf = console.Settings({"APP_AUTOMATON_API_KEY": "key"})
-        console.run_cycle(conf, state, NOW, Recorder(), fetch=lambda s: (seen.append(s.api_base_url) or "ok", health(), None))
-        self.assertEqual(seen, ["https://api.example.com"])
-        self.assertEqual(conf.api_source, "derived")
-
-    def test_the_learned_api_address_is_never_replaced(self):
-        with tempfile.TemporaryDirectory() as directory:
-            app = main.Console({"AUTOMATON_APP_DATA_DIR": directory})
-            app.run_once = lambda: None
-            app.learn_address("app-1.apps.good.com", "https")
-            app.learn_address("app-2.apps.evil.com", "https")
-            self.assertEqual(app.state["derivedApiBase"], "https://api.good.com")
+        status, health_, message = console.fetch_health(conf, opener=object())
+        self.assertEqual((status, health_), ("not_configured", None))
+        self.assertIn("0.2.80", message)
 
     def test_the_servers_own_api_address_wins(self):
         conf = console.Settings({"AUTOMATON_API_URL": "https://api.real.com/", "API_BASE_URL": "https://api.other.com"})

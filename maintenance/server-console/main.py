@@ -83,19 +83,6 @@ class Console:
             self.run_once()
             time.sleep(self.settings.interval)
 
-    def learn_address(self, host: str | None, proto: str | None) -> None:
-        """Remembers the API address worked out from the address the page is opened at (see console.derive_api_base)."""
-        if self.settings.api_source == "setting":
-            return
-        if self.state.get("derivedApiBase"):  # learned once and never replaced, so a forged header cannot redirect the key
-            return
-        derived = console.derive_api_base(host, "https")
-        if derived:
-            with self.lock:
-                self.state["derivedApiBase"] = derived
-                console.save_state(self.path, self.state)
-            threading.Thread(target=self.run_once, daemon=True).start()
-
     def view(self) -> dict:
         with self.lock:
             return console.snapshot(self.state, self.settings, time.time())
@@ -123,8 +110,6 @@ def make_handler(app: Console):
 
         def do_GET(self):  # noqa: N802
             path = urlsplit(self.path).path
-            if path in ("/", "/api/state"):
-                app.learn_address(self.headers.get("X-Forwarded-Host") or self.headers.get("Host"), self.headers.get("X-Forwarded-Proto"))
             if path == "/health":
                 return self.send_body(200, b"ok", "text/plain")
             if path == "/api/status":  # lets the page explain what is missing before any figures exist

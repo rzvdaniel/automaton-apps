@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import time
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
@@ -43,7 +42,6 @@ class Settings:
         env = os.environ if env is None else env
         # The server's own AUTOMATON_API_URL wins when it provides one; API_BASE_URL is the manual override.
         self.api_base_url = (env.get("AUTOMATON_API_URL") or env.get("API_BASE_URL", "")).strip().rstrip("/")
-        self.api_source = "setting" if self.api_base_url else "none"
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
         self.interval = env_int(env, "CHECK_INTERVAL_SECONDS", 300, 60, 3600)
@@ -56,35 +54,12 @@ class Settings:
     def public(self) -> dict:
         return {"intervalSeconds": self.interval, "diskFreePercent": self.disk_free_percent,
                 "securityUpdateDays": self.security_days, "rebootDays": self.reboot_days,
-                "webhookConfigured": bool(self.webhook), "webhookHost": webhook_host(self.webhook),
-                "apiBaseSource": self.api_source}
+                "webhookConfigured": bool(self.webhook), "webhookHost": webhook_host(self.webhook)}
 
 
 def webhook_host(url: str) -> str | None:
     """Only the host of a webhook is ever shown: the rest of the URL is a secret."""
     return (urlsplit(url).hostname or None) if url else None
-
-
-_HOST = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$")
-
-
-def derive_api_base(host: str | None, proto: str | None = None) -> str | None:
-    """Works out the API address from the address the app is opened at.
-
-    Used only when the server does not provide AUTOMATON_API_URL. We use the convention of Automaton servers: an app is served at
-    app-<id>.apps.<domain> (or <slug>.apps.<domain>) and the API at api.<domain>. Returns None when the host does not
-    look like that (an IP address, localhost, or too few labels); then API_BASE_URL must be set.
-    """
-    host = (host or "").split(":")[0].strip().lower().rstrip(".")
-    if not _HOST.match(host) or host.replace(".", "").isdigit():
-        return None
-    if not (host.startswith("app-") or ".apps." in host):  # only an Automaton app address: app-<id>.<domain> or <slug>.apps.<domain>
-        return None
-    domain = host.split(".", 1)[1]
-    domain = domain[len("apps."):] if domain.startswith("apps.") else domain
-    if "." not in domain:
-        return None
-    return ("http" if proto == "http" else "https") + "://api." + domain
 
 
 # --- Reading the platform API ---------------------------------------------------------------------------------------
@@ -97,7 +72,7 @@ class _NoRedirect(HTTPRedirectHandler):
 def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[str, dict | None, str | None]:
     """Returns (status, health, message). Status is ok, no_key, not_approved, not_configured, unavailable or error."""
     if not settings.api_base_url:
-        return "not_configured", None, "The server address is not known yet: open this page once, or set API_BASE_URL."
+        return "not_configured", None, "This console needs Automaton server 0.2.80 or newer."
     if not settings.api_key:
         return "no_key", None, "The app has no server:read key yet."
     request = Request(settings.api_base_url + "/api/server/health",
@@ -119,7 +94,7 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
 
 def new_state() -> dict:
     return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None,
-            "alerts": {}, "securitySince": None, "derivedApiBase": None}
+            "alerts": {}, "securitySince": None}
 
 
 def load_state(path: str) -> dict:
@@ -291,8 +266,6 @@ def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliv
 
 def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health) -> dict:
     """One poll: fetch, record, judge, warn. Returns the updated state."""
-    if not settings.api_base_url and state.get("derivedApiBase"):
-        settings.api_base_url, settings.api_source = state["derivedApiBase"], "derived"
     status, health, message = fetch(settings)
     state["status"], state["message"] = status, message
     if status == "ok" and health:

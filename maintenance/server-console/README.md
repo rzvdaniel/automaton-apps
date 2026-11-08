@@ -13,16 +13,16 @@ It only asks for the `server:read` permission, so it cannot change anything on t
 
 ## Install and set up
 
-1. Install it from **Apps -> Catalog** (needs Automaton Server 0.2.56 or newer, with a Machine Management Runner that has been upgraded to report host figures). There is nothing to fill in.
+1. Install it from **Apps -> Catalog** (needs Automaton Server 0.2.80 or newer, with a Machine Management Runner that has been upgraded to report host figures). There is nothing to fill in.
 2. An administrator approves `server:read` in Studio: **Admin -> Apps -> Review -> Permissions -> Approve**. Until then the page says **Waiting for approval** and the app gets nothing. `automaton permissions status` shows the request.
 3. Optional: turn alerts on later in Studio: the app's **Settings -> Secrets -> Add a secret**, name `WEBHOOK_URL`, a Slack, Discord or Telegram webhook (or any URL that accepts a JSON POST), then redeploy. Without it the **Alerts** card says alerts are off.
 
-The console uses `AUTOMATON_API_URL` when the server provides it. Servers that do not yet provide it leave the console to work the address out from the address you open it at (`app-<id>.apps.example.com` gives `https://api.example.com`) the first time someone opens the page. Until the page has been opened once the app says it does not know the server address. If your server does not follow that naming, set the optional `API_BASE_URL` setting and redeploy. The learned address is kept in the app's data (`state.json`, `derivedApiBase`) and is never replaced, so if a wrong one was learned, set `API_BASE_URL` (it takes precedence).
+The console reads the server's API address from `AUTOMATON_API_URL`, which Automaton server 0.2.80 or newer provides (Automaton #911). It never guesses the address from how the page is opened. On an older server it shows "This console needs Automaton server 0.2.80 or newer" and makes no API calls; the optional `API_BASE_URL` setting is a manual alternative.
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
 | `WEBHOOK_URL` | secret, optional | Where alerts go. Empty: alerts are off. |
-| `API_BASE_URL` | setting, optional | Address of this server's API, only if it cannot be worked out. |
+| `API_BASE_URL` | setting, optional | Address of this server's API, only if the server does not provide `AUTOMATON_API_URL`. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
 | `DISK_FREE_WARN_PERCENT` | setting | Default 15. |
 | `SECURITY_UPDATE_DAYS` | setting | Default 7. Counted from when the console first saw the updates waiting. |
@@ -38,7 +38,7 @@ The warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `
 
 The app calls `GET /api/server/health` of your server with its `APP_AUTOMATON_API_KEY`. The Machine Management Runner measures the host every 5 minutes, so figures are at most a few minutes old; Docker disk use and update counts come from the host (update counts need Ubuntu's update notifier and show "no data" elsewhere). History (24 hours, one point per check) and warning state are kept in `AUTOMATON_APP_DATA_DIR`.
 
-The app has no password of its own. Automaton asks everyone who opens its private address to sign in: the owner, administrators and the people or projects you share the app with get through, everyone else gets `403`. **Do not publish this app**: publishing makes the page open to anyone. Needs Automaton Server 0.2.63 or newer; older servers left the private address open, which is why earlier versions of this app asked for an `ADMIN_TOKEN`.
+The app has no password of its own. Automaton asks everyone who opens its private address to sign in: the owner, administrators and the people or projects you share the app with get through, everyone else gets `403`. **Do not publish this app**: publishing makes the page open to anyone. Older servers left the private address open, which is why earlier versions of this app asked for an `ADMIN_TOKEN`.
 
 The background check runs inside the app rather than as an Automaton Action, because an Action has no access to the app's data directory, where the history has to live.
 

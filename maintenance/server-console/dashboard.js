@@ -209,7 +209,7 @@
   }
 
   function problem(data) {
-    var message = data.status === "not_configured" ? "Set the <span class=\"a-mono\">API_BASE_URL</span> setting to the address of your server's API, then restart the app."
+    var message = data.status === "not_configured" ? "This console needs Automaton server <strong>0.2.80</strong> or newer. Update your server, or set the <span class=\"a-mono\">API_BASE_URL</span> setting to the address of its API, then redeploy."
       : data.status === "unavailable" ? "This server does not offer server health yet. Update Automaton, then reload."
       : data.status === "starting" ? "The first check is still running. This page refreshes by itself."
       : "The server could not be read right now: " + esc(data.message || "unknown error") + ".";
