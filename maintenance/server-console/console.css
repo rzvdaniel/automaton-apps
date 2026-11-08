@@ -1,0 +1,19 @@
+/* Server Console only: charts, tiles and badges. Uses the UI kit's custom properties and nothing else. */
+.c-tiles { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.c-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-charts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.c-chart__svg { display: block; width: 100%; height: auto; }
+.c-chart__grid { stroke: var(--border); stroke-width: 1; }
+.c-chart__tick { fill: var(--muted); font: 14px var(--mono); }
+.c-chart__line { fill: none; stroke: var(--orange); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.c-chart__area { fill: color-mix(in srgb, var(--orange) 16%, transparent); stroke: none; }
+.c-chart__dot { fill: var(--orange); stroke: var(--surface); stroke-width: 2; }
+.c-chart--warning .c-chart__line { stroke: var(--warn); }
+.c-chart--warning .c-chart__area { fill: color-mix(in srgb, var(--warn) 16%, transparent); }
+.c-chart--warning .c-chart__dot { fill: var(--warn); }
+.c-chart--critical .c-chart__line { stroke: var(--critical); }
+.c-chart--critical .c-chart__area { fill: color-mix(in srgb, var(--critical) 16%, transparent); }
+.c-chart--critical .c-chart__dot { fill: var(--critical); }
+.c-chart__axis { display: flex; justify-content: space-between; padding-left: 5.5%; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.c-alerts { margin-top: 12px; display: grid; gap: 10px; }
+.c-alerts__buttons { display: flex; flex-wrap: wrap; gap: 8px; }

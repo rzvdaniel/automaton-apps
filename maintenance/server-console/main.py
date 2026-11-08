@@ -24,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
+    "/console.css": ("console.css", "text/css; charset=utf-8"),
     "/ui/app.css": (os.path.join("ui", "app.css"), "text/css; charset=utf-8"),
     "/ui/app.js": (os.path.join("ui", "app.js"), "text/javascript; charset=utf-8"),
 }
@@ -62,7 +63,7 @@ class Console:
     def send(self, event: str, condition: str, text: str) -> bool:
         log(text)
         # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
-        return post_webhook(self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition})
+        return post_webhook(self.state.get("webhook") or self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition})
 
     def run_once(self) -> None:
         try:
@@ -81,6 +82,28 @@ class Console:
         while True:
             self.run_once()
             time.sleep(self.settings.interval)
+
+    def learn_address(self, host: str | None, proto: str | None) -> None:
+        """Remembers the API address worked out from the address the page is opened at (see console.derive_api_base)."""
+        if self.settings.api_source == "setting":
+            return
+        derived = console.derive_api_base(host, proto)
+        if derived and derived != self.state.get("derivedApiBase"):
+            with self.lock:
+                self.state["derivedApiBase"] = derived
+                console.save_state(self.path, self.state)
+            threading.Thread(target=self.run_once, daemon=True).start()
+
+    def set_webhook(self, url: str) -> str | None:
+        """Saves (or with an empty string removes) the alert webhook. Returns an error message or None."""
+        url = url.strip()
+        if url and (urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).hostname or len(url) > 2000):
+            return "The webhook must be a full http:// or https:// address."
+        with self.lock:
+            self.state["webhook"] = url
+            self.settings.webhook = url or self.env.get("WEBHOOK_URL", "").strip()
+            console.save_state(self.path, self.state)
+        return None
 
     def view(self) -> dict:
         with self.lock:
@@ -109,6 +132,8 @@ def make_handler(app: Console):
 
         def do_GET(self):  # noqa: N802
             path = urlsplit(self.path).path
+            if path in ("/", "/api/state"):
+                app.learn_address(self.headers.get("X-Forwarded-Host") or self.headers.get("Host"), self.headers.get("X-Forwarded-Proto"))
             if path == "/health":
                 return self.send_body(200, b"ok", "text/plain")
             if path == "/api/status":  # lets the page explain what is missing before any figures exist
@@ -125,6 +150,25 @@ def make_handler(app: Console):
                     return self.send_body(200, handle.read(), entry[1])
             except OSError:
                 return self.json(404, {"error": "Not found"})
+
+        def do_POST(self):  # noqa: N802
+            if urlsplit(self.path).path != "/api/alerts":
+                return self.json(404, {"error": "Not found"})
+            # Only the page's own JSON requests: a form on another site cannot send this content type or origin.
+            origin = self.headers.get("Origin")
+            host = self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or ""
+            if not self.headers.get("Content-Type", "").startswith("application/json") or (origin and urlsplit(origin).netloc != host):
+                return self.json(403, {"error": "Not allowed"})
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(min(length, 10_000)) or b"{}")
+                url = body.get("webhook", "")
+                if not isinstance(url, str):
+                    raise ValueError
+            except (ValueError, AttributeError):
+                return self.json(400, {"error": "Send {\"webhook\": \"https://...\"}"})
+            error = app.set_webhook(url)
+            return self.json(400 if error else 200, {"error": error} if error else {"ok": True})
 
     return Handler
 
