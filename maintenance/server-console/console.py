@@ -71,7 +71,7 @@ _HOST = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9
 def derive_api_base(host: str | None, proto: str | None = None) -> str | None:
     """Works out the API address from the address the app is opened at.
 
-    The server does not hand apps its API address, so we use the convention of Automaton servers: an app is served at
+    Used only when the server does not provide AUTOMATON_API_URL. We use the convention of Automaton servers: an app is served at
     app-<id>.apps.<domain> (or <slug>.apps.<domain>) and the API at api.<domain>. Returns None when the host does not
     look like that (an IP address, localhost, or too few labels); then API_BASE_URL must be set.
     """

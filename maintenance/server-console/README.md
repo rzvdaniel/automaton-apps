@@ -17,7 +17,7 @@ It only asks for the `server:read` permission, so it cannot change anything on t
 2. An administrator approves `server:read` in Studio: **Admin -> Apps -> Review -> Permissions -> Approve**. Until then the page says **Waiting for approval** and the app gets nothing. `automaton permissions status` shows the request.
 3. Optional: turn alerts on later in Studio: the app's **Settings -> Secrets -> Add a secret**, name `WEBHOOK_URL`, a Slack, Discord or Telegram webhook (or any URL that accepts a JSON POST), then redeploy. Without it the **Alerts** card says alerts are off.
 
-The console uses `AUTOMATON_API_URL` when the server provides it. Servers that do not yet provide it leave the console to work the address out from the address you open it at (`app-<id>.apps.example.com` gives `https://api.example.com`) the first time someone opens the page. Until the page has been opened once the app says it does not know the server address. If your server does not follow that naming, set the optional `API_BASE_URL` setting and redeploy.
+The console uses `AUTOMATON_API_URL` when the server provides it. Servers that do not yet provide it leave the console to work the address out from the address you open it at (`app-<id>.apps.example.com` gives `https://api.example.com`) the first time someone opens the page. Until the page has been opened once the app says it does not know the server address. If your server does not follow that naming, set the optional `API_BASE_URL` setting and redeploy. The learned address is kept in the app's data (`state.json`, `derivedApiBase`) and is never replaced, so if a wrong one was learned, set `API_BASE_URL` (it takes precedence).
 
 | Name | Kind | Meaning |
 | --- | --- | --- |

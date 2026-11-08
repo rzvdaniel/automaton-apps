@@ -15,5 +15,3 @@
 .c-chart--critical .c-chart__area { fill: color-mix(in srgb, var(--critical) 16%, transparent); }
 .c-chart--critical .c-chart__dot { fill: var(--critical); }
 .c-chart__axis { display: flex; justify-content: space-between; padding-left: 5.5%; color: var(--muted); font-size: 11px; margin-top: 2px; }
-.c-alerts { margin-top: 12px; display: grid; gap: 10px; }
-.c-alerts__buttons { display: flex; flex-wrap: wrap; gap: 8px; }

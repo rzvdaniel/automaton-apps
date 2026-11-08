@@ -304,6 +304,14 @@ class AddressTests(unittest.TestCase):
         self.assertEqual(seen, ["https://api.example.com"])
         self.assertEqual(conf.api_source, "derived")
 
+    def test_the_learned_api_address_is_never_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = main.Console({"AUTOMATON_APP_DATA_DIR": directory})
+            app.run_once = lambda: None
+            app.learn_address("app-1.apps.good.com", "https")
+            app.learn_address("app-2.apps.evil.com", "https")
+            self.assertEqual(app.state["derivedApiBase"], "https://api.good.com")
+
     def test_the_servers_own_api_address_wins(self):
         conf = console.Settings({"AUTOMATON_API_URL": "https://api.real.com/", "API_BASE_URL": "https://api.other.com"})
         self.assertEqual(conf.api_base_url, "https://api.real.com")
