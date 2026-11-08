@@ -11,6 +11,7 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+from pathlib import Path
 import sys
 import threading
 import time
@@ -121,16 +122,25 @@ def render(snapshot: dict) -> str:
         state = "UP" if site["up"] else "DOWN"
         cert = "" if site["cert_days"] is None else f'{site["cert_days"]} days'
         detail = escape(site["error"] or "")
-        rows.append(f'<tr class="{state.lower()}"><td>{escape(site["site"])}</td><td>{state}</td>'
-                    f'<td>{site["ms"] if site["ms"] is not None else ""}</td><td>{cert}</td><td>{detail}</td></tr>')
-    failure = f'<p class="bad">Last run failed: {escape(snapshot["lastError"])}</p>' if snapshot["lastError"] else ""
+        pill = "ok" if site["up"] else "critical"
+        rows.append(f'<tr><td class="a-mono">{escape(site["site"])}</td><td><span class="a-pill a-pill--{pill}">{state}</span></td>'
+                    f'<td class="a-num">{site["ms"] if site["ms"] is not None else ""}</td><td>{cert}</td><td>{detail}</td></tr>')
+    failure = f'<p class="a-note a-note--critical">Last run failed: {escape(snapshot["lastError"])}</p>' if snapshot["lastError"] else ""
     last = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(snapshot["lastRun"])) if snapshot["lastRun"] else "not yet"
+    up = sum(bool(site["up"]) for site in snapshot["sites"])
+    total = len(snapshot["sites"])
+    overall = "critical" if snapshot["lastError"] or up < total else "ok" if total else ""
+    label = "Needs attention" if overall == "critical" else "All good" if overall == "ok" else "No sites yet"
+    table = f'<div class="a-table-wrap"><table class="a-table"><thead><tr><th>Site</th><th>Status</th><th class="a-num">ms</th><th>Certificate</th><th>Detail</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows else '<div class="a-empty"><div class="a-empty__title">No sites yet</div>Add sites in the SITES setting.</div>'
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="60"><title>Website Monitor</title>
-<style>body{{font:16px system-ui,sans-serif;margin:2rem auto;max-width:52rem;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}
-td,th{{padding:.4rem .6rem;border-bottom:1px solid #8884;text-align:left}}.up td:nth-child(2){{color:#157f3b}}.down td:nth-child(2),.bad{{color:#b3261e}}</style></head>
-<body><h1>Website Monitor</h1>{failure}<table><tr><th>Site</th><th>Status</th><th>ms</th><th>Certificate</th><th>Detail</th></tr>{''.join(rows)}</table>
-<p>Last run: {last}</p></body></html>"""
+<link rel="stylesheet" href="ui/app.css"><script src="ui/app.js"></script></head>
+<body><main class="a-page"><header class="a-header"><div class="a-brand" aria-hidden="true">&gt;_</div>
+<div class="a-header__text"><h1 class="a-header__title">Website Monitor</h1><p class="a-header__sub">Last run: {last}</p></div>
+<div class="a-header__actions"><span class="a-pill a-pill--large {f'a-pill--{overall}' if overall else ''}">{label}</span>
+<button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div></header>
+{failure}<section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Sites</h2><span class="a-pill">{up} of {total} up</span></div>{table}</section>
+<p class="a-footer">Refreshes every minute.</p></main><script src="ui/theme.js"></script></body></html>"""
 
 
 def make_handler(app: Monitor):
@@ -143,6 +153,9 @@ def make_handler(app: Monitor):
                 self.reply(200, "application/json", json.dumps(app.snapshot()).encode())
             elif path == "/":
                 self.reply(200, "text/html; charset=utf-8", render(app.snapshot()).encode())
+            elif path in ("/ui/app.css", "/ui/app.js", "/ui/theme.js"):
+                asset = Path(__file__).parent / path.lstrip("/")
+                self.reply(200, "text/css" if path.endswith(".css") else "text/javascript", asset.read_bytes())
             else:
                 self.reply(404, "text/plain", b"not found")
 
