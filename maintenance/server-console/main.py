@@ -87,8 +87,10 @@ class Console:
         """Remembers the API address worked out from the address the page is opened at (see console.derive_api_base)."""
         if self.settings.api_source == "setting":
             return
-        derived = console.derive_api_base(host, proto)
-        if derived and derived != self.state.get("derivedApiBase"):
+        if self.state.get("derivedApiBase"):  # learned once and never replaced, so a forged header cannot redirect the key
+            return
+        derived = console.derive_api_base(host, "https")
+        if derived:
             with self.lock:
                 self.state["derivedApiBase"] = derived
                 console.save_state(self.path, self.state)
@@ -97,8 +99,8 @@ class Console:
     def set_webhook(self, url: str) -> str | None:
         """Saves (or with an empty string removes) the alert webhook. Returns an error message or None."""
         url = url.strip()
-        if url and (urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).hostname or len(url) > 2000):
-            return "The webhook must be a full http:// or https:// address."
+        if url and (urlsplit(url).scheme != "https" or not urlsplit(url).hostname or len(url) > 2000):
+            return "The webhook must be a full https:// address."
         with self.lock:
             self.state["webhook"] = url
             self.settings.webhook = url or self.env.get("WEBHOOK_URL", "").strip()
@@ -157,10 +159,10 @@ def make_handler(app: Console):
             # Only the page's own JSON requests: a form on another site cannot send this content type or origin.
             origin = self.headers.get("Origin")
             host = self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or ""
-            if not self.headers.get("Content-Type", "").startswith("application/json") or (origin and urlsplit(origin).netloc != host):
+            if not self.headers.get("Content-Type", "").startswith("application/json") or not origin or urlsplit(origin).netloc != host:
                 return self.json(403, {"error": "Not allowed"})
             try:
-                length = int(self.headers.get("Content-Length", "0"))
+                length = max(0, int(self.headers.get("Content-Length", "0")))
                 body = json.loads(self.rfile.read(min(length, 10_000)) or b"{}")
                 url = body.get("webhook", "")
                 if not isinstance(url, str):

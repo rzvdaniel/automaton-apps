@@ -284,10 +284,10 @@ class ServerTests(unittest.TestCase):
         self.app.state["status"] = "not_approved"
         self.assertEqual(json.loads(self.get("/api/status")[1]), {"status": "not_approved"})
 
-    def post(self, body, content_type="application/json", origin=None):
+    def post(self, body, content_type="application/json", origin="same"):
         headers = {"Content-Type": content_type}
         if origin:
-            headers["Origin"] = origin
+            headers["Origin"] = self.base if origin == "same" else origin
         request = urllib.request.Request(self.base + "/api/alerts", data=body.encode(), headers=headers, method="POST")
         try:
             with urllib.request.urlopen(request) as response:
@@ -305,11 +305,19 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(json.loads(self.get("/api/state")[1])["settings"]["webhookConfigured"])
 
     def test_alert_changes_reject_bad_addresses_and_cross_site_posts(self):
-        self.assertEqual(self.post(json.dumps({"webhook": "ftp://x.example.com"})), 400)
+        self.assertEqual(self.post(json.dumps({"webhook": "http://x.example.com"})), 400)
         self.assertEqual(self.post(json.dumps({"webhook": 5})), 400)
         self.assertEqual(self.post("webhook=https://a.example.com", "application/x-www-form-urlencoded"), 403)
         self.assertEqual(self.post(json.dumps({"webhook": "https://a.example.com"}), origin="https://evil.example.org"), 403)
+        self.assertEqual(self.post(json.dumps({"webhook": "https://a.example.com"}), origin=""), 403)
         self.assertEqual(self.app.state["webhook"], "")
+
+    def test_the_learned_api_address_is_never_replaced(self):
+        app = main.Console({"AUTOMATON_APP_DATA_DIR": self.directory.name})
+        app.run_once = lambda: None
+        app.learn_address("app-1.apps.good.com", "https")
+        app.learn_address("app-2.apps.evil.com", "https")
+        self.assertEqual(app.state["derivedApiBase"], "https://api.good.com")
 
 
 class AddressTests(unittest.TestCase):
@@ -317,7 +325,8 @@ class AddressTests(unittest.TestCase):
         d = console.derive_api_base
         self.assertEqual(d("app-0123456789abcdef0123456789abcdef.apps.automaton.monster"), "https://api.automaton.monster")
         self.assertEqual(d("clock.apps.example.com:443", "https"), "https://api.example.com")
-        self.assertEqual(d("app-1.example.com", "http"), "http://api.example.com")
+        self.assertEqual(d("app-1.example.com"), "https://api.example.com")
+        self.assertIsNone(d("x.attacker.com"))
         for bad in (None, "", "localhost", "127.0.0.1", "10.0.0.5", "a.b", "evil host.example.com"):
             self.assertIsNone(d(bad), bad)
 

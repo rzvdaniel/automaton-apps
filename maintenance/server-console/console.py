@@ -77,6 +77,8 @@ def derive_api_base(host: str | None, proto: str | None = None) -> str | None:
     host = (host or "").split(":")[0].strip().lower().rstrip(".")
     if not _HOST.match(host) or host.replace(".", "").isdigit():
         return None
+    if not (host.startswith("app-") or ".apps." in host):  # only an Automaton app address: app-<id>.<domain> or <slug>.apps.<domain>
+        return None
     domain = host.split(".", 1)[1]
     domain = domain[len("apps."):] if domain.startswith("apps.") else domain
     if "." not in domain:
