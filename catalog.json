@@ -8,7 +8,7 @@
       "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "fe2c35c94903181f40d9bf20bb8878cf5d6955b1",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.31",
       "permissions": [
         "backups:read"
@@ -20,7 +20,7 @@
       "summary": "Checks whether an issue really went through review, tests, CI, proof and production.",
       "category": "Maintenance",
       "folder": "maintenance/flow-check",
-      "commit": "fe2c35c94903181f40d9bf20bb8878cf5d6955b1",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -30,7 +30,7 @@
       "summary": "Crawls the public website, docs and store and opens a GitHub issue when links break.",
       "category": "Maintenance",
       "folder": "maintenance/site-links",
-      "commit": "24e520bb7fb45e666a75b146f07b1c2f9ac7f502",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -40,7 +40,7 @@
       "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "c2d3c05faa7419950c8c31a486a3a002131f3f0c",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -50,7 +50,7 @@
       "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and webhook warnings.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "c42595caea371418b70c0fdfd0ed20f9cf2be848",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.63",
       "permissions": [
         "server:read"
@@ -62,7 +62,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "1c1b0dbf615daf3758b34ac262013ecc6eb9fef5",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -72,7 +72,7 @@
       "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
       "category": "Utilities",
       "folder": "utilities/it-tools",
-      "commit": "6cf8cf7d2383d86434ca31d16edf3e0b36d63fbb",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -82,7 +82,7 @@
       "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
       "category": "Analytics",
       "folder": "analytics/goatcounter",
-      "commit": "18753def5a1ca1bb8f30c9664027e86250d70888",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.55",
       "permissions": []
     },
@@ -92,7 +92,7 @@
       "summary": "Save, tag and search bookmarks on your own server.",
       "category": "Productivity",
       "folder": "productivity/linkding",
-      "commit": "85fc71bf2e0934452a3c6f45df05ead1e430c73d",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
       "minServerVersion": "0.2.55",
       "permissions": []
     }
