@@ -13,7 +13,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_permissions_come_from_the_manifest(self):
         app = next(a for a in g.build()["apps"] if a["id"] == "offsite-backup")
-        self.assertEqual(app["permissions"], ["backups:read"])
+        self.assertEqual(app["permissions"], ["backups:read", "notify:email"])
 
     def test_problems_report_bad_entries(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}
