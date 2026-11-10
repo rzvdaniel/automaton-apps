@@ -17,7 +17,7 @@ Statistics (SQLite) are kept in the app data directory, so they survive redeploy
 
 ## Set the domain (once, after the first sign-in)
 
-Until you do, the script GoatCounter shows names `stats.example.com`. Open **Settings → Sites**, edit the site and put your app's address in **Domain**: the host in the address bar, without `https://` (after making the app public, use its public address). Save; the dashboard's setup box and **Settings → Site code** then show your address.
+Until you do, the script GoatCounter shows names `stats.example.com`. Open **Settings → Main** (the site settings) and put your app's address in **Domain**: the host in the address bar, without `https://` (after making the app public, use its public address). Save; the dashboard's setup box and **Settings → Site code** then show your address.
 
 ## Track a website
 
