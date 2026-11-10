@@ -16,7 +16,8 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import (BotoCoreError, ClientError, ConnectTimeoutError, EndpointConnectionError,
+                                 ReadTimeoutError, SSLError)
 
 
 BACKUP_NAME = re.compile(r"^automaton-[0-9]{8}T[0-9]{6}Z$")
@@ -114,13 +115,15 @@ def describe_s3_error(error: Exception) -> str:
         if code == "NoSuchBucket":
             return "The bucket in S3_BUCKET does not exist on this endpoint. Check S3_BUCKET and S3_ENDPOINT."
         if code in ("AccessDenied", "Forbidden", "403") or status == 403:
-            return ("The storage refused access. Check that the key may read, write and delete in S3_BUCKET, "
-                    "and that S3_BUCKET and S3_ENDPOINT are right.")
+            return ("The storage refused access. Check the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets, "
+                    "that the key may read, write and delete in S3_BUCKET, and S3_BUCKET and S3_ENDPOINT.")
         if code in ("AuthorizationHeaderMalformed", "IllegalLocationConstraintException", "PermanentRedirect"):
             return "The storage says the region or endpoint is wrong. Check S3_REGION and S3_ENDPOINT."
         return f"The storage returned an error ({code or status or 'unknown'}). Check the S3 settings."
-    return ("Could not reach the storage. Check S3_ENDPOINT (the full URL, with https://) and that this server "
-            "can connect to it.")
+    if isinstance(error, (EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError, SSLError)):
+        return ("Could not reach the storage. Check S3_ENDPOINT (the full URL, with https://) and that this server "
+                "can connect to it.")
+    return f"The S3 settings were not accepted ({type(error).__name__}). Check S3_ENDPOINT, S3_BUCKET and S3_REGION."
 
 
 def object_key(prefix: str, name: str) -> str:
@@ -279,8 +282,10 @@ def notify_failure(reason: str) -> None:
             pass
         print("Failure email sent.", file=sys.stderr)
     except HTTPError as error:
-        print(f"Failure email not sent (HTTP {error.code}); approve notify:email and set up SMTP to get it.",
-              file=sys.stderr)
+        hint = {400: "check NOTIFY_EMAIL_TO (administrators, owner or project)",
+                403: "approve the notify:email permission", 409: "set up the server's SMTP settings",
+                429: "the app's limit of 10 emails an hour is used up"}.get(error.code, "see the server's audit events")
+        print(f"Failure email not sent (HTTP {error.code}): {hint}.", file=sys.stderr)
     except Exception:
         print("Failure email not sent.", file=sys.stderr)
 

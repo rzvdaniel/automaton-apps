@@ -10,7 +10,7 @@
 
 Asked when you install, used the first time the database is created:
 
-- `GC_DOMAIN` (setting, default `stats.example.com`): the address the app is opened at, without `https://`. GoatCounter uses it in the script it shows you, so set the real address (the host in the address bar when you open the app). With a single site GoatCounter serves it at any address, so the default still lets you sign in.
+- `GC_DOMAIN` (setting, default `stats.example.com`): the address the app is opened at, without `https://`. GoatCounter uses it in the script it shows you, so set the real address (the host in the address bar when you open the app). With a single site GoatCounter serves it at any address, so the default still lets you sign in. The domain is stored when the database is first created and is not changed afterwards, so set it before the first start (to change it later, use GoatCounter's own site settings).
 - `GC_EMAIL` (setting) and `GC_PASSWORD` (secret): the first administrator. You sign in with the email. Changing them later does not change an existing account; use GoatCounter's own account pages.
 
 Statistics (SQLite) are kept in the app data directory, so they survive redeploys and restarts. GoatCounter reserves environment variables that start with `GOATCOUNTER_`, so the settings use the `GC_` prefix.

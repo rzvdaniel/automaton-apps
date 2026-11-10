@@ -28,7 +28,7 @@ The Action skips an object whose `sha256` metadata already matches the newest lo
 
 ## Failure emails
 
-When a run fails, the app emails the server's administrators through the server's own SMTP, using `POST /api/notify/email` with the `notify:email` permission (subject `[Automaton Off-site Backup] Off-site backup failed`; the platform allows 10 a hour). Set `NOTIFY_EMAIL_TO` to `owner` or `project` to send it elsewhere. Without the approval or SMTP settings the run still fails and logs that no email was sent. The app has no webhook of its own; use the platform's Action webhooks if you want one. Messages for wrong S3 settings name the setting to check (access key, secret, region, bucket or endpoint).
+When a run fails, the app emails the server's administrators through the server's own SMTP, using `POST /api/notify/email` with the `notify:email` permission (subject `Off-site backup failed`, which the server prefixes with the app's name; the platform allows 10 a hour). Set `NOTIFY_EMAIL_TO` to `owner` or `project` to send it elsewhere. Without the approval or SMTP settings the run still fails and logs that no email was sent. The app has no webhook of its own; use the platform's Action webhooks if you want one. Messages for wrong S3 settings name the setting to check (access key, secret, region, bucket or endpoint).
 
 ## Restore drill
 

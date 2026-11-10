@@ -178,6 +178,22 @@ class OffsiteBackupTests(unittest.TestCase):
         with patch.object(main, "api_urlopen", side_effect=OSError("down")):
             main.notify_failure("x")
 
+    def test_s3_error_messages_name_the_setting(self):
+        from botocore.exceptions import ClientError, EndpointConnectionError
+        denied = ClientError({"Error": {"Code": "403"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "HeadObject")
+        self.assertIn("S3_SECRET_ACCESS_KEY", main.describe_s3_error(denied))
+        sig = ClientError({"Error": {"Code": "SignatureDoesNotMatch"}}, "PutObject")
+        self.assertIn("S3_REGION", main.describe_s3_error(sig))
+        self.assertIn("S3_ENDPOINT", main.describe_s3_error(EndpointConnectionError(endpoint_url="x")))
+
+    def test_main_emails_the_failure_and_skips_without_a_key(self):
+        with patch.object(main, "run", side_effect=main.BackupError("boom")),                 patch.object(main, "notify_failure") as notify,                 patch("sys.stdin", io.StringIO("{}")):
+            self.assertEqual(main.main(), 1)
+        notify.assert_called_once_with("boom")
+        with patch.dict(os.environ, {"APP_AUTOMATON_API_KEY": ""}), patch.object(main, "api_urlopen") as open_url:
+            main.notify_failure("x")
+        open_url.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
