@@ -207,11 +207,65 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(len(working.sent), 1)
         self.assertIn("disk_low", state["alerts"])
 
-    def test_without_a_webhook_nothing_is_sent_but_the_page_still_shows_the_warning(self):
+    def test_a_warning_is_tracked_even_when_no_channel_is_available(self):
         state, send = console.new_state(), Recorder()
         cycle(state, settings(WEBHOOK_URL=""), health(disk_free_gb=5), send)
-        self.assertEqual(send.sent, [])
         self.assertIn("disk_low", state["alerts"])
+        self.assertIn("advice", console.snapshot(state, settings(), NOW)["alerts"]["disk_low"])
+
+    def test_delivery_rules(self):
+        self.assertTrue(console.delivered([None]))
+        self.assertTrue(console.delivered([False, True]))
+        self.assertTrue(console.delivered([]))
+        self.assertFalse(console.delivered([False, None]))
+
+    def test_email_target_is_validated(self):
+        self.assertEqual(settings().email_to, "administrators")
+        self.assertEqual(settings(EMAIL_TO="Owner").email_to, "owner")
+        with self.assertRaises(console.ConfigError):
+            settings(EMAIL_TO="everyone")
+
+
+class EmailTests(unittest.TestCase):
+    def serve(self, status):
+        seen = []
+
+        class Handler(main.BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                seen.append((self.path, self.headers.get("Authorization"), json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
+                self.send_response(status)
+                self.send_header("Content-Length", "2")
+                self.end_headers()
+                self.wfile.write(b"{}")
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return seen, f"http://127.0.0.1:{server.server_address[1]}"
+
+    def test_a_warning_is_emailed_with_the_app_key(self):
+        seen, url = self.serve(200)
+        conf = settings(API_BASE_URL=url)
+        self.assertIs(main.send_email(conf, "disk_low", "disk space is low"), True)
+        path, auth, body = seen[0]
+        self.assertEqual((path, auth, body["to"], body["subject"]), ("/api/notify/email", "Bearer key", ["administrators"], "Disk space is low"))
+        self.assertIn("docker system prune", body["text"])
+
+    def test_refusals_mean_not_available_and_server_errors_mean_retry(self):
+        for status, expected in ((403, None), (409, None), (404, None), (502, False)):
+            _, url = self.serve(status)
+            self.assertIs(main.send_email(settings(API_BASE_URL=url), "disk_low", "x"), expected, status)
+
+    def test_off_or_missing_key_sends_nothing(self):
+        seen, url = self.serve(200)
+        self.assertIsNone(main.send_email(settings(API_BASE_URL=url, EMAIL_TO="off"), "disk_low", "x"))
+        self.assertIsNone(main.send_email(settings(API_BASE_URL=url, APP_AUTOMATON_API_KEY=""), "disk_low", "x"))
+        self.assertEqual(seen, [])
+
 
     def test_nothing_is_recorded_or_sent_while_the_permission_is_not_approved(self):
         state, send = console.new_state(), Recorder()

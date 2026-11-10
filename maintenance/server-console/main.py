@@ -15,7 +15,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, urlopen
 
 import console
 
@@ -51,6 +51,33 @@ def post_webhook(url: str, payload: dict, timeout: float = 15) -> bool:
     return False
 
 
+EMAIL_SUBJECTS = {"disk_low": "Disk space is low", "security_overdue": "Security updates are overdue", "reboot_overdue": "A restart is overdue"}
+
+
+def send_email(settings: console.Settings, condition: str, text: str, timeout: float = 20) -> bool | None:
+    """Emails through the server's SMTP (platform permission notify:email). True sent, False worth retrying, None
+    not available (turned off, no key, not approved, SMTP not set up). The key is never logged."""
+    if settings.email_to == "off" or not settings.api_base_url or not settings.api_key:
+        return None
+    body = {"to": [settings.email_to], "subject": EMAIL_SUBJECTS.get(condition, "Warning"),
+            "text": text + "\n\n" + console.ADVICE.get(condition, "")}
+    request = Request(settings.api_base_url + "/api/notify/email", data=json.dumps(body).encode(), method="POST",
+                      headers={"Authorization": "Bearer " + settings.api_key, "Content-Type": "application/json",
+                               "User-Agent": console.USER_AGENT})
+    try:
+        with build_opener(console._NoRedirect()).open(request, timeout=timeout):
+            return True
+    except HTTPError as error:
+        if error.code in (403, 404, 409):
+            log({403: "email not sent: notify:email is not approved or the address is not allowed",
+                 404: "email not sent: no recipient found", 409: "email not sent: the server has no SMTP set up"}[error.code])
+            return None
+        log(f"email request failed: HTTP {error.code}")
+    except (URLError, OSError, ValueError) as error:
+        log(f"email request failed: {type(error).__name__}")
+    return False
+
+
 class Console:
     def __init__(self, env=None):
         self.env = os.environ if env is None else env
@@ -61,8 +88,13 @@ class Console:
 
     def send(self, event: str, condition: str, text: str) -> bool:
         log(text)
-        # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
-        return post_webhook(self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition})
+        results = []
+        if self.settings.webhook:
+            # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
+            results.append(post_webhook(self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition}))
+        if event == "warning":  # one email when a warning starts; recovery goes to the webhook only
+            results.append(send_email(self.settings, condition, text))
+        return console.delivered(results)
 
     def run_once(self) -> None:
         try:

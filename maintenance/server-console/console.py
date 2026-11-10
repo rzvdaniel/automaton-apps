@@ -18,6 +18,13 @@ HISTORY_SECONDS = 24 * 3600
 STALE_HOST_SECONDS = 15 * 60
 DAY = 86400
 CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue")
+# What to do about each warning, shown on the page and in the email.
+ADVICE = {
+    "disk_low": "Free some space: run `docker system prune` on the server (see Docker disk use below) or remove old backups and logs.",
+    "security_overdue": "Install the updates on the server: `sudo apt update && sudo apt upgrade`.",
+    "reboot_overdue": "Restart the server at a quiet time: `sudo reboot`.",
+}
+EMAIL_TARGETS = ("administrators", "owner", "project")
 
 # Status levels, worst last.
 OK, WARNING, CRITICAL, UNKNOWN = "ok", "warning", "critical", "unknown"
@@ -43,6 +50,9 @@ class Settings:
         self.api_base_url = env.get("API_BASE_URL", "").strip().rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
+        self.email_to = (env.get("EMAIL_TO", "").strip().lower() or "administrators")
+        if self.email_to not in EMAIL_TARGETS + ("off",):
+            raise ConfigError("EMAIL_TO must be administrators, owner, project or off")
         self.interval = env_int(env, "CHECK_INTERVAL_SECONDS", 300, 60, 3600)
         self.disk_free_percent = env_int(env, "DISK_FREE_WARN_PERCENT", 15, 1, 99)
         self.security_days = env_int(env, "SECURITY_UPDATE_DAYS", 7, 0, 365)
@@ -53,7 +63,7 @@ class Settings:
     def public(self) -> dict:
         return {"intervalSeconds": self.interval, "diskFreePercent": self.disk_free_percent,
                 "securityUpdateDays": self.security_days, "rebootDays": self.reboot_days,
-                "webhookConfigured": bool(self.webhook)}
+                "webhookConfigured": bool(self.webhook), "emailTo": self.email_to}
 
 
 # --- Reading the platform API ---------------------------------------------------------------------------------------
@@ -235,11 +245,18 @@ def conditions(health: dict, state: dict, settings: Settings, now: float) -> dic
     return result
 
 
+def delivered(results: list) -> bool:
+    """Whether a warning is done. Each channel reports True (sent), False (failed, worth retrying) or None (not
+    available: not configured, not approved or refused). It is done when one channel sent it, or when no channel
+    failed (nothing to retry: the page and the log still show it)."""
+    return any(r is True for r in results) or not any(r is False for r in results)
+
+
 def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliver: bool, now: float) -> list[str]:
     """Sends one warning when a condition starts and one recovery message when it ends.
 
     `send(event, condition, text)` returns True when delivered. A warning that could not be delivered is retried on
-    the next run. Without a webhook (`deliver` False) the state is still tracked so the page shows what is active.
+    the next run. With `deliver` False the state is still tracked so the page shows what is active.
     """
     sent: list[str] = []
     alerts = state.setdefault("alerts", {})
@@ -265,7 +282,7 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
     if status == "ok" and health:
         state["health"], state["fetchedAt"] = health, int(now)
         record(state, health, now)
-        evaluate_alerts(state, conditions(health, state, settings, now), send, bool(settings.webhook), now)
+        evaluate_alerts(state, conditions(health, state, settings, now), send, True, now)
     return state
 
 
@@ -276,5 +293,5 @@ def snapshot(state: dict, settings: Settings, now: float) -> dict:
     health = state.get("health") if shown else None
     return {"status": status, "message": state.get("message"), "fetchedAt": state.get("fetchedAt"),
             "now": int(now), "health": health, "assessment": assess(health, state, settings, now),
-            "history": state.get("history", []) if shown else [], "alerts": state.get("alerts", {}) if shown else {},
+            "history": state.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
             "settings": settings.public()}
