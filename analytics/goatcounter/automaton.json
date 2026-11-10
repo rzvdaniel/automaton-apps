@@ -25,7 +25,7 @@
       { "name": "GC_PASSWORD", "description": "Password of the first administrator (used when the database is created)" }
     ],
     "settings": [
-      { "name": "GC_DOMAIN", "description": "Address the app is opened at, without https://, for example stats.example.com. The dashboard shows the script to paste with this address, so set it to the real one; with a single site GoatCounter works at any address.", "default": "stats.example.com" },
+      { "name": "GC_DOMAIN", "description": "Address the app is opened at, without https://. Used in the script GoatCounter shows you.", "default": "stats.example.com" },
       { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
     ]
   }
