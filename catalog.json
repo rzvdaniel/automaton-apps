@@ -17,34 +17,39 @@
     {
       "id": "website-monitor",
       "name": "Website Monitor",
-      "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
+      "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "4ed17254b98db4ac23756066406fce3f02ca5bbd",
+      "commit": "2acbc0b01215c983e1fcb4ca4436f8dbf01dfb1b",
       "minServerVersion": "0.2.31",
-      "permissions": []
+      "permissions": [
+        "notify:email"
+      ]
     },
     {
       "id": "server-console",
       "name": "Server Console",
-      "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and webhook warnings.",
+      "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "commit": "996047b6b6f0c20c79040911e33816cdc374d3ba",
       "minServerVersion": "0.2.63",
       "permissions": [
-        "server:read"
+        "server:read",
+        "notify:email"
       ]
     },
     {
       "id": "heartbeat",
       "name": "Heartbeat",
-      "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
+      "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "4ed17254b98db4ac23756066406fce3f02ca5bbd",
+      "commit": "2acbc0b01215c983e1fcb4ca4436f8dbf01dfb1b",
       "minServerVersion": "0.2.31",
-      "permissions": []
+      "permissions": [
+        "notify:email"
+      ]
     },
     {
       "id": "it-tools",
