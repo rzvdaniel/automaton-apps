@@ -8,10 +8,11 @@
       "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
       "minServerVersion": "0.2.31",
       "permissions": [
-        "backups:read"
+        "backups:read",
+        "notify:email"
       ]
     },
     {
@@ -67,7 +68,7 @@
       "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
       "category": "Analytics",
       "folder": "analytics/goatcounter",
-      "commit": "4ed17254b98db4ac23756066406fce3f02ca5bbd",
+      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
       "minServerVersion": "0.2.55",
       "permissions": []
     },
@@ -77,7 +78,7 @@
       "summary": "Save, tag and search bookmarks on your own server.",
       "category": "Productivity",
       "folder": "productivity/linkding",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
       "minServerVersion": "0.2.55",
       "permissions": []
     }
