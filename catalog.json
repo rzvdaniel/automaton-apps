@@ -20,7 +20,7 @@
       "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "commit": "4ed17254b98db4ac23756066406fce3f02ca5bbd",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -42,7 +42,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "commit": "4ed17254b98db4ac23756066406fce3f02ca5bbd",
       "minServerVersion": "0.2.31",
       "permissions": []
     },
@@ -62,7 +62,7 @@
       "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
       "category": "Analytics",
       "folder": "analytics/goatcounter",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "commit": "4ed17254b98db4ac23756066406fce3f02ca5bbd",
       "minServerVersion": "0.2.55",
       "permissions": []
     },
