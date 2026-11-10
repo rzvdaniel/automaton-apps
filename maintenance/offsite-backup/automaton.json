@@ -1,15 +1,16 @@
 {
   "name": "Automaton Off-site Backup",
   "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
-  "description": "An Actions-only app that uploads the newest encrypted backup to your own bucket. It only asks for backups:read and cannot read the backup key.",
+  "description": "An Actions-only app that uploads the newest encrypted backup to your own bucket. It asks for backups:read (it cannot read the backup key) and notify:email, to email you when a backup fails.",
   "application": {
     "description": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
-    "permissions": ["backups:read"],
+    "permissions": ["backups:read", "notify:email"],
     "settings": [
       { "name": "S3_ENDPOINT", "description": "S3-compatible object storage endpoint URL", "required": true },
       { "name": "S3_BUCKET", "description": "Bucket for encrypted Automaton backups", "required": true },
       { "name": "S3_REGION", "description": "Object storage region (use us-east-1 for MinIO)", "default": "us-east-1" },
       { "name": "API_BASE_URL", "description": "Base URL of this Automaton server's API, for example https://api.example.com", "required": true },
+      { "name": "NOTIFY_EMAIL_TO", "description": "Who gets the failure email: administrators (default), owner or project" },
       { "name": "S3_PREFIX", "description": "Optional folder for this install's copies; empty uses automaton/<server host>/<app ID>/" }
     ],
     "secrets": [

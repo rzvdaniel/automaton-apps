@@ -152,6 +152,48 @@ class OffsiteBackupTests(unittest.TestCase):
         retained, deleted = main.apply_retention(self.s3, "automaton-backups", prefix, 30, 7)
         self.assertEqual((retained, deleted), (7, 3))
 
+    def test_wrong_bucket_names_the_setting(self):
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()), \
+                patch.dict(os.environ, {"S3_BUCKET": "no-such-bucket"}):
+            with self.assertRaises(main.BackupError) as raised:
+                main.run({})
+        self.assertIn("S3_BUCKET", str(raised.exception))
+
+    def test_failure_sends_email_through_notify_permission(self):
+        calls = []
+
+        def open_url(request, timeout):
+            calls.append(request)
+            return io.BytesIO(b"{}")
+
+        with patch.object(main, "api_urlopen", side_effect=open_url):
+            main.notify_failure("Bucket missing")
+        self.assertEqual(calls[0].full_url, "https://automaton.test/api/notify/email")
+        body = json.loads(calls[0].data)
+        self.assertEqual(body["to"], ["administrators"])
+        self.assertIn("Bucket missing", body["text"])
+
+    def test_failed_email_never_raises(self):
+        with patch.object(main, "api_urlopen", side_effect=OSError("down")):
+            main.notify_failure("x")
+
+    def test_s3_error_messages_name_the_setting(self):
+        from botocore.exceptions import ClientError, EndpointConnectionError
+        denied = ClientError({"Error": {"Code": "403"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "HeadObject")
+        self.assertIn("S3_SECRET_ACCESS_KEY", main.describe_s3_error(denied))
+        sig = ClientError({"Error": {"Code": "SignatureDoesNotMatch"}}, "PutObject")
+        self.assertIn("S3_REGION", main.describe_s3_error(sig))
+        self.assertIn("S3_ENDPOINT", main.describe_s3_error(EndpointConnectionError(endpoint_url="x")))
+
+    def test_main_emails_the_failure_and_skips_without_a_key(self):
+        with patch.object(main, "run", side_effect=main.BackupError("boom")),                 patch.object(main, "notify_failure") as notify,                 patch("sys.stdin", io.StringIO("{}")):
+            self.assertEqual(main.main(), 1)
+        notify.assert_called_once_with("boom")
+        with patch.dict(os.environ, {"APP_AUTOMATON_API_KEY": ""}), patch.object(main, "api_urlopen") as open_url:
+            main.notify_failure("x")
+        open_url.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

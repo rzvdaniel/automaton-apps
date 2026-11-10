@@ -22,12 +22,12 @@
     ],
     "runtime": {
       "image": "sissbruecker/linkding@sha256:e35cb50e0581178f245125ffaa909c565416c94c9f22ace305a7d234a4345522",
-      "user": "33:0",
+      "user": "1000:1000",
       "command": {
         "executable": "sh",
         "arguments": [
           "-ec",
-          "rm -rf \"$AUTOMATON_APP_DATA_DIR/runtime-code\" && mkdir -p \"$AUTOMATON_APP_DATA_DIR/runtime-code\" \"$AUTOMATON_APP_DATA_DIR/state\" && cp -r /etc/linkding/. \"$AUTOMATON_APP_DATA_DIR/runtime-code/\" && cd \"$AUTOMATON_APP_DATA_DIR/runtime-code\" && rm -rf data && ln -s \"$AUTOMATON_APP_DATA_DIR/state\" data && mkdir -p data/favicons data/previews data/assets && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && python manage.py migrate_tasks && exec uwsgi --ini uwsgi.ini --http \"0.0.0.0:$AUTOMATON_PORT\" --uid 33 --gid 0"
+          "rm -rf \"$AUTOMATON_APP_DATA_DIR/runtime-code\" && mkdir -p \"$AUTOMATON_APP_DATA_DIR/runtime-code\" \"$AUTOMATON_APP_DATA_DIR/state\" && cp -r /etc/linkding/. \"$AUTOMATON_APP_DATA_DIR/runtime-code/\" && cd \"$AUTOMATON_APP_DATA_DIR/runtime-code\" && rm -rf data && ln -s \"$AUTOMATON_APP_DATA_DIR/state\" data && mkdir -p data/favicons data/previews data/assets && python manage.py generate_secret_key && python manage.py migrate && python manage.py enable_wal && python manage.py create_initial_superuser && python manage.py migrate_tasks && exec uwsgi --ini uwsgi.ini --http \"0.0.0.0:$AUTOMATON_PORT\""
         ],
         "workingDirectory": "."
       },

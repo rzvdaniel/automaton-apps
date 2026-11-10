@@ -16,7 +16,8 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import (BotoCoreError, ClientError, ConnectTimeoutError, EndpointConnectionError,
+                                 ReadTimeoutError, SSLError)
 
 
 BACKUP_NAME = re.compile(r"^automaton-[0-9]{8}T[0-9]{6}Z$")
@@ -101,6 +102,30 @@ def make_s3_client(endpoint: str, region: str, access_key: str, secret_key: str)
     )
 
 
+def describe_s3_error(error: Exception) -> str:
+    """Say which S3 setting is probably wrong, without echoing any value."""
+    if isinstance(error, ClientError):
+        code = str(error.response.get("Error", {}).get("Code", ""))
+        status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code == "InvalidAccessKeyId":
+            return "The storage does not know the access key. Check the S3_ACCESS_KEY_ID secret and S3_ENDPOINT."
+        if code == "SignatureDoesNotMatch":
+            return ("The storage rejected the signature. Check the S3_SECRET_ACCESS_KEY secret and S3_REGION "
+                    "(use the provider's region; MinIO uses us-east-1).")
+        if code == "NoSuchBucket":
+            return "The bucket in S3_BUCKET does not exist on this endpoint. Check S3_BUCKET and S3_ENDPOINT."
+        if code in ("AccessDenied", "Forbidden", "403") or status == 403:
+            return ("The storage refused access. Check the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets, "
+                    "that the key may read, write and delete in S3_BUCKET, and S3_BUCKET and S3_ENDPOINT.")
+        if code in ("AuthorizationHeaderMalformed", "IllegalLocationConstraintException", "PermanentRedirect"):
+            return "The storage says the region or endpoint is wrong. Check S3_REGION and S3_ENDPOINT."
+        return f"The storage returned an error ({code or status or 'unknown'}). Check the S3 settings."
+    if isinstance(error, (EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError, SSLError)):
+        return ("Could not reach the storage. Check S3_ENDPOINT (the full URL, with https://) and that this server "
+                "can connect to it.")
+    return f"The S3 settings were not accepted ({type(error).__name__}). Check S3_ENDPOINT, S3_BUCKET and S3_REGION."
+
+
 def object_key(prefix: str, name: str) -> str:
     return f"{prefix}{name}.tar.age"
 
@@ -113,7 +138,7 @@ def object_has_hash(s3, bucket: str, key: str, digest: str) -> bool:
         code = error.response.get("Error", {}).get("Code")
         if status == 404 or code in ("404", "NoSuchKey", "NotFound"):
             return False
-        raise BackupError("Could not inspect the existing backup object.") from error
+        raise
     return response.get("Metadata", {}).get("sha256", "").lower() == digest.lower()
 
 
@@ -227,12 +252,42 @@ def run(input_data: dict) -> dict:
     s3 = make_s3_client(endpoint, region, access_key, secret_key)
     key = object_key(prefix, name)
     uploaded = False
-    if not object_has_hash(s3, bucket, key, expected_hash):
-        with download_stream(base_url, name, api_key) as archive:
-            upload_multipart(s3, bucket, key, archive, expected_size, expected_hash)
-        uploaded = True
-    retained, deleted = apply_retention(s3, bucket, prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
+    try:
+        if not object_has_hash(s3, bucket, key, expected_hash):
+            with download_stream(base_url, name, api_key) as archive:
+                upload_multipart(s3, bucket, key, archive, expected_size, expected_hash)
+            uploaded = True
+        retained, deleted = apply_retention(s3, bucket, prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
+    except (ClientError, BotoCoreError) as error:
+        raise BackupError(describe_s3_error(error)) from error
     return {"uploaded": uploaded, "backup": name, "retained": retained, "deleted": deleted}
+
+
+def notify_failure(reason: str) -> None:
+    """Email the failure through the server's notify:email permission. Never raises; skips quietly without it."""
+    api_key = os.environ.get("APP_AUTOMATON_API_KEY", "").strip()
+    base_url = os.environ.get("API_BASE_URL", "").strip().rstrip("/")
+    if not api_key or not base_url.startswith(("http://", "https://")):
+        return
+    to = os.environ.get("NOTIFY_EMAIL_TO", "").strip() or "administrators"
+    body = json.dumps({
+        "to": [to],
+        "subject": "Off-site backup failed",
+        "text": f"The off-site backup did not complete.\n\n{reason}\n\nOpen the app in Studio to see the run log.",
+    }).encode()
+    request = Request(base_url + "/api/notify/email", data=body, method="POST", headers={
+        "Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "Accept": "application/json"})
+    try:
+        with api_urlopen(request, timeout=30):
+            pass
+        print("Failure email sent.", file=sys.stderr)
+    except HTTPError as error:
+        hint = {400: "check NOTIFY_EMAIL_TO (administrators, owner or project)",
+                403: "approve the notify:email permission", 409: "set up the server's SMTP settings",
+                429: "the app's limit of 10 emails an hour is used up"}.get(error.code, "see the server's audit events")
+        print(f"Failure email not sent (HTTP {error.code}): {hint}.", file=sys.stderr)
+    except Exception:
+        print("Failure email not sent.", file=sys.stderr)
 
 
 def main() -> int:
@@ -244,9 +299,12 @@ def main() -> int:
         return 0
     except BackupError as error:
         print(str(error), file=sys.stderr)
+        notify_failure(str(error))
         return 1
     except Exception as error:  # Avoid dumping boto3/HTTP exception details that could contain identifiers.
-        print(f"Off-site backup failed ({type(error).__name__}).", file=sys.stderr)
+        message = f"Off-site backup failed ({type(error).__name__})."
+        print(message, file=sys.stderr)
+        notify_failure(message)
         return 1
 
 

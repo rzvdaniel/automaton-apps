@@ -8,7 +8,7 @@ Install the app from the store page in Studio (**Install on your server**). The 
 
 - settings: `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and an optional `S3_PREFIX`;
 - secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`;
-- approval of the `backups:read` permission (a system administrator approves it);
+- approval of the `backups:read` and `notify:email` permissions (a system administrator approves them);
 - the nightly schedule (04:30 UTC; move it if your server's 03:00 backup time is not UTC), which you can skip.
 
 | Provider | `S3_ENDPOINT` | `S3_REGION` |
@@ -25,6 +25,10 @@ Each install keeps its copies under `automaton/<server host>/<app ID>/` (the app
 If the server has no encrypted backup, the run fails and nothing in the bucket is deleted. Otherwise the Action keeps backups from the last 30 days and at least the 7 newest.
 
 The Action skips an object whose `sha256` metadata already matches the newest local archive. New archives stream into a multipart upload; size and SHA-256 are checked before the upload is completed. Retention only removes timestamped Automaton backup archives under the configured prefix.
+
+## Failure emails
+
+When a run fails, the app emails the server's administrators through the server's own SMTP, using `POST /api/notify/email` with the `notify:email` permission (subject `Off-site backup failed`, which the server prefixes with the app's name; the platform allows 10 a hour). Set `NOTIFY_EMAIL_TO` to `owner` or `project` to send it elsewhere. Without the approval or SMTP settings the run still fails and logs that no email was sent. The app has no webhook of its own; use the platform's Action webhooks if you want one. Messages for wrong S3 settings name the setting to check (access key, secret, region, bucket or endpoint).
 
 ## Restore drill
 
