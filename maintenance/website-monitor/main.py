@@ -93,7 +93,7 @@ def send_email(api_url: str, api_key: str, recipients: list[str], subject: str, 
         with urlopen(request, timeout=timeout):
             return True
     except HTTPError as error:
-        if error.code in (400, 403, 404, 409):
+        if error.code in (400, 403, 404, 409, 429):
             log(f"email not sent: HTTP {error.code} (is notify:email approved and SMTP set up?)")
             return None
         log(f"email failed: HTTP {error.code}")

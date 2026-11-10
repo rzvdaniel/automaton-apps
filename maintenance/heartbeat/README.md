@@ -42,7 +42,7 @@ The alert is a JSON POST to `WEBHOOK_URL` with `text` (Slack, Telegram), `conten
 - Telegram: `https://api.telegram.org/bot<token>/sendMessage?chat_id=<chat id>`.
 - Anything else that accepts a JSON POST (n8n, Zapier, your own endpoint).
 
-If the webhook is unreachable the alert is retried on the next pass.
+If every channel fails (for example the webhook is unreachable and email is unavailable) the alert is retried on the next pass; if one channel took it, it is not repeated.
 
 ## Security
 
