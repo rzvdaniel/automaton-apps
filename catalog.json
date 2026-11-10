@@ -4,11 +4,11 @@
   "apps": [
     {
       "id": "offsite-backup",
-      "name": "Automaton Off-site Backup",
+      "name": "Off-site Backup",
       "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
+      "commit": "168f028d484af3124daeb963f3e06c48d10862fd",
       "minServerVersion": "0.2.31",
       "permissions": [
         "backups:read",
@@ -68,7 +68,7 @@
       "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
       "category": "Analytics",
       "folder": "analytics/goatcounter",
-      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
+      "commit": "168f028d484af3124daeb963f3e06c48d10862fd",
       "minServerVersion": "0.2.55",
       "permissions": []
     },
