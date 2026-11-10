@@ -64,10 +64,12 @@
     "secrets": [
       {
         "name": "WEBHOOK_URL",
+        "optional": true,
         "description": "Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log and on the status page"
       },
       {
         "name": "HEARTBEAT_URL",
+        "optional": true,
         "description": "Optional. Pinged (GET) after every successful run, for example a healthchecks.io check URL"
       }
     ]

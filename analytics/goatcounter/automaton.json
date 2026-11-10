@@ -20,6 +20,7 @@
     },
     "health": { "path": "/status", "startupTimeoutSeconds": 60 },
     "storage": { "dataDirectory": "data", "mounts": [] },
+    "publicAccess": { "level": "recommended", "reason": "Sites you track load its script and send page views from your visitors' browsers, without an Automaton sign-in." },
     "secrets": [
       { "name": "GC_PASSWORD", "description": "Password of the first administrator (used when the database is created)" }
     ],
