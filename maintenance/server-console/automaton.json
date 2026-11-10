@@ -73,7 +73,8 @@
     "secrets": [
       {
         "name": "WEBHOOK_URL",
-        "description": "Where warnings are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Optional, in addition to the email. Empty: no webhook"
+        "description": "Where warnings are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Optional, in addition to the email. Empty: no webhook",
+        "optional": true
       }
     ]
   }
