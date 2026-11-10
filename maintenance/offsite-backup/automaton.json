@@ -1,5 +1,5 @@
 {
-  "name": "Automaton Off-site Backup",
+  "name": "Off-site Backup",
   "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
   "description": "An Actions-only app that uploads the newest encrypted backup to your own bucket. It asks for backups:read (it cannot read the backup key) and notify:email, to email you when a backup fails.",
   "application": {

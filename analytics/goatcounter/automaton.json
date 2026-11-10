@@ -25,7 +25,7 @@
       { "name": "GC_PASSWORD", "description": "Password of the first administrator (used when the database is created)" }
     ],
     "settings": [
-      { "name": "GC_DOMAIN", "description": "Address the app is opened at, without https://. Used in the script GoatCounter shows you.", "default": "stats.example.com" },
+      { "name": "GC_DOMAIN", "description": "Placeholder; the app's address is only known after install. Leave it, then open Settings -> Sites in GoatCounter and put the app's address (host only, without https://) in Domain, so the script it shows is yours.", "default": "stats.example.com" },
       { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
     ]
   }

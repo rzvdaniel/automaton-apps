@@ -9,7 +9,7 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | App | Source |
 | --- | --- |
 | Untranslatable — a multiplayer word-bluffing game | [games/untranslatable](games/untranslatable/) |
-| Automaton Off-site Backup — encrypted server backup copy for S3-compatible storage | [maintenance/offsite-backup](maintenance/offsite-backup/) |
+| Off-site Backup — encrypted server backup copy for S3-compatible storage | [maintenance/offsite-backup](maintenance/offsite-backup/) |
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
 | IT-Tools — handy online tools for developers, packaged from the upstream project (GPL-3.0) | [utilities/it-tools](utilities/it-tools/) |

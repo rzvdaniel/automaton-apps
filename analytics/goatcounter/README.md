@@ -10,10 +10,14 @@
 
 Asked when you install, used the first time the database is created:
 
-- `GC_DOMAIN` (setting, default `stats.example.com`): the address the app is opened at, without `https://`. GoatCounter uses it in the script it shows you, so set the real address (the host in the address bar when you open the app). With a single site GoatCounter serves it at any address, so the default still lets you sign in. The domain is stored when the database is first created and is not changed afterwards, so set it before the first start (to change it later, use GoatCounter's own site settings).
+- `GC_DOMAIN` (setting, default `stats.example.com`): a placeholder. The platform does not tell an app its own address, and the address (`app-<id>...`, or the public one after you make the app public) only exists after the install, so keep the default. GoatCounter serves its single site at any address, so you can sign in right away. It is stored when the database is first created and changing the setting later has no effect.
 - `GC_EMAIL` (setting) and `GC_PASSWORD` (secret): the first administrator. You sign in with the email. Changing them later does not change an existing account; use GoatCounter's own account pages.
 
 Statistics (SQLite) are kept in the app data directory, so they survive redeploys and restarts. GoatCounter reserves environment variables that start with `GOATCOUNTER_`, so the settings use the `GC_` prefix.
+
+## Set the domain (once, after the first sign-in)
+
+Until you do, the script GoatCounter shows names `stats.example.com`. Open **Settings → Sites**, edit the site and put your app's address in **Domain**: the host in the address bar, without `https://` (after making the app public, use its public address). Save; the dashboard's setup box and **Settings → Site code** then show your address.
 
 ## Track a website
 
