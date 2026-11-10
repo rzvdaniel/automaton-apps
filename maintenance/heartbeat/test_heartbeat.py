@@ -172,6 +172,33 @@ class Server(unittest.TestCase):
         self.assertEqual(status, 201, body)
         return body
 
+    def test_email_goes_out_once_per_state_change(self):
+        emails = []
+        def email(url, key, to, subject, text):
+            emails.append((url, key, to, subject, text))
+            return True
+        env = {"ADMIN_TOKEN": TOKEN, "AUTOMATON_APP_DATA_DIR": self.folder.name, "AUTOMATON_API_URL": "http://api.example",
+               "APP_AUTOMATON_API_KEY": "KEY", "EMAIL_TO": "owner, a@example.test"}
+        app = main.App(env, now=lambda: self.clock[0], post=lambda *a: True, email=email)
+        app.checks.append(heartbeat.new_check("db-dump", "1h", "0", self.clock[0], app.checks))
+        self.clock[0] += 7200
+        for _ in range(3):
+            app.check_overdue()
+        self.assertEqual(len(emails), 1)
+        self.assertEqual(emails[0][2], ["owner", "a@example.test"])
+        self.assertTrue(emails[0][3].startswith("missed: db-dump"))
+        heartbeat.record_ping(app.checks[0], self.clock[0])
+        app.check_overdue(); app.check_overdue()
+        self.assertEqual([e[3].split(":")[0] for e in emails], ["missed", "recovered"])
+
+    def test_email_unavailable_is_quiet(self):
+        self.assertIsNone(main.send_email("", "", ["administrators"], "s", "t"))
+        self.assertIsNone(main.send_email("http://api.example", "", ["administrators"], "s", "t"))
+        self.assertEqual(main.email_recipients(""), ["administrators"])
+        self.assertTrue(main.deliver([None, None]))
+        self.assertTrue(main.deliver([False, True]))
+        self.assertFalse(main.deliver([False, None]))
+
     def test_full_lifecycle_one_alert_one_recovery(self):
         check = self.create()
         url = "/ping/" + check["token"]

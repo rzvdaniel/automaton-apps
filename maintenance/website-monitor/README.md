@@ -23,12 +23,17 @@ Install it from **Apps → Catalog** on your Automaton server, fill in the setti
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300, minimum 60. |
 | `CERT_WARN_DAYS` | setting | Default 14. |
 | `TIMEOUT_SECONDS` | setting | Default 10. |
-| `WEBHOOK_URL` | secret | Where alerts go (below). Empty: alerts are only logged and shown on the status page. |
-| `HEARTBEAT_URL` | secret, optional | Pinged with GET after every successful run (below). |
+| `WEBHOOK_URL` | secret, optional | Where webhook alerts go (below). |
+| `EMAIL_TO` | setting | Who gets alert emails: `administrators` (default), `owner`, `project` or an address an administrator put on the server's allowed list; separate several with commas. |
+| `HEARTBEAT_URL` | secret, optional | Pinged with GET after every successful run (below). Leave empty to skip. |
 
 Settings and secrets reach the app as environment variables when it starts, so after changing one in Studio, redeploy (restart) the app.
 
-### Alerts
+### Email alerts
+
+The app asks for the `notify:email` permission. A system administrator approves it in Studio (the app's page; `automaton permissions status` prints the link) and the server needs its SMTP set up (Admin > Settings). The server sends the mail, so the app never sees SMTP credentials. The subject starts with `[Website Monitor]`; the server allows 10 emails an hour per app. Without the approval the app keeps working and alerts only the webhook (or the log). Only state changes are mailed, never repeats.
+
+### Webhook alerts
 
 The alert is a JSON POST to `WEBHOOK_URL` with `text` (Slack, Telegram), `content` (Discord), `event` (`down`, `recovered`, `cert_warning` or `cert_ok`) and `site`:
 
@@ -63,7 +68,7 @@ An Action runs in a fresh read-only container with no durable storage, so it can
 
 ## Not in version 1
 
-Email alerts, per-site intervals, and a public status page with history.
+Per-site intervals, and a public status page with history.
 
 ## Tests
 

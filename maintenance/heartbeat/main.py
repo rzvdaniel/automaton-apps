@@ -45,12 +45,53 @@ def post_webhook(url: str, payload: dict, timeout: float = 15) -> bool:
     return False
 
 
+def email_recipients(raw: str) -> list[str]:
+    """EMAIL_TO: names or addresses separated by commas, ';' or spaces. Empty means the server's administrators."""
+    return [item for item in raw.replace(";", ",").replace(" ", ",").split(",") if item] or ["administrators"]
+
+
+def send_email(api_url: str, api_key: str, recipients: list[str], subject: str, text: str, timeout: float = 15) -> bool | None:
+    """Emails through the server's SMTP with the notify:email permission.
+
+    True: sent. None: email is not available (no key because the permission is not approved, SMTP not set up, or
+    a recipient the server refuses), so retrying would not help. False: a temporary failure; try again later.
+    Never logs the key.
+    """
+    if not api_url or not api_key:
+        return None
+    body = json.dumps({"to": recipients, "subject": subject, "text": text}).encode()
+    request = Request(api_url.rstrip("/") + "/api/notify/email", data=body, method="POST",
+                      headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json", "User-Agent": USER_AGENT})
+    try:
+        with urlopen(request, timeout=timeout):
+            return True
+    except HTTPError as error:
+        if error.code in (400, 403, 404, 409):
+            log(f"email not sent: HTTP {error.code} (is notify:email approved and SMTP set up?)")
+            return None
+        log(f"email failed: HTTP {error.code}")
+    except (URLError, OSError, ValueError) as error:
+        log(f"email failed: {type(getattr(error, 'reason', error)).__name__}")
+    return False
+
+
+def deliver(results: list[bool | None]) -> bool:
+    """An alert counts as delivered when any channel took it, or when no channel is available (the log and page show it).
+    It is retried on the next run only when every available channel failed, so a working channel is not repeated."""
+    available = [r for r in results if r is not None]
+    return True if not available else any(available)
+
+
 class App:
-    def __init__(self, env=None, now=time.time, post=post_webhook):
+    def __init__(self, env=None, now=time.time, post=post_webhook, email=None):
         env = os.environ if env is None else env
         self.now, self.post = now, post
+        self.email = email or send_email
         self.admin_token = env.get("ADMIN_TOKEN", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
+        self.api_url = env.get("AUTOMATON_API_URL", "").strip()
+        self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
+        self.email_to = email_recipients(env.get("EMAIL_TO", ""))
         interval = env.get("CHECK_INTERVAL_SECONDS", "").strip()
         self.interval = int(interval) if interval.isdigit() and 5 <= int(interval) <= 3600 else 30
         self.path = os.path.join(env.get("AUTOMATON_APP_DATA_DIR", "data"), "checks.json")
@@ -60,10 +101,12 @@ class App:
     # --- alerts -------------------------------------------------------------------------------------------------
     def send(self, event: str, text: str, name: str) -> bool:
         log(text)
-        if not self.webhook:
-            return True
-        # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
-        return self.post(self.webhook, {"text": text, "content": text, "event": event, "check": name})
+        results: list[bool | None] = []
+        if self.webhook:
+            # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
+            results.append(self.post(self.webhook, {"text": text, "content": text, "event": event, "check": name}))
+        results.append(self.email(self.api_url, self.api_key, self.email_to, f"{event}: {name}", text))
+        return deliver(results)
 
     def check_overdue(self) -> int:
         """Finds overdue checks and sends their alerts. The webhook is called without the lock, so a slow or
