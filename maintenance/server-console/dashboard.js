@@ -7,7 +7,7 @@
   var view = document.getElementById("view");
   var overall = document.getElementById("overall");
   var subtitle = document.getElementById("subtitle");
-  var LABELS = { ok: "OK", warning: "Warning", critical: "Critical", unknown: "No data" };
+  var LABELS = { ok: "OK", warning: "Warning", critical: "Action needed", unknown: "No data" };
 
 
   function pill(status, text) {
@@ -27,6 +27,19 @@
 
   function num(value, unit) {
     return typeof value === "number" ? esc(String(value)) + (unit ? " <small>" + unit + "</small>" : "") : "-";
+  }
+
+  // Binary units, labelled as such (the UI kit's formatBytes says GB for 1024-based sizes).
+  function bytes(value) {
+    if (typeof value !== "number" || !isFinite(value) || value < 0) return "-";
+    var units = ["B", "KiB", "MiB", "GiB", "TiB"], i = 0;
+    while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
+    return (i === 0 || value >= 100 ? Math.round(value) : Math.round(value * 10) / 10) + " " + units[i];
+  }
+
+  function ago(seconds) {
+    if (typeof seconds !== "number" || seconds < 0) return "";
+    return seconds < 90 ? "less than a minute ago" : seconds < 5400 ? Math.round(seconds / 60) + " minutes ago" : Math.round(seconds / 3600) + " hours ago";
   }
 
   function pct(value) { return typeof value === "number" ? Math.round(value * 10) / 10 : null; }
@@ -68,7 +81,7 @@
     var host = h.host || {};
     var securityHint = a.securityDays !== null && a.securityDays !== undefined ? "waiting " + esc(String(a.securityDays)) + " days" : "";
     var reboot = host.rebootRequired === true ? pill(a.reboot, "Restart required") : host.rebootRequired === false ? pill("ok", "No restart needed") : pill("unknown", "Unknown");
-    var body = '<div class="a-stats">' + stat("Pending updates", num(host.updatesPending), "", a.pending) +
+    var body = '<div class="a-stats">' + stat("Updates waiting", num(host.updatesPending), typeof host.securityUpdates === "number" && host.securityUpdates > 0 ? "including " + esc(String(host.securityUpdates)) + " security" : "", a.pending) +
       stat("Security updates", num(host.securityUpdates), securityHint, a.security) + "</div>" +
       '<dl class="a-kv" style="margin-top:14px"><dt>Restart</dt><dd>' + reboot + "</dd>" +
       (host.rebootRequired === true ? "<dt>Required since</dt><dd>" + when(host.rebootRequiredSinceUtc) + "</dd>" : "") + "</dl>";
@@ -83,13 +96,14 @@
     var docker = (host.dockerImagesBytes || 0) + (host.dockerContainersBytes || 0) + (host.dockerVolumesBytes || 0) + (host.dockerBuildCacheBytes || 0);
     var load = typeof host.load1 === "number" ? [host.load1, host.load5, host.load15].map(function (v) { return v.toFixed(2); }).join(" / ") : "-";
     var body = metric("CPU", host.cpuPercent, a.cpu, history, "cpu") +
-      metric("Memory used" + (typeof host.memoryTotalBytes === "number" ? " of " + UI.formatBytes(host.memoryTotalBytes) : ""), memoryUsed, a.memory, history, "mem") +
-      metric("Disk used" + (typeof host.diskTotalBytes === "number" ? " of " + UI.formatBytes(host.diskTotalBytes) : ""), diskUsed, a.disk, history, "disk") +
-      '<dl class="a-kv" style="margin-top:6px"><dt>Disk free</dt><dd>' + (typeof host.diskAvailableBytes === "number" ? esc(UI.formatBytes(host.diskAvailableBytes)) : "-") +
+      metric("Memory used" + (typeof host.memoryTotalBytes === "number" ? " of " + bytes(host.memoryTotalBytes) : ""), memoryUsed, a.memory, history, "mem") +
+      metric("Disk used" + (typeof host.diskTotalBytes === "number" ? " of " + bytes(host.diskTotalBytes) : ""), diskUsed, a.disk, history, "disk") +
+      '<dl class="a-kv" style="margin-top:6px"><dt>Disk free</dt><dd>' + (typeof host.diskAvailableBytes === "number" ? esc(bytes(host.diskAvailableBytes)) : "-") +
       "</dd><dt>Load 1 / 5 / 15 min" + (host.cpuCount ? " (" + esc(String(host.cpuCount)) + " CPUs)" : "") + '</dt><dd class="a-mono">' + esc(load) +
-      "</dd><dt>Docker disk use</dt><dd>" + (docker > 0 ? esc(UI.formatBytes(docker)) : "-") + "</dd></dl>";
+      "</dd><dt>Docker disk use</dt><dd>" + (docker > 0 ? esc(bytes(docker)) : "-") + "</dd></dl>";
     var stale = a.freshness === "warning" ? '<p class="a-note a-note--warning" style="margin-top:12px">The Runner has not reported for a while; these figures are old.</p>' : "";
-    var foot = "History: the last 24 hours, one point every few minutes.";
+    var measured = ago(h.hostAgeSeconds);
+    var foot = (measured ? "Measured by the Runner " + measured + ". " : "") + "CPU is the average over a few seconds when it was measured. History: the last 24 hours, one point every few minutes.";
     return card("Resources", a.resources, body + stale, foot);
   }
 
@@ -120,8 +134,8 @@
     var stale = data.status === "error" ? '<div class="a-note a-note--warning" style="margin-bottom:16px">The last check failed (' + esc(data.message || "unknown error") + "), so these figures are from the last good check.</div>" : "";
     var names = Object.keys(data.alerts || {});
     if (!names.length) return stale;
-    return stale + '<div class="a-note a-note--warning" style="margin-bottom:16px"><strong>Active warnings:</strong> ' +
-      names.map(function (n) { return esc(data.alerts[n].message); }).join("; ") + "</div>";
+    return stale + '<div class="a-note a-note--warning" style="margin-bottom:16px"><strong>Needs attention:</strong><ul style="margin:6px 0 0;padding-left:20px">' +
+      names.map(function (n) { var x = data.alerts[n]; return "<li>" + esc(x.message) + (x.advice ? ". <strong>What to do:</strong> " + esc(x.advice) : "") + "</li>"; }).join("") + "</ul></div>";
   }
 
   function dashboard(data) {

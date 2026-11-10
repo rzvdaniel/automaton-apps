@@ -7,20 +7,21 @@ A read-only dashboard for your Automaton server: how the machine and its Runners
 - **Updates:** pending and security OS updates (and how long security updates have been waiting) and whether a restart is required.
 - **Runners:** version, online state and whether an upgrade is available.
 - **Backups and certificates:** age of the last successful backup and days until the Studio and API certificates expire.
-- **Warnings:** one webhook message when disk free space drops below a threshold (default 15%), security updates wait longer than 7 days, or a restart has been required for more than 3 days, and one message when it is resolved.
+- **Warnings:** one email (through your server's own SMTP) and, if you set one, one webhook message when disk free space drops below a threshold (default 15%), security updates wait longer than 7 days, or a restart has been required for more than 3 days, and one webhook message when it is resolved. Each warning says what to do about it, on the page and in the email.
 
-It only asks for the `server:read` permission, so it cannot change anything on the server.
+It asks for the `server:read` and `notify:email` permissions, so it cannot change anything on the server; the email goes only to the people you choose below.
 
 ## Install and set up
 
-1. Install it from **Apps -> Catalog** (needs Automaton Server 0.2.56 or newer, with a Machine Management Runner that has been upgraded to report host figures).
+1. Install it from **Apps -> Catalog** (needs Automaton Server 0.2.92 or newer for email, 0.2.56 for the rest, with a Machine Management Runner that has been upgraded to report host figures).
 2. Fill in the settings and secrets below and deploy.
-3. An administrator approves `server:read` in Studio: **Admin -> Apps -> Review -> Permissions -> Approve**. Until then the page says **Waiting for approval** and the app gets nothing. `automaton permissions status` shows the request.
+3. An administrator approves both permissions in Studio: **Admin -> Apps -> Review -> Permissions -> Approve** `server:read` and `notify:email`. Until `server:read` is approved the page says **Waiting for approval** and the app gets nothing; until `notify:email` is approved no email is sent (the log says so, and the webhook still works). `automaton permissions status` shows both requests. Email also needs SMTP set up in **Admin -> Settings**.
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
 | `API_BASE_URL` | setting, required | Address of this server's API, for example `https://api.example.com`. |
-| `WEBHOOK_URL` | secret | Where warnings go: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: warnings only appear in the log and on the page. |
+| `EMAIL_TO` | setting | Who gets warning emails: `administrators` (default), `owner`, `project` or `off`. |
+| `WEBHOOK_URL` | secret | Optional, in addition to the email: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: no webhook. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
 | `DISK_FREE_WARN_PERCENT` | setting | Default 15. |
 | `SECURITY_UPDATE_DAYS` | setting | Default 7. Counted from when the console first saw the updates waiting. |
@@ -30,7 +31,7 @@ Settings and secrets reach the app as environment variables when it starts, so r
 
 ## Warnings
 
-The warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `event` (`warning` or `recovered`) and `condition` (`disk_low`, `security_overdue` or `reboot_overdue`). Each condition sends one warning when it starts and one message when it ends, not one per check. A warning the webhook did not accept is retried on the next check.
+Each condition sends one email when it starts (subject `[Server Console] Disk space is low` and so on, a short text and what to do), not one per check and not on recovery. The webhook warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `event` (`warning` or `recovered`) and `condition` (`disk_low`, `security_overdue` or `reboot_overdue`). Each condition sends one warning when it starts and one message when it ends, not one per check. A channel that failed because of a network or server error is retried (the other is not asked again) on the next check; when email is refused (not approved, no SMTP) it is only logged and shown on the page.
 
 ## Where the numbers come from
 
