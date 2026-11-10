@@ -68,9 +68,10 @@ def send_email(settings: console.Settings, condition: str, text: str, timeout: f
         with build_opener(console._NoRedirect()).open(request, timeout=timeout):
             return True
     except HTTPError as error:
-        if error.code in (403, 404, 409):
+        if error.code in (400, 403, 404, 409, 429):
             log({403: "email not sent: notify:email is not approved or the address is not allowed",
-                 404: "email not sent: no recipient found", 409: "email not sent: the server has no SMTP set up"}[error.code])
+                 404: "email not sent: no recipient found", 409: "email not sent: the server has no SMTP set up",
+                 400: "email not sent: the server refused the message", 429: "email not sent: the hourly limit of 10 emails is used up"}[error.code])
             return None
         log(f"email request failed: HTTP {error.code}")
     except (URLError, OSError, ValueError) as error:
@@ -88,13 +89,25 @@ class Console:
 
     def send(self, event: str, condition: str, text: str) -> bool:
         log(text)
-        results = []
-        if self.settings.webhook:
+        # A channel that already sent this warning is not asked again when the other one has to be retried.
+        key = f"{event}:{condition}"
+        done = self.state.setdefault("sent", {}).setdefault(key, [])
+        results = [True] * len(done)
+        if self.settings.webhook and "webhook" not in done:
             # "text" is Slack and Telegram, "content" is Discord; the other fields are for generic receivers.
-            results.append(post_webhook(self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition}))
-        if event == "warning":  # one email when a warning starts; recovery goes to the webhook only
-            results.append(send_email(self.settings, condition, text))
-        return console.delivered(results)
+            ok = post_webhook(self.settings.webhook, {"text": text, "content": text, "event": event, "condition": condition})
+            results.append(ok)
+            if ok:
+                done.append("webhook")
+        if event == "warning" and "email" not in done:  # one email when a warning starts; recovery goes to the webhook only
+            ok = send_email(self.settings, condition, text)
+            results.append(ok)
+            if ok:
+                done.append("email")
+        finished = console.delivered(results)
+        if finished:
+            self.state["sent"].pop(key, None)
+        return finished
 
     def run_once(self) -> None:
         try:

@@ -215,7 +215,7 @@ class AlertTests(unittest.TestCase):
 
     def test_delivery_rules(self):
         self.assertTrue(console.delivered([None]))
-        self.assertTrue(console.delivered([False, True]))
+        self.assertFalse(console.delivered([False, True]))
         self.assertTrue(console.delivered([]))
         self.assertFalse(console.delivered([False, None]))
 
@@ -256,7 +256,7 @@ class EmailTests(unittest.TestCase):
         self.assertIn("docker system prune", body["text"])
 
     def test_refusals_mean_not_available_and_server_errors_mean_retry(self):
-        for status, expected in ((403, None), (409, None), (404, None), (502, False)):
+        for status, expected in ((403, None), (409, None), (404, None), (400, None), (429, None), (502, False)):
             _, url = self.serve(status)
             self.assertIs(main.send_email(settings(API_BASE_URL=url), "disk_low", "x"), expected, status)
 
@@ -267,6 +267,7 @@ class EmailTests(unittest.TestCase):
         self.assertEqual(seen, [])
 
 
+class AlertPermissionTests(unittest.TestCase):
     def test_nothing_is_recorded_or_sent_while_the_permission_is_not_approved(self):
         state, send = console.new_state(), Recorder()
         console.run_cycle(settings(), state, NOW, send, fetch=lambda _s: ("not_approved", None, "refused"))
@@ -279,6 +280,24 @@ class EmailTests(unittest.TestCase):
         self.assertIsNotNone(console.snapshot(state, settings(), NOW)["health"])
         console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("not_approved", None, "refused"))
         self.assertIsNone(console.snapshot(state, settings(), NOW)["health"])
+
+
+class ChannelTests(unittest.TestCase):
+    def test_a_failed_channel_is_retried_without_resending_the_other(self):
+        import tempfile
+        env = {"API_BASE_URL": "http://127.0.0.1:9", "APP_AUTOMATON_API_KEY": "key", "WEBHOOK_URL": "https://hooks.example.com/x",
+               "AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp()}
+        app = main.Console(env)
+        hooks, mails = [], [False, True]
+        original = (main.post_webhook, main.send_email)
+        main.post_webhook = lambda url, payload: hooks.append(payload) or True
+        main.send_email = lambda *args: mails.pop(0)
+        try:
+            self.assertFalse(app.send("warning", "disk_low", "x"))
+            self.assertTrue(app.send("warning", "disk_low", "x"))
+        finally:
+            main.post_webhook, main.send_email = original
+        self.assertEqual((len(hooks), mails, app.state["sent"]), (1, [], {}))
 
 
 class SnapshotTests(unittest.TestCase):

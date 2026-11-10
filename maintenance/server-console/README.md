@@ -31,7 +31,7 @@ Settings and secrets reach the app as environment variables when it starts, so r
 
 ## Warnings
 
-Each condition sends one email when it starts (subject `[Server Console] Disk space is low` and so on, a short text and what to do), not one per check and not on recovery. The webhook warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `event` (`warning` or `recovered`) and `condition` (`disk_low`, `security_overdue` or `reboot_overdue`). Each condition sends one warning when it starts and one message when it ends, not one per check. A warning that no channel accepted because of a network or server error is retried on the next check; when email is refused (not approved, no SMTP) it is only logged and shown on the page.
+Each condition sends one email when it starts (subject `[Server Console] Disk space is low` and so on, a short text and what to do), not one per check and not on recovery. The webhook warning is a JSON POST with `text` (Slack, Telegram), `content` (Discord), `event` (`warning` or `recovered`) and `condition` (`disk_low`, `security_overdue` or `reboot_overdue`). Each condition sends one warning when it starts and one message when it ends, not one per check. A channel that failed because of a network or server error is retried (the other is not asked again) on the next check; when email is refused (not approved, no SMTP) it is only logged and shown on the page.
 
 ## Where the numbers come from
 

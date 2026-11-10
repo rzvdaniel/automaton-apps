@@ -98,7 +98,7 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
 
 def new_state() -> dict:
     return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None,
-            "alerts": {}, "securitySince": None}
+            "alerts": {}, "securitySince": None, "sent": {}}
 
 
 def load_state(path: str) -> dict:
@@ -247,9 +247,9 @@ def conditions(health: dict, state: dict, settings: Settings, now: float) -> dic
 
 def delivered(results: list) -> bool:
     """Whether a warning is done. Each channel reports True (sent), False (failed, worth retrying) or None (not
-    available: not configured, not approved or refused). It is done when one channel sent it, or when no channel
-    failed (nothing to retry: the page and the log still show it)."""
-    return any(r is True for r in results) or not any(r is False for r in results)
+    available: not configured, not approved or refused). It is done when no channel failed; the caller does not
+    ask a channel again once it has sent."""
+    return not any(r is False for r in results)
 
 
 def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliver: bool, now: float) -> list[str]:
