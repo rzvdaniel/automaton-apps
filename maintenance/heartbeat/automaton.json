@@ -24,12 +24,13 @@
     },
     "health": { "path": "/health", "startupTimeoutSeconds": 60 },
     "storage": { "dataDirectory": "data", "mounts": [] },
+    "openPaths": ["/ping/*"],
     "settings": [
       { "name": "CHECK_INTERVAL_SECONDS", "description": "How often overdue checks are looked for (5 to 3600 seconds)", "default": "30" }
     ],
     "secrets": [
       { "name": "ADMIN_TOKEN", "description": "Password for the check list at the app's address: at least 16 random characters. Without it checks cannot be created or listed (existing check-in URLs keep working)" },
-      { "name": "WEBHOOK_URL", "description": "Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log" }
+      { "name": "WEBHOOK_URL", "optional": true, "description": "Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log" }
     ]
   }
 }
