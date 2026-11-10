@@ -25,7 +25,7 @@
       { "name": "GC_PASSWORD", "description": "Password of the first administrator (used when the database is created)" }
     ],
     "settings": [
-      { "name": "GC_DOMAIN", "description": "Placeholder. Keep it, then set Domain to this app's address (host only) in GoatCounter under Settings -> Sites.", "default": "stats.example.com" },
+      { "name": "GC_DOMAIN", "description": "Placeholder. Keep it, then set Domain to this app's address (host only) in GoatCounter under Settings -> Main.", "default": "stats.example.com" },
       { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
     ]
   }
