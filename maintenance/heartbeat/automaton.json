@@ -1,10 +1,11 @@
 {
   "name": "Heartbeat",
-  "summary": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
-  "description": "Create a check for each cron job or backup with how often it should check in and how much grace it gets. Your job calls the check's secret URL after each run; when a check-in is missed you get one alert, and one message when it checks in again. Works with Slack, Discord, Telegram or any webhook URL.",
+  "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
+  "description": "Create a check for each cron job or backup with how often it should check in and how much grace it gets. Your job calls the check's secret URL after each run; when a check-in is missed you get one alert, and one message when it checks in again. Emails through the server (permission notify:email) and also works with Slack, Discord, Telegram or any webhook URL.",
   "application": {
     "kind": "web",
-    "description": "Gives each of your jobs a check-in URL and alerts a webhook when a check-in is missed.",
+    "permissions": ["notify:email"],
+    "description": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
     "pages": [{ "path": "/", "label": "Check-ins" }],
     "build": {
       "image": "python:3.12-slim",
@@ -26,7 +27,8 @@
     "storage": { "dataDirectory": "data", "mounts": [] },
     "openPaths": ["/ping/*"],
     "settings": [
-      { "name": "CHECK_INTERVAL_SECONDS", "description": "How often overdue checks are looked for (5 to 3600 seconds)", "default": "30" }
+      { "name": "CHECK_INTERVAL_SECONDS", "description": "How often overdue checks are looked for (5 to 3600 seconds)", "default": "30" },
+      { "name": "EMAIL_TO", "description": "Who gets alert emails (needs the notify:email permission approved): administrators, owner, project or an address an administrator allowed; separate several with commas", "default": "administrators" }
     ],
     "secrets": [
       { "name": "ADMIN_TOKEN", "description": "Password for the check list at the app's address: at least 16 random characters. Without it checks cannot be created or listed (existing check-in URLs keep working)" },

@@ -1,10 +1,11 @@
 {
   "name": "Website Monitor",
-  "summary": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
-  "description": "Checks the sites you list every few minutes (status, optional keyword, response time, days left on the TLS certificate) and sends one alert when a site goes down and one when it recovers. Works with Slack, Discord, Telegram or any webhook URL. Can ping a heartbeat URL after every good run so an outside service notices if this server stops.",
+  "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
+  "description": "Checks the sites you list every few minutes (status, optional keyword, response time, days left on the TLS certificate) and sends one alert when a site goes down and one when it recovers. Emails through the server (permission notify:email) and also works with Slack, Discord, Telegram or any webhook URL. Can ping a heartbeat URL after every good run so an outside service notices if this server stops.",
   "application": {
     "kind": "web",
-    "description": "Checks your websites on a schedule and alerts a webhook when one is down or its certificate is about to expire.",
+    "permissions": ["notify:email"],
+    "description": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
     "pages": [{ "path": "/", "label": "Monitors" }],
     "build": {
       "image": "python:3.12-slim",
@@ -59,6 +60,11 @@
         "name": "TIMEOUT_SECONDS",
         "description": "Seconds to wait for a site before it counts as failed",
         "default": "10"
+      },
+      {
+        "name": "EMAIL_TO",
+        "description": "Who gets alert emails (needs the notify:email permission approved): administrators, owner, project or an address an administrator allowed; separate several with commas",
+        "default": "administrators"
       }
     ],
     "secrets": [

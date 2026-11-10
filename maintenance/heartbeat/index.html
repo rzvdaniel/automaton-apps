@@ -53,7 +53,13 @@ async function refresh() {
       tr.insertCell().textContent = secs(c.period); tr.insertCell().textContent = secs(c.grace) || '0';
       tr.insertCell().textContent = c.last_ping ? new Date(c.last_ping * 1000).toLocaleString() : 'never';
       const input = document.createElement('input'); input.className = 'a-input check-url'; input.readOnly = true; input.value = location.origin + '/ping/' + c.token;
-      input.onfocus = () => input.select(); tr.insertCell().append(input);
+      input.onfocus = () => input.select();
+      const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'a-btn'; copy.textContent = 'Copy'; copy.setAttribute('aria-label', 'Copy check-in URL of ' + c.name);
+      copy.onclick = async () => {
+        try { await navigator.clipboard.writeText(input.value); } catch { input.select(); document.execCommand('copy'); }
+        copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1500);
+      };
+      const cell = tr.insertCell(); cell.className = 'check-url-cell'; cell.append(input, copy);
       const del = document.createElement('button'); del.className = 'a-btn'; del.textContent = 'Delete';
       del.onclick = async () => { if (confirm('Delete check ' + c.name + '?')) { try { await api('DELETE', '/' + c.id); refresh(); } catch (e) { $('message').textContent = e.message; $('message').hidden = false; } } };
       tr.insertCell().append(del);

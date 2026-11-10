@@ -197,6 +197,19 @@ class RunCycle(unittest.TestCase):
         state = monitor.run_cycle(sites, state, 14, 5, send, check=check)
         self.assertEqual(calls, ["down", "down"])
 
+    def test_email_helpers(self):
+        self.assertIsNone(main.send_email("", "", ["administrators"], "s", "t"))
+        self.assertIsNone(main.send_email("http://api.example", "", ["administrators"], "s", "t"))
+        self.assertEqual(main.email_recipients("owner; a@example.test"), ["owner", "a@example.test"])
+        self.assertEqual(main.email_recipients(" "), ["administrators"])
+        self.assertTrue(main.deliver([None]))
+        self.assertTrue(main.deliver([False, True]))
+        self.assertFalse(main.deliver([False, None]))
+
+    def test_email_and_optional_heartbeat_settings(self):
+        settings = main.Settings({"SITES": "https://a.example"})
+        self.assertEqual((settings.heartbeat, settings.api_key, settings.email_to), ("", "", ["administrators"]))
+
     def test_removed_sites_leave_the_state(self):
         check = lambda site, timeout: Result(True, 200, 5)
         state = monitor.run_cycle([Site("https://a.example"), Site("https://b.example")], {}, 14, 5, lambda *a: True, check=check)
