@@ -45,7 +45,7 @@ The background check runs inside the app rather than as an Automaton Action, bec
 ## Run it without Automaton
 
 ```sh
-API_BASE_URL=https://api.example.com APP_AUTOMATON_API_KEY=... python3 main.py --once
+AUTOMATON_API_URL=https://api.example.com APP_AUTOMATON_API_KEY=... python3 main.py --once
 ```
 
 Prints the page's data as JSON and exits with 1 when no figures could be read. Without `--once`, `python3 main.py` serves the page on `AUTOMATON_PORT` (default 8080), with no sign-in: outside Automaton put your own login in front of it. Run the tests with `python3 -m unittest discover -p 'test_*.py'`.
