@@ -22,10 +22,10 @@
     "storage": { "dataDirectory": "data", "mounts": [] },
     "publicAccess": { "level": "recommended", "reason": "Sites you track load its script and send page views from your visitors' browsers, without an Automaton sign-in." },
     "secrets": [
-      { "name": "GC_PASSWORD", "description": "Password of the first administrator (used when the database is created)" }
+      { "name": "GC_PASSWORD", "description": "Password of the first administrator (applied on every start, so changing it and restarting sets the new password)" }
     ],
     "settings": [
-      { "name": "GC_DOMAIN", "description": "Placeholder. Keep it, then set Domain to this app's address (host only) in GoatCounter under Settings -> Main.", "default": "stats.example.com" },
+      { "name": "GC_DOMAIN", "description": "The address this app is opened at (host only, without https://), for example myapp.apps.example.com. Applied on every start as GoatCounter's Domain setting. Until you know the address, keep the placeholder.", "default": "stats.example.com" },
       { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
     ]
   }
