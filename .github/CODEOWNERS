@@ -1,0 +1,14 @@
+# Two lists for .agents/tools/merge-gate.py in rzvdaniel/automaton (tiers in its .agents/skills/pr-review/SKILL.md).
+# Keep each pattern a rooted folder (ending in /) or a rooted file. Loosen or extend either list only in a pull
+# request the owner approves.
+#
+# High tier, above the "security pass" marker: the owner approves before merge (label owner-approved).
+
+/.github/CODEOWNERS                                            @rzvdaniel
+# What the catalog publishes, and the workflows that build and check it
+/.github/workflows/                                            @rzvdaniel
+/tools/                                                        @rzvdaniel
+# --- security pass ---
+# Below this marker: medium tier, but the review must include a security pass (a "Security:" section).
+# Apps that hold other people's credentials or reach outside the server.
+/maintenance/offsite-backup/                                   @rzvdaniel
