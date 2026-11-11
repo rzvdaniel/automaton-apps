@@ -47,7 +47,8 @@ def env_int(env, name: str, default: int, minimum: int, maximum: int) -> int:
 class Settings:
     def __init__(self, env=None):
         env = os.environ if env is None else env
-        self.api_base_url = env.get("API_BASE_URL", "").strip().rstrip("/")
+        # The server provides AUTOMATON_API_URL; API_BASE_URL is the older setting and still works.
+        self.api_base_url = (env.get("AUTOMATON_API_URL", "").strip() or env.get("API_BASE_URL", "").strip()).rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
         self.email_to = (env.get("EMAIL_TO", "").strip().lower() or "administrators")
@@ -58,7 +59,7 @@ class Settings:
         self.security_days = env_int(env, "SECURITY_UPDATE_DAYS", 7, 0, 365)
         self.reboot_days = env_int(env, "REBOOT_DAYS", 3, 0, 365)
         if self.api_base_url and urlsplit(self.api_base_url).scheme not in ("http", "https"):
-            raise ConfigError("API_BASE_URL must start with https:// (or http:// on a local server)")
+            raise ConfigError("The server address (AUTOMATON_API_URL or API_BASE_URL) must start with https:// (or http:// on a local server)")
 
     def public(self) -> dict:
         return {"intervalSeconds": self.interval, "diskFreePercent": self.disk_free_percent,
@@ -76,7 +77,7 @@ class _NoRedirect(HTTPRedirectHandler):
 def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[str, dict | None, str | None]:
     """Returns (status, health, message). Status is ok, no_key, not_approved, not_configured, unavailable or error."""
     if not settings.api_base_url:
-        return "not_configured", None, "API_BASE_URL is not set."
+        return "not_configured", None, "The server address (AUTOMATON_API_URL) is not set."
     if not settings.api_key:
         return "no_key", None, "The app has no server:read key yet."
     request = Request(settings.api_base_url + "/api/server/health",

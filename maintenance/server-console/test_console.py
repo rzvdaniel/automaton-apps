@@ -61,6 +61,14 @@ class SettingsTests(unittest.TestCase):
             settings(API_BASE_URL="ftp://x")
 
 
+class AddressTests(unittest.TestCase):
+    def test_server_provided_address_wins_and_old_setting_is_fallback(self):
+        both = settings(AUTOMATON_API_URL="https://a.example.com/", API_BASE_URL="https://b.example.com")
+        self.assertEqual(both.api_base_url, "https://a.example.com")
+        self.assertEqual(settings().api_base_url, "https://api.example.com")
+        self.assertEqual(settings(API_BASE_URL="", AUTOMATON_API_URL="https://a.example.com").api_base_url, "https://a.example.com")
+
+
 class FetchTests(unittest.TestCase):
     class Opener:
         def __init__(self, result):

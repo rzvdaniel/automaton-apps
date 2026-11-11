@@ -41,8 +41,7 @@
     "settings": [
       {
         "name": "API_BASE_URL",
-        "description": "Base URL of this Automaton server's API, for example https://api.example.com",
-        "required": true
+        "description": "Optional. Base URL of this Automaton server's API; normally the server provides it, so leave empty"
       },
       {
         "name": "CHECK_INTERVAL_SECONDS",
