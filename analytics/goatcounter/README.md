@@ -10,14 +10,14 @@
 
 Asked when you install, and applied again on every start (change a value in Studio and restart the app):
 
-- `GC_DOMAIN` (setting, default `stats.example.com`): a placeholder. The platform does not tell an app its own address, and the address (`app-<id>...`, or the public one after you make the app public) only exists after the install, so keep the default. GoatCounter serves its single site at any address, so you can sign in right away. On every start it is written to GoatCounter's own **Domain** setting (Settings → Main), so after the install you can set it to the app's public address, `<name>.apps.<server domain>`, and restart.
+- `GC_DOMAIN` (setting, default `stats.example.com`): a placeholder. The platform does not tell an app its own address, and the address (`app-<id>...`, or the public one after you make the app public) only exists after the install, so keep the default. GoatCounter serves its single site at any address, so you can sign in right away. On every start it is written to GoatCounter's own **Domain** setting (Settings → Domain settings), so after the install you can set it to the app's public address, `<name>.apps.<server domain>`, and restart.
 - `GC_EMAIL` (setting) and `GC_PASSWORD` (secret): the first administrator. You sign in with the email. The password is applied to the first administrator on every start, so a changed `GC_PASSWORD` takes effect after a restart (a password changed in GoatCounter's account pages is replaced by `GC_PASSWORD` at the next start). The email is used only when the account is created; change it in GoatCounter's account pages.
 
 Statistics (SQLite) are kept in the app data directory, so they survive redeploys and restarts. GoatCounter reserves environment variables that start with `GOATCOUNTER_`, so the settings use the `GC_` prefix.
 
 ## Set the domain
 
-Until you do, the script GoatCounter shows names `stats.example.com`. Set `GC_DOMAIN` in Studio to your app's address (the host only, without `https://`; an app is served at `<name>.apps.<server domain>`) and restart. The value is applied on every start, so editing **Domain** in GoatCounter's own settings is overwritten by `GC_DOMAIN` at the next start. The dashboard's setup box and **Settings → Site code** then show your address; the dashboard's setup box and **Settings → Site code** then show your address.
+Until you do, the script GoatCounter shows names `stats.example.com`. Set `GC_DOMAIN` in Studio to your app's address (the host only, without `https://`; an app is served at `<name>.apps.<server domain>`) and restart. The value is applied on every start, so editing **Domain** in GoatCounter's own settings is overwritten by `GC_DOMAIN` at the next start. The dashboard's setup box and **Settings → Site code** then show your address.
 
 ## Track a website
 
