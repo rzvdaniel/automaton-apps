@@ -68,7 +68,7 @@
       "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
       "category": "Analytics",
       "folder": "analytics/goatcounter",
-      "commit": "0dbd6e352defdc78983d54eb9ae1205b31d94eb9",
+      "commit": "e2f7f75bd2dd77a2e5631c650634caf8cbe5bc57",
       "minServerVersion": "0.2.55",
       "permissions": []
     },
