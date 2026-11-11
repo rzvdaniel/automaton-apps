@@ -25,7 +25,7 @@
       { "name": "GC_PASSWORD", "description": "Password of the first administrator (applied on every start, so changing it and restarting sets the new password)" }
     ],
     "settings": [
-      { "name": "GC_DOMAIN", "description": "The address this app is opened at (host only, without https://), for example myapp.apps.example.com. Applied on every start as GoatCounter's Domain setting. Until you know the address, keep the placeholder.", "default": "stats.example.com" },
+      { "name": "GC_DOMAIN", "description": "This app's address (host only), for example myapp.apps.example.com. Applied on every start as GoatCounter's Domain setting.", "default": "stats.example.com" },
       { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
     ]
   }
