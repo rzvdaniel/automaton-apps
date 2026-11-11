@@ -19,7 +19,8 @@ It asks for the `server:read` and `notify:email` permissions, so it cannot chang
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
-| `API_BASE_URL` | setting, required | Address of this server's API, for example `https://api.example.com`. |
+| `AUTOMATON_API_URL` | provided by the server | Address of this server's API; nothing to enter. |
+| `API_BASE_URL` | setting, optional | Older override, used only when `AUTOMATON_API_URL` is not set. |
 | `EMAIL_TO` | setting | Who gets warning emails: `administrators` (default), `owner`, `project` or `off`. |
 | `WEBHOOK_URL` | secret | Optional, in addition to the email: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: no webhook. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
@@ -44,7 +45,7 @@ The background check runs inside the app rather than as an Automaton Action, bec
 ## Run it without Automaton
 
 ```sh
-API_BASE_URL=https://api.example.com APP_AUTOMATON_API_KEY=... python3 main.py --once
+AUTOMATON_API_URL=https://api.example.com APP_AUTOMATON_API_KEY=... python3 main.py --once
 ```
 
 Prints the page's data as JSON and exits with 1 when no figures could be read. Without `--once`, `python3 main.py` serves the page on `AUTOMATON_PORT` (default 8080), with no sign-in: outside Automaton put your own login in front of it. Run the tests with `python3 -m unittest discover -p 'test_*.py'`.
