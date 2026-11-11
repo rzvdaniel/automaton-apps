@@ -10,5 +10,6 @@
 /tools/                                                        @rzvdaniel
 # --- security pass ---
 # Below this marker: medium tier, but the review must include a security pass (a "Security:" section).
-# Apps that hold other people's credentials or reach outside the server.
+# Apps that hold credentials, reach outside the server or manage the server itself.
 /maintenance/offsite-backup/                                   @rzvdaniel
+/maintenance/server-console/                                   @rzvdaniel
