@@ -5,65 +5,28 @@
   "application": {
     "kind": "web",
     "description": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
-    "pages": [
-      {
-        "path": "/",
-        "label": "Dashboard"
-      }
-    ],
+    "pages": [{ "path": "/", "label": "Dashboard" }],
     "build": {
       "image": "golang:1.25.14-bookworm",
-      "command": {
-        "executable": "sh",
-        "arguments": [
-          "build.sh"
-        ],
-        "workingDirectory": "."
-      },
+      "command": { "executable": "sh", "arguments": ["build.sh"], "workingDirectory": "." },
       "outputDirectory": "dist",
       "timeoutSeconds": 1200
     },
     "runtime": {
       "image": "debian:12.13-slim",
       "user": "1000:1000",
-      "command": {
-        "executable": "sh",
-        "arguments": [
-          "run.sh"
-        ],
-        "workingDirectory": "dist"
-      },
+      "command": { "executable": "sh", "arguments": ["run.sh"], "workingDirectory": "dist" },
       "port": 8080
     },
-    "health": {
-      "path": "/status",
-      "startupTimeoutSeconds": 60
-    },
-    "storage": {
-      "dataDirectory": "data",
-      "mounts": []
-    },
-    "publicAccess": {
-      "level": "recommended",
-      "reason": "Sites you track load its script and send page views from your visitors' browsers, without an Automaton sign-in."
-    },
+    "health": { "path": "/status", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "publicAccess": { "level": "recommended", "reason": "Sites you track load its script and send page views from your visitors' browsers, without an Automaton sign-in." },
     "secrets": [
-      {
-        "name": "GC_PASSWORD",
-        "description": "Password of the first administrator (applied on every start, so changing it and restarting sets the new password)"
-      }
+      { "name": "GC_PASSWORD", "description": "Password of the first administrator (applied on every start, so changing it and restarting sets the new password)" }
     ],
     "settings": [
-      {
-        "name": "GC_DOMAIN",
-        "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "default": "stats.example.com"
-      },
-      {
-        "name": "GC_EMAIL",
-        "description": "Email address of the first administrator (you sign in with it)",
-        "required": true
-      }
+      { "name": "GC_DOMAIN", "description": "This app's address (host only), for example myapp.apps.example.com. Applied on every start as GoatCounter's Domain setting.", "default": "stats.example.com" },
+      { "name": "GC_EMAIL", "description": "Email address of the first administrator (you sign in with it)", "required": true }
     ]
   }
 }
