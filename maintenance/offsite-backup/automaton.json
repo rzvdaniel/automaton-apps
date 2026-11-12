@@ -11,6 +11,8 @@
       { "name": "S3_REGION", "description": "Object storage region (use us-east-1 for MinIO)", "default": "us-east-1" },
       { "name": "API_BASE_URL", "description": "Base URL of this Automaton server's API, for example https://api.example.com", "required": true },
       { "name": "NOTIFY_EMAIL_TO", "description": "Who gets the failure email: administrators (default), owner or project" },
+      { "name": "RETENTION_DAYS", "description": "Keep backups newer than this many days (default 30)", "default": "30" },
+      { "name": "MIN_BACKUPS", "description": "Always keep at least this many newest backups (default 7)", "default": "7" },
       { "name": "S3_PREFIX", "description": "Optional folder for this install's copies; empty uses automaton/<server host>/<app ID>/" }
     ],
     "secrets": [
