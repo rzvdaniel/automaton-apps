@@ -52,7 +52,7 @@ def cycle(state, conf, data, send, now=NOW):
 class SettingsTests(unittest.TestCase):
     def test_defaults_and_validation(self):
         conf = settings()
-        self.assertEqual((conf.interval, conf.disk_free_percent, conf.security_days, conf.reboot_days), (300, 15, 7, 3))
+        self.assertEqual((conf.interval, conf.disk_free_percent, conf.security_days, conf.reboot_days), (300, 20, 7, 3))
         with self.assertRaises(console.ConfigError):
             settings(DISK_FREE_WARN_PERCENT="0")
         with self.assertRaises(console.ConfigError):
@@ -143,9 +143,16 @@ class AssessTests(unittest.TestCase):
         self.assertEqual(verdict["updates"], "ok")
 
     def test_low_disk_follows_the_threshold(self):
-        self.assertEqual(self.judge(health(disk_free_gb=12))["disk"], "critical")
-        self.assertEqual(self.judge(health(disk_free_gb=20))["disk"], "warning")
-        self.assertEqual(self.judge(health(disk_free_gb=12), DISK_FREE_WARN_PERCENT="10")["disk"], "warning")
+        self.assertEqual(self.judge(health(disk_free_gb=8))["disk"], "critical")
+        self.assertEqual(self.judge(health(disk_free_gb=19))["disk"], "warning")
+        self.assertEqual(self.judge(health(disk_free_gb=21))["disk"], "ok")
+        self.assertEqual(self.judge(health(disk_free_gb=8), DISK_FREE_WARN_PERCENT="10")["disk"], "warning")
+
+    def test_the_disk_warns_above_80_percent_used_by_default(self):
+        self.assertEqual(settings().disk_free_percent, 20)
+        found = console.conditions(health(disk_free_gb=19), console.new_state(), settings(), NOW)
+        self.assertTrue(found["disk_low"][0])
+        self.assertFalse(console.conditions(health(disk_free_gb=21), console.new_state(), settings(), NOW)["disk_low"][0])
 
     def test_security_updates_turn_critical_after_the_limit(self):
         state = console.new_state()
@@ -171,6 +178,66 @@ class AssessTests(unittest.TestCase):
 
     def test_no_figures_means_no_assessment(self):
         self.assertEqual(console.assess(None, console.new_state(), settings(), NOW), {"overall": "unknown"})
+
+
+class PageTests(unittest.TestCase):
+    def test_the_page_uses_the_system_look_topbar_fonts_and_columns(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        page = open(os.path.join(here, "index.html"), encoding="utf-8").read()
+        for needle in ('data-look="system"', 'class="a-topbar"', "fonts.googleapis.com/css2?family=Bricolage+Grotesque", 'href="console.css"'):
+            self.assertIn(needle, page)
+        script = open(os.path.join(here, "dashboard.js"), encoding="utf-8").read()
+        for needle in ("a-columns", "a-banner", 'class="summary"'):
+            self.assertIn(needle, script)
+
+
+class AttentionTests(unittest.TestCase):
+    def items(self, data, state=None, **env):
+        state = state or console.new_state()
+        console.record(state, data, NOW)
+        conf = settings(**env)
+        return console.attention(data, console.assess(data, state, conf, NOW), conf, NOW)
+
+    def test_a_healthy_server_needs_nothing(self):
+        self.assertEqual(self.items(health()), [])
+
+    def test_one_restart_count_and_one_security_count(self):
+        items = self.items(health(security=1, reboot=True, reboot_days=29))
+        restart = next(i for i in items if i["title"] == "Restart the server.")
+        self.assertIn("29 days", restart["detail"])
+        self.assertEqual(restart["command"], "sudo reboot")
+        self.assertEqual([i["title"] for i in items].count("Install 1 security update."), 1)
+        self.assertEqual(items[0]["level"], "critical")
+
+    def test_disk_above_80_percent_names_the_cleanup_command(self):
+        item = self.items(health(disk_free_gb=19))[0]
+        self.assertEqual((item["level"], item["command"]), ("warning", "docker image prune -a"))
+        self.assertIn("81% of the disk is used", item["detail"])
+
+    def test_security_wait_is_written_without_a_trailing_zero(self):
+        state = console.new_state()
+        state["securitySince"] = int(NOW - 3 * 86400)
+        item = self.items(health(security=2), state)[0]
+        self.assertIn("Waiting 3 days (warning", item["detail"])
+
+    def test_grammar_and_offline_runner(self):
+        data = health()
+        data["runners"][0]["status"] = "offline"
+        self.assertEqual(console.plural(1, "day"), "1 day")
+        self.assertEqual(console.plural(2, "day"), "2 days")
+        self.assertEqual([i["title"] for i in self.items(data)], ["A Runner is offline."])
+
+    def test_reclaimable_space_is_images_and_build_cache(self):
+        free = console.reclaimable({"dockerImagesBytes": 3 * GB, "dockerBuildCacheBytes": GB, "dockerVolumesBytes": 5 * GB})
+        self.assertEqual((free["freeable"], free["total"]), (4 * GB, 9 * GB))
+        self.assertIsNone(console.reclaimable({})["freeable"])
+
+    def test_the_page_receives_the_list_and_the_reclaimable_space(self):
+        state = console.new_state()
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(disk_free_gb=10, dockerImagesBytes=GB), None))
+        shot = console.snapshot(state, settings(), NOW)
+        self.assertEqual(shot["attention"][0]["command"], "docker image prune -a")
+        self.assertEqual(shot["reclaim"]["freeable"], GB)
 
 
 class AlertTests(unittest.TestCase):
@@ -261,7 +328,7 @@ class EmailTests(unittest.TestCase):
         self.assertIs(main.send_email(conf, "disk_low", "disk space is low"), True)
         path, auth, body = seen[0]
         self.assertEqual((path, auth, body["to"], body["subject"]), ("/api/notify/email", "Bearer key", ["administrators"], "Disk space is low"))
-        self.assertIn("docker system prune", body["text"])
+        self.assertIn("docker image prune -a", body["text"])
 
     def test_refusals_mean_not_available_and_server_errors_mean_retry(self):
         for status, expected in ((403, None), (409, None), (404, None), (400, None), (429, None), (502, False)):
@@ -351,6 +418,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.get("/health"), (200, b"ok"))
         self.assertEqual(self.get("/")[0], 200)
         self.assertEqual(self.get("/ui/app.css")[0], 200)
+        self.assertEqual(self.get("/console.css")[0], 200)
         self.assertEqual(self.get("/dashboard.js")[0], 200)
         self.assertEqual(self.get("/console.py")[0], 404)
         self.assertEqual(self.get("/../main.py")[0], 404)

@@ -20,7 +20,7 @@ DAY = 86400
 CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue")
 # What to do about each warning, shown on the page and in the email.
 ADVICE = {
-    "disk_low": "Free some space: run `docker system prune` on the server (see Docker disk use below) or remove old backups and logs.",
+    "disk_low": "Free some space: run `docker image prune -a` on the server (Automaton also frees unused images every night) or remove old backups and logs.",
     "security_overdue": "Install the updates on the server: `sudo apt update && sudo apt upgrade`.",
     "reboot_overdue": "Restart the server at a quiet time: `sudo reboot`.",
 }
@@ -55,7 +55,7 @@ class Settings:
         if self.email_to not in EMAIL_TARGETS + ("off",):
             raise ConfigError("EMAIL_TO must be administrators, owner, project or off")
         self.interval = env_int(env, "CHECK_INTERVAL_SECONDS", 300, 60, 3600)
-        self.disk_free_percent = env_int(env, "DISK_FREE_WARN_PERCENT", 15, 1, 99)
+        self.disk_free_percent = env_int(env, "DISK_FREE_WARN_PERCENT", 20, 1, 99)
         self.security_days = env_int(env, "SECURITY_UPDATE_DAYS", 7, 0, 365)
         self.reboot_days = env_int(env, "REBOOT_DAYS", 3, 0, 365)
         if self.api_base_url and urlsplit(self.api_base_url).scheme not in ("http", "https"):
@@ -188,8 +188,8 @@ def assess(health: dict | None, state: dict, settings: Settings, now: float) -> 
     reboot_age = _age(host.get("rebootRequiredSinceUtc"), now)
 
     status = {
-        "disk": UNKNOWN if disk_free is None else CRITICAL if disk_free < settings.disk_free_percent
-        else WARNING if disk_free < settings.disk_free_percent + 10 else OK,
+        "disk": UNKNOWN if disk_free is None else CRITICAL if disk_free < settings.disk_free_percent / 2
+        else WARNING if disk_free < settings.disk_free_percent else OK,
         "memory": _by(memory_used, 90, 96),
         "cpu": _by(host.get("cpuPercent"), 85, 95),
         "load": UNKNOWN if load is None else _by(load / cpus, 1.0, 2.0),
@@ -219,6 +219,59 @@ def assess(health: dict | None, state: dict, settings: Settings, now: float) -> 
     status["overall"] = worst(*(status[k] for k in ("server", "runners", "updates", "resources", "backup", "certificates")))
     status["securityDays"] = None if security_age is None else round(security_age / DAY, 1)
     return status
+
+
+# --- What needs the administrator ------------------------------------------------------------------------------------
+
+def plural(count, word: str) -> str:
+    return f"{count} {word}" + ("" if count == 1 else "s")
+
+
+def reclaimable(host: dict) -> dict:
+    """Docker disk use from the host report. Images and build cache are what `docker image prune -a` and the
+    nightly cleanup can free (an upper bound: images a container uses stay)."""
+    parts = {key: host.get(name) for key, name in (("images", "dockerImagesBytes"), ("buildCache", "dockerBuildCacheBytes"),
+                                                   ("volumes", "dockerVolumesBytes"), ("containers", "dockerContainersBytes"))}
+    known = [value for value in parts.values() if isinstance(value, (int, float))]
+    freeable = [parts[key] for key in ("images", "buildCache") if isinstance(parts[key], (int, float))]
+    return dict(parts, total=sum(known) if known else None, freeable=sum(freeable) if freeable else None)
+
+
+def attention(health: dict | None, status: dict, settings: Settings, now: float) -> list[dict]:
+    """What needs the administrator now, worst first, from the same live figures the cards show (so one number per
+    fact). Each item: level, title, detail and the command to run, if there is one."""
+    if not health:
+        return []
+    host = health.get("host") or {}
+    items: list[dict] = []
+
+    def add(level, title, detail, command=""):
+        if level in (WARNING, CRITICAL):
+            items.append({"level": level, "title": title, "detail": detail, "command": command})
+
+    free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
+    if free is not None:
+        add(status.get("disk"), "Free disk space.",
+            f"{100 - free:g}% of the disk is used (warning above {100 - settings.disk_free_percent}%). Automaton frees unused Docker images every night; to do it now:",
+            "docker image prune -a")
+    if host.get("rebootRequired") is True:
+        age = _age(host.get("rebootRequiredSinceUtc"), now)
+        waited = "" if age is None else f"Updates have waited for a restart for {plural(int(age // DAY), 'day')} (warning after {settings.reboot_days}). "
+        add(status.get("reboot"), "Restart the server.", waited + "At a quiet time:", "sudo reboot")
+    security = host.get("securityUpdates")
+    if isinstance(security, int) and security > 0:
+        days = status.get("securityDays")
+        add(status.get("security"), f"Install {plural(security, 'security update')}.",
+            "" if days is None else f"Waiting {days:g} {'day' if days == 1 else 'days'} (warning after {settings.security_days}):", "sudo apt upgrade")
+    add(status.get("backup"), "Check the backups.", "The last successful backup is too old or missing.")
+    expiring = [c.get("host") for c in health.get("certificates") or [] if c.get("daysRemaining") is None or c["daysRemaining"] <= 14]
+    add(status.get("certificates"), "A certificate is close to expiring.", ", ".join(str(h) for h in expiring))
+    offline = [r.get("name") for r in health.get("runners") or [] if str(r.get("status", "")).lower() != "online"]
+    add(CRITICAL if offline else OK, "A Runner is offline.", ", ".join(str(n) for n in offline))
+    add(status.get("server"), "Update Automaton.", "A newer release is available.")
+    add(status.get("freshness"), "The Runner has not reported for a while.", "The host figures are old.")
+    items.sort(key=lambda item: _RANK[item["level"]], reverse=True)
+    return items
 
 
 # --- Warnings -------------------------------------------------------------------------------------------------------
@@ -294,5 +347,7 @@ def snapshot(state: dict, settings: Settings, now: float) -> dict:
     health = state.get("health") if shown else None
     return {"status": status, "message": state.get("message"), "fetchedAt": state.get("fetchedAt"),
             "now": int(now), "health": health, "assessment": assess(health, state, settings, now),
+            "attention": attention(health, assess(health, state, settings, now), settings, now) if health else [],
+            "reclaim": reclaimable((health or {}).get("host") or {}),
             "history": state.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
             "settings": settings.public()}

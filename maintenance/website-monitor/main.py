@@ -179,12 +179,14 @@ def render(snapshot: dict) -> str:
     table = f'<div class="a-table-wrap"><table class="a-table"><thead><tr><th>Site</th><th>Status</th><th class="a-num">ms</th><th>Certificate</th><th>Detail</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows else '<div class="a-empty"><div class="a-empty__title">No sites yet</div>Add sites in the SITES setting.</div>'
     return f"""<!doctype html><html lang="en" data-look="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="60"><title>Website Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="ui/app.css"><script src="ui/app.js"></script></head>
-<body><main class="a-page"><header class="a-header"><div class="a-brand" aria-hidden="true">&gt;_</div>
-<div class="a-header__text"><h1 class="a-header__title">Website Monitor</h1><p class="a-header__sub">Last run: {last}</p></div>
+<body><header class="a-topbar"><div class="a-topbar__inner"><div style="display:flex;gap:12px;align-items:center"><div class="a-brand" aria-hidden="true">&gt;_</div>
+<div><h1 class="a-header__title">Website Monitor</h1><p class="a-header__sub">Last run: {last}</p></div></div>
 <div class="a-header__actions"><span class="a-pill a-pill--large {f'a-pill--{overall}' if overall else ''}">{label}</span>
-<button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div></header>
-{failure}<section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Sites</h2><span class="a-pill">{up} of {total} up</span></div>{table}</section>
+<button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div></div></header>
+<main class="a-page">{failure}<section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Sites</h2><span class="a-pill">{up} of {total} up</span></div>{table}</section>
 <p class="a-footer">Refreshes every minute.</p></main><script src="ui/theme.js"></script></body></html>"""
 
 
