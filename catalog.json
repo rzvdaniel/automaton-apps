@@ -8,7 +8,7 @@
       "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "168f028d484af3124daeb963f3e06c48d10862fd",
+      "commit": "56e0ef50a507e6e5f006de2612777368d6b0d0bb",
       "minServerVersion": "0.2.31",
       "permissions": [
         "backups:read",
