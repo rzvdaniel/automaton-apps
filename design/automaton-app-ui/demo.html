@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-look="system">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Automaton app UI kit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="app.css">
 <script src="app.js"></script>
 </head>
@@ -17,11 +18,14 @@
     </div>
     <div class="a-header__actions">
       <span class="a-pill a-pill--ok a-pill--large">All good</span>
+      <button class="a-btn" type="button" onclick="var r=document.documentElement;r.dataset.look=r.dataset.look==='system'?'app':'system'">Switch look</button>
       <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button>
     </div>
   </header>
 
-  <div class="a-grid">
+  <section class="a-banner a-banner--warning"><div class="a-banner__title">Needs you</div><ul><li><strong>Restart the server.</strong> Updates have waited 29 days.</li></ul></section>
+
+  <div class="a-columns">
     <section class="a-card">
       <div class="a-card__head"><h2 class="a-card__title">Stat tiles</h2><span class="a-pill a-pill--ok">ok</span></div>
       <div class="a-stats">

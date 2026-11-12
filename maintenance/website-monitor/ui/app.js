@@ -1,4 +1,4 @@
-/* Automaton app UI kit 1.0.0 - https://github.com/rzvdaniel/automaton-apps/tree/main/design/automaton-app-ui
+/* Automaton app UI kit 2.0.0 - https://github.com/rzvdaniel/automaton-apps/tree/main/design/automaton-app-ui
    Copied into each app as ui/app.js. Do not edit a copy: change the kit and copy it again. */
 (function () {
   "use strict";
@@ -130,7 +130,7 @@
   }
 
   window.AutomatonUI = {
-    version: "1.0.0",
+    version: "2.0.0",
     applyTheme: applyTheme,
     bindThemeToggle: bindThemeToggle,
     relativeTime: relativeTime,
