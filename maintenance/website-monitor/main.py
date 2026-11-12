@@ -177,7 +177,7 @@ def render(snapshot: dict) -> str:
     overall = "critical" if snapshot["lastError"] or up < total else "ok" if total else ""
     label = "Needs attention" if overall == "critical" else "All good" if overall == "ok" else "No sites yet"
     table = f'<div class="a-table-wrap"><table class="a-table"><thead><tr><th>Site</th><th>Status</th><th class="a-num">ms</th><th>Certificate</th><th>Detail</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows else '<div class="a-empty"><div class="a-empty__title">No sites yet</div>Add sites in the SITES setting.</div>'
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return f"""<!doctype html><html lang="en" data-look="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="60"><title>Website Monitor</title>
 <link rel="stylesheet" href="ui/app.css"><script src="ui/app.js"></script></head>
 <body><main class="a-page"><header class="a-header"><div class="a-brand" aria-hidden="true">&gt;_</div>

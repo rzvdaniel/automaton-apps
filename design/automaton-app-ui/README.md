@@ -1,6 +1,21 @@
 # Automaton app UI kit
 
-One look for every app in this catalog: ink `#17181c`, orange `#f26a1b`, system fonts (no downloads), light and dark from the visitor's system (a toggle is optional), phone-ready. Version **1.0.0**.
+One set of components for every app in this catalog, light and dark from the visitor's system, phone-ready. Version **2.0.0**.
+
+## Two looks
+
+| Look | For | How |
+| --- | --- | --- |
+| **app** (default) | Tools, productivity, anything people build | Neutral colours, system fonts, your accent: `:root { --accent: #0f766e; }` in the app's own CSS. Use your own mark, not `>_`. |
+| **system** | Only official apps that run the server: Server Console, backups, monitors | `<html data-look="system">`: the Automaton Studio look (paper and ink, orange, Bricolage Grotesque and IBM Plex, the `>_` mark, `a-topbar`). |
+
+Keep the Studio look for system apps so people can tell Automaton from the apps on it, and an app never passes for an Automaton screen. Games bring their own style; at most they use the base reset.
+
+The system look names its fonts with system fallbacks, so it renders without downloads. To get the real fonts, add to `<head>`:
+
+```html
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+```
 
 | Light | Dark |
 | --- | --- |
@@ -34,7 +49,10 @@ Build the page only from the classes below (all start with `a-`). Add app-specif
 | --- | --- |
 | `a-page` | The centred page wrapper (max 1120 px, 16 px side gutter). |
 | `a-header`, `a-brand`, `a-header__title`, `a-header__sub`, `a-header__actions` | Top of every page: the `>_` mark, app name, one line of context, an overall status pill and the theme button. |
-| `a-grid`, `a-grid--wide`, `a-stack` | Responsive columns of cards (one column on a phone); `a-stack` stacks things vertically. |
+| `a-columns` | Cards of different heights, flowing into up to three columns with no holes (one on a phone). Use it for dashboards. |
+| `a-grid`, `a-grid--wide`, `a-stack` | Rows of cards of the same height; `a-stack` stacks things vertically. |
+| `a-topbar`, `a-topbar__inner` | System look: the dark Studio bar above `a-page`, holding the header parts. |
+| `a-banner` (+ `--warning/--critical`), `a-banner__title` | Page-level "needs you" list, above everything else: one line per problem with the fix. |
 | `a-card`, `a-card__head`, `a-card__title`, `a-card__foot` | One topic per card. Put a status pill at the right of the head. |
 | `a-pill` + `a-pill--ok` / `--warning` / `--critical`, `a-pill--large` | Status. Plain `a-pill` is neutral or unknown. Always write the status in words, never colour alone. |
 | `a-stats`, `a-stat` (+ `a-stat--ok/--warning/--critical`), `a-stat__label/__value/__hint` | A few headline numbers. |
