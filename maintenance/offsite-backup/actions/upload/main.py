@@ -53,6 +53,19 @@ def required_setting(name: str) -> str:
     return value
 
 
+def positive_int_setting(name: str, default: int, minimum: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        value = minimum - 1
+    if value < minimum:
+        raise BackupError(f"App setting {name} must be a whole number of at least {minimum}.")
+    return value
+
+
 def parse_timestamp(name: str) -> datetime:
     if not isinstance(name, str) or not BACKUP_NAME.fullmatch(name):
         raise BackupError("The backup API returned an invalid backup name.")
@@ -114,6 +127,11 @@ def describe_s3_error(error: Exception) -> str:
                     "(use the provider's region; MinIO uses us-east-1).")
         if code == "NoSuchBucket":
             return "The bucket in S3_BUCKET does not exist on this endpoint. Check S3_BUCKET and S3_ENDPOINT."
+        if code in ("", "400", "403") and status in (400, 403):
+            # HEAD responses have no body, so there is no error code to match; the region is the usual cause.
+            return ("The storage rejected the first request without saying why. Check S3_REGION (Cloudflare R2 "
+                    "uses auto), S3_ENDPOINT and the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets "
+                    "(the key must be allowed to read, write and delete in S3_BUCKET).")
         if code in ("AccessDenied", "Forbidden", "403") or status == 403:
             return ("The storage refused access. Check the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets, "
                     "that the key may read, write and delete in S3_BUCKET, and S3_BUCKET and S3_ENDPOINT.")
@@ -223,6 +241,9 @@ def run(input_data: dict) -> dict:
     if not prefix.startswith(default_prefix):
         raise BackupError("prefix must stay within this install's own folder (automaton/<server host>/<app ID>/).")
 
+    retention_days = positive_int_setting("RETENTION_DAYS", DEFAULT_RETENTION_DAYS, 1)
+    minimum_backups = positive_int_setting("MIN_BACKUPS", DEFAULT_MINIMUM_BACKUPS, 1)
+
     status = api_json(base_url, "/api/install/backups", api_key)
     backups = status.get("backups")
     if not status.get("available") or not isinstance(backups, list):
@@ -257,7 +278,7 @@ def run(input_data: dict) -> dict:
             with download_stream(base_url, name, api_key) as archive:
                 upload_multipart(s3, bucket, key, archive, expected_size, expected_hash)
             uploaded = True
-        retained, deleted = apply_retention(s3, bucket, prefix, DEFAULT_RETENTION_DAYS, DEFAULT_MINIMUM_BACKUPS)
+        retained, deleted = apply_retention(s3, bucket, prefix, retention_days, minimum_backups)
     except (ClientError, BotoCoreError) as error:
         raise BackupError(describe_s3_error(error)) from error
     return {"uploaded": uploaded, "backup": name, "retained": retained, "deleted": deleted}

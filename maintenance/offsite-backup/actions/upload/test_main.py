@@ -186,6 +186,36 @@ class OffsiteBackupTests(unittest.TestCase):
         self.assertIn("S3_REGION", main.describe_s3_error(sig))
         self.assertIn("S3_ENDPOINT", main.describe_s3_error(EndpointConnectionError(endpoint_url="x")))
 
+    def test_headless_400_and_403_name_region_endpoint_and_keys(self):
+        from botocore.exceptions import ClientError
+        for status in (400, 403):
+            error = ClientError({"Error": {"Code": str(status)}, "ResponseMetadata": {"HTTPStatusCode": status}},
+                                "HeadObject")
+            message = main.describe_s3_error(error)
+            for needle in ("S3_REGION", "auto", "S3_ENDPOINT", "S3_ACCESS_KEY_ID"):
+                self.assertIn(needle, message)
+
+    def run_with_settings(self, **settings):
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "api_urlopen", side_effect=self.api_responses()), \
+                patch.dict(os.environ, settings):
+            return main.run({})
+
+    def test_retention_settings_are_passed_to_apply_retention(self):
+        with patch.object(main, "apply_retention", return_value=(1, 0)) as retention:
+            self.run_with_settings(RETENTION_DAYS="3", MIN_BACKUPS="2")
+        self.assertEqual(retention.call_args.args[3:], (3, 2))
+        with patch.object(main, "apply_retention", return_value=(1, 0)) as retention:
+            self.run_with_settings(RETENTION_DAYS="", MIN_BACKUPS="")
+        self.assertEqual(retention.call_args.args[3:], (30, 7))
+
+    def test_invalid_retention_settings_name_the_setting(self):
+        for name, value in (("RETENTION_DAYS", "abc"), ("RETENTION_DAYS", "0"), ("MIN_BACKUPS", "-1"),
+                            ("MIN_BACKUPS", "1.5")):
+            with self.assertRaises(main.BackupError) as raised:
+                self.run_with_settings(**{name: value})
+            self.assertIn(name, str(raised.exception))
+
     def test_main_emails_the_failure_and_skips_without_a_key(self):
         with patch.object(main, "run", side_effect=main.BackupError("boom")),                 patch.object(main, "notify_failure") as notify,                 patch("sys.stdin", io.StringIO("{}")):
             self.assertEqual(main.main(), 1)
