@@ -262,7 +262,7 @@ def attention(health: dict | None, status: dict, settings: Settings, now: float)
     if isinstance(security, int) and security > 0:
         days = status.get("securityDays")
         add(status.get("security"), f"Install {plural(security, 'security update')}.",
-            "" if days is None else f"Waiting {plural(days, 'day') if days == 1 else str(days) + ' days'} (warning after {settings.security_days}):", "sudo apt upgrade")
+            "" if days is None else f"Waiting {days:g} {'day' if days == 1 else 'days'} (warning after {settings.security_days}):", "sudo apt upgrade")
     add(status.get("backup"), "Check the backups.", "The last successful backup is too old or missing.")
     expiring = [c.get("host") for c in health.get("certificates") or [] if c.get("daysRemaining") is None or c["daysRemaining"] <= 14]
     add(status.get("certificates"), "A certificate is close to expiring.", ", ".join(str(h) for h in expiring))

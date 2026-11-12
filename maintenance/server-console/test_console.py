@@ -214,6 +214,12 @@ class AttentionTests(unittest.TestCase):
         self.assertEqual((item["level"], item["command"]), ("warning", "docker image prune -a"))
         self.assertIn("81% of the disk is used", item["detail"])
 
+    def test_security_wait_is_written_without_a_trailing_zero(self):
+        state = console.new_state()
+        state["securitySince"] = int(NOW - 3 * 86400)
+        item = self.items(health(security=2), state)[0]
+        self.assertIn("Waiting 3 days (warning", item["detail"])
+
     def test_grammar_and_offline_runner(self):
         data = health()
         data["runners"][0]["status"] = "offline"
