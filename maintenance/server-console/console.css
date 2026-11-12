@@ -1,0 +1,15 @@
+/* Server Console: page-specific styles. Colours come from the UI kit's custom properties only. */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.tile { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-decoration: none; font-weight: 600; }
+.tile:hover { border-color: var(--orange); }
+.tile .a-pill { align-self: flex-start; }
+.limit { position: relative; overflow: visible; }
+.limit::after { content: ""; position: absolute; left: var(--mark, 80%); top: -3px; bottom: -3px; width: 2px; background: var(--warn); border-radius: 1px; }
+.a-note { margin-top: 10px; }
+code.a-mono { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 5px; }
+.attention-cmd { margin-left: 4px; }
+.spaced { margin-top: 14px; }
+.a-header__brand { display: flex; gap: 12px; align-items: center; }
+.tile { min-width: 0; }
+.tile .a-pill { white-space: normal; max-width: 100%; }
+@media (max-width: 640px) { .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

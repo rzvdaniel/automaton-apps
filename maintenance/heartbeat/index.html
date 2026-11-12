@@ -4,16 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Heartbeat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="ui/app.css">
 <link rel="stylesheet" href="heartbeat.css">
 <script src="ui/app.js"></script>
 </head>
 <body>
+<header class="a-topbar"><div class="a-topbar__inner">
+  <div style="display:flex;gap:12px;align-items:center"><div class="a-brand" aria-hidden="true">&gt;_</div>
+    <div><h1 class="a-header__title">Heartbeat</h1><p class="a-header__sub">Check-ins for scheduled jobs</p></div></div>
+  <div class="a-header__actions"><button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div>
+</div></header>
 <main class="a-page">
-  <header class="a-header"><div class="a-brand" aria-hidden="true">&gt;_</div>
-    <div class="a-header__text"><h1 class="a-header__title">Heartbeat</h1><p class="a-header__sub">Check-ins for scheduled jobs</p></div>
-    <div class="a-header__actions"><button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div>
-  </header>
   <section class="a-waiting" id="login-card"><h2 class="a-waiting__title">Sign in to manage checks</h2>
     <form id="login" class="a-form"><div class="a-field"><label class="a-label" for="token">Admin token</label><input class="a-input" id="token" type="password" placeholder="Admin token" autocomplete="current-password" required></div><button class="a-btn a-btn--primary">Sign in</button></form>
   </section>

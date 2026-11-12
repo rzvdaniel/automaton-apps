@@ -5,22 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Server Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="ui/app.css">
+<link rel="stylesheet" href="console.css">
 <script src="ui/app.js"></script>
 </head>
 <body>
-<main class="a-page">
-  <header class="a-header">
-    <div class="a-brand" aria-hidden="true">&gt;_</div>
-    <div class="a-header__text">
-      <h1 class="a-header__title">Server Console</h1>
-      <p class="a-header__sub" id="subtitle">Loading</p>
+<header class="a-topbar">
+  <div class="a-topbar__inner">
+    <div class="a-header__brand">
+      <div class="a-brand" aria-hidden="true">&gt;_</div>
+      <div>
+        <h1 class="a-header__title">Server Console</h1>
+        <p class="a-header__sub" id="subtitle">Loading</p>
+      </div>
     </div>
     <div class="a-header__actions">
       <span class="a-pill a-pill--large" id="overall" hidden></span>
       <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button>
     </div>
-  </header>
+  </div>
+</header>
+<main class="a-page">
   <div id="view"></div>
   <p class="a-footer">Read-only. Figures come from your Automaton server and refresh every few minutes.</p>
 </main>

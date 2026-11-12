@@ -56,7 +56,7 @@
       {
         "name": "DISK_FREE_WARN_PERCENT",
         "description": "Warn when less than this percent of the disk is free",
-        "default": "15"
+        "default": "20"
       },
       {
         "name": "SECURITY_UPDATE_DAYS",

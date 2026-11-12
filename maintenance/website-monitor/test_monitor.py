@@ -300,6 +300,11 @@ class AppRun(unittest.TestCase):
         self.assertNotIn("<b>x", page)
         self.assertIn("&lt;script&gt;", page)
 
+    def test_status_page_has_the_topbar_above_the_page(self):
+        page = main.render({"lastRun": 0, "lastError": None, "sites": []})
+        self.assertLess(page.index('class="a-topbar"'), page.index('class="a-page"'))
+        self.assertEqual(page.count("</header>"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

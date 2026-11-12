@@ -7,7 +7,7 @@ A read-only dashboard for your Automaton server: how the machine and its Runners
 - **Updates:** pending and security OS updates (and how long security updates have been waiting) and whether a restart is required.
 - **Runners:** version, online state and whether an upgrade is available.
 - **Backups and certificates:** age of the last successful backup and days until the Studio and API certificates expire.
-- **Warnings:** one email (through your server's own SMTP) and, if you set one, one webhook message when disk free space drops below a threshold (default 15%), security updates wait longer than 7 days, or a restart has been required for more than 3 days, and one webhook message when it is resolved. Each warning says what to do about it, on the page and in the email.
+- **Warnings:** one email (through your server's own SMTP) and, if you set one, one webhook message when disk free space drops below a threshold (default 20%, that is a disk more than 80% full), security updates wait longer than 7 days, or a restart has been required for more than 3 days, and one webhook message when it is resolved. Each warning says what to do about it, on the page and in the email.
 
 It asks for the `server:read` and `notify:email` permissions, so it cannot change anything on the server; the email goes only to the people you choose below.
 
@@ -24,7 +24,7 @@ It asks for the `server:read` and `notify:email` permissions, so it cannot chang
 | `EMAIL_TO` | setting | Who gets warning emails: `administrators` (default), `owner`, `project` or `off`. |
 | `WEBHOOK_URL` | secret | Optional, in addition to the email: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: no webhook. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
-| `DISK_FREE_WARN_PERCENT` | setting | Default 15. |
+| `DISK_FREE_WARN_PERCENT` | setting | Default 20 (warn when the disk is more than 80% full). |
 | `SECURITY_UPDATE_DAYS` | setting | Default 7. Counted from when the console first saw the updates waiting. |
 | `REBOOT_DAYS` | setting | Default 3. |
 
