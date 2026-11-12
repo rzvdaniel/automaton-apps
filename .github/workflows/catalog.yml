@@ -35,6 +35,18 @@ jobs:
       - run: python -m unittest discover -s tools -p 'test_*.py'
       - name: Check vendored UI kit copies
         run: python tools/check_vendored_ui.py
+      # Pinned release (install.sh checks its sha256); bump on purpose. Token withheld from the installer.
+      - name: Install the Automaton CLI (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ''
+          AUTOMATON_VERSION: server-v0.2.104
+        run: curl -fsSL "https://github.com/rzvdaniel/automaton/releases/download/${AUTOMATON_VERSION}/install.sh" | sh && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Validate changed app manifests with the server's rules (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python tools/validate_apps.py --changed-since "origin/${BASE_REF}"
       - name: Check every entry (pull request)
         if: github.event_name == 'pull_request'
         run: python tools/generate_catalog.py --validate
