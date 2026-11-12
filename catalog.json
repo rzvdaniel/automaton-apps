@@ -21,7 +21,7 @@
       "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "a6790ecb81f622d19b09a6a6b3b2081361a6d736",
+      "commit": "e6f88a8f600e032cf2e21d192b8a9b63eaeba67b",
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
@@ -33,7 +33,7 @@
       "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "a6790ecb81f622d19b09a6a6b3b2081361a6d736",
+      "commit": "e6f88a8f600e032cf2e21d192b8a9b63eaeba67b",
       "minServerVersion": "0.2.63",
       "permissions": [
         "server:read",
@@ -46,7 +46,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "a6790ecb81f622d19b09a6a6b3b2081361a6d736",
+      "commit": "e6f88a8f600e032cf2e21d192b8a9b63eaeba67b",
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
