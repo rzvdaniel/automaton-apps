@@ -87,12 +87,12 @@
 
   function updatesCard(h, a, data) {
     var host = h.host || {};
-    var restart = host.rebootRequired === true && host.rebootRequiredSinceUtc ? Math.floor((Date.now() - Date.parse(host.rebootRequiredSinceUtc)) / 86400000) : null;
+    var restart = host.rebootRequired === true && host.rebootRequiredSinceUtc ? Math.floor((data.now * 1000 - Date.parse(host.rebootRequiredSinceUtc)) / 86400000) : null;
     var security = host.securityUpdates;
     var other = typeof host.updatesPending === "number" ? Math.max(0, host.updatesPending - (typeof security === "number" ? security : 0)) : null;
     var tiles = (host.rebootRequired === true ? stat("Restart needed for", restart === null ? "yes" : num(restart, restart === 1 ? "day" : "days"), "warning after " + esc(String(data.settings.rebootDays)), a.reboot) :
       stat("Restart", host.rebootRequired === false ? "not needed" : "-", "", a.reboot)) +
-      stat("Security updates", num(security), a.securityDays !== null && a.securityDays !== undefined ? "waiting " + esc(String(a.securityDays)) + " days" : "", a.security) +
+      stat("Security updates", num(security), a.securityDays !== null && a.securityDays !== undefined ? "waiting " + esc(plural(a.securityDays, "day")) : "", a.security) +
       stat("Other updates", num(other), other ? "no rush" : "", a.pending);
     var foot = host.updatesPending === null || host.updatesPending === undefined ? "Update counts need Ubuntu's update notifier on the server." : "";
     return card("Updates", a.updates, '<div class="a-stats">' + tiles + "</div>", foot);
