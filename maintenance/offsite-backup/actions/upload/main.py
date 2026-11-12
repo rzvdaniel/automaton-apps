@@ -130,7 +130,8 @@ def describe_s3_error(error: Exception) -> str:
         if code in ("", "400", "403") and status in (400, 403):
             # HEAD responses have no body, so there is no error code to match; the region is the usual cause.
             return ("The storage rejected the first request without saying why. Check S3_REGION (Cloudflare R2 "
-                    "uses auto), S3_ENDPOINT and the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets.")
+                    "uses auto), S3_ENDPOINT and the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets "
+                    "(the key must be allowed to read, write and delete in S3_BUCKET).")
         if code in ("AccessDenied", "Forbidden", "403") or status == 403:
             return ("The storage refused access. Check the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY secrets, "
                     "that the key may read, write and delete in S3_BUCKET, and S3_BUCKET and S3_ENDPOINT.")
