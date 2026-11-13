@@ -51,6 +51,7 @@ class Settings:
         # The server provides AUTOMATON_API_URL; API_BASE_URL is the older setting and still works.
         self.api_base_url = (env.get("AUTOMATON_API_URL", "").strip() or env.get("API_BASE_URL", "").strip()).rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
+        self.studio_url = env.get("STUDIO_URL", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
         self.email_to = (env.get("EMAIL_TO", "").strip().lower() or "administrators")
         if self.email_to not in EMAIL_TARGETS + ("off",):
@@ -96,43 +97,35 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
         return "error", None, f"The server could not be reached: {type(error).__name__}."
 
 
-ADMIN_ONLY = "Only an administrator can change the cleanup."
+def studio_server_url(settings: Settings) -> str | None:
+    """Studio's Server page from STUDIO_URL, else from the API address (api.example.com -> studio.example.com), else None."""
+    base = settings.studio_url if urlsplit(settings.studio_url).scheme in ("http", "https") else ""
+    if not base:
+        host = urlsplit(settings.api_base_url).hostname or ""
+        scheme = urlsplit(settings.api_base_url).scheme
+        if not host.startswith("api."):
+            return None
+        base = f"{scheme}://studio.{host[4:]}"
+    return base.rstrip("/") + "/server"
 
 
-def cleanup_call(settings: Settings, method: str, path: str, body: dict | None = None, timeout: float = 30, opener=None, viewer_token: str | None = None) -> tuple[str, dict | None, str | None]:
-    """Calls /api/server/cleanup (permission server:cleanup). A change also forwards the viewer token the server proxy gave
-    for this request; the server refuses it unless the viewer is an administrator. Returns (status, data, message); status is ok, bad_request,
-    no_runner, not_admin, not_approved, unavailable, no_key, not_configured or error. The key is never logged."""
+def cleanup_call(settings: Settings, timeout: float = 30, opener=None) -> tuple[str, dict | None, str | None]:
+    """Reads /api/server/cleanup (permission server:cleanup); the app never changes the cleanup, Studio does. Returns
+    (status, data, message); status is ok, not_approved, unavailable, no_key, not_configured or error. The key is never logged."""
     if not settings.api_base_url:
         return "not_configured", None, "The server address (AUTOMATON_API_URL) is not set."
     if not settings.api_key:
         return "no_key", None, "The app has no key yet."
     headers = {"Authorization": "Bearer " + settings.api_key, "Accept": "application/json", "User-Agent": USER_AGENT}
-    if method != "GET":
-        if not viewer_token:
-            return "not_admin", None, ADMIN_ONLY
-        headers["X-Automaton-Viewer-Token"] = viewer_token
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode()
-        headers["Content-Type"] = "application/json"
-    request = Request(settings.api_base_url + "/api/server/cleanup" + path, data=data, method=method, headers=headers)
+    request = Request(settings.api_base_url + "/api/server/cleanup", method="GET", headers=headers)
     try:
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
             return "ok", json.loads(response.read(2_000_000).decode("utf-8")), None
     except HTTPError as error:
-        if error.code == 403 and method != "GET":
-            return "not_admin", None, ADMIN_ONLY
         if error.code in (401, 403):
             return "not_approved", None, "server:cleanup is not approved (or was revoked)."
         if error.code == 404:
             return "unavailable", None, "This server does not offer the cleanup yet; update Automaton."
-        if error.code in (400, 409):
-            try:
-                message = json.loads(error.read(20_000).decode("utf-8")).get("error")
-            except (ValueError, AttributeError, OSError):
-                message = None
-            return ("bad_request" if error.code == 400 else "no_runner"), None, str(message or f"The server answered HTTP {error.code}.")
         return "error", None, f"The server answered HTTP {error.code}."
     except (URLError, OSError, ValueError) as error:
         return "error", None, f"The server could not be reached: {type(error).__name__}."

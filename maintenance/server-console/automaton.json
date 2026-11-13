@@ -1,7 +1,7 @@
 {
   "name": "Server Console",
   "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
-  "description": "Shows how your Automaton server and its Runners are doing: CPU, memory, disk and load with 24 hours of history, Docker disk use, OS name and uptime, pending and security updates, restart required, server and Runner versions and whether a newer release exists, certificate expiry and the last backup. Sends one warning, by email through the server's SMTP and by webhook, when disk space runs low, security updates wait too long or a restart is overdue, and one message when it is resolved. It asks for server:read and notify:email. With server:cleanup approved it also shows the nightly cleanup and lets an administrator change its schedule or run it now; that is the only thing it can change.",
+  "description": "Shows how your Automaton server and its Runners are doing: CPU, memory, disk and load with 24 hours of history, Docker disk use, OS name and uptime, pending and security updates, restart required, server and Runner versions and whether a newer release exists, certificate expiry and the last backup. Sends one warning, by email through the server's SMTP and by webhook, when disk space runs low, security updates wait too long or a restart is overdue, and one message when it is resolved. It asks for server:read and notify:email. With server:cleanup approved it also shows the nightly cleanup (last run, space freed, next run, a warning if it failed) read-only, with a link to change it in Studio. The app changes nothing on the server.",
   "application": {
     "kind": "web",
     "description": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
@@ -42,6 +42,10 @@
       {
         "name": "API_BASE_URL",
         "description": "Optional. Base URL of this Automaton server's API; normally the server provides it, so leave empty"
+      },
+      {
+        "name": "STUDIO_URL",
+        "description": "Optional. Address of Studio for the Change in Studio link on the Cleanup card; normally worked out from the page or the API address, so leave empty"
       },
       {
         "name": "CHECK_INTERVAL_SECONDS",
