@@ -1,10 +1,10 @@
 import { TAU, distTo } from '../core/math.js';
-import { Seal, Balloon, Biplane, DolphinPod, Currach, Puffin, Cow, Dolmen, Kite, Buoy, JellyBloom } from '../entities/index.js';
+import { Seal, Balloon, Biplane, DolphinPod, Puffin, Cow, Kite, Buoy, JellyBloom } from '../entities/index.js';
 
-const EXTRAS = ['Seal', 'Balloon', 'Biplane', 'DolphinPod', 'Currach', 'Puffin', 'Cow', 'Dolmen', 'Cottage', 'Kite', 'Buoy', 'JellyBloom'];
+const EXTRAS = ['Seal', 'Balloon', 'Biplane', 'DolphinPod', 'Puffin', 'Cow', 'Cottage', 'Kite', 'Buoy', 'JellyBloom'];
 
 /**
- * Each island gets a random handful of extras, a third to a half of them (all of them with ?debug).
+ * Each island gets a random handful of extras, 4 to 6 of them (all of them with ?debug).
  * This picks which, and turns one or two ordinary houses into thatched cottages if the cottage was picked.
  */
 export function chooseExtras(ctx) {
@@ -45,7 +45,6 @@ export function placeExtras(ctx) {
     Balloon() { add(new Balloon(world, { x: ctx.between(-hw, hw), y: ctx.between(-hh, hh) })); return true; },
     Biplane() { add(new Biplane(world, { x: ctx.between(-hw, hw), y: ctx.between(-hh, hh), a: G() * TAU })); return true; },
     DolphinPod() { const p = ctx.water(0.25, 9, 0.12); if (!p) return false; add(new DolphinPod(world, { x: p[0], y: p[1], a: G() * TAU, count: 3 + Math.floor(G() * 3) })); return true; },
-    Currach() { const p = ctx.water(0.06, 0.16, 0.08); if (!p || !ctx.farFrom(moored, p[0], p[1], 0.05)) return false; add(new Currach(world, { x: p[0], y: p[1], a: G() * TAU })); return true; },
     Puffin() {   // a few together, on the grass just above the shore
       for (let s = 0; s < 30; s++) {
         const p = ctx.shoreAt(G() * TAU), g = world.grad(p[0], p[1]), x = p[0] - g.gx * 0.035, y = p[1] - g.gy * 0.035;
@@ -60,7 +59,6 @@ export function placeExtras(ctx) {
       for (let n = 2 + Math.floor(G() * 2); n > 0; n--) add(new Cow(world, { x: p[0] + (G() - 0.5) * 0.04, y: p[1] + (G() - 0.5) * 0.03, a: G() * TAU, kind: ctx.pick(['friesian', 'friesian', 'red', 'kerry']) }));
       return true;
     },
-    Dolmen() { const p = ctx.meadow(0.025, 0.04); if (!p) return false; add(new Dolmen(world, { x: p[0], y: p[1] })); return true; },
     Kite() { const p = ctx.meadow(0.01, 0.04); if (!p) return false; add(new Kite(world, { x: p[0], y: p[1] })); return true; },
     Buoy() {   // off the harbour mouth
       for (let s = 0; s < 120; s++) {

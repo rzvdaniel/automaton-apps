@@ -1,6 +1,6 @@
 # Harbour Wallpaper
 
-A living Irish harbour island for your desktop. Every load builds a different island: a harbour town, walled fields with sheep, a church, a lighthouse, stony shores, boats, sharks, a whale, gulls and clouds, plus a random 4–6 of twelve extras (seals, puffins, cows, a dolmen, a balloon, a biplane, dolphins, a currach, a kite, a buoy, jellyfish, thatched cottages).
+A living Irish harbour island for your desktop. Every load builds a different island: a harbour town, walled fields with sheep, a church, a lighthouse, stony shores, boats, sharks, a whale, gulls and clouds, plus a random 4–6 of ten extras (seals, puffins, cows, a balloon, a biplane, dolphins, a kite, a buoy, jellyfish, thatched cottages).
 
 ## Using it
 

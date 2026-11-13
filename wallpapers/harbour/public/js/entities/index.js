@@ -8,8 +8,6 @@ export * from './church.js';
 export * from './cloud.js';
 export * from './cottage.js';
 export * from './cow.js';
-export * from './currach.js';
-export * from './dolmen.js';
 export * from './dolphins.js';
 export * from './fields.js';
 export * from './fish.js';

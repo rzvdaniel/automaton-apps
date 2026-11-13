@@ -45,7 +45,7 @@ test('every island has a harbour, a lighthouse, a town and a sky', () => {
 
 test('with debug on, every extra is placed or reported', () => {
   const world = build(7, true);
-  for (const Type of [entities.Seal, entities.Balloon, entities.Biplane, entities.DolphinPod, entities.Currach, entities.Puffin, entities.Cow, entities.Dolmen, entities.Cottage, entities.Kite, entities.Buoy, entities.JellyBloom]) {
+  for (const Type of [entities.Seal, entities.Balloon, entities.Biplane, entities.DolphinPod, entities.Puffin, entities.Cow, entities.Cottage, entities.Kite, entities.Buoy, entities.JellyBloom]) {
     assert.ok(world.count(Type) > 0, `${Type.name} is on the island`);
   }
 });
