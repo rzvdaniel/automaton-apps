@@ -1,0 +1,4 @@
+// Everything the entities share, in one import.
+export * from './math.js';
+export * from './draw.js';
+export { Entity } from './entity.js';
