@@ -96,14 +96,22 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
         return "error", None, f"The server could not be reached: {type(error).__name__}."
 
 
-def cleanup_call(settings: Settings, method: str, path: str, body: dict | None = None, timeout: float = 30, opener=None) -> tuple[str, dict | None, str | None]:
-    """Calls /api/server/cleanup (permission server:cleanup). Returns (status, data, message); status is ok, bad_request,
-    no_runner, not_approved, unavailable, no_key, not_configured or error. The key is never logged."""
+ADMIN_ONLY = "Only an administrator can change the cleanup."
+
+
+def cleanup_call(settings: Settings, method: str, path: str, body: dict | None = None, timeout: float = 30, opener=None, viewer_token: str | None = None) -> tuple[str, dict | None, str | None]:
+    """Calls /api/server/cleanup (permission server:cleanup). A change also forwards the viewer token the server proxy gave
+    for this request; the server refuses it unless the viewer is an administrator. Returns (status, data, message); status is ok, bad_request,
+    no_runner, not_admin, not_approved, unavailable, no_key, not_configured or error. The key is never logged."""
     if not settings.api_base_url:
         return "not_configured", None, "The server address (AUTOMATON_API_URL) is not set."
     if not settings.api_key:
         return "no_key", None, "The app has no key yet."
     headers = {"Authorization": "Bearer " + settings.api_key, "Accept": "application/json", "User-Agent": USER_AGENT}
+    if method != "GET":
+        if not viewer_token:
+            return "not_admin", None, ADMIN_ONLY
+        headers["X-Automaton-Viewer-Token"] = viewer_token
     data = None
     if body is not None:
         data = json.dumps(body).encode()
@@ -113,6 +121,8 @@ def cleanup_call(settings: Settings, method: str, path: str, body: dict | None =
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
             return "ok", json.loads(response.read(2_000_000).decode("utf-8")), None
     except HTTPError as error:
+        if error.code == 403 and method != "GET":
+            return "not_admin", None, ADMIN_ONLY
         if error.code in (401, 403):
             return "not_approved", None, "server:cleanup is not approved (or was revoked)."
         if error.code == 404:
