@@ -587,5 +587,14 @@ class CleanupServerTests(unittest.TestCase):
         self.assertEqual((status, body["message"]), (409, "No server Runner is online"))
 
 
+class BuildTests(unittest.TestCase):
+    def test_the_build_copies_every_file_the_server_serves(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "automaton.json"), encoding="utf-8") as handle:
+            script = json.load(handle)["application"]["build"]["command"]["arguments"][-1]
+        for path, _ in main.STATIC.values():
+            self.assertIn(os.path.basename(path), script, f"{path} is served but not copied into dist")
+
+
 if __name__ == "__main__":
     unittest.main()

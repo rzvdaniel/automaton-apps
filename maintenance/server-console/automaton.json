@@ -13,7 +13,7 @@
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py console.py && mkdir -p dist/ui && cp main.py console.py index.html dashboard.js dist/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py console.py && mkdir -p dist/ui && cp main.py console.py index.html dashboard.js console.css dist/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },
