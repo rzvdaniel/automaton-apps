@@ -22,7 +22,11 @@
 
   H.Gull = class extends H.Entity {
     static passes = { skyShadow: 'drawShadow', birds: 'draw' };
+    static clicks = 'many';
+    static sound = 'gull';
     constructor(world, x, y, a) { super(world); this.x = x; this.y = y; this.a = a; this.v = 0.05 + Math.random() * 0.04; this.ph = Math.random() * 6; this.rush = 0; }
+    hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.02; }
+    click(x, y) { this.a = Math.atan2(this.y - y, this.x - x); this.rush = 1.5; }
     onScare(x, y, reach) { if (Math.hypot(this.x - x, this.y - y) < reach) { this.a = Math.atan2(this.y - y, this.x - x); this.rush = 1.5; this.world.sound.gull(); } }
     update(dt) {
       const hw = this.world.hw, hh = this.world.hh;
@@ -39,6 +43,10 @@
   // The flock has a wandering centre; each bird mills around its own spot near it and drifts back after a fright.
   H.GullFlock = class extends H.Entity {
     static passes = { skyShadow: 'drawShadow', birds: 'draw' };
+    static clicks = 'many';
+    static sound = 'gull';
+    hit(x, y) { return this.birds.some(b => Math.hypot(b.x - x, b.y - y) < 0.02); }
+    click(x, y) { this.onScare(x, y, 0.12); }
     constructor(world, G) {
       super(world); this.x = (G() - 0.5) * 2 * world.hw; this.y = (G() - 0.5) * 2 * world.hh; this.a = G() * TAU; this.ph = G() * 9; this.birds = [];
       for (let i = 5 + Math.floor(G() * 5); i > 0; i--) this.birds.push({ x: this.x, y: this.y, vx: 0, vy: 0, a: this.a, free: 0, ph: G() * 6, rx: -0.07 + G() * 0.12, ry: -0.06 + G() * 0.12, w: 0.3 + G() * 0.5, p: G() * TAU });

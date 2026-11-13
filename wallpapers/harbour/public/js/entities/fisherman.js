@@ -5,6 +5,7 @@
   const { disc, oval, shade, TAU } = H;
   H.Fisherman = class extends H.Entity {
     static clicks = 'one';
+    static sound = 'gotOne';
     static ownScale = true;   // drawn in his own unscaled frame; effects are mapped back into the world
     constructor(world, o) {   // o: x, y (where he sits), dx, dy (the way out to sea)
       super(world); Object.assign(this, o);

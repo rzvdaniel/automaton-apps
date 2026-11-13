@@ -10,6 +10,7 @@
   H.MooredBoat = class extends H.Entity {
     static passes = { water: 'draw' };
     static clicks = 'many';
+    static sound = 'clunk';
     constructor(world, o) { super(world); Object.assign(this, o); this.rock = 0; }   // o: x, y, a, col, mast
     update(dt) { this.rock = Math.max(0, this.rock - dt * 0.7); }
     hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.014; }
@@ -29,6 +30,7 @@
     static passes = { water: 'draw' };
     static ownScale = true;   // the wake is not scaled with the hull, only its spread
     static clicks = 'many';
+    static sound = 'flap';
     constructor(world, o) { super(world); Object.assign(this, o); this.rush = 0; this.trail = []; this.tick = 0; }   // o: x, y, a, sail
     hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.03 * this.scale; }
     click() { this.rush = 3; }

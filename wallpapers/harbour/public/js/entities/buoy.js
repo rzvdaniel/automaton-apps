@@ -7,6 +7,7 @@
   const TOWER = new Path2D('M-12,6 C-10,-6 -5.5,-22 -3.6,-30 L3.6,-30 C5.5,-22 10,-6 12,6 C6,10.5 -6,10.5 -12,6 Z');
   H.Buoy = class extends H.Entity {
     static clicks = 'one';
+    static sound = 'clang';
     constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.rock = 0; this.seed = Math.random() * 9; }
     hit(x, y) { return Math.hypot(this.x - x, this.y - 0.004 - y) < 0.012; }
     click() { this.rock = 1; this.world.ripple(this.x, this.y, 0.8); this.world.sound.plop(); }

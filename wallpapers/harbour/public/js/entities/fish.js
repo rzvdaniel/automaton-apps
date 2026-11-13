@@ -3,6 +3,10 @@
   'use strict';
   H.FishSchool = class extends H.Entity {
     static passes = { deep: 'draw' };
+    static clicks = 'many';
+    static sound = 'plop';
+    hit(x, y) { return this.fish.some(f => Math.hypot(f.x - x, f.y - y) < 0.02); }
+    click(x, y) { this.flee(x, y, 0.15, 0.5); }
     constructor(world, o) { super(world); Object.assign(this, o); this.rush = 0; }   // o: x, y, a, ph, bright, fish[]
     // Every fish within `range` of (x, y) darts away from it.
     flee(x, y, range, power) {

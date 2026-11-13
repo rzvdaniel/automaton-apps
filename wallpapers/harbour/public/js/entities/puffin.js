@@ -11,6 +11,7 @@
   H.Puffin = class extends H.Entity {
     static passes = { upright: 'draw', birds: 'drawFlying' };
     static clicks = 'one';
+    static sound = 'puffin';
     constructor(world, o) { super(world); this.x = this.hx = o.x; this.y = this.hy = o.y; this.flip = o.flip ? -1 : 1; this.fly = 0; this.seed = Math.random() * 9; this.a = 0; this.out = [1, 0]; }
     hit(x, y) { return !this.fly && Math.hypot(this.x - x, this.y - 0.006 - y) < 0.014; }
     click() { this.takeOff(); }
