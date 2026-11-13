@@ -133,7 +133,7 @@ class Console:
             return console.snapshot(self.state, self.settings, time.time())
 
 
-CLEANUP_STATUS = {"ok": 200, "bad_request": 400, "no_runner": 409, "not_approved": 403, "unavailable": 404, "no_key": 403, "not_configured": 404}
+CLEANUP_STATUS = {"ok": 200, "bad_request": 400, "no_runner": 409, "not_approved": 403, "not_admin": 403, "unavailable": 404, "no_key": 403, "not_configured": 404}
 
 
 def make_handler(app: Console):
@@ -157,10 +157,13 @@ def make_handler(app: Console):
             self.send_body(status, json.dumps(payload).encode(), "application/json")
 
         def cleanup(self, method: str, path: str, body: dict | None = None) -> None:
-            status, data, message = console.cleanup_call(app.settings, method, path, body)
+            # The proxy sets both headers on every request (a browser's own are overwritten); the role only hides controls.
+            token = self.headers.get("X-Automaton-Viewer-Token")
+            status, data, message = console.cleanup_call(app.settings, method, path, body, viewer_token=token)
             if status != "ok":
                 return self.json(CLEANUP_STATUS.get(status, 502), {"status": status, "message": message})
             data["warning"] = console.cleanup_warning(data, time.time())
+            data["canChange"] = (self.headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"
             self.json(200, {"status": "ok", "cleanup": data})
 
         def changing(self) -> dict | None:

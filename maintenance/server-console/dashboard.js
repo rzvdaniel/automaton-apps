@@ -274,11 +274,12 @@
       cleanupBox.innerHTML = card("Cleanup", status, '<div id="cleanup-summary"></div><div id="cleanup-formbox"></div>',
         "Frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit. Never volumes, apps in use or backups.");
       cleanupBox.firstChild.classList.add("spaced");
-      document.getElementById("cleanup-formbox").innerHTML = cleanupForm(c);
-      bindCleanup();
+      document.getElementById("cleanup-formbox").innerHTML = c.canChange ? cleanupForm(c) : "";
+      if (c.canChange) bindCleanup();
     } else {
       cleanupBox.querySelector(".a-pill").outerHTML = pill(status);
-      if (!editing && !busy) document.getElementById("cleanup-formbox").innerHTML = cleanupForm(c), bindCleanup();
+      if (!c.canChange) document.getElementById("cleanup-formbox").innerHTML = "";
+      else if (!editing && !busy) document.getElementById("cleanup-formbox").innerHTML = cleanupForm(c), bindCleanup();
     }
     document.getElementById("cleanup-summary").innerHTML = summaryHtml;
     UI.updateRelativeTimes(cleanupBox);

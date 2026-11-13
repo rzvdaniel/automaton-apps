@@ -491,10 +491,19 @@ class CleanupTests(unittest.TestCase):
 
         conf = settings()
         good = Opener()
-        status, data, _ = console.cleanup_call(conf, "PUT", "/settings", {"timeUtc": "02:00"}, opener=good)
+        status, data, _ = console.cleanup_call(conf, "PUT", "/settings", {"timeUtc": "02:00"}, opener=good, viewer_token="tok")
         self.assertEqual((status, data["settings"]["keepDays"]), ("ok", 7))
         self.assertEqual((good.requests[0].method, good.requests[0].full_url), ("PUT", "https://api.example.com/api/server/cleanup/settings"))
         self.assertEqual(good.requests[0].get_header("Authorization"), "Bearer key")
+        self.assertEqual(good.requests[0].get_header("X-automaton-viewer-token"), "tok")
+        # a change without a viewer token is never sent; reads send none
+        never = Opener()
+        self.assertEqual(console.cleanup_call(conf, "POST", "/run", {}, opener=never)[0], "not_admin")
+        self.assertEqual(never.requests, [])
+        read = Opener()
+        console.cleanup_call(conf, "GET", "", opener=read, viewer_token="tok")
+        self.assertIsNone(read.requests[0].get_header("X-automaton-viewer-token"))
+        self.assertEqual(console.cleanup_call(conf, "PUT", "/settings", {}, opener=Opener((403, "")), viewer_token="tok")[0], "not_admin")
         for code, text, expected in [(403, "", "not_approved"), (404, "", "unavailable"), (400, "bad time", "bad_request"), (409, "no runner", "no_runner"), (500, "", "error")]:
             self.assertEqual(console.cleanup_call(conf, "GET", "", opener=Opener((code, text)))[0], expected)
         self.assertEqual(console.cleanup_call(settings(APP_AUTOMATON_API_KEY=""), "GET", "")[0], "no_key")
@@ -504,10 +513,12 @@ class CleanupServerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.calls = []
+        self.tokens = []
         outer = self
 
-        def fake(settings_, method, path, body=None, **_):
+        def fake(settings_, method, path, body=None, viewer_token=None, **_):
             outer.calls.append((method, path, body))
+            outer.tokens.append(viewer_token)
             return outer.reply
 
         self.reply = ("ok", dict(CLEANUP), None)
@@ -524,8 +535,8 @@ class CleanupServerTests(unittest.TestCase):
         self.server.server_close()
         self.directory.cleanup()
 
-    def request(self, method, path, body=None, header=True):
-        headers = {"Content-Type": "application/json"}
+    def request(self, method, path, body=None, header=True, extra=None):
+        headers = {"Content-Type": "application/json", **(extra or {})}
         if header:
             headers["X-Server-Console"] = "1"
         request = urllib.request.Request(self.base + path, data=None if body is None else json.dumps(body).encode(), method=method, headers=headers)
@@ -552,6 +563,18 @@ class CleanupServerTests(unittest.TestCase):
         self.assertEqual(self.calls[-1], ("PUT", "/settings", {"timeUtc": "02:00", "keepDays": 3, "journalLimitMb": 100}))
         self.assertEqual(self.request("POST", "/api/cleanup/run", {})[0], 200)
         self.assertEqual(self.calls[-1][:2], ("POST", "/run"))
+
+    def test_the_viewer_token_is_forwarded_and_the_role_decides_canChange(self):
+        self.request("PUT", "/api/cleanup/settings", {"keepDays": 3}, extra={"X-Automaton-Viewer-Token": "tok"})
+        self.assertEqual(self.tokens[-1], "tok")
+        self.assertTrue(self.request("GET", "/api/cleanup", extra={"X-Automaton-Viewer-Role": "administrator"})[1]["cleanup"]["canChange"])
+        for role in ({"X-Automaton-Viewer-Role": "user"}, {}):
+            self.assertFalse(self.request("GET", "/api/cleanup", extra=role)[1]["cleanup"]["canChange"])
+
+    def test_a_refused_change_says_only_an_administrator_can(self):
+        self.reply = ("not_admin", None, console.ADMIN_ONLY)
+        status, body = self.request("POST", "/api/cleanup/run", {})
+        self.assertEqual((status, body["message"]), (403, console.ADMIN_ONLY))
 
     def test_changes_need_the_pages_own_header(self):
         self.assertEqual(self.request("POST", "/api/cleanup/run", {}, header=False)[0], 403)
