@@ -4,7 +4,6 @@ import { TAU, shade, lerp, disc, oval, Entity } from '../core/index.js';
 
 export class Fisherman extends Entity {
   static clicks = 'one';
-  // No sound for now: no natural recording was found (see public/audio/CREDITS.md).
   static ownScale = true;   // drawn in his own unscaled frame; effects are mapped back into the world
   constructor(world, o) {   // o: x, y (where he sits), dx, dy (the way out to sea)
     super(world); Object.assign(this, o);
@@ -16,7 +15,7 @@ export class Fisherman extends Entity {
   toWorld(px, py) { return [this.x + (px - this.x) * this.scale, this.y + (py - this.y) * this.scale]; }
   hit(x, y) { const s = this.scale; x = this.x + (x - this.x) / s; y = this.y + (y - this.y) / s; return Math.hypot(this.x - x, this.y - 0.004 - y) < 0.014 || Math.hypot(this.fx - x, this.fy - y) < 0.011; }
   click() { if (!this.strike) this.land(); }
-  land() { const w = this.world; this.strike = 0.001; this.boot = Math.random() < 0.2; const f = this.toWorld(this.fx, this.fy); w.ripple(f[0], f[1], 0.7); w.burst(f[0], f[1], 9, 0.05, '255,255,255', 0.0028, 0.7); w.sound.play('plop'); }
+  land() { const w = this.world; this.strike = 0.001; this.boot = Math.random() < 0.2; const f = this.toWorld(this.fx, this.fy); w.ripple(f[0], f[1], 0.7); w.burst(f[0], f[1], 9, 0.05, '255,255,255', 0.0028, 0.7); }
   update(dt) {
     if (this.strike) { this.strike += dt; if (this.strike > 2.4) { this.strike = 0; this.next = 25 + Math.random() * 40; } return; }
     this.next -= dt; if (this.next <= 0) this.land();

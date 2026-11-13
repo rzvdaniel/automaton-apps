@@ -4,7 +4,6 @@ import { Gull } from './gulls.js';
 
 export class Church extends Entity {
   static clicks = 'one';
-  static sound = 'bell';
   constructor(world, o) { super(world); Object.assign(this, o); this.pop = 0; }   // o: x, y, a
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.03; }

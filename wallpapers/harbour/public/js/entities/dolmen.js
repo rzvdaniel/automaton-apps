@@ -12,7 +12,6 @@ const BACK = new Path2D('M-12,-10 L11,-10 L10,22 C4,25 -5,25 -11,22 Z');
 const HARE = new Path2D('M9,0 C9,-3 6,-4.5 2,-4.5 C-3,-5 -8,-3.5 -10,0 C-8,3.5 -3,5 2,4.5 C6,4.5 9,3 9,0 Z');
 export class Dolmen extends Entity {
   static clicks = 'one';
-  static sound = 'stone';
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.hare = 0; this.dir = 1; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - 0.004 - y) < 0.02; }
   click() { if (!this.hare) { this.hare = 0.001; this.dir = Math.random() < 0.5 ? 1 : -1; } }

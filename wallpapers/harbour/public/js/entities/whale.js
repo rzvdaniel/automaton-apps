@@ -13,10 +13,9 @@ const FLUKE_EDGE = new Path2D('M30,-12 C34,-20 36,-30 34,-38 C31,-30 29,-21 27,-
 export class Whale extends Entity {
   static passes = { deep: 'draw', water: 'drawSpout' };
   static clicks = 'many';
-  static sound = 'whale';
   constructor(world, G) { super(world); this.at = world.clock + 20 + G() * 30; this.on = false; this.x = this.y = this.a = 0; this.alpha = 0; this.dive = false; this.swim = 0; this.calf = false; this.blow = 9; this.spout = 9; }
   hit(x, y) { return this.on && !this.dive && Math.hypot(this.x - x, this.y - y) < 0.08; }
-  click() { const w = this.world; this.dive = true; w.burst(this.x - Math.cos(this.a) * 0.07, this.y - Math.sin(this.a) * 0.07, 26, 0.16, '255,255,255', 0.006, 1.3); w.ripple(this.x, this.y, 1); w.sound.play('plop'); }
+  click() { const w = this.world; this.dive = true; w.burst(this.x - Math.cos(this.a) * 0.07, this.y - Math.sin(this.a) * 0.07, 26, 0.16, '255,255,255', 0.006, 1.3); w.ripple(this.x, this.y, 1); }
   // Set off on a straight course from (x1, y1) to (x2, y2).
   cross(x1, y1, x2, y2) { this.on = true; this.x = x1; this.y = y1; this.a = Math.atan2(y2 - y1, x2 - x1); this.alpha = 0; this.dive = false; this.calf = this.world.debug || Math.random() < 0.45; this.blow = 4 + Math.random() * 5; this.child = null; }   // some whales have a calf; in ?debug all do
   update(dt) {
@@ -37,7 +36,7 @@ export class Whale extends Entity {
     this.alpha += ((this.dive ? 0 : 1) - this.alpha) * Math.min(1, dt * 1.5);
     if (this.calf) this.follow(dt);
     this.blow -= dt;
-    if (this.blow <= 0 && !this.dive && Math.abs(this.x) < hw && Math.abs(this.y) < hh) { this.blow = 9 + Math.random() * 7; this.spout = 0; const h = this.head(); w.ripple(h[0], h[1], 0.5); w.sound.play('blow', { pan: w.camera.screenFraction(h[0]) }); }
+    if (this.blow <= 0 && !this.dive && Math.abs(this.x) < hw && Math.abs(this.y) < hh) { this.blow = 9 + Math.random() * 7; this.spout = 0; const h = this.head(); w.ripple(h[0], h[1], 0.5); }
     if (Math.abs(this.x) > hw + 0.2 || (this.dive && this.alpha < 0.03)) this.on = false;
   }
   // The calf keeps to a station beside her flank and a little behind; it weaves about it, drifts under her now and then,

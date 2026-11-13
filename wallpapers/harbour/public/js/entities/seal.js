@@ -16,7 +16,6 @@ const COATS = {
 
 export class Seal extends Entity {
   static clicks = 'one';
-  static sound = 'seal';
   constructor(world, o) {
     super(world); this.x = this.hx = o.x; this.y = this.hy = o.y; this.a = this.ha = o.a || 0; this.kind = o.kind || 'grey';
     this.state = 'bask'; this.seed = Math.random() * 9; this.timer = 0; this.look = 0;
@@ -32,7 +31,7 @@ export class Seal extends Entity {
     const g = w.grad(this.x, this.y), go = v => { this.x += Math.cos(this.a) * v * dt; this.y += Math.sin(this.a) * v * dt; };
     if (this.state === 'flee') {   // down the shore, belly first
       turn(Math.atan2(g.gy, g.gx) + 0.25 * Math.sin(w.clock * 9), 6); go(0.028);
-      if (g.d > 0.03) { this.state = 'swim'; this.timer = 12 + Math.random() * 10; w.ripple(this.x, this.y, 0.7); w.burst(this.x, this.y, 10, 0.05, '255,255,255', 0.003, 0.8); w.sound.play('plop'); }
+      if (g.d > 0.03) { this.state = 'swim'; this.timer = 12 + Math.random() * 10; w.ripple(this.x, this.y, 0.7); w.burst(this.x, this.y, 10, 0.05, '255,255,255', 0.003, 0.8); }
     } else if (this.state === 'swim') {
       let to = this.a + Math.sin(w.clock * 0.6 + this.seed) * 0.8;
       if (g.d < 0.03) to = Math.atan2(g.gy, g.gx); else if (g.d > 0.09) to = Math.atan2(-g.gy, -g.gx);

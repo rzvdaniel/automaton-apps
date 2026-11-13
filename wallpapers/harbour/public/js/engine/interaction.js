@@ -26,7 +26,7 @@ export class Interaction {
       try {
         if ((mode === 'one' && solid) || !e.hit(lx, ly)) continue;
         e.click(lx, ly); hit = true;
-        const sound_ = e.soundFor ? e.soundFor(lx, ly) : e.constructor.sound;   // every clickable thing has a voice
+        const sound_ = e.soundFor ? e.soundFor(lx, ly) : e.constructor.sound;   // a thing may have a sound of its own (most are silent for now)
         if (sound_) sound.play(sound_, { entity: e, pan: camera.screenFraction(e.x) });
       } catch (err) { scene.fail(e, 'click', err); continue; }
       if (mode === 'top') return true;

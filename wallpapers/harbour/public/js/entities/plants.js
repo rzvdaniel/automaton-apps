@@ -3,7 +3,6 @@ import { shade, disc, Entity } from '../core/index.js';
 
 export class Gorse extends Entity {
   static clicks = 'one';
-  static sound = 'rustle';
   constructor(world, o) { super(world); Object.assign(this, o); this.shake = 0; }   // o: x, y, r, rot
   update(dt) { this.shake = Math.max(0, this.shake - dt * 0.9); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.01; }

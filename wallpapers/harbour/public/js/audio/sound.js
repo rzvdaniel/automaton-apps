@@ -1,7 +1,6 @@
 import { AudioEngine } from './audio-engine.js';
 import { Ambience } from './ambience.js';
 import { SOUNDS } from './sounds.js';
-import { SAMPLES, sampleAddress } from './samples.js';
 
 const STORAGE_KEY = 'harbour-sound';
 
@@ -38,7 +37,6 @@ export class Sound {
   set(on) {
     if (on && !this.engine.start()) return;
     this.on = on; preference.save(on);
-    if (on && !this.samplesRequested) { this.samplesRequested = true; this.engine.loadSamples(SAMPLES, sampleAddress); }   // the recordings load once, the first time sound is on
     if (on) this.ambience.start(); else { this.ambience.stop(); this.engine.stop(); }
     this.listeners.forEach(fn => fn(on));
   }

@@ -5,7 +5,6 @@ import { Gull } from './gulls.js';
 
 export class Tree extends Entity {
   static clicks = 'one';
-  static sound = 'leaves';
   static leaf = '86,166,91';
   constructor(world, o) { super(world); Object.assign(this, o); this.shake = 0; }   // o: x, y, r, rot
   update(dt) { this.shake = Math.max(0, this.shake - dt * 0.9); }
@@ -37,7 +36,6 @@ export class Oak extends Tree {
 // A conifer: tiers of dark needles, each smaller and higher than the one below.
 export class Pine extends Tree {
   static leaf = '61,127,86';
-  static sound = 'needles';
   draw(c, t) {
     const r = this.r * 0.9, x = this.x, cols = ['#1f4f3a', '#2a6347', '#387a55', '#4f9468', '#73b283'];
     oval(c, x + r * 0.55, this.y + r * 0.35, r * 0.9, r * 0.6, shade(0.22));

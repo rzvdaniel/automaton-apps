@@ -4,10 +4,10 @@ A living Irish harbour island for your desktop. Every load builds a different is
 
 ## Using it
 
-- **Click anything:** it reacts and makes its own sound (sheep baa, the cat meows, the cow moos, the church rings).
+- **Click anything:** it reacts. (Things do not make sounds yet; see Sound.)
 - **Zoom:** mouse wheel (or `+` / `-`), always sharp; `0` resets. **Pan:** press and drag while zoomed.
 - **On a phone:** pinch to zoom, drag to pan, double-tap to zoom in or out, a button at the top right resets the zoom; a tap clicks on release. The island fits a tall screen, is laid out again when you rotate, and draws fewer pixels if the device is slow.
-- **Sound:** off until you press the speaker button at the top right; the choice is remembered. Waves come in swells and a gull calls now and then. Sheep, cow, cat and whale are real recordings (credits in `public/audio/CREDITS.md`); the rest is synthesised. The puffin, biplane, fisherman, rower and the child with the kite are silent until a natural recording is found.
+- **Sound:** off until you press the speaker button at the top right; the choice is remembered. Only the sea (waves that swell and draw back) and the seagulls (a call now and then, and when you click one) make sound; both are synthesised in the browser. Everything else is silent until we find recordings that sound natural.
 - `?seed=123` repeats an island, `N` makes a new one. `?debug` puts every extra on the island, shows a status panel and lists problems.
 - `/gallery.html` shows the extras large.
 
@@ -31,7 +31,7 @@ Plain ES modules in `public/js`: no build step, no dependencies. Each folder has
 ## Changing it
 
 - **Add something:** write a class extending `Entity` in `entities/` (copy a similar one), export it from `entities/index.js`, and add it in `island/populate.js` (always there) or `island/extras.js` (random). `static passes` says when it is drawn, `static clicks` how it takes clicks, `static sound` which sound it makes.
-- **Add a sound:** one line in `audio/sounds.js`, built from `tone`, `noise` and `say`; then name it in a class.
+- **Add a sound:** a function in `audio/sounds.js`, built from `tone`, `noise` and `say` (or a recording, played with a buffer source); then name it in a class with `static sound`.
 - **Resize a kind of thing:** `SCALES` in `island/scales.js` (`Seal: 1.5`). Any entity also has a `scale`.
 - **A broken thing never stops the show:** an entity that throws is logged once and removed.
 

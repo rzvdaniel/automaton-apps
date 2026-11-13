@@ -115,16 +115,10 @@ test('hover leaves a faint wake in the water, only after moving a good way', () 
 });
 
 // ----- every clickable class makes a sound that exists -----
-// Silent on purpose: no natural recording was found for them (see public/audio/CREDITS.md). Remove a name here when one is added.
-const SILENT = new Set(['Puffin', 'Biplane', 'Currach', 'Fisherman']);
-
-test('every clickable entity class names a sound that exists, unless it is silent on purpose', () => {
+test('a sound that a class names exists (most things are silent for now)', () => {
   for (const [name, Type] of Object.entries(entities)) {
     if (typeof Type !== 'function' || !(Type.prototype instanceof Entity) || !Type.clicks) continue;
-    if (SILENT.has(name)) { assert.equal(Type.sound, null, `${name} is meant to be silent`); continue; }
-    if (Type.prototype.soundFor) continue;
-    assert.ok(Type.sound, `${name} takes clicks but names no sound`);
-    assert.ok(Object.hasOwn(SOUNDS, Type.sound), `${name} names the sound "${Type.sound}" which does not exist`);
+    if (Type.sound) assert.ok(Object.hasOwn(SOUNDS, Type.sound), `${name} names the sound "${Type.sound}" which does not exist`);
   }
 });
 

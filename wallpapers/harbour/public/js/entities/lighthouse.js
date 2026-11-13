@@ -6,7 +6,6 @@ const TALL = 0.03, R0 = 0.0098, R1 = 0.0064, SLICES = 36;
 export class Lighthouse extends Entity {
   static passes = { upright: 'draw', air: 'drawBeam' };
   static clicks = 'one';
-  static sound = 'horn';
   constructor(world, x, y) { super(world); this.x = x; this.y = y; this.off = false; }
   hit(x, y) { return Math.abs(x - this.x) < 0.014 && y > this.y - TALL - 0.014 && y < this.y + 0.013; }
   click() { this.off = !this.off; }

@@ -5,7 +5,6 @@ import { TAU, SHADE, Entity } from '../core/index.js';
 export class Cloud extends Entity {
   static passes = { skyShadow: 'drawShadow', clouds: 'draw' };
   static clicks = 'top';
-  static sound = 'puff';
   static ownScale = true;   // it scales through its own size r, not about a point
   constructor(world, rnd, x, y) { super(world); this.shape(rnd); this.x = x; this.y = y; }
   // A few large lumps and a ring of smaller ones on their edge: the outline carries the shape.

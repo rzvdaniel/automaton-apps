@@ -11,7 +11,6 @@ const TAIL = new Path2D('M-4,-2.4 C3,-8 12,-22 34,-40 C30,-28 24,-14 17,-3 C16,-
 export class Shark extends Entity {
   static passes = { deep: 'drawBody' };
   static clicks = 'many';
-  static sound = 'thump';
   constructor(world, G, size) { super(world); this.size = size || 1;   // 1 is the usual shark; the island adds a smaller and a bigger one
      this.ph = G() * 9; this.swim = 0; this.alpha = 0; this.dive = false; this.away = 0; this.hunt = null; this.mood = 10 + G() * 14; this.x = this.y = this.a = 0; this.surface(); }
   // Come up somewhere in deep water.
@@ -21,7 +20,7 @@ export class Shark extends Entity {
     this.away = 5;
   }
   hit(x, y) { return !this.away && !this.dive && Math.hypot(this.x - x, this.y - y) < 0.045 * this.size; }
-  click() { const w = this.world; this.dive = true; this.hunt = null; w.ripple(this.x, this.y, 0.9); w.burst(this.x, this.y, 16, 0.1, '255,255,255', 0.004, 1); w.sound.play('plop'); }
+  click() { const w = this.world; this.dive = true; this.hunt = null; w.ripple(this.x, this.y, 0.9); w.burst(this.x, this.y, 16, 0.1, '255,255,255', 0.004, 1); }
   update(dt) {
     const w = this.world;
     if (this.away > 0) { this.away -= dt; if (this.away <= 0) { this.away = 0; this.surface(); } return; }

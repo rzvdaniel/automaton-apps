@@ -7,10 +7,9 @@ const U = 0.00023;
 const TOWER = new Path2D('M-12,6 C-10,-6 -5.5,-22 -3.6,-30 L3.6,-30 C5.5,-22 10,-6 12,6 C6,10.5 -6,10.5 -12,6 Z');
 export class Buoy extends Entity {
   static clicks = 'one';
-  static sound = 'clang';
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.rock = 0; this.seed = Math.random() * 9; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - 0.004 - y) < 0.012; }
-  click() { this.rock = 1; this.world.ripple(this.x, this.y, 0.8); this.world.sound.play('plop'); }
+  click() { this.rock = 1; this.world.ripple(this.x, this.y, 0.8); }
   update(dt) { this.rock = Math.max(0, this.rock - dt * 0.45); }
   draw(c, t) {
     const lean = (0.1 + 0.4 * this.rock) * Math.sin(t * (1.3 + this.rock * 4) + this.seed), heave = Math.sin(t * 0.9 + this.seed) * 1.6, lit = (t * 0.5 + this.seed) % 2 < 0.35;

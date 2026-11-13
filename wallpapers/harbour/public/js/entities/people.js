@@ -10,7 +10,6 @@ export const drawPerson = (c, x, y, n, lift) => {
 // Stands in one place; hops when clicked.
 export class Person extends Entity {
   static clicks = 'many';
-  static sound = 'hello';
   constructor(world, x, y, col) { super(world); this.x = x; this.y = y; this.col = col; this.hop = 0; }
   update(dt) { this.hop = Math.max(0, this.hop - dt); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.014; }
@@ -21,7 +20,6 @@ export class Person extends Entity {
 // Walks a road end to end and back; hurries when clicked.
 export class Walker extends Entity {
   static clicks = 'many';
-  static sound = 'hello';
   constructor(world, o) { super(world); Object.assign(this, o); this.rush = 0; this.x = this.y = 0; this.place(); }   // o: road, s, dir, speed, col
   place() { const r = this.road, n = Math.min(r.length - 2, Math.floor(this.s)), u = this.s - n; this.x = r[n][0] + (r[n + 1][0] - r[n][0]) * u + 0.003; this.y = r[n][1] + (r[n + 1][1] - r[n][1]) * u + 0.002; }
   update(dt) {
@@ -37,7 +35,6 @@ export class Walker extends Entity {
 
 export class Parasol extends Entity {
   static clicks = 'many';
-  static sound = 'flap';
   constructor(world, o) { super(world); Object.assign(this, o); this.pop = 0; }   // o: x, y, col, rot
   update(dt) { this.pop = Math.max(0, this.pop - dt * 0.8); this.rot += this.pop * dt * 9; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.012; }
@@ -54,7 +51,6 @@ export class Parasol extends Entity {
 // Lives on the pier; click it and it trots to the other end.
 export class Cat extends Entity {
   static clicks = 'one';
-  static sound = 'meow';
   constructor(world) { super(world); const p = world.map.pier; this.x = p[1][0]; this.y = p[1][1]; this.end = 1; this.moving = false; this.a = 0; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.014; }
   click() { this.end = this.end ? 0 : 1; }

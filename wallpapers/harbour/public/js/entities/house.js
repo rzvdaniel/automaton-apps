@@ -4,7 +4,6 @@ import { Smoke } from './smoke.js';
 
 export class House extends Entity {
   static clicks = 'one';
-  static sound = 'knock';
   constructor(world, o) {   // o: x, y, a, wall, roof, w, smoke
     super(world); Object.assign(this, o); this.pop = 0;
     this.plume = world.add(new Smoke(world, this.x + this.w * 0.3 * Math.cos(this.a), this.y + this.w * 0.3 * Math.sin(this.a) - 0.0025, o.smoke));

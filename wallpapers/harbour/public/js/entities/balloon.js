@@ -7,7 +7,6 @@ const U = 0.00072, R = 50, GORES = 14, CROWN = [-3, -9];
 export class Balloon extends Entity {
   static passes = { skyShadow: 'drawShadow', clouds: 'draw' };
   static clicks = 'top';
-  static sound = 'burner';
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.seed = Math.random() * 9; this.burn = 0; this.climb = 0; }
   get high() { return 1 + 0.04 * Math.sin(this.world.clock * 0.35 + this.seed) + 0.28 * this.climb; }   // 1 = cruising height
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < R * U * this.high; }

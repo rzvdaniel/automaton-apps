@@ -5,7 +5,6 @@ import { shade, clamp, angDiff, disc, rrect, Entity } from '../core/index.js';
 const L = 0.0125, Wd = 0.0062, PAINT = [['#d9473a', '#ee7563'], ['#f0b93a', '#f8d778'], ['#2b8089', '#58aab1'], ['#f3ede0', '#ffffff'], ['#5d86b4', '#8fb0d6']];
 export class Car extends Entity {
   static clicks = 'one';
-  static sound = 'honk';
   constructor(world, G) {
     super(world); this.roads = world.map.roads; this.r = 1; this.s = G() * (this.roads[1].pts.length - 2); this.dir = G() < 0.5 ? 1 : -1;
     this.paint = PAINT[Math.floor(G() * PAINT.length)]; this.wait = 0; this.rush = 0; this.a = 0; this.dust = 0; this.x = this.y = 0; this.bounce = 0;

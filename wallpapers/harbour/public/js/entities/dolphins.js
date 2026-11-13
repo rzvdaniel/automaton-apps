@@ -13,7 +13,6 @@ const FIN = new Path2D('M8,0 C2,-1.8 -8,-3 -15,-1 L-15,1 C-8,3 2,1.8 8,0 Z');
 export class DolphinPod extends Entity {
   static passes = { deep: 'drawUnder', water: 'drawLeaping' };
   static clicks = 'many';
-  static sound = 'dolphin';
   constructor(world, o) {
     super(world); this.x = o.x; this.y = o.y; this.a = o.a || 0; this.seed = Math.random() * 9; this.sniff = 0; this.pod = [];
     for (let i = 0; i < (o.count || 4); i++) this.pod.push({ ox: -i * 0.022 + (Math.random() - 0.5) * 0.012, oy: (i % 2 ? 1 : -1) * (0.012 + Math.random() * 0.014) * Math.ceil(i / 2 + 0.5), x: 0, y: 0, a: this.a, leap: 0, wait: 1 + Math.random() * 7, ph: Math.random() * 9, size: 0.85 + Math.random() * 0.25 });

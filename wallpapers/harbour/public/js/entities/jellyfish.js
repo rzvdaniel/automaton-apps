@@ -7,7 +7,6 @@ const U = 0.00042, TINTS = [['235,246,255', '190,170,235'], ['255,236,246', '240
 export class JellyBloom extends Entity {
   static passes = { deep: 'draw' };
   static clicks = 'many';
-  static sound = 'bloop';
   hit(x, y) { return this.jellies.some(j => Math.hypot(j.x - x, j.y - y) < 0.016 * j.size); }
   click(x, y) { this.onScare(x, y, 0.2, true); }
   constructor(world, o) {
