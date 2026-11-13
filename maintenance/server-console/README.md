@@ -7,10 +7,10 @@ A dashboard for your Automaton server: how the machine and its Runners are doing
 - **Updates:** pending and security OS updates (and how long security updates have been waiting) and whether a restart is required.
 - **Runners:** version, online state and whether an upgrade is available.
 - **Backups and certificates:** age of the last successful backup and days until the Studio and API certificates expire.
-- **Cleanup:** the nightly Docker and journal cleanup of the server: last run and result, space freed, next run, the last runs, a **Run now** button and the schedule (time in UTC, keep days, journal limit). It warns when the last run failed or is more than two days old. The card appears only after an administrator approves `server:cleanup` (below).
+- **Cleanup:** the nightly Docker and journal cleanup of the server: last run and result, space freed, next run, and the last runs, read-only. It warns when the last run failed or is more than two days old, and **Change in Studio** opens Studio's Server page, where administrators change the schedule or run it now. The card appears only after an administrator approves `server:cleanup` (below).
 - **Warnings:** one email (through your server's own SMTP) and, if you set one, one webhook message when disk free space drops below a threshold (default 20%, that is a disk more than 80% full), security updates wait longer than 7 days, or a restart has been required for more than 3 days, and one webhook message when it is resolved. Each warning says what to do about it, on the page and in the email.
 
-It asks for the `server:read` and `notify:email` permissions, which cannot change anything on the server (the email goes only to the people you choose below), and `server:cleanup`, which lets the Cleanup card change the cleanup schedule and run it. The server tells the app who is looking: only a system administrator sees the Cleanup controls, and the server itself refuses a change (403) unless the request carries that administrator's short-lived viewer token, so sharing the app with others is safe. On a server older than this check nobody gets the controls. Without the approval (or on a server older than the cleanup API) the card is hidden. Needs an Automaton Server with the cleanup API for the card.
+It asks for the `server:read` and `notify:email` permissions, which cannot change anything on the server (the email goes only to the people you choose below), and `server:cleanup`, which is used only to read the cleanup: the app never changes it. Without the approval (or on a server older than the cleanup API) the card is hidden.
 
 ## Install and set up
 
@@ -22,6 +22,7 @@ It asks for the `server:read` and `notify:email` permissions, which cannot chang
 | --- | --- | --- |
 | `AUTOMATON_API_URL` | provided by the server | Address of this server's API; nothing to enter. |
 | `API_BASE_URL` | setting, optional | Older override, used only when `AUTOMATON_API_URL` is not set. |
+| `STUDIO_URL` | setting, optional | Studio's address for the Change in Studio link; empty: taken from the page that frames the app, else from the API address. |
 | `EMAIL_TO` | setting | Who gets warning emails: `administrators` (default), `owner`, `project` or `off`. |
 | `WEBHOOK_URL` | secret | Optional, in addition to the email: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: no webhook. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |

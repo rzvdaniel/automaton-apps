@@ -478,7 +478,7 @@ class CleanupTests(unittest.TestCase):
         failed = {"runs": [{"result": "failed", "message": "daemon down", "startedAtUtc": "2026-11-13T05:00:00Z"}]}
         self.assertEqual(console.cleanup_warning(failed, now), "The last cleanup failed: daemon down")
 
-    def test_the_call_uses_the_key_and_maps_errors(self):
+    def test_the_call_only_reads_with_the_key_and_maps_errors(self):
         class Opener:
             def __init__(self, error=None):
                 self.error, self.requests = error, []
@@ -486,39 +486,34 @@ class CleanupTests(unittest.TestCase):
             def open(self, request, timeout=None):
                 self.requests.append(request)
                 if self.error:
-                    raise urllib.error.HTTPError(request.full_url, self.error[0], "x", {}, io.BytesIO(json.dumps({"error": self.error[1]}).encode()))
+                    raise urllib.error.HTTPError(request.full_url, self.error, "x", {}, io.BytesIO(b"{}"))
                 return io.BytesIO(json.dumps(CLEANUP).encode())
 
         conf = settings()
         good = Opener()
-        status, data, _ = console.cleanup_call(conf, "PUT", "/settings", {"timeUtc": "02:00"}, opener=good, viewer_token="tok")
+        status, data, _ = console.cleanup_call(conf, opener=good)
         self.assertEqual((status, data["settings"]["keepDays"]), ("ok", 7))
-        self.assertEqual((good.requests[0].method, good.requests[0].full_url), ("PUT", "https://api.example.com/api/server/cleanup/settings"))
+        self.assertEqual((good.requests[0].method, good.requests[0].full_url), ("GET", "https://api.example.com/api/server/cleanup"))
         self.assertEqual(good.requests[0].get_header("Authorization"), "Bearer key")
-        self.assertEqual(good.requests[0].get_header("X-automaton-viewer-token"), "tok")
-        # a change without a viewer token is never sent; reads send none
-        never = Opener()
-        self.assertEqual(console.cleanup_call(conf, "POST", "/run", {}, opener=never)[0], "not_admin")
-        self.assertEqual(never.requests, [])
-        read = Opener()
-        console.cleanup_call(conf, "GET", "", opener=read, viewer_token="tok")
-        self.assertIsNone(read.requests[0].get_header("X-automaton-viewer-token"))
-        self.assertEqual(console.cleanup_call(conf, "PUT", "/settings", {}, opener=Opener((403, "")), viewer_token="tok")[0], "not_admin")
-        for code, text, expected in [(403, "", "not_approved"), (404, "", "unavailable"), (400, "bad time", "bad_request"), (409, "no runner", "no_runner"), (500, "", "error")]:
-            self.assertEqual(console.cleanup_call(conf, "GET", "", opener=Opener((code, text)))[0], expected)
-        self.assertEqual(console.cleanup_call(settings(APP_AUTOMATON_API_KEY=""), "GET", "")[0], "no_key")
+        self.assertIsNone(good.requests[0].get_header("X-automaton-viewer-token"))
+        for code, expected in [(401, "not_approved"), (403, "not_approved"), (404, "unavailable"), (500, "error")]:
+            self.assertEqual(console.cleanup_call(conf, opener=Opener(code))[0], expected)
+        self.assertEqual(console.cleanup_call(settings(APP_AUTOMATON_API_KEY=""))[0], "no_key")
+
+    def test_the_studio_link_comes_from_the_setting_or_the_api_address(self):
+        self.assertEqual(console.studio_server_url(settings(API_BASE_URL="https://api.example.com")), "https://studio.example.com/server")
+        self.assertEqual(console.studio_server_url(settings(STUDIO_URL="https://studio.test.example/")), "https://studio.test.example/server")
+        self.assertIsNone(console.studio_server_url(settings(API_BASE_URL="https://other.example.com")))
 
 
 class CleanupServerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.calls = []
-        self.tokens = []
         outer = self
 
-        def fake(settings_, method, path, body=None, viewer_token=None, **_):
-            outer.calls.append((method, path, body))
-            outer.tokens.append(viewer_token)
+        def fake(settings_, **_):
+            outer.calls.append("GET")
             return outer.reply
 
         self.reply = ("ok", dict(CLEANUP), None)
@@ -535,21 +530,21 @@ class CleanupServerTests(unittest.TestCase):
         self.server.server_close()
         self.directory.cleanup()
 
-    def request(self, method, path, body=None, header=True, extra=None):
-        headers = {"Content-Type": "application/json", **(extra or {})}
-        if header:
-            headers["X-Server-Console"] = "1"
-        request = urllib.request.Request(self.base + path, data=None if body is None else json.dumps(body).encode(), method=method, headers=headers)
+    def request(self, method, path, body=None):
+        request = urllib.request.Request(self.base + path, data=None if body is None else json.dumps(body).encode(), method=method,
+                                         headers={"Content-Type": "application/json", "X-Server-Console": "1"})
         try:
             with urllib.request.urlopen(request) as response:
                 return response.status, json.loads(response.read())
         except urllib.error.HTTPError as error:
-            return error.code, json.loads(error.read())
+            return error.code, None
 
-    def test_the_card_data_is_read_through_the_key(self):
+    def test_the_card_data_is_read_with_a_studio_link_and_no_change_flag(self):
         status, body = self.request("GET", "/api/cleanup")
         self.assertEqual((status, body["status"], body["cleanup"]["settings"]["keepDays"]), (200, "ok", 7))
-        self.assertEqual(self.calls, [("GET", "", None)])
+        self.assertEqual(body["cleanup"]["studioUrl"], "https://studio.example.com/server")
+        self.assertNotIn("canChange", body["cleanup"])
+        self.assertEqual(self.calls, ["GET"])
 
     def test_the_card_is_hidden_data_when_the_permission_is_missing(self):
         self.reply = ("not_approved", None, "nope")
@@ -557,34 +552,10 @@ class CleanupServerTests(unittest.TestCase):
         self.reply = ("unavailable", None, "old server")
         self.assertEqual(self.request("GET", "/api/cleanup")[0], 404)
 
-    def test_saving_and_running_forward_only_the_known_fields(self):
-        status, _ = self.request("PUT", "/api/cleanup/settings", {"timeUtc": "02:00", "keepDays": 3, "journalLimitMb": 100, "evil": 1})
-        self.assertEqual(status, 200)
-        self.assertEqual(self.calls[-1], ("PUT", "/settings", {"timeUtc": "02:00", "keepDays": 3, "journalLimitMb": 100}))
-        self.assertEqual(self.request("POST", "/api/cleanup/run", {})[0], 200)
-        self.assertEqual(self.calls[-1][:2], ("POST", "/run"))
-
-    def test_the_viewer_token_is_forwarded_and_the_role_decides_canChange(self):
-        self.request("PUT", "/api/cleanup/settings", {"keepDays": 3}, extra={"X-Automaton-Viewer-Token": "tok"})
-        self.assertEqual(self.tokens[-1], "tok")
-        self.assertTrue(self.request("GET", "/api/cleanup", extra={"X-Automaton-Viewer-Role": "administrator"})[1]["cleanup"]["canChange"])
-        for role in ({"X-Automaton-Viewer-Role": "user"}, {}):
-            self.assertFalse(self.request("GET", "/api/cleanup", extra=role)[1]["cleanup"]["canChange"])
-
-    def test_a_refused_change_says_only_an_administrator_can(self):
-        self.reply = ("not_admin", None, console.ADMIN_ONLY)
-        status, body = self.request("POST", "/api/cleanup/run", {})
-        self.assertEqual((status, body["message"]), (403, console.ADMIN_ONLY))
-
-    def test_changes_need_the_pages_own_header(self):
-        self.assertEqual(self.request("POST", "/api/cleanup/run", {}, header=False)[0], 403)
-        self.assertEqual(self.request("PUT", "/api/cleanup/settings", {"keepDays": 3}, header=False)[0], 403)
+    def test_the_app_offers_no_way_to_change_the_cleanup(self):
+        for method, path in [("PUT", "/api/cleanup/settings"), ("POST", "/api/cleanup/run"), ("POST", "/api/cleanup")]:
+            self.assertIn(self.request(method, path, {"keepDays": 3})[0], (404, 501))
         self.assertEqual(self.calls, [])
-
-    def test_the_servers_message_is_passed_back(self):
-        self.reply = ("no_runner", None, "No server Runner is online")
-        status, body = self.request("POST", "/api/cleanup/run", {})
-        self.assertEqual((status, body["message"]), (409, "No server Runner is online"))
 
 
 class BuildTests(unittest.TestCase):
