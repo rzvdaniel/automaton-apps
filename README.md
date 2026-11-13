@@ -9,7 +9,6 @@ Example apps built for [Automaton](https://automaton.monster), a platform for bu
 | App | Source |
 | --- | --- |
 | Untranslatable — a multiplayer word-bluffing game | [games/untranslatable](games/untranslatable/) |
-| Island Wallpaper — a living island for your desktop that reacts to clicks | [wallpapers/island](wallpapers/island/) |
 | Harbour Wallpaper — a living harbour island for your desktop that reacts to clicks | [wallpapers/harbour](wallpapers/harbour/) |
 | Off-site Backup — encrypted server backup copy for S3-compatible storage | [maintenance/offsite-backup](maintenance/offsite-backup/) |
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
