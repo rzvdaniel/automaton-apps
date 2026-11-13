@@ -40,7 +40,7 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ''
-          AUTOMATON_VERSION: server-v0.2.104
+          AUTOMATON_VERSION: server-v0.2.115
         run: curl -fsSL "https://github.com/rzvdaniel/automaton/releases/download/${AUTOMATON_VERSION}/install.sh" | sh && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Validate changed app manifests with the server's rules (pull request)
         if: github.event_name == 'pull_request'
