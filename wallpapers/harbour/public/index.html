@@ -2,29 +2,40 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12a5c6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Harbour</title>
 <meta name="description" content="A living harbour island for your desktop. Click anything.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #12a5c6; }
-  #stage { position: fixed; inset: 0; }
-  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  #sound { position: fixed; top: 14px; right: 14px; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
-    background: rgba(255, 255, 255, 0.26); color: #fff; opacity: 0.75; transition: opacity 0.2s, background 0.2s; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  #sound:hover, #sound:focus-visible { opacity: 1; background: rgba(255, 255, 255, 0.38); outline: none; }
-  #sound svg { width: 20px; height: 20px; display: block; margin: auto; }
+  /* the app handles every gesture itself: no page scroll, no browser pinch-zoom, no double-tap zoom, no text selection */
+  body { touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  #stage { position: fixed; inset: 0; touch-action: none; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .btn { position: fixed; right: max(12px, env(safe-area-inset-right)); width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; touch-action: manipulation;
+    background: rgba(255, 255, 255, 0.26); color: #fff; opacity: 0.8; transition: opacity 0.2s, background 0.2s, transform 0.2s; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .btn:hover, .btn:focus-visible { opacity: 1; background: rgba(255, 255, 255, 0.38); outline: none; }
+  .btn svg { width: 24px; height: 24px; display: block; margin: auto; }
+  #sound { top: max(12px, env(safe-area-inset-top)); }
   #sound .waves { display: none; } #sound.on .waves { display: inline; } #sound.on .cross { display: none; }
+  #home { top: calc(max(12px, env(safe-area-inset-top)) + 54px); transform: scale(0.6); opacity: 0; pointer-events: none; }
+  body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
 </style>
 </head>
 <body>
 <div id="stage"></div>
-<button id="sound" type="button" aria-label="Sound" aria-pressed="false" title="Sound">
+<button id="sound" class="btn" type="button" aria-label="Sound" aria-pressed="false" title="Sound">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M4 9.5h3l4.5-4v13l-4.5-4H4z" fill="currentColor"/>
     <path class="waves" d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.6a7.6 7.6 0 0 1 0 10.8"/>
     <path class="cross" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>
   </svg>
+</button>
+<button id="home" class="btn" type="button" aria-label="Reset zoom" title="Reset zoom">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
 </button>
 <script src="js/core.js"></script>
 <script src="js/shader.js"></script>

@@ -15,7 +15,7 @@
       this.backdrop = new H.Backdrop(this.glCanvas);
       this.sound = sound; sound.world = this;
       this.debug = /[?&](debug|all)\b/.test(location.search);   // ?debug shows every extra element and a small status panel
-      this.clock = 0; this.mouse = { x: 0, y: 0, on: false, lx: 0, ly: 0 }; this.busyUntil = 0; this.press = null; this.errors = [];
+      this.clock = 0; this.mouse = { x: 0, y: 0, on: false, lx: 0, ly: 0 }; this.busyUntil = 0; this.press = null; this.errors = []; this.glMul = 1; this.perf = { n: 0, sum: 0 };
       this.cam = { x: 0, y: 0, zoom: 1, tx: 0, ty: 0, tz: 1 };   // the camera now, and where it is heading
       this.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; this.lastDraw = performance.now();
       this.reset(); this.resize(); this.listen(); if (this.debug) this.makePanel();
@@ -23,13 +23,18 @@
 
     // ---------- size and camera ----------
     resize() {
+      // a tall phone screen fits the island to its width, not to a 3:2 strip (see S below)
       const W = this.W = Math.max(1, window.innerWidth), Hh = this.H = Math.max(1, window.innerHeight);
-      this.S = Math.min(Hh, W / 1.5); this.hw = W / (2 * this.S); this.hh = Hh / (2 * this.S);
-      this.dpr = Math.min(2, window.devicePixelRatio || 1); this.glScale = Math.min(this.dpr, Math.sqrt(3.0e6 / (W * Hh)));   // the shader paints at most about 3 megapixels
+      this.S = Math.min(Hh, W / (W >= Hh ? 1.5 : 1.0)); this.hw = W / (2 * this.S); this.hh = Hh / (2 * this.S);
+      this.dpr = Math.min(2, window.devicePixelRatio || 1); this.glScale = Math.min(this.dpr, Math.sqrt(3.0e6 / (W * Hh))) * this.glMul;   // the shader paints at most about 3 megapixels, fewer on a slow device
       this.glCanvas.width = Math.round(W * this.glScale); this.glCanvas.height = Math.round(Hh * this.glScale);
       this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(Hh * this.dpr);
       this.entities.forEach(e => { if (e.onResize) e.onResize(); });
       this.clampCamera();
+      // turning the phone changes the shape of the screen, so the island is laid out again for it
+      const portrait = W < Hh;
+      if (this.portrait !== undefined && portrait !== this.portrait && this.seed !== undefined) { this.portrait = portrait; this.generate(this.seed); }
+      this.portrait = portrait;
     }
     // World units to canvas pixels. Everything is drawn through this, so shapes are redrawn sharp at any zoom.
     worldSpace() { const c = this.cam, k = this.dpr * this.S * c.zoom; this.c.setTransform(k, 0, 0, k, this.dpr * this.W / 2 - c.x * k, this.dpr * this.H / 2 - c.y * k); }
@@ -44,11 +49,12 @@
       c.x = clamp(c.x, -this.hw * (1 - 1 / zc), this.hw * (1 - 1 / zc)); c.y = clamp(c.y, -this.hh * (1 - 1 / zc), this.hh * (1 - 1 / zc));
     }
     // Zoom by a factor, keeping the world point under (px, py) where it is.
-    zoomAt(factor, px, py) {
+    zoomAt(factor, px, py, instant) {
       const c = this.cam, k0 = this.S * c.tz, wx = c.tx + (px - this.W / 2) / k0, wy = c.ty + (py - this.H / 2) / k0;
       c.tz = clamp(c.tz * factor, 1, H.ZOOM_MAX); const k1 = this.S * c.tz;
       c.tx = wx - (px - this.W / 2) / k1; c.ty = wy - (py - this.H / 2) / k1;
       this.clampCamera(); this.busyUntil = Math.max(this.busyUntil, performance.now() + 1500); this.updateCursor();
+      if (instant) { c.zoom = c.tz; c.x = c.tx; c.y = c.ty; }   // a pinch follows the fingers at once instead of easing
     }
     resetCamera() { const c = this.cam; c.tz = 1; c.tx = c.ty = 0; this.busyUntil = Math.max(this.busyUntil, performance.now() + 1500); this.updateCursor(); }
     // Drag the view by a number of screen pixels.
@@ -60,7 +66,11 @@
       else this.busyUntil = Math.max(this.busyUntil, performance.now() + 200);
       this.clampCamera();
     }
-    updateCursor() { this.canvas.style.cursor = this.cam.tz > 1.02 ? (this.press && this.press.dragged ? 'grabbing' : 'grab') : ''; }
+    updateCursor() {
+      const zoomed = this.cam.tz > 1.02;
+      this.canvas.style.cursor = zoomed ? (this.press && this.press.dragged ? 'grabbing' : 'grab') : '';
+      document.body.classList.toggle('zoomed', zoomed);   // the page shows its reset-zoom button while zoomed
+    }
 
     // ---------- the land ----------
     // Distance to the shore: negative on land, positive at sea.
@@ -95,6 +105,7 @@
       return this.lists;
     }
     generate(seed) {
+      this.seed = seed; const c = this.cam; c.x = c.y = c.tx = c.ty = 0; c.zoom = c.tz = 1; this.updateCursor();
       const G = H.rng(seed);
       for (let attempt = 0; attempt < 40; attempt++) if (H.buildIsland(this, G)) break;
       this.backdrop.setLand(this.map.LAND);
@@ -149,8 +160,9 @@
 
     // ---------- the pointer: click, wheel to zoom, press and drag to pan ----------
     // On the whole island a press is a click at once. Zoomed in, a press waits: moved it is a pan, kept still it is a click when released.
-    pointerDown(px, py) {
-      this.press = { x: px, y: py, lx: px, ly: py, dragged: false, zoomed: this.cam.tz > 1.02 };
+    // A mouse press on the whole island clicks at once. A finger always waits for the release, so a pinch or a pan never clicks.
+    pointerDown(px, py, touch) {
+      this.press = { x: px, y: py, lx: px, ly: py, dragged: false, zoomed: this.cam.tz > 1.02 || !!touch };   // zoomed: a press that waits to see whether it is a pan
       if (!this.press.zoomed) this.click(px, py);
     }
     pointerMove(px, py) {
@@ -167,26 +179,37 @@
       this.updateCursor();
     }
     listen() {
-      window.addEventListener('mousedown', e => { if (e.button === 0) this.pointerDown(e.clientX, e.clientY); });
-      window.addEventListener('mousemove', e => this.pointerMove(e.clientX, e.clientY));
-      window.addEventListener('mouseup', e => { if (e.button === 0) this.pointerUp(e.clientX, e.clientY); });
       document.addEventListener('mouseleave', () => { this.mouse.on = false; if (this.press) { this.press = null; this.updateCursor(); } });
       window.addEventListener('wheel', e => { e.preventDefault(); const px = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1; this.zoomAt(Math.exp(-e.deltaY * px * 0.0015), e.clientX, e.clientY); }, { passive: false });
-      // touch: one finger clicks or pans, two fingers pinch and pan together
-      let pinch = null;
-      const mid = t => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2, Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)];
-      window.addEventListener('touchstart', e => {
-        if (e.touches.length === 2) { this.press = null; pinch = mid(e.touches); return; }
-        const t = e.touches[0]; if (t) { this.pointerDown(t.clientX, t.clientY); this.mouse.on = false; }
-      }, { passive: true });
-      window.addEventListener('touchmove', e => {
-        if (pinch && e.touches.length === 2) {
-          e.preventDefault(); const m = mid(e.touches);
-          this.zoomAt(m[2] / (pinch[2] || m[2]), m[0], m[1]); this.panBy(m[0] - pinch[0], m[1] - pinch[1]); pinch = m; return;
+      // One pointer API for mouse, finger and pen. Two fingers pinch and pan together; a quick second tap zooms in, or back out.
+      const pts = this.pointers = new Map(); let pinch = null, lastTap = null;
+      const pair = () => { const v = [...pts.values()]; return [(v[0].x + v[1].x) / 2, (v[0].y + v[1].y) / 2, Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y)]; };
+      window.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2) { this.press = null; pinch = pair(); return; }
+        if (pts.size > 2) return;
+        if (e.pointerType === 'touch') {
+          if (lastTap && e.timeStamp - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { this.zoomAt(this.cam.tz > 1.5 ? 1 / this.cam.tz : 2.5, e.clientX, e.clientY); lastTap = null; }
+          else lastTap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
         }
-        const t = e.touches[0]; if (t && this.press) { if (this.press.zoomed) e.preventDefault(); this.pointerMove(t.clientX, t.clientY); }
-      }, { passive: false });
-      window.addEventListener('touchend', e => { if (pinch && e.touches.length < 2) { pinch = null; return; } const t = e.changedTouches[0]; if (t) this.pointerUp(t.clientX, t.clientY); });
+        this.pointerDown(e.clientX, e.clientY, e.pointerType !== 'mouse');
+      });
+      window.addEventListener('pointermove', e => {
+        const p = pts.get(e.pointerId); if (p) { p.x = e.clientX; p.y = e.clientY; }
+        if (pinch && pts.size === 2) { const m = pair(); this.zoomAt(m[2] / (pinch[2] || m[2]), m[0], m[1], true); this.panBy(m[0] - pinch[0], m[1] - pinch[1]); pinch = m; return; }
+        if (e.pointerType !== 'mouse' && !p) return;
+        this.pointerMove(e.clientX, e.clientY);
+      });
+      const end = e => {
+        const had = pts.delete(e.pointerId); if (!had && e.pointerType !== 'mouse') return;
+        if (pinch) {   // one finger left after a pinch carries on as a pan, never as a click
+          if (pts.size < 2) { pinch = null; const r = [...pts.values()][0]; if (r) this.press = { x: r.x, y: r.y, lx: r.x, ly: r.y, dragged: true, zoomed: true }; }
+          return;
+        }
+        this.pointerUp(e.clientX, e.clientY); if (e.pointerType !== 'mouse') this.mouse.on = false;
+      };
+      window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
       window.addEventListener('keydown', e => {
         const k = e.key;
         if (k === 'n' || k === 'N') this.generate(Math.floor(Math.random() * 1e9));
@@ -203,7 +226,8 @@
     frame(now) {
       if (document.hidden) { this.lastDraw = now; return; }
       if (now - this.lastDraw < (now < this.busyUntil ? 0 : 30)) return;      // calm sea: half the frames
-      let dt = Math.min(0.05, (now - this.lastDraw) / 1000), i; this.lastDraw = now;
+      const gap = now - this.lastDraw; let dt = Math.min(0.05, gap / 1000), i; this.lastDraw = now;
+      if (gap < 400) { const p = this.perf; p.sum += gap; if (++p.n >= 40) { p.bad = p.sum / p.n > 55 ? (p.bad || 0) + 1 : 0; if (p.bad >= 2 && this.glMul > 0.5) { this.glMul *= 0.8; p.bad = 0; this.resize(); } p.n = 0; p.sum = 0; } }   // two slow stretches in a row: draw fewer pixels
       if (this.reduce) dt *= 0.25;
       this.clock += dt; this.frames = (this.frames || 0) + 1;
       this.easeCamera(dt);

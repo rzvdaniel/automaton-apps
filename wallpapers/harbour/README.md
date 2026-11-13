@@ -5,7 +5,8 @@ A living Irish harbour island for your desktop. Every load builds a different is
 ## Using it
 
 - **Click anything:** it reacts and makes its own sound (sheep baa, the rower hails, the child with the kite shouts, the church rings).
-- **Zoom:** mouse wheel (or `+` / `-`), always sharp; `0` resets. **Pan:** press and drag while zoomed. On a touch screen, pinch and drag.
+- **Zoom:** mouse wheel (or `+` / `-`), always sharp; `0` resets. **Pan:** press and drag while zoomed.
+- **On a phone:** pinch to zoom, drag to pan, double-tap to zoom in or out, a button at the top right resets the zoom; a tap clicks on release. The island fits a tall screen, is laid out again when you rotate, and draws fewer pixels if the device is slow.
 - **Sound:** off until you press the speaker button at the top right; the choice is remembered. Waves come in swells and a gull calls now and then.
 - `?seed=123` repeats an island, `N` makes a new one. `?debug` puts every extra on the island, shows a small status panel and lists problems.
 - `/gallery.html` shows the extras large.

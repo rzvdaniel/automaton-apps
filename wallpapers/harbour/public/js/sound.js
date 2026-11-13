@@ -14,11 +14,11 @@
       this.button = button; this.ctx = null; this.on = false; this.timers = []; this.last = {}; this.world = null;
       let saved = false; try { saved = localStorage.getItem(KEY) === '1'; } catch (e) {}
       if (button) {
-        ['mousedown', 'mouseup', 'touchstart', 'touchend', 'wheel'].forEach(n => button.addEventListener(n, e => e.stopPropagation()));   // the button is not part of the island
+        ['pointerdown', 'pointerup', 'pointercancel', 'wheel'].forEach(n => button.addEventListener(n, e => e.stopPropagation()));   // the button is not part of the island
         button.addEventListener('click', () => this.set(!this.on));
       }
       // a browser only lets a page make sound after the first click or key press
-      if (saved) { this.set(true); const wake = () => { if (this.ctx) this.ctx.resume(); }; ['mousedown', 'touchstart', 'keydown'].forEach(n => window.addEventListener(n, wake, { once: true })); }
+      if (saved) { this.set(true); const wake = () => { if (this.ctx) this.ctx.resume(); }; ['pointerdown', 'keydown'].forEach(n => window.addEventListener(n, wake, { once: true })); }
     }
     set(on) {
       this.on = on;

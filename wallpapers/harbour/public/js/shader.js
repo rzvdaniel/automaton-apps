@@ -5,7 +5,7 @@
   const VS = 'attribute vec2 a; void main(){ gl_Position = vec4(a, 0.0, 1.0); }';
   const FS = [
     'precision highp float;',
-    'uniform vec2 u_res; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAXO + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAXR + '];',
+    'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAXO + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAXR + '];',
     'const vec3 c_dry = vec3(0.957, 0.922, 0.882); const vec3 c_wet = vec3(0.925, 0.863, 0.714); const vec3 c_glow = vec3(0.812, 0.933, 0.769);',
     'const vec3 c_shallow = vec3(0.271, 0.827, 0.812); const vec3 c_mid = vec3(0.086, 0.682, 0.816); const vec3 c_deep = vec3(0.039, 0.416, 0.612);',
     'const vec3 c_foam = vec3(1.0); const vec3 c_grass = vec3(0.663, 0.824, 0.467); const vec3 c_grass2 = vec3(0.455, 0.706, 0.361);',
@@ -15,7 +15,7 @@
     'float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + vec2(17.1, 9.2); a *= 0.5; } return s; }',
     'float smin(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }',
     'void main(){',
-    '  float S = min(u_res.y, u_res.x / 1.5);',
+    '  float S = u_S;',
     '  vec2 fc = gl_FragCoord.xy;',
     '  vec2 ps = vec2(fc.x - 0.5 * u_res.x, 0.5 * u_res.y - fc.y) / S;',   // the screen, in units of the screen's height
     '  vec2 p = ps / u_zoom + u_cam;',                                      // the world under this pixel
@@ -96,7 +96,7 @@
           gl.useProgram(prog); gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
           gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
           const loc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-          ['u_res', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip'].forEach(n => { this.U[n] = gl.getUniformLocation(prog, n); });
+          ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip'].forEach(n => { this.U[n] = gl.getUniformLocation(prog, n); });
         }
       }
       this.gl = gl;
@@ -107,7 +107,7 @@
       gl.viewport(0, 0, cv.width, cv.height);
       this.ripBuf.fill(0);
       world.ripples.forEach((r, j) => { const life = 1 - r.t / 2.8; this.ripBuf.set([r.x, r.y, 0.01 + 0.17 * Math.pow(r.t / 2.8, 0.75) * (0.5 + 0.5 * r.k), r.k * life * life], j * 4); });
-      gl.uniform2f(U.u_res, cv.width, cv.height); gl.uniform1f(U.u_time, world.clock); gl.uniform1f(U.u_dpr, world.glScale); gl.uniform2f(U.u_shift, map.shift[0], map.shift[1]); gl.uniform1f(U.u_zoom, world.cam.zoom); gl.uniform2f(U.u_cam, world.cam.x, world.cam.y);
+      gl.uniform2f(U.u_res, cv.width, cv.height); gl.uniform1f(U.u_S, world.S * world.glScale); gl.uniform1f(U.u_time, world.clock); gl.uniform1f(U.u_dpr, world.glScale); gl.uniform2f(U.u_shift, map.shift[0], map.shift[1]); gl.uniform1f(U.u_zoom, world.cam.zoom); gl.uniform2f(U.u_cam, world.cam.x, world.cam.y);
       gl.uniform3fv(U.u_obj, this.objBuf); gl.uniform3f(U.u_bay, map.BAY[0], map.BAY[1], map.BAY[2]); gl.uniform4fv(U.u_rip, this.ripBuf);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }

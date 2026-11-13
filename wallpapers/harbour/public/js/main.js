@@ -6,5 +6,7 @@
   const asked = Number(new URLSearchParams(location.search).get('seed'));
   world.generate(asked || Math.floor(Math.random() * 1e9));
   world.start();
+  const home = document.getElementById('home');   // the reset-zoom button, shown while zoomed
+  if (home) { ['pointerdown', 'pointerup', 'pointercancel'].forEach(n => home.addEventListener(n, e => e.stopPropagation())); home.addEventListener('click', () => world.resetCamera()); }
   H.world = world;
 })(window.Harbour);
