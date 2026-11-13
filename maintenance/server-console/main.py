@@ -161,7 +161,7 @@ def make_handler(app: Console):
             if status != "ok":
                 return self.json(CLEANUP_STATUS.get(status, 502), {"status": status, "message": message})
             data["warning"] = console.cleanup_warning(data, time.time())
-            data["studioUrl"] = console.studio_server_url(app.settings)
+            data["studioUrl"] = console.studio_server_url(app.settings, data.get("studioUrl"))
             self.json(200, {"status": "ok", "cleanup": data})
 
         def do_GET(self):  # noqa: N802

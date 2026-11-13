@@ -22,7 +22,7 @@ It asks for the `server:read` and `notify:email` permissions, which cannot chang
 | --- | --- | --- |
 | `AUTOMATON_API_URL` | provided by the server | Address of this server's API; nothing to enter. |
 | `API_BASE_URL` | setting, optional | Older override, used only when `AUTOMATON_API_URL` is not set. |
-| `STUDIO_URL` | setting, optional | Studio's address for the Change in Studio link; empty: taken from the page that frames the app, else from the API address. |
+| `STUDIO_URL` | setting, optional | Studio's address for the Change in Studio link; empty: taken from the page that frames the app, else the address the server reports. |
 | `EMAIL_TO` | setting | Who gets warning emails: `administrators` (default), `owner`, `project` or `off`. |
 | `WEBHOOK_URL` | secret | Optional, in addition to the email: a Slack, Discord or Telegram webhook, or any URL that accepts a JSON POST. Empty: no webhook. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300 (5 minutes), 60 to 3600. |
