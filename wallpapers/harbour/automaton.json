@@ -1,0 +1,44 @@
+{
+  "name": "Harbour Wallpaper",
+  "application": {
+    "build": {
+      "singlePageApp": false,
+      "timeoutSeconds": 900
+    },
+    "runtime": {
+      "image": "node:22-bookworm-slim",
+      "command": {
+        "executable": "node",
+        "arguments": [
+          "server.js"
+        ],
+        "workingDirectory": ".",
+        "environment": {},
+        "useShell": false
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "kind": "web",
+    "description": "A living harbour island for your desktop. Click the sea, the sheep, the boats and the church bell.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Harbour"
+      }
+    ],
+    "secrets": [],
+    "permissions": [],
+    "openPaths": [],
+    "settings": [],
+    "schedules": [],
+    "isStaticSite": false
+  }
+}
