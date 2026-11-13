@@ -31,9 +31,11 @@ export class Renderer {
     camera.applyTo(c);
     if (!backdrop.gl) terrain.map.land.forEach(b => disc(c, b[0], b[1], b[2], '#a9d277'));
     c.lineCap = 'round'; c.lineJoin = 'round';
+    const k = viewport.scale * camera.zoom, halfW = viewport.width / (2 * k), halfH = viewport.height / (2 * k);
+    const view = { minX: camera.x - halfW, maxX: camera.x + halfW, minY: camera.y - halfH, maxY: camera.y + halfH };   // what is on screen, in world units
     for (const layer of LAYERS) {
       if (layer === 'effects') effects.draw(c);
-      scene.drawLayer(layer, c, time, () => camera.applyTo(c));
+      scene.drawLayer(layer, c, time, () => camera.applyTo(c), view);
     }
   }
 }

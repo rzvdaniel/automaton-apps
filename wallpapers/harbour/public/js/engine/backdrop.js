@@ -1,19 +1,23 @@
 import { VERTEX_SHADER, FRAGMENT_SHADER, MAX_LAND, MAX_RIPPLES } from './shader-source.js';
+import { RepaintPolicy } from './repaint-policy.js';
 
 const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip'];
 
 /**
  * The backdrop: sea, shore, sand and meadow, painted by a WebGL fragment shader onto its own canvas.
  * If WebGL is not available, `gl` is null and the renderer paints a flat fallback.
+ * The shader is the most expensive thing on the screen, so it is only repainted when needed (see RepaintPolicy).
  */
 export class Backdrop {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
     this.canvas = canvas;
+    this.policy = new RepaintPolicy();
     this.uniforms = {};
     this.landBuffer = new Float32Array(MAX_LAND * 3);
     this.rippleBuffer = new Float32Array(MAX_RIPPLES * 4);
-    this.gl = this.#setup(canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' }));
+    // the picture is kept between frames (preserveDrawingBuffer), so a frame can be skipped without the sea going blank
+    this.gl = this.#setup(canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power', preserveDrawingBuffer: true }));
   }
 
   #setup(gl) {
@@ -39,17 +43,19 @@ export class Backdrop {
 
   /** Gives the shader the island's land blobs (call after the island is laid out). */
   setLand(land) {
+    this.policy.invalidate();
     this.landBuffer.fill(0);
     land.forEach((blob, n) => { if (n < MAX_LAND) this.landBuffer.set(blob, n * 3); });
   }
 
-  /** Resizes the drawing surface to `width` x `height` pixels. */
-  resize(width, height) { this.canvas.width = width; this.canvas.height = height; }
+  /** Resizes the drawing surface to `width` x `height` pixels (which clears it, so it is repainted next). */
+  resize(width, height) { this.canvas.width = width; this.canvas.height = height; this.policy.invalidate(); }
 
-  /** Paints one frame. */
+  /** Paints one frame, or leaves the last picture in place when it still does. */
   render({ viewport, camera, terrain, effects, time }) {
     const gl = this.gl, u = this.uniforms, { map } = terrain;
     if (!gl) return;
+    if (!this.policy.shouldPaint({ x: camera.x, y: camera.y, zoom: camera.zoom, time })) return;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.rippleBuffer.fill(0);
     effects.ripples.forEach((r, j) => {

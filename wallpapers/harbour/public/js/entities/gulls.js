@@ -42,6 +42,7 @@ export class Gull extends Entity {
 // The flock has a wandering centre; each bird mills around its own spot near it and drifts back after a fright.
 export class GullFlock extends Entity {
   static passes = { skyShadow: 'drawShadow', birds: 'draw' };
+  static cullRadius = 0.25;   // the birds wander around the leader
   static clicks = 'many';
   static sound = 'gull';
   hit(x, y) { return this.birds.some(b => Math.hypot(b.x - x, b.y - y) < 0.02); }

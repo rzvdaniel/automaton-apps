@@ -27,10 +27,13 @@ export class Scene {
     if (this.entities.some(e => e.dead)) { this.entities = this.entities.filter(e => !e.dead); this.layerLists = null; }
   }
 
-  /** Draws every entity that appears in the named pass. Each draws in a clean state, so one that forgets to restore cannot spoil the rest. */
-  drawLayer(name, c, t, resetTransform = () => {}) {
+  /**
+   * Draws every entity that appears in the named pass. Each draws in a clean state, so one that forgets to restore cannot spoil the rest.
+   * `view` ({ minX, maxX, minY, maxY } in world units) skips what is wholly off screen, which matters most when zoomed in.
+   */
+  drawLayer(name, c, t, resetTransform = () => {}, view = null) {
     for (const [e, method] of this.#layer(name)) {
-      if (e.dead) continue;
+      if (e.dead || (view && !Scene.inView(e, view))) continue;
       c.save();
       try {
         const sc = e.scale;
@@ -39,6 +42,13 @@ export class Scene {
       } catch (err) { this.fail(e, method, err); resetTransform(); c.globalAlpha = 1; }
       c.restore();
     }
+  }
+
+  /** Could any part of the entity be inside the view? Things with no position are always drawn. */
+  static inView(e, view) {
+    if (e.x === undefined) return true;
+    const r = e.constructor.cullRadius * e.scale;
+    return e.x + r >= view.minX && e.x - r <= view.maxX && e.y + r >= view.minY && e.y - r <= view.maxY;
   }
 
   /** The entities that take clicks, topmost first, each once. */

@@ -13,6 +13,7 @@ const FLUKE_EDGE = new Path2D('M30,-12 C34,-20 36,-30 34,-38 C31,-30 29,-21 27,-
 export class Whale extends Entity {
   static passes = { deep: 'draw', water: 'drawSpout' };
   static clicks = 'many';
+  static cullRadius = 0.25;   // her length, and her calf beside her
   constructor(world, G) { super(world); this.at = world.clock + 20 + G() * 30; this.on = false; this.x = this.y = this.a = 0; this.alpha = 0; this.dive = false; this.swim = 0; this.calf = false; this.blow = 9; this.spout = 9; }
   hit(x, y) { return this.on && !this.dive && Math.hypot(this.x - x, this.y - y) < 0.08; }
   click() { const w = this.world; this.dive = true; w.burst(this.x - Math.cos(this.a) * 0.07, this.y - Math.sin(this.a) * 0.07, 26, 0.16, '255,255,255', 0.006, 1.3); w.ripple(this.x, this.y, 1); }

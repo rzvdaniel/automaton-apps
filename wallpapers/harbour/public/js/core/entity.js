@@ -9,6 +9,8 @@ export class Entity {
   static clicks = null;
   /** The name of the sound made when it is clicked (see audio/sounds.js); or give the class a soundFor(x, y) method. */
   static sound = null;
+  /** How far from its x, y it can draw, in world units (times its scale). It is not drawn when all of that is off screen; something with no x, y is always drawn. */
+  static cullRadius = 0.15;
   /** True for a class that applies its own `scale` (it has several anchor points, or it needs a wake). */
   static ownScale = false;
 
