@@ -231,8 +231,107 @@
     });
   }
 
+  // --- Cleanup card: shown only when an administrator approved server:cleanup for this app. -----------------------------
+
+  var cleanupBox = document.getElementById("cleanup-box");
+  var cleanupState = null;
+  var busy = false;
+
+  function runLine(run) {
+    var result = run.result === "succeeded" ? pill("ok", "Done") : run.result === "failed" ? pill("critical", "Failed") : pill("unknown", run.result === "queued" ? "Queued" : "Running");
+    var freed = run.result === "succeeded" ? " \u00b7 freed " + esc(bytes(run.bytesFreed)) : "";
+    return "<li><span>" + when(run.startedAtUtc) + freed + '<br><span class="a-hint">' + esc(run.runnerName) + " \u00b7 " + esc(run.trigger) +
+      (run.result === "failed" && run.message ? " \u00b7 " + esc(run.message) : "") + "</span></span>" + result + "</li>";
+  }
+
+  function cleanupSummary(c) {
+    var last = (c.runs || [])[0];
+    var status = c.warning ? "warning" : last && last.result === "succeeded" ? "ok" : "unknown";
+    var tiles = stat("Last run", last ? when(last.startedAtUtc) : "never", last ? esc(last.result === "succeeded" ? "succeeded" : last.result) : "", last && last.result === "failed" ? "critical" : last ? "ok" : "") +
+      stat("Freed", last && last.result === "succeeded" ? esc(bytes(last.bytesFreed)) : "-", last && last.message && last.result === "succeeded" ? esc(last.message) : "") +
+      stat("Next run", when(c.nextRunAtUtc), esc(c.settings.timeUtc) + " UTC");
+    return { status: status, html: (c.warning ? '<p class="a-note a-note--warning">' + esc(c.warning) + "</p>" : "") + '<div class="a-stats">' + tiles + "</div>" +
+      ((c.runs || []).length ? '<ul class="a-list spaced">' + c.runs.slice(0, 5).map(runLine).join("") + "</ul>" : "") };
+  }
+
+  function cleanupForm(c) {
+    return '<form id="cleanup-form" class="spaced" style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">' +
+      '<label class="a-field"><span class="a-label">Time (UTC)</span><input class="a-input" name="timeUtc" type="time" required value="' + esc(c.settings.timeUtc) + '"></label>' +
+      '<label class="a-field"><span class="a-label">Keep days</span><input class="a-input" name="keepDays" type="number" min="1" max="365" required value="' + esc(String(c.settings.keepDays)) + '"></label>' +
+      '<label class="a-field"><span class="a-label">Journal limit (MB)</span><input class="a-input" name="journalLimitMb" type="number" min="50" max="100000" required value="' + esc(String(c.settings.journalLimitMb)) + '"></label>' +
+      '<div style="display:flex;gap:8px;align-items:end"><button class="a-btn a-btn--primary" type="submit">Save</button><button class="a-btn" type="button" id="cleanup-run">Run now</button></div></form>' +
+      '<p class="a-note" id="cleanup-message" hidden></p>';
+  }
+
+  function paintCleanup(c) {
+    var summary = cleanupSummary(c);
+    var status = summary.status;
+    var summaryHtml = summary.html;
+    cleanupBox.hidden = false;
+    var existing = document.getElementById("cleanup-summary");
+    var editing = document.getElementById("cleanup-form") && document.getElementById("cleanup-form").contains(document.activeElement);
+    if (!existing) {
+      cleanupBox.innerHTML = card("Cleanup", status, '<div id="cleanup-summary"></div><div id="cleanup-formbox"></div>',
+        "Frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit. Never volumes, apps in use or backups.");
+      cleanupBox.firstChild.classList.add("spaced");
+      document.getElementById("cleanup-formbox").innerHTML = cleanupForm(c);
+      bindCleanup();
+    } else {
+      cleanupBox.querySelector(".a-pill").outerHTML = pill(status);
+      if (!editing && !busy) document.getElementById("cleanup-formbox").innerHTML = cleanupForm(c), bindCleanup();
+    }
+    document.getElementById("cleanup-summary").innerHTML = summaryHtml;
+    UI.updateRelativeTimes(cleanupBox);
+  }
+
+  function say(text, level) {
+    var box = document.getElementById("cleanup-message");
+    if (!box) return;
+    box.hidden = !text;
+    box.className = "a-note" + (level ? " a-note--" + level : "");
+    box.textContent = text || "";
+  }
+
+  function send(method, path, body) {
+    busy = true;
+    return fetch(path, { method: method, cache: "no-store", headers: { "Content-Type": "application/json", "X-Server-Console": "1" }, body: JSON.stringify(body || {}) })
+      .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+      .then(function (result) {
+        busy = false;
+        if (!result.ok) { say(result.data.message || "The server refused the request.", "critical"); return false; }
+        cleanupState = result.data.cleanup;
+        cleanupBox.querySelector("#cleanup-summary") && paintCleanup(cleanupState);
+        return true;
+      }).catch(function () { busy = false; say("Cannot reach the app.", "critical"); return false; });
+  }
+
+  function bindCleanup() {
+    var form = document.getElementById("cleanup-form");
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var data = new FormData(form);
+      send("PUT", "api/cleanup/settings", { timeUtc: data.get("timeUtc"), keepDays: Number(data.get("keepDays")), journalLimitMb: Number(data.get("journalLimitMb")) })
+        .then(function (ok) { if (ok) say("Saved. The next run is at " + cleanupState.settings.timeUtc + " UTC.", "ok"); });
+    });
+    document.getElementById("cleanup-run").addEventListener("click", function () {
+      send("POST", "api/cleanup/run").then(function (ok) { if (ok) { say("Cleanup started. The result appears below within a minute or two.", "ok"); setTimeout(loadCleanup, 20000); } });
+    });
+  }
+
+  function loadCleanup() {
+    fetch("api/cleanup", { cache: "no-store" }).then(function (response) {
+      return response.json().then(function (data) {
+        if (data.status !== "ok") { cleanupBox.hidden = true; return; }
+        cleanupState = data.cleanup;
+        paintCleanup(cleanupState);
+      });
+    }).catch(function () { /* keep what is shown */ });
+  }
+
   UI.bindThemeToggle();
   load();
+  loadCleanup();
+  setInterval(loadCleanup, 30000);
   setInterval(load, 30000);
   setInterval(function () { UI.updateRelativeTimes(document); }, 30000);
 })();

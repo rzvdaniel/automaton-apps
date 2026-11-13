@@ -1,8 +1,10 @@
+import io
 import json
 import os
 import tempfile
 import threading
 import unittest
+from datetime import datetime, timezone
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -460,6 +462,106 @@ class ServerTests(unittest.TestCase):
     def test_status_reveals_only_the_permission_state(self):
         self.app.state["status"] = "not_approved"
         self.assertEqual(json.loads(self.get("/api/status")[1]), {"status": "not_approved"})
+
+
+CLEANUP = {"settings": {"timeUtc": "05:00", "keepDays": 7, "journalLimitMb": 200}, "nextRunAtUtc": "2026-11-14T05:00:00Z",
+           "runs": [{"result": "succeeded", "startedAtUtc": "2026-11-13T05:00:01.1234567Z", "bytesFreed": 1800000000, "runnerName": "main",
+                     "trigger": "scheduled", "message": None}]}
+
+
+class CleanupTests(unittest.TestCase):
+    def test_warns_when_the_last_run_failed_or_is_older_than_two_days(self):
+        now = datetime(2026, 11, 13, 12, 0, tzinfo=timezone.utc).timestamp()
+        self.assertIsNone(console.cleanup_warning(CLEANUP, now))
+        self.assertIsNone(console.cleanup_warning({"runs": []}, now), "a server that never ran yet is not a warning")
+        self.assertIn("more than two days", console.cleanup_warning(CLEANUP, now + 3 * 86400))
+        failed = {"runs": [{"result": "failed", "message": "daemon down", "startedAtUtc": "2026-11-13T05:00:00Z"}]}
+        self.assertEqual(console.cleanup_warning(failed, now), "The last cleanup failed: daemon down")
+
+    def test_the_call_uses_the_key_and_maps_errors(self):
+        class Opener:
+            def __init__(self, error=None):
+                self.error, self.requests = error, []
+
+            def open(self, request, timeout=None):
+                self.requests.append(request)
+                if self.error:
+                    raise urllib.error.HTTPError(request.full_url, self.error[0], "x", {}, io.BytesIO(json.dumps({"error": self.error[1]}).encode()))
+                return io.BytesIO(json.dumps(CLEANUP).encode())
+
+        conf = settings()
+        good = Opener()
+        status, data, _ = console.cleanup_call(conf, "PUT", "/settings", {"timeUtc": "02:00"}, opener=good)
+        self.assertEqual((status, data["settings"]["keepDays"]), ("ok", 7))
+        self.assertEqual((good.requests[0].method, good.requests[0].full_url), ("PUT", "https://api.example.com/api/server/cleanup/settings"))
+        self.assertEqual(good.requests[0].get_header("Authorization"), "Bearer key")
+        for code, text, expected in [(403, "", "not_approved"), (404, "", "unavailable"), (400, "bad time", "bad_request"), (409, "no runner", "no_runner"), (500, "", "error")]:
+            self.assertEqual(console.cleanup_call(conf, "GET", "", opener=Opener((code, text)))[0], expected)
+        self.assertEqual(console.cleanup_call(settings(APP_AUTOMATON_API_KEY=""), "GET", "")[0], "no_key")
+
+
+class CleanupServerTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.calls = []
+        outer = self
+
+        def fake(settings_, method, path, body=None, **_):
+            outer.calls.append((method, path, body))
+            return outer.reply
+
+        self.reply = ("ok", dict(CLEANUP), None)
+        self.original = console.cleanup_call
+        console.cleanup_call = fake
+        env = {"AUTOMATON_APP_DATA_DIR": self.directory.name, "API_BASE_URL": "https://api.example.com"}
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(main.Console(env)))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def tearDown(self):
+        console.cleanup_call = self.original
+        self.server.shutdown()
+        self.server.server_close()
+        self.directory.cleanup()
+
+    def request(self, method, path, body=None, header=True):
+        headers = {"Content-Type": "application/json"}
+        if header:
+            headers["X-Server-Console"] = "1"
+        request = urllib.request.Request(self.base + path, data=None if body is None else json.dumps(body).encode(), method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as error:
+            return error.code, json.loads(error.read())
+
+    def test_the_card_data_is_read_through_the_key(self):
+        status, body = self.request("GET", "/api/cleanup")
+        self.assertEqual((status, body["status"], body["cleanup"]["settings"]["keepDays"]), (200, "ok", 7))
+        self.assertEqual(self.calls, [("GET", "", None)])
+
+    def test_the_card_is_hidden_data_when_the_permission_is_missing(self):
+        self.reply = ("not_approved", None, "nope")
+        self.assertEqual(self.request("GET", "/api/cleanup")[0], 403)
+        self.reply = ("unavailable", None, "old server")
+        self.assertEqual(self.request("GET", "/api/cleanup")[0], 404)
+
+    def test_saving_and_running_forward_only_the_known_fields(self):
+        status, _ = self.request("PUT", "/api/cleanup/settings", {"timeUtc": "02:00", "keepDays": 3, "journalLimitMb": 100, "evil": 1})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.calls[-1], ("PUT", "/settings", {"timeUtc": "02:00", "keepDays": 3, "journalLimitMb": 100}))
+        self.assertEqual(self.request("POST", "/api/cleanup/run", {})[0], 200)
+        self.assertEqual(self.calls[-1][:2], ("POST", "/run"))
+
+    def test_changes_need_the_pages_own_header(self):
+        self.assertEqual(self.request("POST", "/api/cleanup/run", {}, header=False)[0], 403)
+        self.assertEqual(self.request("PUT", "/api/cleanup/settings", {"keepDays": 3}, header=False)[0], 403)
+        self.assertEqual(self.calls, [])
+
+    def test_the_servers_message_is_passed_back(self):
+        self.reply = ("no_runner", None, "No server Runner is online")
+        status, body = self.request("POST", "/api/cleanup/run", {})
+        self.assertEqual((status, body["message"]), (409, "No server Runner is online"))
 
 
 if __name__ == "__main__":

@@ -1,15 +1,16 @@
 # Server Console
 
-A read-only dashboard for your Automaton server: how the machine and its Runners are doing, without SSH.
+A dashboard for your Automaton server: how the machine and its Runners are doing, and the nightly cleanup, without SSH.
 
 - **Resources:** CPU, memory, disk and load with 24 hours of history, and Docker disk use.
 - **Server:** Automaton version, whether a newer release exists, OS name and uptime.
 - **Updates:** pending and security OS updates (and how long security updates have been waiting) and whether a restart is required.
 - **Runners:** version, online state and whether an upgrade is available.
 - **Backups and certificates:** age of the last successful backup and days until the Studio and API certificates expire.
+- **Cleanup:** the nightly Docker and journal cleanup of the server: last run and result, space freed, next run, the last runs, a **Run now** button and the schedule (time in UTC, keep days, journal limit). It warns when the last run failed or is more than two days old. The card appears only after an administrator approves `server:cleanup` (below).
 - **Warnings:** one email (through your server's own SMTP) and, if you set one, one webhook message when disk free space drops below a threshold (default 20%, that is a disk more than 80% full), security updates wait longer than 7 days, or a restart has been required for more than 3 days, and one webhook message when it is resolved. Each warning says what to do about it, on the page and in the email.
 
-It asks for the `server:read` and `notify:email` permissions, so it cannot change anything on the server; the email goes only to the people you choose below.
+It asks for the `server:read` and `notify:email` permissions, which cannot change anything on the server (the email goes only to the people you choose below), and `server:cleanup`, which lets the Cleanup card change the cleanup schedule and run it. Approve `server:cleanup` only if just administrators can open this app: the app cannot tell its visitors apart, so everyone who can open it can then use the card. Without the approval (or on a server older than the cleanup API) the card is hidden. Needs an Automaton Server with the cleanup API for the card.
 
 ## Install and set up
 
