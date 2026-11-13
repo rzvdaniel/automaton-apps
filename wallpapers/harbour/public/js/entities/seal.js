@@ -1,5 +1,5 @@
 // A seal hauled out on a rock or the sand. It dozes, breathes and now and then lifts its head.
-// Click it and it wriggles down to the sea, swims about with just its head showing, then comes back to its spot.
+// Click it and it wriggles down to the sea, swims about with its head above the water and its body, flippers and tail showing through it, then comes back to its spot.
 // new Seal(world, { x, y, a, kind })   kind: 'grey', 'brown' or 'pup' (white and fluffy). Place it on land within reach of the water.
 import { TAU, shade, angDiff, disc, oval, sprite, fillPath, strokePath, Entity } from '../core/index.js';
 
@@ -55,7 +55,16 @@ export class Seal extends Entity {
     const coat = Object.assign({ kind: this.kind }, COATS[this.kind]), breathe = 1 + 0.035 * Math.sin(t * 1.4 + this.seed), size = U * (this.kind === 'pup' ? 0.72 : 1);
     if (this.wet) {   // swimming: head and shoulders, the rest a shape under the water
       for (let i = 0; i < 2; i++) { const p = (t * 0.45 + this.seed + i * 0.5) % 1; c.strokeStyle = 'rgba(255,255,255,' + (0.5 * (1 - p)) + ')'; c.lineWidth = 0.0007; c.beginPath(); c.ellipse(this.x, this.y, 0.004 + p * 0.011, 0.003 + p * 0.008, 0, 0, TAU); c.stroke(); }
-      sprite(c, this.x, this.y + Math.sin(t * 2 + this.seed) * 0.0004, this.a, size, () => { oval(c, 6, 0, 34, 13, shade(0.3)); oval(c, 30, -1, 13, 11, coat.dark); this.face(c, coat); });
+      sprite(c, this.x, this.y + Math.sin(t * 2 + this.seed) * 0.0004, this.a, size, () => {
+        oval(c, 8, 5, 40, 14, shade(0.22));   // its shadow on the sea bed
+        // under the water the whole seal shows through as a murky shape: the hind flippers sculling, the fore flippers paddling, the body
+        c.globalAlpha = 0.55;
+        c.save(); c.translate(-52, 2); c.rotate(0.3 * Math.sin(t * 5 + this.seed)); fillPath(c, HIND, coat.flipper); c.restore();
+        [-1, 1].forEach(s => { c.save(); c.translate(18, s * 15); c.scale(1, s); c.rotate(0.45 * Math.sin(t * 5 + this.seed + s)); fillPath(c, FORE, coat.flipper); c.restore(); });
+        fillPath(c, BODY, coat.dark);
+        c.globalAlpha = 1;
+        oval(c, 30, -1, 13, 11, coat.dark); this.face(c, coat);   // head and shoulders above the surface
+      });
       return;
     }
     const moving = this.state !== 'bask', hump = moving ? 1 + 0.08 * Math.sin(t * 16) : 1;
