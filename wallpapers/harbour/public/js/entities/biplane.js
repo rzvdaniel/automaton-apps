@@ -10,6 +10,7 @@
   H.Biplane = class extends H.Entity {
     static passes = { skyShadow: 'drawShadow', clouds: 'draw' };
     static clicks = 'top';
+    static sound = 'engine';
     constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.a = o.a || 0; this.bank = 0; this.roll = 0; this.seed = Math.random() * 9; this.puff = 0; this.goal = this.pick(); }
     pick() { const w = this.world; return [(Math.random() - 0.5) * 2 * (w.hw + 0.1), (Math.random() - 0.5) * 2 * (w.hh + 0.1)]; }
     hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.04; }

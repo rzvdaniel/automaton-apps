@@ -145,12 +145,15 @@
     };
     const trees = [], gorse = [], heather = [];
     let marram = [];
-    for (i = 0; i < 3; i++) for (k = 0; k < 30; k++) {
+    // Trees grow in groves of one kind: the island has a few grove centres, and a tree takes the kind of the nearest centre
+    // (nine times in ten, so there are now and then strays). Every kind appears somewhere.
+    const KINDS = ['Oak', 'Pine', 'Birch'], groves = KINDS.concat([pick(KINDS)]).map(kind => { let g = null; for (let s2 = 0; s2 < 60 && !g; s2++) { const gx = between(-hw, hw), gy = between(-hh, hh); if (field(gx, gy) < -0.08) g = { x: gx, y: gy, kind: kind }; } return g || { x: cx, y: cy, kind: kind }; });
+    const kindAt = (px, py) => { if (G() > 0.9) return pick(KINDS); let best = groves[0], bd = 1e9; groves.forEach(g => { const d = Math.hypot(g.x - px, g.y - py); if (d < bd) { bd = d; best = g; } }); return best.kind; };
+    for (i = 0; i < 3; i++) for (k = 0; k < 30; k++) {   // woods
       x = between(-hw, hw); y = between(-hh, hh);
-      if (field(x, y) < -0.11 && !inCell(x, y)) { const kind = pick(['Oak', 'Oak', 'Pine', 'Birch']); scatter(trees, 12 + Math.floor(G() * 14), x, y, between(0.05, 0.08), 0.072, 9, 0.015, o => { o.kind = G() < 0.72 ? kind : pick(['Oak', 'Pine', 'Birch']); }); break; }
+      if (field(x, y) < -0.11 && !inCell(x, y)) { scatter(trees, 12 + Math.floor(G() * 14), x, y, between(0.05, 0.08), 0.072, 9, 0.015, o => { o.kind = kindAt(o.x, o.y); }); break; }
     }
-    // single trees: hawthorns near the shore where the wind is, anything further in
-    scatter(trees, 18, cx, cy, 0.6, 0.068, 9, 0.012, (o, f) => { o.kind = f > -0.1 ? (G() < 0.75 ? 'Hawthorn' : 'Pine') : pick(['Oak', 'Birch', 'Hawthorn', 'Pine']); });
+    scatter(trees, 18, cx, cy, 0.6, 0.068, 9, 0.012, o => { o.kind = kindAt(o.x, o.y); });   // single trees, by the same rule
     scatter(gorse, 46, cx, cy, 0.8, 0.04, 0.085, 0.0062);
     scatter(heather, 22, cx, cy, 0.8, 0.075, 9, 0.008);
     scatter(marram, 90, cx, cy, 0.9, 0.01, 0.042, 0.006);

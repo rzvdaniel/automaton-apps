@@ -20,6 +20,7 @@
   H.Sheep = class extends H.Entity {
     static passes = { ground: 'draw' };
     static clicks = 'many';
+    static sound = 'sheep';
     constructor(world, o) { super(world); Object.assign(this, o); this.tx = this.x; this.ty = this.y; this.fear = 0; }   // o: x, y, a, cell, lamb, wait
     hit(x, y) { return Math.hypot(this.x - x, this.y - y) <= 0.05; }
     click(x, y) {

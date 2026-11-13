@@ -17,6 +17,7 @@
       if (dt) this.ka += H.angDiff(Math.atan2(uy, ux) + 0.9 * Math.cos(t) + (this.loop ? this.loop * H.TAU : 0), this.ka) * Math.min(1, dt * 6);
       void px; void py;
     }
+    soundFor(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.01 ? 'yay' : 'flutter'; }   // the child, or the kite
     hit(x, y) { return Math.hypot(this.kx - x, this.ky - y) < 0.016 || Math.hypot(this.x - x, this.y - y) < 0.01; }
     click(x, y) { if (Math.hypot(this.x - x, this.y - y) < 0.01) this.hop = 1; else if (!this.loop) this.loop = 0.001; }
     update(dt) { this.hop = Math.max(0, this.hop - dt); if (this.loop) { this.loop += dt / 1.3; if (this.loop >= 1) this.loop = 0; } this.place(dt); }

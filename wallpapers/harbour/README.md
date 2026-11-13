@@ -1,54 +1,30 @@
 # Harbour Wallpaper
 
-A living Irish harbour island for your desktop. Every load builds a different island: a harbour town, walled fields with sheep, a church, a lighthouse, stony shores, boats, a shark, gulls and clouds.
+A living Irish harbour island for your desktop. Every load builds a different island: a harbour town, walled fields with sheep, a church, a lighthouse, stony shores, boats, sharks, a whale, gulls and clouds, plus a random 4–6 of twelve extras (seals, puffins, cows, a dolmen, a balloon, a biplane, dolphins, a currach, a kite, a buoy, jellyfish, thatched cottages).
 
-## What reacts
+## Using it
 
-- **The sea:** click for rings; fish bolt and gulls veer away. The pointer leaves a faint wake.
-- **The town:** the church bell rings and sends its gulls off, chimneys start or stop smoking, people hop, walkers hurry, the car toots and speeds off.
-- **The land:** sheep run from a click but stay inside their walls; trees and gorse shake. Trees sway in the wind on their own.
-- **The shore:** the fisherman lands a fish (sometimes a boot), the lighthouse switches on or off.
-- **Boats and beasts:** sailing boats speed up, moored boats rock, the shark and the whale dive.
-- **The sky:** a clicked cloud blows away.
+- **Click anything:** it reacts and makes its own sound (sheep baa, the rower hails, the child with the kite shouts, the church rings).
+- **Zoom:** mouse wheel (or `+` / `-`), always sharp; `0` resets. **Pan:** press and drag while zoomed. On a touch screen, pinch and drag.
+- **Sound:** off until you press the speaker button at the top right; the choice is remembered. Waves come in swells and a gull calls now and then.
+- `?seed=123` repeats an island, `N` makes a new one. `?debug` puts every extra on the island, shows a small status panel and lists problems.
+- `/gallery.html` shows the extras large.
 
-`?seed=123` repeats a scene and `N` makes a new one. `?debug` puts every extra element on the island at once (the console lists them). Sound (waves, gulls, the bell) is off until you press the button at the top right.
-
-## Use it as a wallpaper
-
-On Windows, [Lively Wallpaper](https://www.rocksdanister.com/lively/) shows a web page as the desktop background. Give it the app's address, or `public/index.html` from this folder.
+On Windows, [Lively Wallpaper](https://www.rocksdanister.com/lively/) shows a web page as the desktop background: give it the app's address.
 
 ## How it works
 
-Plain scripts in `public/js`, no build step and no dependencies:
+Plain scripts in `public/js`, no build step, no dependencies:
 
-- `core.js`: helpers and the `Entity` base class.
-- `world.js`: the entity list, drawing layers, clicks and the frame loop.
-- `shader.js`: a WebGL fragment shader paints sea, shore, sand and meadow.
-- `island.js`: builds the island from a seed and fills the world with entities.
-- `sound.js`: all sound, synthesised in the browser.
-- `entities/`: one class per thing (`Shark`, `Gull`, `GullFlock`, `Car`, `Lighthouse`, ...). Each owns its state, movement, drawing and click reaction.
-- `server.js` (in the app folder): a dependency-free Node.js server for the page. Nothing is stored.
+- `core.js` helpers and the `Entity` base class · `world.js` entities, camera, clicks, frame loop · `shader.js` sea, shore and meadow, painted by a shader that takes the camera · `island.js` builds an island from a seed · `sound.js` audio machinery · `sounds.js` the named sounds · `entities/` one class per thing.
+- `server.js` is a small static server; nothing is stored.
 
-To add something: write a class that extends `Harbour.Entity` in `entities/`, load it in `index.html`, and add it at the end of `island.js`.
+## Changing it
 
-## Extra elements, not placed yet
-
-Painted and working, loaded by the page, but not on the island until `island.js` adds them. See them all at `/gallery.html`. Each file's header says where the element belongs.
-
-| Class | Add with | Lives |
-| --- | --- | --- |
-| `Seal` | `new H.Seal(world, { x, y, a, kind })` kind: grey, brown, pup | on shore rocks or sand, near water |
-| `Balloon` | `new H.Balloon(world, { x, y })` | the sky |
-| `Biplane` | `new H.Biplane(world, { x, y, a })` | the sky |
-| `DolphinPod` | `new H.DolphinPod(world, { x, y, a, count })` | deep water |
-| `Currach` | `new H.Currach(world, { x, y, a })` | water near the coast |
-| `Puffin` | `new H.Puffin(world, { x, y, flip })` | cliff tops by the shore, in small groups |
-| `Cow` | `new H.Cow(world, { x, y, a, kind })` kind: friesian, red, kerry | open meadow |
-| `Dolmen` | `new H.Dolmen(world, { x, y })` | open meadow |
-| `Cottage` | `new H.Cottage(world, { x, y, a, w, smoke })` | anywhere a `House` goes |
-| `Kite` | `new H.Kite(world, { x, y })` x, y: the child | open meadow or beach |
-| `Buoy` | `new H.Buoy(world, { x, y })` | open water off the harbour |
-| `JellyBloom` | `new H.JellyBloom(world, { x, y, count })` | any water |
+- **Add something:** write a class extending `Harbour.Entity` in `entities/` (copy a similar one), load it in `index.html`, add it in `island.js`. Its `static passes` says when it is drawn, `static clicks` how it takes clicks, `static sound` which sound it makes.
+- **Add a sound:** one line in `H.SOUNDS` (`sounds.js`), built from `tone`, `noise` and `say`; then name it in a class.
+- **Resize a kind of thing:** `H.SCALES` at the top of `island.js` (`Seal: 1.5`). Any entity also has a `scale`.
+- **Robustness:** a thing that throws is logged once and removed; the rest keeps running. Drawing happens in the camera's space, so nothing is a fixed-size picture.
 
 ## Run locally
 

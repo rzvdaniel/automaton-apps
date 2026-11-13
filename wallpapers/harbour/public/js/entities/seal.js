@@ -16,6 +16,7 @@
 
   H.Seal = class extends H.Entity {
     static clicks = 'one';
+    static sound = 'seal';
     constructor(world, o) {
       super(world); this.x = this.hx = o.x; this.y = this.hy = o.y; this.a = this.ha = o.a || 0; this.kind = o.kind || 'grey';
       this.state = 'bask'; this.seed = Math.random() * 9; this.timer = 0; this.look = 0;

@@ -9,6 +9,7 @@
   H.Cow = class extends H.Entity {
     static passes = { ground: 'draw' };
     static clicks = 'many';
+    static sound = 'moo';
     constructor(world, o) {
       super(world); this.x = this.hx = o.x; this.y = this.hy = o.y; this.a = o.a || 0; this.kind = o.kind || 'friesian'; this.tx = o.x; this.ty = o.y; this.wait = Math.random() * 6; this.fear = 0; this.seed = Math.random() * 9; this.step = 0;
       this.patches = []; for (let i = 0; i < 5; i++) this.patches.push([-36 + Math.random() * 68, -12 + Math.random() * 24, 7 + Math.random() * 9, 5 + Math.random() * 6, Math.random() * TAU]);

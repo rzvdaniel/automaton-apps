@@ -4,6 +4,8 @@ window.Harbour = (function () {
   'use strict';
   const H = { TAU: Math.PI * 2, SHADE: '16,48,70' };
 
+  // The name a class is known by in H (classes made with H.X = class {...} have no name of their own).
+  const names = new Map(); H.nameOf = cls => { if (!names.has(cls)) names.set(cls, Object.keys(H).find(k => H[k] === cls) || cls.name || 'Entity'); return names.get(cls); };
   H.shade = a => 'rgba(' + H.SHADE + ',' + a + ')';
   H.clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   H.lerp = (a, b, u) => a + (b - a) * u;
@@ -45,6 +47,7 @@ window.Harbour = (function () {
   H.Entity = class {
     static passes = { upright: 'draw' };
     static clicks = null;
+    static sound = null;   // the name of the sound made when this is clicked (see sounds.js); or give the class a soundFor(x, y) method
     static ownScale = false;   // true for a class that applies its own scale (it has several anchor points, or draws in screen space)
     constructor(world) { this.world = world; this.dead = false; this.scale = 1; }   // scale: 1 is as designed; the world draws and clicks it at any other size, about its x, y
     update(dt) {}

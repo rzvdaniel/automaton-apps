@@ -6,6 +6,10 @@
   const { TAU, disc } = H, U = 0.00042, TINTS = [['235,246,255', '190,170,235'], ['255,236,246', '240,150,190'], ['236,255,250', '140,205,215']];
   H.JellyBloom = class extends H.Entity {
     static passes = { deep: 'draw' };
+    static clicks = 'many';
+    static sound = 'bloop';
+    hit(x, y) { return this.jellies.some(j => Math.hypot(j.x - x, j.y - y) < 0.016 * j.size); }
+    click(x, y) { this.onScare(x, y, 0.2, true); }
     constructor(world, o) {
       super(world); this.x = o.x; this.y = o.y; this.jellies = [];
       for (let i = 0; i < (o.count || 6); i++) { const g = Math.random() * TAU, d = Math.sqrt(Math.random()) * 0.045; this.jellies.push({ x: o.x + Math.cos(g) * d, y: o.y + Math.sin(g) * d * 0.8, hx: Math.cos(g) * d, hy: Math.sin(g) * d * 0.8, a: Math.random() * TAU, ph: Math.random() * TAU, size: 0.6 + Math.random() * 0.7, tint: TINTS[i % 3], vx: 0, vy: 0 }); }

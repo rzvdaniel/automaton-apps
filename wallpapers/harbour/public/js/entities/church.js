@@ -3,11 +3,12 @@
   'use strict';
   H.Church = class extends H.Entity {
     static clicks = 'one';
+    static sound = 'bell';
     constructor(world, o) { super(world); Object.assign(this, o); this.pop = 0; }   // o: x, y, a
     update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
     hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.03; }
     click() {
-      const w = this.world; this.pop = 1; w.sound.bell();
+      const w = this.world; this.pop = 1;
       for (let i = 0; i < 3; i++) w.ring(this.x, this.y, i * 0.45);
       for (let i = 0; i < 3 && w.count(H.Gull) < 12; i++) { const b = w.add(new H.Gull(w, this.x, this.y, Math.random() * H.TAU)); b.rush = 1.5; }
     }

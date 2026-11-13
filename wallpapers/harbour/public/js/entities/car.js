@@ -6,6 +6,7 @@
   const L = 0.0125, Wd = 0.0062, PAINT = [['#d9473a', '#ee7563'], ['#f0b93a', '#f8d778'], ['#2b8089', '#58aab1'], ['#f3ede0', '#ffffff'], ['#5d86b4', '#8fb0d6']];
   H.Car = class extends H.Entity {
     static clicks = 'one';
+    static sound = 'honk';
     constructor(world, G) {
       super(world); this.roads = world.map.roads; this.r = 1; this.s = G() * (this.roads[1].pts.length - 2); this.dir = G() < 0.5 ? 1 : -1;
       this.paint = PAINT[Math.floor(G() * PAINT.length)]; this.wait = 0; this.rush = 0; this.a = 0; this.dust = 0; this.x = this.y = 0; this.bounce = 0;
@@ -18,7 +19,7 @@
       this.heading = Math.atan2((p[n + 1][1] - p[n][1]) * this.dir, (p[n + 1][0] - p[n][0]) * this.dir);
     }
     hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.014; }
-    click() { this.rush = 2.5; this.wait = 0; this.bounce = 1; this.world.sound.honk(); }
+    click() { this.rush = 2.5; this.wait = 0; this.bounce = 1; }
     update(dt) {
       this.rush = Math.max(0, this.rush - dt); this.bounce = Math.max(0, this.bounce - dt * 2);
       this.a += H.angDiff(this.heading, this.a) * Math.min(1, dt * 5);

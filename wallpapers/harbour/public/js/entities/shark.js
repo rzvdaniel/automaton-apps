@@ -11,6 +11,7 @@
   H.Shark = class extends H.Entity {
     static passes = { deep: 'drawBody' };
     static clicks = 'many';
+    static sound = 'thump';
     constructor(world, G, size) { super(world); this.size = size || 1;   // 1 is the usual shark; the island adds a smaller and a bigger one
        this.ph = G() * 9; this.swim = 0; this.alpha = 0; this.dive = false; this.away = 0; this.hunt = null; this.mood = 10 + G() * 14; this.x = this.y = this.a = 0; this.surface(); }
     // Come up somewhere in deep water.
