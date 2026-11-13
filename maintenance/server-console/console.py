@@ -99,7 +99,7 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
 
 def studio_server_url(settings: Settings) -> str | None:
     """Studio's Server page from STUDIO_URL, else from the API address (api.example.com -> studio.example.com), else None."""
-    base = settings.studio_url
+    base = settings.studio_url if urlsplit(settings.studio_url).scheme in ("http", "https") else ""
     if not base:
         host = urlsplit(settings.api_base_url).hostname or ""
         scheme = urlsplit(settings.api_base_url).scheme

@@ -504,6 +504,7 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual(console.studio_server_url(settings(API_BASE_URL="https://api.example.com")), "https://studio.example.com/server")
         self.assertEqual(console.studio_server_url(settings(STUDIO_URL="https://studio.test.example/")), "https://studio.test.example/server")
         self.assertIsNone(console.studio_server_url(settings(API_BASE_URL="https://other.example.com")))
+        self.assertIsNone(console.studio_server_url(settings(API_BASE_URL="https://other.example.com", STUDIO_URL="javascript:alert(1)")))
 
 
 class CleanupServerTests(unittest.TestCase):
