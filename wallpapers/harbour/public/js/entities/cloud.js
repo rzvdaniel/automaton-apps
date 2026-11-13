@@ -21,8 +21,8 @@ export class Cloud extends Entity {
     const s = this.scale * this.r; c.beginPath();
     this.puffs.forEach(p => { const x = this.x + (p.x + dx) * s, y = this.y + (p.y + dy) * s; c.moveTo(x + p.r * s * m, y); c.arc(x, y, p.r * s * m, 0, TAU); });
   }
-  hit(x, y) { const s = this.scale * this.r; return !this.fade && this.puffs.some(p => Math.hypot(this.x + p.x * s - x, this.y + p.y * s - y) < p.r * s); }
-  click(x, y) { this.fade = true; this.world.burst(x, y, 12, 0.1, '255,255,255', 0.009, 0.9); }
+  hit(x, y) { const s = this.scale * this.r; return this.puffs.some(p => Math.hypot(this.x + p.x * s - x, this.y + p.y * s - y) < p.r * s); }
+  click(x, y) { this.world.burst(x, y, 12, 0.1, '255,255,255', 0.009, 0.9); }
   update(dt) {
     const w = this.world, wind = w.wind, hw = w.hw, hh = w.hh;
     this.x += wind[0] * this.speed * dt; this.y += wind[1] * this.speed * dt;

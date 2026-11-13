@@ -1,4 +1,4 @@
-// The sleek shark: same habits as Shark (cruising, hunting fish schools, diving when clicked), a different shape.
+// The sleek shark: same habits as Shark (cruising, hunting fish schools, splashing when clicked), a different shape.
 // A smooth torpedo body with a lighter ridge along the back, gill slits, small pelvic fins and a proper two-lobed tail.
 // new SleekShark(world, G, size)   size 1 is the usual length; the island adds one smaller and one bigger shark.
 import { lerp, sprite } from '../core/index.js';

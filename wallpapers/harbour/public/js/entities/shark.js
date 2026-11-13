@@ -1,5 +1,5 @@
 // A shark seen as a shadow under the water, swimming with its whole body. Mostly it cruises. Now and then it goes for a school
-// of fish, which scatters. Click it and it dives for a while.
+// of fish, which scatters. Click it and it splashes, but keeps swimming.
 import { TAU, lerp, angDiff, Entity } from '../core/index.js';
 import { FishSchool } from './fish.js';
 
@@ -20,7 +20,7 @@ export class Shark extends Entity {
     this.away = 5;
   }
   hit(x, y) { return !this.away && !this.dive && Math.hypot(this.x - x, this.y - y) < 0.045 * this.size; }
-  click() { const w = this.world; this.dive = true; this.hunt = null; w.ripple(this.x, this.y, 0.9); w.burst(this.x, this.y, 16, 0.1, '255,255,255', 0.004, 1); }
+  click() { const w = this.world; w.ripple(this.x, this.y, 0.9); w.burst(this.x, this.y, 16, 0.1, '255,255,255', 0.004, 1); }
   update(dt) {
     const w = this.world;
     if (this.away > 0) { this.away -= dt; if (this.away <= 0) { this.away = 0; this.surface(); } return; }

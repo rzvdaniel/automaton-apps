@@ -1,5 +1,5 @@
 // A humpback whale that crosses the deep water now and then, sometimes with a calf at her side.
-// She swims with her whole body, steers with long white-edged flippers, and blows when she surfaces. Click her and she dives.
+// She swims with her whole body, steers with long white-edged flippers, and blows when she surfaces. Click her and she splashes, but keeps swimming.
 import { shade, lerp, angDiff, disc, oval, sprite, fillPath, Entity } from '../core/index.js';
 
 const U = 0.00085, N = 28, HALF = 25;   // one painting unit in world units; spine segments; half the body's width
@@ -16,7 +16,7 @@ export class Whale extends Entity {
   static cullRadius = 0.25;   // her length, and her calf beside her
   constructor(world, G) { super(world); this.at = world.clock + 20 + G() * 30; this.on = false; this.x = this.y = this.a = 0; this.alpha = 0; this.dive = false; this.swim = 0; this.calf = false; this.blow = 9; this.spout = 9; }
   hit(x, y) { return this.on && !this.dive && Math.hypot(this.x - x, this.y - y) < 0.08; }
-  click() { const w = this.world; this.dive = true; w.burst(this.x - Math.cos(this.a) * 0.07, this.y - Math.sin(this.a) * 0.07, 26, 0.16, '255,255,255', 0.006, 1.3); w.ripple(this.x, this.y, 1); }
+  click() { const w = this.world; w.burst(this.x - Math.cos(this.a) * 0.07, this.y - Math.sin(this.a) * 0.07, 26, 0.16, '255,255,255', 0.006, 1.3); w.ripple(this.x, this.y, 1); }
   // Set off on a straight course from (x1, y1) to (x2, y2).
   cross(x1, y1, x2, y2) { this.on = true; this.x = x1; this.y = y1; this.a = Math.atan2(y2 - y1, x2 - x1); this.alpha = 0; this.dive = false; this.calf = this.world.debug || Math.random() < 0.45; this.blow = 4 + Math.random() * 5; this.child = null; }   // some whales have a calf; in ?debug all do
   update(dt) {
