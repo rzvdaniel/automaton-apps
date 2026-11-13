@@ -187,7 +187,7 @@ class PageTests(unittest.TestCase):
         for needle in ('data-look="system"', 'class="a-topbar"', "fonts.googleapis.com/css2?family=Bricolage+Grotesque", 'href="console.css"'):
             self.assertIn(needle, page)
         script = open(os.path.join(here, "dashboard.js"), encoding="utf-8").read()
-        for needle in ("a-columns", "a-banner", 'class="summary"'):
+        for needle in ("class=\"cards\"", "a-banner", 'class="summary"'):
             self.assertIn(needle, script)
 
 
@@ -226,6 +226,35 @@ class AttentionTests(unittest.TestCase):
         self.assertEqual(console.plural(1, "day"), "1 day")
         self.assertEqual(console.plural(2, "day"), "2 days")
         self.assertEqual([i["title"] for i in self.items(data)], ["A Runner is offline."])
+
+    def test_every_card_in_warning_has_an_item_and_the_count_matches(self):
+        data = health(disk_free_gb=19, security=2, reboot=True, reboot_days=5, memoryAvailableBytes=GB // 2, cpuPercent=90.0, updatesPending=30)
+        data["server"]["updateAvailable"] = True
+        data["runners"][0]["upgradeAvailable"] = True
+        data["certificates"][0]["daysRemaining"] = 10
+        data["backup"]["lastSuccessAgeHours"] = 40
+        state = console.new_state()
+        console.record(state, data, NOW)
+        conf = settings()
+        status = console.assess(data, state, conf, NOW)
+        items = console.attention(data, status, conf, NOW)
+        cards = {"server": "server", "runners": "runners", "updates": "updates", "resources": "resources", "backups": "backup", "certificates": "certificates"}
+        raised = {name for name, key in cards.items() if status[key] in ("warning", "critical")}
+        self.assertEqual(raised, set(cards))
+        self.assertEqual({i["card"] for i in items}, raised)
+        self.assertTrue(all(i["detail"] or i["command"] for i in items))
+        self.assertEqual(len(items), len({(i["title"]) for i in items}))
+
+    def test_a_runner_upgrade_alone_is_listed(self):
+        data = health()
+        data["runners"][0]["upgradeAvailable"] = True
+        items = self.items(data)
+        self.assertEqual([(i["title"], i["card"], i["level"]) for i in items], [("Upgrade a Runner.", "runners", "warning")])
+        self.assertIn("main", items[0]["detail"])
+
+    def test_many_pending_updates_are_listed(self):
+        items = self.items(health(updatesPending=30))
+        self.assertEqual([(i["title"], i["card"]) for i in items], [("Install 30 updates.", "updates")])
 
     def test_reclaimable_space_is_images_and_build_cache(self):
         free = console.reclaimable({"dockerImagesBytes": 3 * GB, "dockerBuildCacheBytes": GB, "dockerVolumesBytes": 5 * GB})

@@ -245,31 +245,42 @@ def attention(health: dict | None, status: dict, settings: Settings, now: float)
     host = health.get("host") or {}
     items: list[dict] = []
 
-    def add(level, title, detail, command=""):
+    def add(level, title, detail, command="", card=""):
         if level in (WARNING, CRITICAL):
-            items.append({"level": level, "title": title, "detail": detail, "command": command})
+            items.append({"level": level, "title": title, "detail": detail, "command": command, "card": card})
 
     free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
     if free is not None:
         add(status.get("disk"), "Free disk space.",
             f"{100 - free:g}% of the disk is used (warning above {100 - settings.disk_free_percent}%). Automaton frees unused Docker images every night; to do it now:",
-            "docker image prune -a")
+            "docker image prune -a", card="resources")
     if host.get("rebootRequired") is True:
         age = _age(host.get("rebootRequiredSinceUtc"), now)
         waited = "" if age is None else f"Updates have waited for a restart for {plural(int(age // DAY), 'day')} (warning after {settings.reboot_days}). "
-        add(status.get("reboot"), "Restart the server.", waited + "At a quiet time:", "sudo reboot")
+        add(status.get("reboot"), "Restart the server.", waited + "At a quiet time:", "sudo reboot", card="updates")
     security = host.get("securityUpdates")
     if isinstance(security, int) and security > 0:
         days = status.get("securityDays")
         add(status.get("security"), f"Install {plural(security, 'security update')}.",
-            "" if days is None else f"Waiting {days:g} {'day' if days == 1 else 'days'} (warning after {settings.security_days}):", "sudo apt upgrade")
-    add(status.get("backup"), "Check the backups.", "The last successful backup is too old or missing.")
+            "" if days is None else f"Waiting {days:g} {'day' if days == 1 else 'days'} (warning after {settings.security_days}):", "sudo apt upgrade", card="updates")
+    if status.get("memory") in (WARNING, CRITICAL):
+        add(status["memory"], "Memory is nearly full.", "Find what uses it, or restart the heavy app:", "docker stats --no-stream", card="resources")
+    if status.get("cpu") in (WARNING, CRITICAL):
+        add(status["cpu"], "The processor is very busy.", "See what is using it:", "top", card="resources")
+    if status.get("load") in (WARNING, CRITICAL):
+        add(status["load"], "The server load is high.", "More work is waiting than the processors can do. See what is running:", "top", card="resources")
+    pending = host.get("updatesPending")
+    if isinstance(pending, int) and status.get("pending") in (WARNING, CRITICAL):
+        add(status["pending"], f"Install {plural(pending, 'update')}.", "Many updates are waiting; none is urgent:", "sudo apt upgrade", card="updates")
+    add(status.get("backup"), "Check the backups.", "The last successful backup is too old or missing.", card="backups")
     expiring = [c.get("host") for c in health.get("certificates") or [] if c.get("daysRemaining") is None or c["daysRemaining"] <= 14]
-    add(status.get("certificates"), "A certificate is close to expiring.", ", ".join(str(h) for h in expiring))
+    add(status.get("certificates"), "A certificate is close to expiring.", ", ".join(str(h) for h in expiring), card="certificates")
     offline = [r.get("name") for r in health.get("runners") or [] if str(r.get("status", "")).lower() != "online"]
-    add(CRITICAL if offline else OK, "A Runner is offline.", ", ".join(str(n) for n in offline))
-    add(status.get("server"), "Update Automaton.", "A newer release is available.")
-    add(status.get("freshness"), "The Runner has not reported for a while.", "The host figures are old.")
+    add(CRITICAL if offline else OK, "A Runner is offline.", ", ".join(str(n) for n in offline), card="runners")
+    behind = [r.get("name") for r in health.get("runners") or [] if r.get("upgradeAvailable") and str(r.get("status", "")).lower() == "online"]
+    add(WARNING if behind else OK, "Upgrade a Runner.", ", ".join(str(n) for n in behind) + " can be upgraded in Studio under Admin, Runners.", card="runners")
+    add(status.get("server"), "Update Automaton.", "A newer release is available.", card="server")
+    add(status.get("freshness"), "The Runner has not reported for a while.", "The host figures are old.", card="resources")
     items.sort(key=lambda item: _RANK[item["level"]], reverse=True)
     return items
 
