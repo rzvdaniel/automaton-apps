@@ -10,7 +10,7 @@ export class Currach extends Entity {
   static passes = { water: 'draw' };
   static ownScale = true;
   static clicks = 'many';
-  static sound = 'ahoy';
+  // No sound for now: no natural recording was found (see public/audio/CREDITS.md).
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.a = o.a || 0; this.stroke = Math.random() * TAU; this.rush = 0; this.rest = 0; this.puddles = []; this.seed = Math.random() * 9; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.025 * this.scale; }
   click() { this.rush = 4; this.rest = 0; }

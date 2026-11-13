@@ -11,7 +11,7 @@ const FOOT = new Path2D('M0,0 L7,2.5 L4.5,3.6 L8,6 L4,6.2 L5,9 L-1,5 Z');
 export class Puffin extends Entity {
   static passes = { upright: 'draw', birds: 'drawFlying' };
   static clicks = 'one';
-  static sound = 'puffin';
+  // No sound for now: no natural recording was found (see public/audio/CREDITS.md).
   constructor(world, o) { super(world); this.x = this.hx = o.x; this.y = this.hy = o.y; this.flip = o.flip ? -1 : 1; this.fly = 0; this.seed = Math.random() * 9; this.a = 0; this.out = [1, 0]; }
   hit(x, y) { return !this.fly && Math.hypot(this.x - x, this.y - 0.006 - y) < 0.014; }
   click() { this.takeOff(); }

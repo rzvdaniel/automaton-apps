@@ -7,7 +7,6 @@ const m = (lo, hi) => lo + Math.random() * (hi - lo);
 
 export const SOUNDS = {
   // ---------- the sea and the weather ----------
-  splash(s, t, d) { s.noise(d, t, { white: true, f: [3200, 900], q: 0.7, dur: 0.45, a: 0.015, gain: 0.45 }); },
   plop(s, t, d) { s.noise(d, t, { f: [700, 300], q: 1.4, dur: 0.6, a: 0.015, gain: 0.8 }); s.tone(d, t, { f: [260, 90], dur: 0.25, gain: 0.25 }); },
   puff(s, t, d) { s.noise(d, t, { filter: 'lowpass', f: [600, 180], dur: 0.7, a: 0.15, gain: 0.35 }); },
 
@@ -30,27 +29,21 @@ export const SOUNDS = {
       env.connect(voice); at += dur + m(0.05, 0.12);
     }
   },
-  puffin(s, t, d) { s.say(d, t, [{ v: 'a', d: 0.55, p: [190, 140] }], { gain: 0.35, scale: 0.85, trem: [26, 0.8] }); },   // a low purring growl
 
   // ---------- people ----------
   hello(s, t, d) { const p = Math.random() < 0.5 ? m(115, 150) : m(190, 240), k = p > 170 ? 1.12 : 0.95; s.say(d, t, [{ v: 'e', d: 0.14, p: [p, p * 1.1], h: true }, { v: ['o', 'u'], d: 0.28, p: [p * 1.1, p * 0.88] }], { scale: k, gain: 0.5 }); },   // "he-llo"
-  ahoy(s, t, d) { s.say(d, t, [{ v: 'a', d: 0.16, p: [105, 125] }, { v: 'o', d: 0.13, p: [135, 125], h: true }, { v: ['o', 'i'], d: 0.36, p: [125, 98] }], { scale: 0.92, gain: 0.55, gap: 0.02 }); },   // a deep "a-hoy!"
-  yay(s, t, d) { const p = m(330, 390); s.say(d, t, [{ v: ['u', 'e'], d: 0.2, p: [p, p * 1.25] }, { v: 'i', d: 0.42, p: [p * 1.3, p * 1.6, p * 1.35] }], { scale: 1.28, gain: 0.45, vib: [7, 8] }); },   // a child's "wheee!"
-  gotOne(s, t, d) {   // "oh!" and the whirr of a reel
-    s.say(d, t, [{ v: ['o', 'a'], d: 0.3, p: [140, 175] }], { scale: 0.95, gain: 0.5, h: true });
-    for (let i = 0; i < 9; i++) s.noise(d, t + 0.4 + i * 0.05, { white: true, f: [3200, 2200], q: 3, dur: 0.03, a: 0.002, gain: 0.18 });
-  },
 
-  // ---------- animals ----------
-  sheep(s, t, d, o) { const lamb = o.entity && o.entity.lamb, p = lamb ? 430 : 300; s.say(d, t, [{ v: ['a', 'e'], d: 0.7, p: [p * 1.05, p * 0.9] }], { scale: lamb ? 1.2 : 1, gain: 0.45, vib: [lamb ? 30 : 22, p * 0.08] }); },   // "baa"
-  moo(s, t, d) { s.say(d, t, [{ v: ['o', 'u'], d: 1.1, p: [125, 98] }], { scale: 0.9, gain: 0.6, vib: [5, 4] }); },
-  meow(s, t, d) { s.say(d, t, [{ v: 'e', d: 0.1, p: [480, 640] }, { v: ['a', 'o'], d: 0.45, p: [700, 520] }], { scale: 1.1, gain: 0.4, gap: 0 }); },
+  // ---------- animals (sheep, cow, cat and whale are recordings, see public/audio/CREDITS.md; the synthetic version is the fallback) ----------
+  sheep(s, t, d, o) { const lamb = o.entity && o.entity.lamb; if (s.sample(d, t, 'sheep', { gain: 0.8, rate: lamb ? 1.3 : 1 })) return; const p = lamb ? 430 : 300; s.say(d, t, [{ v: ['a', 'e'], d: 0.7, p: [p * 1.05, p * 0.9] }], { scale: lamb ? 1.2 : 1, gain: 0.45, vib: [lamb ? 30 : 22, p * 0.08] }); },   // "baa"
+  moo(s, t, d) { if (s.sample(d, t, 'cow', { gain: 0.6 })) return; s.say(d, t, [{ v: ['o', 'u'], d: 1.1, p: [125, 98] }], { scale: 0.9, gain: 0.6, vib: [5, 4] }); },
+  meow(s, t, d) { if (s.sample(d, t, 'cat', { gain: 0.6, rate: 0.95 + Math.random() * 0.15 })) return; s.say(d, t, [{ v: 'e', d: 0.1, p: [480, 640] }, { v: ['a', 'o'], d: 0.45, p: [700, 520] }], { scale: 1.1, gain: 0.4, gap: 0 }); },
   seal(s, t, d) { for (let i = 0; i < 2; i++) s.say(d, t + i * 0.32, [{ v: 'o', d: 0.15, p: [170, 105], h: true }], { scale: 0.9, gain: 0.5 }); },   // two barks
   dolphin(s, t, d) {   // whistles and a run of clicks
     s.tone(d, t, { f: [2200, 4800, 3200], dur: 0.35, gain: 0.12, a: 0.03 }); s.tone(d, t + 0.4, { f: [3000, 5200, 2600], dur: 0.3, gain: 0.1, a: 0.03 });
     for (let i = 0; i < 12; i++) s.noise(d, t + 0.75 + i * 0.045 * (1 - i * 0.03), { white: true, f: 6000, q: 5, dur: 0.02, a: 0.002, gain: 0.2 });
   },
-  whale(s, t, d) { s.tone(d, t, { f: [85, 150, 110], dur: 2.4, a: 0.4, gain: 0.3, vib: [4, 3] }); s.tone(d, t, { f: [170, 300, 220], dur: 2.4, a: 0.4, gain: 0.1, vib: [4, 6] }); },
+  whale(s, t, d) { if (s.sample(d, t, 'whaleCall', { gain: 2.5 })) return; s.tone(d, t, { f: [85, 150, 110], dur: 2.4, a: 0.4, gain: 0.3, vib: [4, 3] }); s.tone(d, t, { f: [170, 300, 220], dur: 2.4, a: 0.4, gain: 0.1, vib: [4, 6] }); },
+  blow(s, t, d) { s.sample(d, t, 'whaleBlow', { gain: 2.2 }); },   // the whale's breath: a recording only, silent if it is not loaded
   thump(s, t, d) { s.tone(d, t, { f: [90, 40], dur: 0.5, gain: 0.5 }); s.noise(d, t, { filter: 'lowpass', f: 300, dur: 0.4, gain: 0.3 }); },   // something big under the water
   hare(s, t, d) { s.tone(d, t, { type: 'triangle', f: [1800, 2600, 1500], dur: 0.15, gain: 0.2 }); },
   bloop(s, t, d) { s.tone(d, t, { f: [300, 620], dur: 0.18, gain: 0.25, a: 0.02 }); },
@@ -67,5 +60,4 @@ export const SOUNDS = {
   flap(s, t, d) { s.noise(d, t, { white: true, f: 700, q: 1.2, dur: 0.5, a: 0.02, gain: 0.35, trem: [14, 0.9] }); },   // cloth in the wind
   flutter(s, t, d) { s.noise(d, t, { white: true, f: [900, 1600, 900], q: 2, dur: 0.7, a: 0.04, gain: 0.25, trem: [18, 0.8] }); },
   burner(s, t, d) { for (let i = 0; i < 2; i++) { s.noise(d, t + i * 0.7, { f: [400, 900], q: 0.6, dur: 0.6, a: 0.08, gain: 0.35 }); s.noise(d, t + i * 0.7, { filter: 'lowpass', f: 200, dur: 0.6, a: 0.08, gain: 0.25 }); } },   // the burner's roar
-  engine(s, t, d) { s.tone(d, t, { type: 'sawtooth', f: [75, 110, 90], dur: 1.6, a: 0.15, gain: 0.18, lp: 700, trem: [38, 0.6] }); s.tone(d, t, { type: 'square', f: [150, 220, 180], dur: 1.6, a: 0.15, gain: 0.05, lp: 800, trem: [38, 0.6] }); }
 };

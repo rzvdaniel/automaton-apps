@@ -59,7 +59,7 @@ function island() {
   return { world, sound };
 }
 
-test('tapping an entity reacts and plays its sound; tapping water ripples and splashes', () => {
+test('tapping an entity reacts and plays its sound; tapping water ripples and stays quiet', () => {
   const { world, sound } = island();
   class Voiced extends Thing { static sound = 'sheep'; }
   const thing = world.add(new Voiced(world, 0, 0));
@@ -67,7 +67,7 @@ test('tapping an entity reacts and plays its sound; tapping water ripples and sp
   assert.equal(thing.clicked, 1); assert.equal(sound.played[0], 'sheep', 'its own sound first');
   sound.played.length = 0; world.effects.clear();
   world.interaction.tap(...pixel(world, 0.3, 0.3));
-  assert.equal(world.effects.ripples.length, 1); assert.deepEqual(sound.played, ['splash']);
+  assert.equal(world.effects.ripples.length, 1); assert.deepEqual(sound.played, [], 'a click on the sea is silent');
 });
 
 test("a soundFor() method chooses the sound for this click", () => {
@@ -75,7 +75,7 @@ test("a soundFor() method chooses the sound for this click", () => {
   class Two extends Thing { soundFor(x) { return x < this.x ? 'yay' : 'flutter'; } }
   world.add(new Two(world, 0, 0));
   world.interaction.tap(...pixel(world, -0.02, 0)); world.interaction.tap(...pixel(world, 0.02, 0));
-  assert.deepEqual(sound.played.filter(n => n !== 'splash'), ['yay', 'flutter']);   // (open water splashes too)
+  assert.deepEqual(sound.played, ['yay', 'flutter']);
 });
 
 test("click modes: 'top' swallows the click, 'one' lets only the topmost react, 'many' all of them", () => {
@@ -115,9 +115,13 @@ test('hover leaves a faint wake in the water, only after moving a good way', () 
 });
 
 // ----- every clickable class makes a sound that exists -----
-test('every clickable entity class names a sound that exists', () => {
+// Silent on purpose: no natural recording was found for them (see public/audio/CREDITS.md). Remove a name here when one is added.
+const SILENT = new Set(['Puffin', 'Biplane', 'Currach', 'Fisherman']);
+
+test('every clickable entity class names a sound that exists, unless it is silent on purpose', () => {
   for (const [name, Type] of Object.entries(entities)) {
     if (typeof Type !== 'function' || !(Type.prototype instanceof Entity) || !Type.clicks) continue;
+    if (SILENT.has(name)) { assert.equal(Type.sound, null, `${name} is meant to be silent`); continue; }
     if (Type.prototype.soundFor) continue;
     assert.ok(Type.sound, `${name} takes clicks but names no sound`);
     assert.ok(Object.hasOwn(SOUNDS, Type.sound), `${name} names the sound "${Type.sound}" which does not exist`);

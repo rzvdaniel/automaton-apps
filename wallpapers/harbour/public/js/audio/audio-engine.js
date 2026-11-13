@@ -10,7 +10,7 @@ const VOWELS = { a: [730, 1090, 2440], e: [530, 1840, 2480], i: [270, 2290, 3010
  *   say    a voice or an animal's call, from a list of syllables
  */
 export class AudioEngine {
-  constructor() { this.ctx = null; this.master = null; this.brown = null; this.white = null; }
+  constructor() { this.ctx = null; this.master = null; this.brown = null; this.white = null; this.samples = new Map(); }
 
   /** Is it making sound right now? */
   get live() { return this.ctx?.state === 'running'; }
@@ -103,6 +103,33 @@ export class AudioEngine {
       if (s.h) this.noise(dst, at - 0.03, { white: true, f: 1800, q: 0.8, dur: 0.09, a: 0.01, gain: gain * 0.5 });
       at += dur + gap;
     }
+  }
+
+  /**
+   * Loads recordings: { name: { file, clips? } } with a function that gives each file's address. A recording that fails to load is
+   * only reported; the sounds that use it fall back to their synthetic version. clips: [[start, seconds], ...] are the stretches worth playing.
+   */
+  async loadSamples(definitions, addressOf) {
+    await Promise.all(Object.entries(definitions).map(async ([name, { file, clips }]) => {
+      try {
+        const response = await fetch(addressOf(file));
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        this.samples.set(name, { buffer: await this.ctx.decodeAudioData(await response.arrayBuffer()), clips });
+      } catch (err) { console.warn(`Harbour: recording "${name}" not loaded (${err.message}); its synthetic sound is used`); }
+    }));
+  }
+
+  /** Plays a recording (one of its clips, chosen at random). Returns false when it is not loaded, so the caller can fall back. */
+  sample(dst, t, name, { gain = 1, rate = 1, fade = 0.04 } = {}) {
+    const sample = this.samples.get(name);
+    if (!sample) return false;
+    const [start, seconds] = sample.clips ? sample.clips[Math.floor(Math.random() * sample.clips.length)] : [0, sample.buffer.duration];
+    const c = this.ctx, source = c.createBufferSource(), env = c.createGain(), length = seconds / rate;
+    source.buffer = sample.buffer; source.playbackRate.value = rate;
+    env.gain.setValueAtTime(0.0001, t); env.gain.linearRampToValueAtTime(gain, t + fade); env.gain.setValueAtTime(gain, t + Math.max(fade, length - fade)); env.gain.linearRampToValueAtTime(0.0001, t + length);
+    source.connect(env); env.connect(dst);
+    source.start(t, start, seconds);
+    return true;
   }
 
   /** Makes a value (pitch) waver: `rate` times a second, by `depth` in its own units. */

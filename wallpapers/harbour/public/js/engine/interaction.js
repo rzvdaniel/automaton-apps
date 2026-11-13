@@ -33,7 +33,7 @@ export class Interaction {
       if (mode === 'one') solid = true;
     }
     if (terrain.field(x, y) > 0.005) {   // open water
-      effects.ripple(x, y, 1); scene.scare(x, y, 0.2, true); sound.play('splash', { pan: camera.screenFraction(x) });
+      effects.ripple(x, y, 1); scene.scare(x, y, 0.2, true);   // rings and frightened fish, and no sound: a click on the sea stays quiet
     } else {
       scene.scare(x, y, 0.08, false);
       if (!hit) effects.burst(x, y, 6, 0.03, SHADE, 0.003, 0.5);

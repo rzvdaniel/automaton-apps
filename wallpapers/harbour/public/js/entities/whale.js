@@ -37,7 +37,7 @@ export class Whale extends Entity {
     this.alpha += ((this.dive ? 0 : 1) - this.alpha) * Math.min(1, dt * 1.5);
     if (this.calf) this.follow(dt);
     this.blow -= dt;
-    if (this.blow <= 0 && !this.dive && Math.abs(this.x) < hw && Math.abs(this.y) < hh) { this.blow = 9 + Math.random() * 7; this.spout = 0; const h = this.head(); w.ripple(h[0], h[1], 0.5); }
+    if (this.blow <= 0 && !this.dive && Math.abs(this.x) < hw && Math.abs(this.y) < hh) { this.blow = 9 + Math.random() * 7; this.spout = 0; const h = this.head(); w.ripple(h[0], h[1], 0.5); w.sound.play('blow', { pan: w.camera.screenFraction(h[0]) }); }
     if (Math.abs(this.x) > hw + 0.2 || (this.dive && this.alpha < 0.03)) this.on = false;
   }
   // The calf keeps to a station beside her flank and a little behind; it weaves about it, drifts under her now and then,

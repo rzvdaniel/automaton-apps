@@ -4,7 +4,7 @@ import { TAU, shade, lerp, disc, oval, Entity } from '../core/index.js';
 
 export class Fisherman extends Entity {
   static clicks = 'one';
-  static sound = 'gotOne';
+  // No sound for now: no natural recording was found (see public/audio/CREDITS.md).
   static ownScale = true;   // drawn in his own unscaled frame; effects are mapped back into the world
   constructor(world, o) {   // o: x, y (where he sits), dx, dy (the way out to sea)
     super(world); Object.assign(this, o);
