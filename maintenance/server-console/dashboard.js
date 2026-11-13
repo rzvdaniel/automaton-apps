@@ -233,7 +233,7 @@
 
   // --- Cleanup card: shown only when an administrator approved server:cleanup for this app. -----------------------------
 
-  var cleanupBox = document.getElementById("cleanup");
+  var cleanupBox = document.getElementById("cleanup-box");
   var cleanupState = null;
   var busy = false;
 
