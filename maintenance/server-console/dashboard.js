@@ -150,8 +150,9 @@
     var items = data.attention || [];
     if (!items.length) return stale;
     var worst = items.some(function (i) { return i.level === "critical"; }) ? "critical" : "warning";
-    return stale + '<section class="a-banner a-banner--' + worst + '" aria-label="Needs attention"><div class="a-banner__title">Needs you</div><ul>' + items.map(function (i) {
-      return "<li><strong>" + esc(i.title) + "</strong> " + esc(i.detail || "") + (i.command ? ' <code class="a-mono">' + esc(i.command) + "</code>" : "") + "</li>";
+    return stale + '<section class="a-banner a-banner--' + worst + '" aria-label="Needs attention"><div class="a-banner__title">Needs you <span class="a-hint">(' + items.length + ')</span></div><ul>' + items.map(function (i) {
+      return "<li><strong>" + esc(i.title) + "</strong> " + esc(i.detail || "") + (i.command ? ' <code class="a-mono">' + esc(i.command) + "</code>" : "") +
+        (i.card ? ' <a class="a-link" href="#' + esc(i.card) + '">' + esc(i.card.charAt(0).toUpperCase() + i.card.slice(1)) + "</a>" : "") + "</li>";
     }).join("") + "</ul></section>";
   }
 
@@ -163,7 +164,7 @@
     var host = h.host || {};
     var s = h.server || {};
     var security = host.securityUpdates;
-    var updates = host.rebootRequired === true ? "restart" + (security > 0 ? " \u00b7 " + security + " security" : "") : security > 0 ? security + " security" : "up to date";
+    var updates = host.rebootRequired === true ? "restart needed" : security > 0 ? security + " security" : "up to date";
     var diskUsed = typeof host.diskTotalBytes === "number" && host.diskTotalBytes > 0 ? Math.round(100 - 100 * host.diskAvailableBytes / host.diskTotalBytes) + "% disk" : "";
     var b = h.backup || {};
     var certs = (h.certificates || []).map(function (c) { return c.daysRemaining; }).filter(function (d) { return typeof d === "number"; });
@@ -181,8 +182,8 @@
   function dashboard(data) {
     var h = data.health, a = data.assessment;
     var history = data.history || [];
-    view.innerHTML = banner(data) + summary(h, a, data) + '<div class="a-columns">' + resourcesCard(h, a, history, data) + updatesCard(h, a, data) + serverCard(h, a) +
-      backupsCard(h, a) + certificatesCard(h, a) + runnersCard(h, a, data.now) + "</div>";
+    view.innerHTML = banner(data) + summary(h, a, data) + '<div class="cards">' + "<div class=\"col\">" + resourcesCard(h, a, history, data) + "</div><div class=\"col\">" + updatesCard(h, a, data) + serverCard(h, a) +
+      "</div><div class=\"col\">" + certificatesCard(h, a) + runnersCard(h, a, data.now) + backupsCard(h, a) + "</div></div>";
     overall.hidden = false;
     var count = (data.attention || []).length;
     overall.className = "a-pill a-pill--large" + (a.overall !== "unknown" ? " a-pill--" + a.overall : "");
