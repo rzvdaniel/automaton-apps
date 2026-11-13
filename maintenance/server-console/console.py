@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
@@ -93,6 +94,57 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
         return "error", None, f"The server answered HTTP {error.code}."
     except (URLError, OSError, ValueError) as error:
         return "error", None, f"The server could not be reached: {type(error).__name__}."
+
+
+def cleanup_call(settings: Settings, method: str, path: str, body: dict | None = None, timeout: float = 30, opener=None) -> tuple[str, dict | None, str | None]:
+    """Calls /api/server/cleanup (permission server:cleanup). Returns (status, data, message); status is ok, bad_request,
+    no_runner, not_approved, unavailable, no_key, not_configured or error. The key is never logged."""
+    if not settings.api_base_url:
+        return "not_configured", None, "The server address (AUTOMATON_API_URL) is not set."
+    if not settings.api_key:
+        return "no_key", None, "The app has no key yet."
+    headers = {"Authorization": "Bearer " + settings.api_key, "Accept": "application/json", "User-Agent": USER_AGENT}
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    request = Request(settings.api_base_url + "/api/server/cleanup" + path, data=data, method=method, headers=headers)
+    try:
+        with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
+            return "ok", json.loads(response.read(2_000_000).decode("utf-8")), None
+    except HTTPError as error:
+        if error.code in (401, 403):
+            return "not_approved", None, "server:cleanup is not approved (or was revoked)."
+        if error.code == 404:
+            return "unavailable", None, "This server does not offer the cleanup yet; update Automaton."
+        if error.code in (400, 409):
+            try:
+                message = json.loads(error.read(20_000).decode("utf-8")).get("error")
+            except (ValueError, AttributeError, OSError):
+                message = None
+            return ("bad_request" if error.code == 400 else "no_runner"), None, str(message or f"The server answered HTTP {error.code}.")
+        return "error", None, f"The server answered HTTP {error.code}."
+    except (URLError, OSError, ValueError) as error:
+        return "error", None, f"The server could not be reached: {type(error).__name__}."
+
+
+def cleanup_warning(data: dict, now: float) -> str | None:
+    """A sentence when the last cleanup failed or is older than two days, else None."""
+    runs = data.get("runs") or []
+    if not runs:
+        return None
+    last = runs[0]
+    if last.get("result") == "failed":
+        return "The last cleanup failed" + (": " + last["message"] if last.get("message") else ".")
+    started = last.get("startedAtUtc")
+    if started and last.get("result") != "running":
+        try:
+            age = now - datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", started).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return None
+        if age > 2 * DAY:
+            return "The last cleanup ran more than two days ago."
+    return None
 
 
 # --- History and state ----------------------------------------------------------------------------------------------

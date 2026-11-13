@@ -133,6 +133,9 @@ class Console:
             return console.snapshot(self.state, self.settings, time.time())
 
 
+CLEANUP_STATUS = {"ok": 200, "bad_request": 400, "no_runner": 409, "not_approved": 403, "unavailable": 404, "no_key": 403, "not_configured": 404}
+
+
 def make_handler(app: Console):
     class Handler(BaseHTTPRequestHandler):
         server_version = "ServerConsole"
@@ -153,6 +156,41 @@ def make_handler(app: Console):
         def json(self, status: int, payload: dict) -> None:
             self.send_body(status, json.dumps(payload).encode(), "application/json")
 
+        def cleanup(self, method: str, path: str, body: dict | None = None) -> None:
+            status, data, message = console.cleanup_call(app.settings, method, path, body)
+            if status != "ok":
+                return self.json(CLEANUP_STATUS.get(status, 502), {"status": status, "message": message})
+            data["warning"] = console.cleanup_warning(data, time.time())
+            self.json(200, {"status": "ok", "cleanup": data})
+
+        def changing(self) -> dict | None:
+            """Writes need the page's own header, which another site cannot send, and a small JSON object."""
+            if self.headers.get("X-Server-Console") != "1":
+                self.json(403, {"status": "forbidden", "message": "Use the Server Console page."})
+                return None
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if 0 < length <= 4096 else {}
+            except (ValueError, OSError):
+                body = None
+            if not isinstance(body, dict):
+                self.json(400, {"status": "bad_request", "message": "The request body must be a JSON object."})
+                return None
+            return body
+
+        def do_PUT(self):  # noqa: N802
+            if urlsplit(self.path).path == "/api/cleanup/settings" and (body := self.changing()) is not None:
+                allowed = {key: body[key] for key in ("timeUtc", "keepDays", "journalLimitMb") if key in body}
+                return self.cleanup("PUT", "/settings", allowed)
+            if urlsplit(self.path).path != "/api/cleanup/settings":
+                self.json(404, {"error": "Not found"})
+
+        def do_POST(self):  # noqa: N802
+            if urlsplit(self.path).path != "/api/cleanup/run":
+                return self.json(404, {"error": "Not found"})
+            if self.changing() is not None:
+                self.cleanup("POST", "/run", {})
+
         def do_GET(self):  # noqa: N802
             path = urlsplit(self.path).path
             if path == "/health":
@@ -163,6 +201,8 @@ def make_handler(app: Console):
                 return self.json(200, {"status": status})
             if path == "/api/state":
                 return self.json(200, app.view())
+            if path == "/api/cleanup":
+                return self.cleanup("GET", "")
             entry = STATIC.get(path)
             if not entry:
                 return self.json(404, {"error": "Not found"})
