@@ -31,10 +31,10 @@ export class Renderer {
   setCursor(cursor) { this.canvas.style.cursor = cursor; }
 
   /** @param {{ viewport, camera, terrain, effects, scene, time: number, light?: object, darkness?: number }} frame everything a picture is made of */
-  render({ viewport, camera, terrain, effects, scene, time, light, darkness = 0, wind }) {
+  render({ viewport, camera, terrain, effects, scene, time, light, darkness = 0, wind, waves }) {
     const c = this.ctx, { canvas, backdrop } = this;
     if (light) this.lighting.apply(light);
-    if (wind) backdrop.setWind(wind, viewport.quality);
+    if (wind) backdrop.setWind(wind, viewport.quality, waves);
     backdrop.render({ viewport, camera, terrain, effects, time });
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
     if (!backdrop.gl) { c.fillStyle = '#16aed0'; c.fillRect(0, 0, canvas.width, canvas.height); }   // no WebGL: a flat sea and plain land

@@ -3,9 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Wind } from '../public/js/engine/wind.js';
 import { Weather } from '../public/js/sky/weather.js';
-import { Backdrop } from '../public/js/engine/backdrop.js';
+import { Backdrop, WAVE_STYLES } from '../public/js/engine/backdrop.js';
 import { FRAGMENT_SHADER } from '../public/js/engine/shader-source.js';
-import { Settings } from '../public/js/sky/settings.js';
+import { Settings, WAVES } from '../public/js/sky/settings.js';
+import { SettingsDialog } from '../public/js/ui/settings-dialog.js';
 import { World } from '../public/js/engine/world.js';
 import { quietly } from './helpers.mjs';
 
@@ -127,13 +128,72 @@ test('Settings: old saves of the wind ("auto" or a bare number) and damaged ones
 
 test('Shader: whitecap crests and trails, and the surf, are all scaled by the sea strength (so calm is today\'s sea)', () => {
   const lines = FRAGMENT_SHADER.split('\n');
-  const start = lines.findIndex(l => /if \(ws \* u_wind\.w > 0\.001\)/.test(l));
+  const start = lines.findIndex(l => /if \(u_waves\.x > 1\.5 && wl \* u_wind\.w > 0\.001\)/.test(l));
   assert.ok(start > 0, 'whitecaps only when it blows and the device is fast');
   const end = lines.findIndex((l, i) => i > start && /^\s*}\s*$/.test(l));
   const block = lines.slice(start, end).join('\n');
   assert.match(block, /float foam = max\(crest[^;]*trail[^;]*\)/, 'foam is made of the crest and its trail');
-  assert.match(block, /mix\(col, c_foam, foam \* smoothstep\(0\.0, 0\.2, ws\)/, 'the foam is multiplied by (a ramp of) the sea strength');
+  assert.match(block, /mix\(col, c_foam, foam \* max\(smoothstep\(0\.0, 0\.2, ws\)[^;]*0\.36 \* wl\)/, 'the foam is multiplied by (a ramp of) the sea strength, or the light-wind ramp');
   assert.equal((block.match(/noise\(/g) || []).length, 2, 'at most two noise calls for the caps');
   assert.match(FRAGMENT_SHADER, /float surf = ws \*/, 'the surf grows from the sea strength');
   assert.match(FRAGMENT_SHADER, /\* surf \* 0\.85\)/, 'the beach band is multiplied by it');
+});
+
+// The waves setting (#186): Off, Original (the default), Crescents, Dashes.
+const OLD_SPARKLE = "  col = mix(col, c_foam, step(0.9965, h2) * rs * step(0.04, sd) * (0.5 + 0.5 * sin(t * 1.5 + h2 * 40.0)) * 0.75);";
+
+test('Settings: the waves are Original for a new viewer; a choice lasts; an unknown one becomes Original', () => {
+  assert.equal(new Settings({ storage: null }).get('waves'), 'original');
+  let saved = null;
+  const storage = { getItem: () => saved, setItem: (k, v) => { saved = v; } };
+  new Settings({ storage }).set({ waves: 'crescents' });
+  assert.equal(new Settings({ storage }).get('waves'), 'crescents', 'it survives a reload');
+  const load = waves => new Settings({ storage: { getItem: () => JSON.stringify({ waves }), setItem() {} } }).get('waves');
+  for (const w of WAVES) assert.equal(load(w), w);
+  for (const bad of ['storm', 2, null, {}]) assert.equal(load(bad), 'original', JSON.stringify(bad));
+  const s = new Settings({ storage: null }); s.set({ waves: 'zigzag' });
+  assert.equal(s.get('waves'), 'original');
+});
+
+test('Dialog: a Waves select (UI kit classes) with Off, Original, Crescents, Dashes', () => {
+  const html = SettingsDialog.markup();
+  const select = html.match(/<select class="a-input" id="set-waves">(.*?)<\/select>/);
+  assert.ok(select, 'a kit select');
+  assert.match(html, /<label class="a-label" for="set-waves">Waves<\/label>/);
+  assert.deepEqual([...select[1].matchAll(/value="([^"]+)"/g)].map(m => m[1]), [...WAVES]);
+});
+
+test('Shader: a waves uniform picks Off, Original, Crescents or Dashes', () => {
+  assert.match(FRAGMENT_SHADER, /uniform vec2 u_waves;/);
+  assert.deepEqual(WAVE_STYLES, { off: 0, original: 1, crescents: 2, dashes: 3 });
+  const lines = FRAGMENT_SHADER.split('\n'), at = lines.indexOf(OLD_SPARKLE);
+  assert.ok(at > 0, 'Original keeps the old twinkling dots, line for line');
+  assert.match(lines[at - 1], /^\s*if \(u_waves\.x > 0\.5 && u_waves\.x < 1\.5\)$/, 'only Original draws them (not Off, not the crests)');
+  assert.match(FRAGMENT_SHADER, /if \(u_waves\.x > 1\.5 && wl \* u_wind\.w > 0\.001\)/, 'crests only for Crescents and Dashes');
+  assert.match(FRAGMENT_SHADER, /dc\.x \+= step\(u_waves\.x, 2\.5\) \*[^;]*dc\.y \* dc\.y;/, 'Crescents bend the crest; Dashes stay straight');
+  assert.match(FRAGMENT_SHADER, /float surf = ws \* step\(0\.5, u_waves\.x\)/, 'Off: no wind surf');
+  const backdrop = new Backdrop({ getContext: () => null });
+  for (const [name, n] of Object.entries(WAVE_STYLES)) { backdrop.setWind(fresh(fixed(0.2)), 1, name); assert.equal(backdrop.waves[0], n); }
+  backdrop.setWind(fresh(fixed(0.2)), 1, 'zigzag'); assert.equal(backdrop.waves[0], 1, 'unknown: Original');
+  assert.ok(Math.abs(backdrop.waves[1] - fresh(fixed(0.2)).strength) < 1e-6, 'the shader gets the wind strength itself');
+});
+
+test('Wind: with Crescents or Dashes a light wind already has a few small faint crests; more, bigger and whiter up to a storm', () => {
+  const light = fresh(fixed(0.2)).strength;   // a light Auto-like day
+  for (const w of ['crescents', 'dashes']) {
+    const c = Wind.crests(light, w);
+    assert.ok(c.density > 0 && c.density <= 0.06, `${w} density ${c.density}`);
+    assert.ok(c.opacity >= 0.3 && c.opacity <= 0.4, `${w} opacity ${c.opacity}`);
+    assert.ok(c.size < Wind.crests(0.9, w).size, 'smaller than in a storm');
+    let last = Wind.crests(0, w);
+    assert.equal(last.density, 0, 'dead calm: none');
+    for (let s = 0.01; s <= 0.905; s += 0.01) {
+      const now = Wind.crests(s, w);
+      for (const k of ['density', 'size', 'opacity']) assert.ok(now[k] >= last[k] - 1e-9 && now[k] - last[k] < 0.06, `${k} grows smoothly at ${s}`);
+      last = now;
+    }
+    const storm = Wind.crests(0.9, w), ws = (0.9 - 0.12) / 0.88;
+    assert.ok(Math.abs(storm.density - (ws - 0.15) * 1.2) < 1e-9 && Math.abs(storm.size - (0.6 + 0.6 * ws)) < 1e-9, 'a storm looks as it did');
+  }
+  for (const w of ['off', 'original']) for (const s of [0.2, 0.9]) assert.equal(Wind.crests(s, w).density, 0, `${w} has no crests`);
 });
