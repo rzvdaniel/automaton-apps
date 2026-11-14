@@ -14,7 +14,7 @@ export class Church extends Entity {
   }
   draw(c) {
     const grow = 1 + 0.15 * this.pop * Math.sin(this.pop * 10);
-    c.save(); c.translate(this.x + 0.009, this.y + 0.012); c.rotate(this.a); c.fillStyle = shade(0.26); c.fillRect(-0.03, -0.011, 0.056, 0.022); c.fillRect(-0.04, -0.016, 0.03, 0.03); c.restore();
+    const s = this.castShadow(0.015); c.save(); c.translate(this.x + s.x, this.y + s.y); c.rotate(this.a); c.fillStyle = shade(0.26 * s.a); c.fillRect(-0.03, -0.011, 0.056, 0.022); c.fillRect(-0.04, -0.016, 0.03, 0.03); c.restore();
     c.save(); c.translate(this.x, this.y); c.rotate(this.a); c.scale(grow, grow);
     c.fillStyle = '#e9e4d8'; c.fillRect(-0.03, -0.012, 0.058, 0.026);
     c.fillStyle = '#6b7a88'; c.fillRect(-0.03, -0.012, 0.058, 0.011); c.fillStyle = '#54626f'; c.fillRect(-0.03, -0.001, 0.058, 0.011);

@@ -23,12 +23,12 @@ export class Kite extends Entity {
   update(dt) { this.hop = Math.max(0, this.hop - dt); if (this.loop) { this.loop += dt / 1.3; if (this.loop >= 1) this.loop = 0; } this.place(dt); }
   drawChild(c) {
     const lift = this.hop > 0 ? Math.abs(Math.sin(this.hop * 12)) * 0.003 : 0, x = this.x, y = this.y - lift;
-    oval(c, this.x + 0.0013, this.y + 0.002, 0.0022, 0.0028, shade(0.24));
+    const s = this.castShadow(0.0024); oval(c, this.x + s.x, this.y + s.y, 0.0022, 0.0028, shade(0.24 * s.a));
     oval(c, x, y, 0.002, 0.0027, '#e2553f'); oval(c, x - 0.0003, y - 0.0004, 0.0016, 0.002, '#f0776a');
     disc(c, x, y - 0.0009, 0.0016, '#f3e2b3'); disc(c, x - 0.0002, y - 0.0014, 0.0015, '#7a4a2a');   // hair
     c.strokeStyle = '#f0776a'; c.lineWidth = 0.0008; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + 0.001, y - 0.0004); c.lineTo(x + 0.003, y - 0.0028); c.stroke();   // the arm holding the line
   }
-  drawShadow(c) { sprite(c, this.kx + 0.03, this.ky + 0.042, this.ka, U * 0.9, () => { c.fillStyle = shade(0.16); c.beginPath(); c.moveTo(50, 0); c.lineTo(12, -30); c.lineTo(-50, 0); c.lineTo(12, 30); c.closePath(); c.fill(); }); }
+  drawShadow(c) { const s = this.castShadow(0.052); sprite(c, this.kx + s.x, this.ky + s.y, this.ka, U * 0.9, () => { c.fillStyle = shade(0.16 * s.a); c.beginPath(); c.moveTo(50, 0); c.lineTo(12, -30); c.lineTo(-50, 0); c.lineTo(12, 30); c.closePath(); c.fill(); }); }
   drawKite(c, t) {
     // the line sags between the hand and the kite
     c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 0.0005; c.beginPath(); c.moveTo(this.x + 0.003, this.y - 0.0028); c.quadraticCurveTo((this.x + this.kx) / 2 + 0.004, (this.y + this.ky) / 2 + 0.012, this.kx, this.ky); c.stroke();

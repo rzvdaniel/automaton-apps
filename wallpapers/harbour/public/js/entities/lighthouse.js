@@ -13,7 +13,8 @@ export class Lighthouse extends Entity {
   draw(c) {
     const x = this.x, y = this.y, top = y - TALL;
     // the shadow lies across the rocks, away from the sun
-    c.strokeStyle = shade(0.2); c.lineWidth = R0 * 1.7; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + 0.004, y + 0.004); c.lineTo(x + 0.026, y + 0.03); c.stroke();
+    const foot = this.castShadow(0.0057), tip = this.castShadow(0.0394);   // from the foot of the tower to the shadow of its top
+    c.strokeStyle = shade(0.2 * tip.a); c.lineWidth = R0 * 1.7; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + foot.x, y + foot.y); c.lineTo(x + tip.x, y + tip.y); c.stroke();
     // stone plinth
     oval(c, x, y + 0.0022, 0.0145, 0.0118, '#7f8a90'); oval(c, x, y, 0.0145, 0.0118, '#aab3b7'); oval(c, x - 0.001, y - 0.001, 0.0125, 0.0098, '#c4cbce');
     // the tower: stacked rounds, red and white bands, then one wash of light and shade across it

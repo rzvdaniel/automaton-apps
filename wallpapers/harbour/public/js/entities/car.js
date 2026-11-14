@@ -34,9 +34,10 @@ export class Car extends Entity {
   }
   draw(c, t) {
     const hop = this.bounce * Math.abs(Math.sin(this.bounce * 9)) * 0.002, idle = this.wait > 0 ? 0 : Math.sin(t * 30) * 0.00012;
-    const body = (dy, len, wid, round, col) => { c.save(); c.translate(this.x, this.y + dy - hop + idle); c.rotate(this.a); rrect(c, -len / 2, -wid / 2, len, wid, round); c.fillStyle = col; c.fill(); c.restore(); };
+    const body = (dy, len, wid, round, col, dx = 0) => { c.save(); c.translate(this.x + dx, this.y + dy - hop + idle); c.rotate(this.a); rrect(c, -len / 2, -wid / 2, len, wid, round); c.fillStyle = col; c.fill(); c.restore(); };
     const at = (dx, dy) => [this.x + Math.cos(this.a) * dx - Math.sin(this.a) * dy, this.y + Math.sin(this.a) * dx + Math.cos(this.a) * dy];
-    body(0.0036 + hop, L * 1.02, Wd * 1.05, 0.002, shade(0.24));                                   // shadow
+    const s = this.castShadow(0.0036 + hop);
+    body(s.y + hop, L * 1.02, Wd * 1.05, 0.002, shade(0.24 * s.a), s.x);                           // shadow
     [[0.3, 0.42], [0.3, -0.42], [-0.3, 0.42], [-0.3, -0.42]].forEach(k => { const p = at(L * k[0], Wd * k[1]); disc(c, p[0], p[1] + 0.0014, 0.0012, '#2a2f36'); });   // wheels
     body(0.0012, L, Wd, 0.002, shade(0.45)); body(0.0008, L, Wd, 0.002, this.paint[0]);            // the side, a touch below the top
     body(-0.0004, L, Wd, 0.002, this.paint[0]);

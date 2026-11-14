@@ -15,8 +15,9 @@ export class MooredBoat extends Entity {
   click() { this.rock = 1; this.world.ripple(this.x, this.y, 0.6); }
   draw(c, t) {
     const L = 0.0105, Wd = 0.0042;
-    c.save(); c.translate(this.x, this.y); c.rotate(this.a + (0.12 + this.rock * 0.5) * Math.sin(t * (0.8 + this.rock * 6) + this.x * 40));
-    c.save(); c.translate(0.002, 0.003); hull(c, L, Wd); c.fillStyle = shade(0.24); c.fill(); c.restore();
+    const turn = this.a + (0.12 + this.rock * 0.5) * Math.sin(t * (0.8 + this.rock * 6) + this.x * 40), s = this.castShadow(0.0036, turn);
+    c.save(); c.translate(this.x, this.y); c.rotate(turn);
+    c.save(); c.translate(s.x, s.y); hull(c, L, Wd); c.fillStyle = shade(0.24 * s.a); c.fill(); c.restore();
     hull(c, L, Wd); c.fillStyle = this.col; c.fill(); c.save(); c.scale(0.8, 0.7); hull(c, L, Wd); c.fillStyle = '#ecd9b0'; c.fill(); c.restore();
     c.fillStyle = this.col; c.fillRect(-L * 0.25, -Wd * 0.7, L * 0.14, Wd * 1.4);
     if (this.mast) { disc(c, L * 0.15, 0, 0.0011, '#5a4632'); c.strokeStyle = '#f7f2e8'; c.lineWidth = 0.0016; c.beginPath(); c.moveTo(L * 0.15, 0); c.lineTo(-L * 0.7, 0); c.stroke(); }
@@ -45,14 +46,15 @@ export class Sailboat extends Entity {
     const L = 0.015, Wd = 0.0052, heel = 0.004 + 0.001 * Math.sin(t * 0.9 + this.x * 20) + 0.002 * Math.min(1, this.rush);
     drawWake(c, this, 0.012 * this.scale, 0.0022 * this.scale);
     c.save(); c.translate(this.x, this.y); c.rotate(this.a); c.scale(this.scale, this.scale);
-    c.save(); c.translate(0.003, 0.004); hull(c, L, Wd); c.fillStyle = shade(0.25); c.fill(); c.restore();
+    const s = this.castShadow(0.005, this.a), sail = this.castShadow(0.0066, this.a);   // the sail stands taller than the hull
+    c.save(); c.translate(s.x, s.y); hull(c, L, Wd); c.fillStyle = shade(0.25 * s.a); c.fill(); c.restore();
     hull(c, L, Wd); c.fillStyle = '#f7f2e8'; c.fill(); c.save(); c.scale(0.8, 0.68); hull(c, L, Wd); c.fillStyle = '#d6ad76'; c.fill(); c.restore();
-    const cloth = (col, off) => {   // mainsail and jib, bellying to leeward
+    const cloth = (col, ox, oy) => {   // mainsail and jib, bellying to leeward, moved by (ox, oy)
       c.fillStyle = col;
-      c.beginPath(); c.moveTo(L * 0.25 + off, off * 1.3); c.quadraticCurveTo(-L * 0.3 + off, heel * 3.4 + off * 1.3, -L * 0.95 + off, heel * 1.4 + off * 1.3); c.quadraticCurveTo(-L * 0.3 + off, heel * 1.2 + off * 1.3, L * 0.25 + off, off * 1.3); c.fill();
-      c.beginPath(); c.moveTo(L * 1.0 + off, off * 1.3); c.quadraticCurveTo(L * 0.6 + off, heel * 2.2 + off * 1.3, L * 0.28 + off, heel * 0.6 + off * 1.3); c.quadraticCurveTo(L * 0.6 + off, heel * 0.5 + off * 1.3, L * 1.0 + off, off * 1.3); c.fill();
+      c.beginPath(); c.moveTo(L * 0.25 + ox, oy); c.quadraticCurveTo(-L * 0.3 + ox, heel * 3.4 + oy, -L * 0.95 + ox, heel * 1.4 + oy); c.quadraticCurveTo(-L * 0.3 + ox, heel * 1.2 + oy, L * 0.25 + ox, oy); c.fill();
+      c.beginPath(); c.moveTo(L * 1.0 + ox, oy); c.quadraticCurveTo(L * 0.6 + ox, heel * 2.2 + oy, L * 0.28 + ox, heel * 0.6 + oy); c.quadraticCurveTo(L * 0.6 + ox, heel * 0.5 + oy, L * 1.0 + ox, oy); c.fill();
     };
-    cloth(shade(0.2), 0.004); cloth(this.sail, 0);
+    cloth(shade(0.2 * sail.a), sail.x, sail.y); cloth(this.sail, 0, 0);
     disc(c, L * 0.25, 0, 0.0011, '#5a4632');
     c.restore();
   }

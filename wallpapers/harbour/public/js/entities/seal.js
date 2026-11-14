@@ -56,7 +56,7 @@ export class Seal extends Entity {
     if (this.wet) {   // swimming: head and shoulders, the rest a shape under the water
       for (let i = 0; i < 2; i++) { const p = (t * 0.45 + this.seed + i * 0.5) % 1; c.strokeStyle = 'rgba(255,255,255,' + (0.5 * (1 - p)) + ')'; c.lineWidth = 0.0007; c.beginPath(); c.ellipse(this.x, this.y, 0.004 + p * 0.011, 0.003 + p * 0.008, 0, 0, TAU); c.stroke(); }
       sprite(c, this.x, this.y + Math.sin(t * 2 + this.seed) * 0.0004, this.a, size, () => {
-        oval(c, 8, 5, 40, 14, shade(0.22));   // its shadow on the sea bed
+        const s = this.castShadow(9.4, this.a); oval(c, s.x, s.y, 40, 14, shade(0.22 * s.a));   // its shadow on the sea bed
         // under the water the whole seal shows through as a murky shape: the hind flippers sculling, the fore flippers paddling, the body
         c.globalAlpha = 0.55;
         c.save(); c.translate(-52, 2); c.rotate(0.3 * Math.sin(t * 5 + this.seed)); fillPath(c, HIND, coat.flipper); c.restore();
@@ -68,7 +68,7 @@ export class Seal extends Entity {
       return;
     }
     const moving = this.state !== 'bask', hump = moving ? 1 + 0.08 * Math.sin(t * 16) : 1;
-    oval(c, this.x + 0.002, this.y + 0.003, 0.0105, 0.0042, shade(0.22), this.a);
+    const s = this.castShadow(0.0036); oval(c, this.x + s.x, this.y + s.y, 0.0105, 0.0042, shade(0.22 * s.a), this.a);
     sprite(c, this.x, this.y, this.a, size, () => {
       c.scale(hump, breathe / hump);
       c.save(); c.translate(-52, 2); c.rotate(0.12 * Math.sin(t * (moving ? 14 : 0.9) + this.seed)); fillPath(c, HIND, coat.flipper); c.restore();

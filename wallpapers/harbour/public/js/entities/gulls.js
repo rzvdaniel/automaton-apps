@@ -16,7 +16,8 @@ export const drawGull = (c, x, y, a, sz, flap, flat) => {
   if (!flat) { disc(c, 0.3 * sz, 0, 0.085 * sz, '#ffffff'); c.fillStyle = '#f2b030'; c.beginPath(); c.moveTo(0.36 * sz, -0.04 * sz); c.lineTo(0.52 * sz, 0); c.lineTo(0.36 * sz, 0.04 * sz); c.closePath(); c.fill(); }
   c.restore();
 };
-const shadow = (c, b) => drawGull(c, b.x + 0.02, b.y + 0.028, b.a, 0.0125, 0.85, shade(0.18));
+const shadow = (c, b, s) => drawGull(c, b.x + s.x, b.y + s.y, b.a, 0.0125, 0.85, shade(0.18 * s.a));   // s: where the shadow falls (castShadow)
+const FLYING = 0.034;   // how far a flying gull's shadow lies from it, at the reference sun
 const bird = (c, b) => drawGull(c, b.x, b.y, b.a, 0.014, 0.82 + 0.18 * Math.sin(b.ph), null);
 
 export class Gull extends Entity {
@@ -35,7 +36,7 @@ export class Gull extends Entity {
     const v = this.v * (1 + 4 * this.rush / 1.5); this.x += Math.cos(this.a) * v * dt; this.y += Math.sin(this.a) * v * dt;
     if (this.x > hw + 0.1) this.x = -hw - 0.1; if (this.x < -hw - 0.1) this.x = hw + 0.1; if (this.y > hh + 0.1) this.y = -hh - 0.1; if (this.y < -hh - 0.1) this.y = hh + 0.1;
   }
-  drawShadow(c) { shadow(c, this); }
+  drawShadow(c) { shadow(c, this, this.castShadow(FLYING)); }
   draw(c) { bird(c, this); }
 }
 
@@ -71,6 +72,6 @@ export class GullFlock extends Entity {
       b.a += angDiff(Math.atan2(b.y - py + sa * 0.0004, b.x - px + ca * 0.0004), b.a) * Math.min(1, dt * 6);
     });
   }
-  drawShadow(c) { this.birds.forEach(b => shadow(c, b)); }
+  drawShadow(c) { const s = this.castShadow(FLYING); this.birds.forEach(b => shadow(c, b, s)); }
   draw(c) { this.birds.forEach(b => bird(c, b)); }
 }

@@ -6,6 +6,7 @@ import { Wind } from './wind.js';
 import { Settings } from '../sky/settings.js';
 import { Place } from '../sky/place.js';
 import { SkyClock } from '../sky/sky-clock.js';
+import { DayCycle } from '../sky/day-cycle.js';
 import { Effects } from './effects.js';
 import { Scene } from './scene.js';
 import { Interaction } from './interaction.js';
@@ -18,6 +19,7 @@ import { buildIsland } from '../island/builder.js';
 
 /** A sound that does nothing: for a world with no audio (tests, the gallery). */
 const SILENT = { play() {}, live: false, on: false };
+const DAY_EVERY = 1;   // seconds between updates of the time of day
 
 /**
  * The world is where everything meets. It owns the parts, each with one job, and hands entities the few things they need:
@@ -28,7 +30,7 @@ const SILENT = { play() {}, live: false, on: false };
  *   interaction  what a tap or hover does        input        mouse, finger and pen gestures
  *   renderer     the canvases and the picture    loop         one step per frame
  *   settings     the viewer's choices (saved)    place        where the island is (city, latitude, longitude)
- *   skyClock     the time the island shows
+ *   skyClock     the time the island shows       day          dawn, day, dusk or night, and where shadows fall
  *
  * Without a `stage` it runs headless (no page, no drawing): that is how the tests build islands.
  */
@@ -49,6 +51,7 @@ export class World {
     this.settings = settings ?? new Settings({ storage: headless ? null : undefined });   // headless worlds (tests) never touch the browser's storage
     this.place = new Place({ settings: this.settings });
     this.skyClock = new SkyClock({ settings: this.settings, place: this.place });
+    this.day = new DayCycle(); this.#updateDay();
     this.effects = new Effects();
     this.scene = new Scene({ onError: line => this.#reportError(line) });
     this.interaction = new Interaction({ scene: this.scene, camera: this.camera, terrain: this.terrain, effects: this.effects, sound, onActivity: ms => this.loop?.keepBusy(ms) });
@@ -101,6 +104,7 @@ export class World {
   /** Advances the island by dt seconds. */
   update(dt) {
     this.clock += dt;
+    if (Math.abs(this.clock - this.dayAt) >= DAY_EVERY) this.#updateDay();
     if (this.camera.ease(dt)) this.loop?.keepBusy(200);   // still zooming: stay at full speed
     this.effects.update(dt);
     this.scene.update(dt);
@@ -125,6 +129,9 @@ export class World {
     this.camera.clampToWorld();
     if (turned && this.seed !== undefined) this.generate(this.seed);
   }
+
+  /** The sun moves slowly: the time of day is worked out again every DAY_EVERY seconds, not every frame. */
+  #updateDay() { this.dayAt = this.clock; this.day.update(this.skyClock.now(), this.place.current); }
 
   /** One broken entity is reported once; the rest of the island carries on. */
   #reportError(line) {

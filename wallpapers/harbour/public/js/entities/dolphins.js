@@ -57,7 +57,7 @@ export class DolphinPod extends Entity {
     this.pod.forEach(d => {
       if (!d.leap) return;
       const h = Math.sin(d.leap * Math.PI);
-      oval(c, d.x + h * 0.007, d.y + h * 0.006, 0.014 * d.size, 0.005 * d.size, shade(0.22 * h), d.a);   // its shadow on the water
+      const s = this.castShadow(0.0092 * h); oval(c, d.x + s.x, d.y + s.y, 0.014 * d.size, 0.005 * d.size, shade(0.22 * h * s.a), d.a);   // its shadow on the water
       sprite(c, d.x, d.y - h * 0.013, d.a + (0.5 - d.leap) * 0.5, U * d.size * (1 + 0.22 * h), () => this.paint(c, d, t, true));
     });
   }

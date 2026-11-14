@@ -26,7 +26,8 @@ export class Biplane extends Entity {
     }
   }
   drawShadow(c) {
-    sprite(c, this.x + 0.045, this.y + 0.064, this.a, U * 0.92, () => { c.scale(1, Math.cos(this.bank + this.roll)); c.fillStyle = shade(0.18); upper(c); c.fill(); c.fill(BODY); c.fill(TAIL); });
+    const s = this.castShadow(0.078);
+    sprite(c, this.x + s.x, this.y + s.y, this.a, U * 0.92, () => { c.scale(1, Math.cos(this.bank + this.roll)); c.fillStyle = shade(0.18 * s.a); upper(c); c.fill(); c.fill(BODY); c.fill(TAIL); });
   }
   wing(c, shape, dark) {
     c.save(); shape(c); c.clip();

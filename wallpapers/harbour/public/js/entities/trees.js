@@ -22,7 +22,7 @@ export class Tree extends Entity {
 export class Oak extends Tree {
   draw(c, t) {
     const r = this.r, x = this.x, top = this.y - r * 0.45, a = this.lean(t, 1), b = this.lean(t, 1.5), d = this.lean(t, 2);
-    oval(c, x + r * 0.5, this.y + r * 0.3, r * 1.02, r * 0.74, shade(0.22));
+    const s = this.castShadow(r * 0.58); oval(c, x + s.x, this.y + s.y, r * 1.02, r * 0.74, shade(0.22 * s.a));
     this.trunk(c, x + a[0] * 0.5, top + r * 0.5, '#6b4f38', r * 0.2);
     const clump = (cx, cy, rad, n, spread, col) => { disc(c, cx, cy, rad, col); for (let i = 0; i < n; i++) { const g = this.rot + i * TAU / n; disc(c, cx + Math.cos(g) * rad * spread, cy + Math.sin(g) * rad * spread * 0.9, rad * 0.52, col); } };
     clump(x + a[0], top + r * 0.12 + a[1], r * 0.86, 7, 0.62, '#2f7340');
@@ -38,7 +38,7 @@ export class Pine extends Tree {
   static leaf = '61,127,86';
   draw(c, t) {
     const r = this.r * 0.9, x = this.x, cols = ['#1f4f3a', '#2a6347', '#387a55', '#4f9468', '#73b283'];
-    oval(c, x + r * 0.55, this.y + r * 0.35, r * 0.9, r * 0.6, shade(0.22));
+    const s = this.castShadow(r * 0.65); oval(c, x + s.x, this.y + s.y, r * 0.9, r * 0.6, shade(0.22 * s.a));
     this.trunk(c, x, this.y - r * 0.3, '#5d4532', r * 0.16);
     for (let i = 0; i < 5; i++) {
       const s = this.lean(t, 0.5 + i * 0.5), rad = r * (0.98 - i * 0.19), cx = x + s[0], cy = this.y - r * 0.22 - i * r * 0.27 + s[1], n = 9;
@@ -54,7 +54,7 @@ export class Birch extends Tree {
   static leaf = '169,214,124';
   draw(c, t) {
     const r = this.r * 0.9, x = this.x, s = this.lean(t, 2.2), tx = x + s[0] * 0.8, ty = this.y - r * 1.35 + s[1];
-    oval(c, x + r * 0.5, this.y + r * 0.28, r * 0.72, r * 0.46, shade(0.19));
+    const sh = this.castShadow(r * 0.57); oval(c, x + sh.x, this.y + sh.y, r * 0.72, r * 0.46, shade(0.19 * sh.a));
     this.trunk(c, tx, ty + r * 0.3, '#f3eee2', r * 0.17);
     c.strokeStyle = '#5a5a55'; c.lineWidth = r * 0.05; [0.25, 0.5].forEach(u => { const px = x + (tx - x) * u, py = this.y + (ty + r * 0.3 - this.y) * u; c.beginPath(); c.moveTo(px - r * 0.07, py); c.lineTo(px + r * 0.05, py); c.stroke(); });
     [[0.3, 0.3, 0.42], [-0.36, 0.2, 0.44], [0, -0.02, 0.56], [0.1, -0.4, 0.4]].forEach((p, i) => {

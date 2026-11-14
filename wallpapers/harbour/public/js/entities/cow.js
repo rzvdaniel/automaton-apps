@@ -25,7 +25,7 @@ export class Cow extends Entity {
   }
   draw(c, t) {
     const coat = COATS[this.kind], moving = Math.hypot(this.tx - this.x, this.ty - this.y) > 0.002, graze = this.fear > 0 ? 0 : 1, nod = graze * Math.sin(t * 2.2 + this.seed) * 1.6;
-    oval(c, this.x + 0.002, this.y + 0.003, 0.0085, 0.0034, shade(0.22), this.a);
+    const s = this.castShadow(0.0036); oval(c, this.x + s.x, this.y + s.y, 0.0085, 0.0034, shade(0.22 * s.a), this.a);
     sprite(c, this.x, this.y, this.a, U, () => {
       // hooves showing past the body, and the tail
       [[25, 13], [25, -13], [-30, 14], [-30, -14]].forEach((k, i) => oval(c, k[0] + (moving ? Math.sin(this.step + i * 1.6) * 4 : 0), k[1], 4.5, 2.6, '#3a2f28'));

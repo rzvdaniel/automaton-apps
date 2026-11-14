@@ -14,10 +14,11 @@ export class Quay extends Entity {
   static passes = { roads: 'draw' };
   draw(c) {
     const quay = this.world.map.quay, pier = this.world.map.pier;
-    c.save(); c.translate(0.002, 0.003); line(c, quay); c.strokeStyle = shade(0.22); c.lineWidth = 0.014; c.stroke(); c.restore();
+    const low = this.castShadow(0.0036), high = this.castShadow(0.0052);   // the pier stands a little higher than the quay
+    c.save(); c.translate(low.x, low.y); line(c, quay); c.strokeStyle = shade(0.22 * low.a); c.lineWidth = 0.014; c.stroke(); c.restore();
     line(c, quay); c.strokeStyle = '#a9a498'; c.lineWidth = 0.014; c.stroke(); line(c, quay); c.strokeStyle = '#d6d0c2'; c.lineWidth = 0.0098; c.stroke();
     c.lineJoin = 'miter'; c.lineCap = 'butt';
-    c.save(); c.translate(0.003, 0.0042); line(c, pier); c.strokeStyle = shade(0.26); c.lineWidth = 0.013; c.stroke(); c.restore();
+    c.save(); c.translate(high.x, high.y); line(c, pier); c.strokeStyle = shade(0.26 * high.a); c.lineWidth = 0.013; c.stroke(); c.restore();
     line(c, pier); c.strokeStyle = '#9d988c'; c.lineWidth = 0.013; c.stroke(); line(c, pier); c.strokeStyle = '#cfc9bb'; c.lineWidth = 0.009; c.stroke();
     c.lineCap = 'round'; c.lineJoin = 'round';
     [0.25, 0.5, 0.75].forEach(k => disc(c, pier[0][0] + (pier[1][0] - pier[0][0]) * k, pier[0][1] + (pier[1][1] - pier[0][1]) * k, 0.0011, '#5c564c'));

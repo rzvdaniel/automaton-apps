@@ -28,7 +28,7 @@ export class Puffin extends Entity {
   draw(c, t) {
     if (this.fly) return;
     const bob = Math.sin(t * 1.7 + this.seed) * 0.6, peer = Math.sin(t * 0.9 + this.seed * 2) * 0.12;
-    oval(c, this.x + 0.0024, this.y + 0.0012, 0.0056, 0.0026, shade(0.24));
+    const s = this.castShadow(0.0027); oval(c, this.x + s.x, this.y + s.y, 0.0056, 0.0026, shade(0.24 * s.a));
     sprite(c, this.x, this.y - 0.0064, 0, U, () => {
       c.scale(this.flip, 1);
       [[-3, 18], [6, 19]].forEach(k => { c.save(); c.translate(k[0], k[1]); fillPath(c, FOOT, '#f08a2e'); c.restore(); });
@@ -50,7 +50,7 @@ export class Puffin extends Entity {
   drawFlying(c, t) {
     if (!this.fly) return;
     const beat = Math.sin(t * 55);
-    oval(c, this.x + 0.012, this.y + 0.017, 0.0064, 0.0028, shade(0.16), this.a);
+    const s = this.castShadow(0.021); oval(c, this.x + s.x, this.y + s.y, 0.0064, 0.0028, shade(0.16 * s.a), this.a);
     sprite(c, this.x, this.y, this.a, U * 1.1, () => {
       [-1, 1].forEach(s => { oval(c, -1, s * 12, 5, 11 + beat * 2, 'rgba(23,25,29,0.55)', s * 0.25); oval(c, -1, s * 10, 4, 8, '#17191d', s * (0.25 + beat * 0.3)); });
       fillPath(c, new Path2D('M-16,-3 L-24,-4.5 L-24,-1.5 Z M-16,3 L-24,4.5 L-24,1.5 Z'), '#f08a2e');   // feet trailing

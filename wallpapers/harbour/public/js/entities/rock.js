@@ -21,7 +21,7 @@ export class Rock extends Entity {
     if (this.wet) {   // the sea washes around the foot
       const pulse = 0.5 + 0.5 * Math.sin(t * 1.1 + this.x * 40);
       oval(c, this.x, this.y + r * 0.12, r * (1.22 + 0.14 * pulse), r * (0.92 + 0.12 * pulse), 'rgba(255,255,255,' + (0.3 + 0.22 * pulse) + ')');
-    } else oval(c, this.x + r * 0.5, this.y + r * 0.4, r * 0.98, r * 0.7, shade(0.2));
+    } else { const s = this.castShadow(r * 0.64); oval(c, this.x + s.x, this.y + s.y, r * 0.98, r * 0.7, shade(0.2 * s.a)); }
     const face = this.wet ? '#5c6a73' : tone[0];
     this.blob(c, 0, 0, 1, face); this.blob(c, 0, -tall * 0.5, 1, face);
     this.blob(c, 0, -tall, 1, tone[1]);

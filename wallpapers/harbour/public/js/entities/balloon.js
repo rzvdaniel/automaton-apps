@@ -18,7 +18,7 @@ export class Balloon extends Entity {
     this.x += w.wind[0] * 0.007 * dt; this.y += w.wind[1] * 0.007 * dt;
     if (this.x > w.hw + m) this.x = -w.hw - m; if (this.x < -w.hw - m) this.x = w.hw + m; if (this.y > w.hh + m) this.y = -w.hh - m; if (this.y < -w.hh - m) this.y = w.hh + m;
   }
-  drawShadow(c) { const h = this.high; oval(c, this.x + 0.055 * h, this.y + 0.078 * h, R * U * 0.95, R * U * 0.86, shade(0.2 - 0.07 * this.climb)); }
+  drawShadow(c) { const s = this.castShadow(0.095 * this.high); oval(c, this.x + s.x, this.y + s.y, R * U * 0.95, R * U * 0.86, shade((0.2 - 0.07 * this.climb) * s.a)); }
   draw(c, t) {
     sprite(c, this.x, this.y, 0.03 * Math.sin(t * 0.5 + this.seed), U * this.high, () => {
       const flame = this.burn > 0 ? 0.75 + 0.25 * Math.sin(t * 40) : 0;
