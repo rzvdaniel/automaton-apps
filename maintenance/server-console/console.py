@@ -133,6 +133,55 @@ def cleanup_call(settings: Settings, timeout: float = 30, opener=None) -> tuple[
         return "error", None, f"The server could not be reached: {type(error).__name__}."
 
 
+GUID = re.compile(r"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
+MAINTAIN_STATUS = {401: "not_approved", 403: "forbidden", 404: "not_found", 409: "conflict"}
+
+
+def maintain_call(settings: Settings, method: str, path: str, viewer_token: str | None = None, timeout: float = 30, opener=None) -> tuple[str, dict | list | None, str | None]:
+    """Calls one fixed endpoint of /api/server/runners (permission runner:maintain, approved per Runner). The path is
+    built from a fixed list; the person's viewer token is passed on only for the one call that changes something.
+    Returns (status, data, message); status is ok, not_approved, forbidden, not_found, conflict, no_key, not_configured or error."""
+    if not settings.api_base_url:
+        return "not_configured", None, "The server address (AUTOMATON_API_URL) is not set."
+    if not settings.api_key:
+        return "no_key", None, "The app has no key yet."
+    headers = {"Authorization": "Bearer " + settings.api_key, "Accept": "application/json", "User-Agent": USER_AGENT}
+    if viewer_token:
+        headers["X-Automaton-Viewer-Token"] = viewer_token
+    request = Request(settings.api_base_url + path, method=method, headers=headers, data=b"" if method == "POST" else None)
+    try:
+        with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
+            return "ok", json.loads(response.read(2_000_000).decode("utf-8") or "null"), None
+    except HTTPError as error:
+        status = MAINTAIN_STATUS.get(error.code)
+        if status:
+            message = ""
+            try:
+                message = json.loads(error.read(10_000).decode("utf-8")).get("error") or ""
+            except (ValueError, OSError, AttributeError):
+                pass
+            return status, None, message or f"The server answered HTTP {error.code}."
+        return "error", None, f"The server answered HTTP {error.code}."
+    except (URLError, OSError, ValueError) as error:
+        return "error", None, f"The server could not be reached: {type(error).__name__}."
+
+
+def maintenance_permissions(settings: Settings, **kwargs):
+    return maintain_call(settings, "GET", "/api/server/runners/permissions", **kwargs)
+
+
+def start_cleanup(settings: Settings, runner_id: str, viewer_token: str | None, **kwargs):
+    if not GUID.match(runner_id or ""):
+        return "not_found", None, "Unknown machine."
+    return maintain_call(settings, "POST", f"/api/server/runners/{runner_id}/cleanup", viewer_token, **kwargs)
+
+
+def cleanup_run(settings: Settings, runner_id: str, run_id: str, **kwargs):
+    if not GUID.match(runner_id or "") or not GUID.match(run_id or ""):
+        return "not_found", None, "Unknown run."
+    return maintain_call(settings, "GET", f"/api/server/runners/{runner_id}/cleanup/{run_id}", **kwargs)
+
+
 def cleanup_warning(data: dict, now: float) -> str | None:
     """A sentence when the last cleanup failed or is older than two days, else None."""
     runs = data.get("runs") or []

@@ -617,6 +617,88 @@ class CleanupServerTests(unittest.TestCase):
         self.assertEqual(self.calls, [])
 
 
+class MaintenanceTests(unittest.TestCase):
+    RUNNER = "11111111-2222-3333-4444-555555555555"
+
+    class Opener:
+        def __init__(self, code=200, body=b"{}"):
+            self.code, self.body, self.requests = code, body, []
+
+        def open(self, request, timeout=None):
+            self.requests.append(request)
+            if self.code != 200:
+                raise urllib.error.HTTPError(request.full_url, self.code, "x", {}, io.BytesIO(b'{"error": "No."}'))
+            return io.BytesIO(self.body)
+
+    def test_the_cleanup_call_is_one_fixed_post_with_the_key_and_the_viewer_token(self):
+        opener = self.Opener(body=b'{"id": "x"}')
+        status, data, _ = console.start_cleanup(settings(), self.RUNNER, "viewer-token", opener=opener)
+        self.assertEqual((status, data), ("ok", {"id": "x"}))
+        request = opener.requests[0]
+        self.assertEqual((request.method, request.full_url), ("POST", f"https://api.example.com/api/server/runners/{self.RUNNER}/cleanup"))
+        self.assertEqual(request.get_header("X-automaton-viewer-token"), "viewer-token")
+        self.assertTrue(request.get_header("Authorization").startswith("Bearer "))
+
+    def test_nothing_but_a_guid_reaches_the_path(self):
+        opener = self.Opener()
+        for bad in ["../x", "a/b", "", self.RUNNER + "/../x", "x?y=1"]:
+            self.assertEqual(console.start_cleanup(settings(), bad, "t", opener=opener)[0], "not_found")
+            self.assertEqual(console.cleanup_run(settings(), self.RUNNER, bad, opener=opener)[0], "not_found")
+        self.assertEqual(opener.requests, [])
+
+    def test_the_servers_refusals_are_named(self):
+        for code, expected in [(401, "not_approved"), (403, "forbidden"), (404, "not_found"), (409, "conflict"), (500, "error")]:
+            status, _, message = console.start_cleanup(settings(), self.RUNNER, "t", opener=self.Opener(code))
+            self.assertEqual(status, expected)
+        self.assertEqual(console.start_cleanup(settings(), self.RUNNER, "t", opener=self.Opener(409))[2], "No.")
+        self.assertEqual(console.start_cleanup(settings(APP_AUTOMATON_API_KEY=""), self.RUNNER, "t")[0], "no_key")
+
+    def test_the_viewer_token_is_only_sent_with_the_one_change(self):
+        opener = self.Opener(body=b"[]")
+        console.maintenance_permissions(settings(), opener=opener)
+        self.assertIsNone(opener.requests[0].get_header("X-automaton-viewer-token"))
+
+
+class MaintenanceServerTests(unittest.TestCase):
+    RUNNER = MaintenanceTests.RUNNER
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.seen = []
+        outer = self
+        self.original = console.maintain_call
+        console.maintain_call = lambda settings_, method, path, token=None, **_: (outer.seen.append((method, path, token)) or ("ok", {"id": "r"}, None))
+        env = {"AUTOMATON_APP_DATA_DIR": self.directory.name, "API_BASE_URL": "https://api.example.com"}
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(main.Console(env)))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def tearDown(self):
+        console.maintain_call = self.original
+        self.server.shutdown()
+        self.server.server_close()
+        self.directory.cleanup()
+
+    def post(self, path, headers):
+        request = urllib.request.Request(self.base + path, data=b"", method="POST", headers=headers)
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+
+    def test_a_post_needs_the_pages_header_and_passes_the_viewer_token_on(self):
+        path = f"/api/maintenance/cleanup?runner={self.RUNNER}"
+        self.assertEqual(self.post(path, {}), 404, "a form on another site cannot set the header")
+        self.assertEqual(self.seen, [])
+        self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}), 200)
+        self.assertEqual(self.seen, [("POST", f"/api/server/runners/{self.RUNNER}/cleanup", "vt")])
+
+    def test_only_the_cleanup_can_be_posted(self):
+        self.assertEqual(self.post("/api/maintenance/restart?runner=x", {"X-Server-Console": "1"}), 404)
+        self.assertEqual(self.post("/api/maintenance", {"X-Server-Console": "1"}), 404)
+
+
 class BuildTests(unittest.TestCase):
     def test_the_build_copies_every_file_the_server_serves(self):
         here = os.path.dirname(os.path.abspath(__file__))

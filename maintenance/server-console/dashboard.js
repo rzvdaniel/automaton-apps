@@ -183,6 +183,7 @@
 
   var picker = document.getElementById("machines");
   var chosen = null;
+  var lastData = null; // the last /api/state answer
   try { chosen = window.localStorage.getItem("server-console-machine"); } catch (e) { /* storage blocked: the default machine */ }
 
   function paintPicker(data) {
@@ -260,7 +261,9 @@
       return response.json().then(function (data) {
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);
         if (!data.health) return problem(data);
+        lastData = data;
         dashboard(data);
+        if (typeof paintMaintenance === "function") paintMaintenance();
       });
     }).catch(function () {
       view.innerHTML = '<div class="a-empty"><div class="a-empty__title">Cannot reach the app</div>Retrying shortly.</div>';
@@ -313,8 +316,93 @@
     }).catch(function () { /* keep what is shown */ });
   }
 
+  // --- Maintenance card: Docker cleanup now on the chosen machine. Shown only when an administrator approved
+  // runner:maintain for this app; the button works only for machines approved for it and for system administrators. ----
+
+  var maintenanceBox = document.getElementById("maintenance-box");
+  var machinesMaintained = [];
+  var cleanupRun = null; // { runner, runId, state } of the cleanup this page started
+  var cleanupTimer = null;
+
+  function maintainedRunner() {
+    return machinesMaintained.filter(function (item) { return item.name === chosenName(); })[0];
+  }
+
+  function chosenName() { return lastData ? lastData.machine : null; }
+
+  function maintenanceBody(item) {
+    if (!item) return '<p class="a-hint">This machine has no Runner to maintain.</p>';
+    var offline = ((lastData && lastData.machines) || []).filter(function (m) { return m.name === item.name && !m.online; }).length > 0;
+    var running = cleanupRun && cleanupRun.runner === item.runnerId && (cleanupRun.state === "queued" || cleanupRun.state === "running");
+    var result = "";
+    if (cleanupRun && cleanupRun.runner === item.runnerId && cleanupRun.run) {
+      var run = cleanupRun.run;
+      result = run.result === "succeeded" ? '<p class="a-note" id="maintenance-result">Freed ' + esc(bytes(run.bytesFreed)) + " on " + esc(item.name) + "." + (run.message ? " " + esc(run.message) : "") + "</p>"
+        : run.result === "failed" ? '<p class="a-note a-note--warning" id="maintenance-result">The cleanup failed: ' + esc(run.message || "unknown error") + "</p>" : "";
+    }
+    if (cleanupRun && cleanupRun.runner === item.runnerId && cleanupRun.error) result = '<p class="a-note a-note--warning" id="maintenance-result">' + esc(cleanupRun.error) + "</p>";
+    if (!item.approved) return '<p class="a-hint">An administrator has not approved maintenance on ' + esc(item.name) + " for this app yet. Approve it in Studio under Admin, Apps, Permissions.</p>";
+    return '<p><button class="a-btn" type="button" id="cleanup-now"' + (running || offline ? " disabled" : "") + ">" + (running ? "Cleaning up..." : "Docker cleanup now") + "</button> " +
+      '<span class="a-hint">on ' + esc(item.name) + (offline ? " (offline)" : "") + "</span></p>" + result;
+  }
+
+  function paintMaintenance() {
+    if (!machinesMaintained.length) { maintenanceBox.hidden = true; return; }
+    var item = maintainedRunner();
+    maintenanceBox.hidden = false;
+    maintenanceBox.innerHTML = card("Maintenance", item && item.approved ? "ok" : "unknown", '<div id="maintenance-body">' + maintenanceBody(item) + "</div>",
+      "Frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit, on this one machine. Never volumes, apps in use or backups. Needs a system administrator.");
+    maintenanceBox.firstChild.classList.add("spaced");
+  }
+
+  function loadMaintenance() {
+    fetch("api/maintenance", { cache: "no-store" }).then(function (response) {
+      return response.json().then(function (data) {
+        machinesMaintained = data.status === "ok" && Array.isArray(data.data) ? data.data : [];
+        paintMaintenance();
+      });
+    }).catch(function () { /* keep what is shown */ });
+  }
+
+  function pollCleanup() {
+    clearTimeout(cleanupTimer);
+    if (!cleanupRun || (cleanupRun.state !== "queued" && cleanupRun.state !== "running")) return;
+    fetch("api/maintenance/cleanup?runner=" + encodeURIComponent(cleanupRun.runner) + "&run=" + encodeURIComponent(cleanupRun.runId), { cache: "no-store" }).then(function (response) {
+      return response.json().then(function (data) {
+        if (data.status === "ok" && data.data) { cleanupRun.run = data.data; cleanupRun.state = data.data.result; }
+        else { cleanupRun.state = "failed"; cleanupRun.error = data.message || "The cleanup result could not be read."; }
+        paintMaintenance();
+        if (cleanupRun.state === "queued" || cleanupRun.state === "running") cleanupTimer = setTimeout(pollCleanup, 3000);
+        else load();
+      });
+    }).catch(function () { cleanupTimer = setTimeout(pollCleanup, 5000); });
+  }
+
+  function startCleanup() {
+    var item = maintainedRunner();
+    if (!item) return;
+    cleanupRun = { runner: item.runnerId, state: "queued" };
+    paintMaintenance();
+    fetch("api/maintenance/cleanup?runner=" + encodeURIComponent(item.runnerId), { method: "POST", headers: { "X-Server-Console": "1" }, cache: "no-store" }).then(function (response) {
+      return response.json().then(function (data) {
+        if (data.status !== "ok" || !data.data) {
+          cleanupRun.state = "failed";
+          cleanupRun.error = data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can run the cleanup, on a machine approved for this app." : data.message || "The cleanup could not be started.";
+          return paintMaintenance();
+        }
+        cleanupRun.runId = data.data.id; cleanupRun.state = data.data.result;
+        paintMaintenance();
+        pollCleanup();
+      });
+    }).catch(function () { cleanupRun.state = "failed"; cleanupRun.error = "The app could not be reached."; paintMaintenance(); });
+  }
+
+  maintenanceBox.addEventListener("click", function (event) { if (event.target.id === "cleanup-now") startCleanup(); });
+
   UI.bindThemeToggle();
   load();
+  loadMaintenance();
+  setInterval(loadMaintenance, 60000);
   loadCleanup();
   setInterval(loadCleanup, 30000);
   setInterval(load, 30000);
