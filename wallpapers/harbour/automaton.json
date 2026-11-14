@@ -17,6 +17,7 @@
     },
     "runtime": {
       "image": "node:22-bookworm-slim",
+      "user": "1000:1000",
       "command": {
         "executable": "node",
         "arguments": [

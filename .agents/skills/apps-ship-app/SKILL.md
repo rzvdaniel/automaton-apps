@@ -44,7 +44,9 @@ link it.
 ## 4. Catalog pin
 
 Wait for the `catalog-bot` PR CI opens after the merge to merge itself (`gh pr list --label catalog-bot --state all`),
-then confirm the app is pinned to your merge commit: `automaton catalog list --search <app>`.
+then confirm the app is pinned to your merge commit: `automaton catalog list --search <app> --json --profile <server>`.
+Until [automaton#1135](https://github.com/rzvdaniel/automaton/issues/1135) lands, a server keeps its catalog for up to
+10 minutes: on each server, wait until this shows the merge commit before installing or updating there.
 
 ## 5. Test server
 
@@ -53,16 +55,18 @@ with `automaton login --server https://api.runner-01.automaton.monster --profile
 in a browser, give them that exact command and continue with what doesn't need it.
 
 ```bash
-automaton catalog install <app> --name apps-e2e-<app> --profile runner-01 --wait   # a fresh copy
-automaton catalog update <app-or-id> --profile runner-01 --wait                  # or update an existing apps-e2e copy
+automaton catalog install <app> --name apps-e2e-<app> --runner <runner> --profile runner-01 --wait   # a fresh copy
+automaton catalog update <app-or-id> --profile runner-01 --wait   # or update an existing apps-e2e copy
 ```
 
-Apps with an empty slug are addressed by id. Secrets go only through `--secrets-file`; an update of edited files needs
+Until [automaton#1134](https://github.com/rzvdaniel/automaton/issues/1134) lands, always pass `--runner` to
+`catalog install` (`automaton runners` lists them): without it the app is left with no Runner. Apps with an empty slug are addressed by id. Secrets go only through `--secrets-file`; an update of edited files needs
 `--confirm-edited`. Check the "Done when" in a browser as a user, then publish the proof and delete every `apps-e2e-`
 copy you made; test apps on shared servers always carry that prefix.
 
 **Proof.** Write one HTML page next to a `shots/` folder: one `<table>` (criterion, result, evidence) with a row per
-"Done when" item (pass, fail, or not checked and why), the app id and the pinned commit; inline `<style>` only, no
+"Done when" item (pass, fail, or not checked and why), the app id and the pinned commit (the first proof, before
+merge, names the branch commit); inline `<style>` only, no
 scripts; screenshots as `<img src="shots/name.png" alt="...">`, viewport only. Publish it as the issue's `proof`
 artifact (replaces an older one; under 1 MB; needs `pip install pillow`):
 
