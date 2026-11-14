@@ -41,7 +41,7 @@ export class SettingsDialog {
     <input class="slider" id="set-weather" type="range" min="0" max="100" step="1">
     <span class="slider-ends a-hint"><span>More sun</span><span>More clouds</span></span></div>
   <div class="a-field"><label class="a-label" for="set-wind-mode">Wind</label>
-    <select class="a-input" id="set-wind-mode"><option value="auto">Auto</option><option value="set">Choose for today</option></select>
+    <select class="a-input" id="set-wind-mode"><option value="auto">Auto</option><option value="set">Choose</option></select>
     <input class="slider" id="set-wind" type="range" min="0" max="100" step="1" aria-label="Wind strength">
     <span class="slider-ends a-hint" id="wind-ends"><span>Calm</span><span>Stormy</span></span></div>
   <div class="dialog-actions"><button class="a-btn a-btn--primary" id="set-close" value="close">Done</button></div>
@@ -71,10 +71,10 @@ export class SettingsDialog {
     });
     this.#el('set-time').addEventListener('change', e => { if (e.target.value) this.clock.setStart(e.target.value); });
     this.#el('set-weather').addEventListener('change', e => s.set({ weather: Number(e.target.value) / 100 }));
-    // a chosen wind is kept with today's date at the island's place, and counts for that day only (see Wind)
-    const today = strength => ({ mode: 'fixed', strength, day: Wind.dayAt(this.place, this.clock.now()) });
-    this.#el('set-wind-mode').addEventListener('change', e => s.set({ wind: e.target.value === 'auto' ? { mode: 'auto' } : today(Number(this.#el('set-wind').value) / 100) }));
-    this.#el('set-wind').addEventListener('change', e => s.set({ wind: today(Number(e.target.value) / 100) }));
+    // a chosen wind lasts until the viewer picks Auto again (see Wind)
+    const chosen = strength => ({ mode: 'fixed', strength });
+    this.#el('set-wind-mode').addEventListener('change', e => s.set({ wind: e.target.value === 'auto' ? { mode: 'auto' } : chosen(Number(this.#el('set-wind').value) / 100) }));
+    this.#el('set-wind').addEventListener('change', e => s.set({ wind: chosen(Number(e.target.value) / 100) }));
     this.dialog.addEventListener('click', e => { if (e.target === this.dialog) this.close(); });   // a click on the backdrop closes it
     s.onChange(() => { if (this.dialog.open) this.#show(); });
   }
@@ -98,7 +98,7 @@ export class SettingsDialog {
     this.#el('set-time-mode').value = start ? 'start' : 'now';
     const time = this.#el('set-time'); time.hidden = !start; if (start) time.value = t.start;
     this.#el('set-weather').value = Math.round(s.get('weather') * 100);
-    const wind = Wind.chosen(s.get('wind'), Wind.dayAt(this.place, this.clock.now())), auto = wind === null;   // yesterday's choice shows as Auto
+    const wind = Wind.chosen(s.get('wind')), auto = wind === null;
     this.#el('set-wind-mode').value = auto ? 'auto' : 'set';
     const slider = this.#el('set-wind'); slider.hidden = auto; this.#el('wind-ends').hidden = auto; if (!auto) slider.value = Math.round(wind * 100);
   }
