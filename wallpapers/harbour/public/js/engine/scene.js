@@ -1,20 +1,28 @@
 /** Drawing passes, bottom to top. 'upright' is sorted by depth so nearer things overlap farther ones. */
 export const LAYERS = ['deep', 'ground', 'roads', 'water', 'upright', 'air', 'effects', 'skyShadow', 'birds', 'clouds'];
+/**
+ * The night-lights pass: windows, lamps, lanterns, headlights, the lighthouse. It is not one of LAYERS: the renderer draws it
+ * on its own canvas above the others, where the time of day's tint does not dim it, and only when it is dark.
+ */
+export const LIGHTS = 'lights';
 
 /**
  * The list of everything in the island. It updates and draws entities, and keeps one broken entity from stopping the rest:
  * a thing that throws is reported once and taken out of the scene.
+ * With a Presence, it also leaves out whoever is not out at this hour (visible 0): they are not updated, drawn or clicked,
+ * and those coming or going are drawn faded.
  */
 export class Scene {
-  /** @param {{ onError?: (line: string, error: Error) => void }} options */
-  constructor({ onError = () => {} } = {}) {
+  /** @param {{ onError?: (line: string, error: Error) => void, presence?: import('./presence.js').Presence }} options */
+  constructor({ onError = () => {}, presence = null } = {}) {
     this.entities = [];
     this.onError = onError;
+    this.presence = presence;
     this.layerLists = null;   // built when first needed, dropped when the list of entities changes
   }
 
-  add(entity) { this.entities.push(entity); this.layerLists = null; return entity; }
-  clear() { this.entities = []; this.layerLists = null; }
+  add(entity) { this.entities.push(entity); this.#changed(); return entity; }
+  clear() { this.entities = []; this.#changed(); }
   /** Every entity of a class (or a subclass). */
   all(Type) { return this.entities.filter(e => e instanceof Type); }
   count(Type) { return this.all(Type).length; }
@@ -23,8 +31,9 @@ export class Scene {
   scare(x, y, reach, water) { this.entities.forEach(e => e.onScare?.(x, y, reach, water)); }
 
   update(dt) {
-    this.entities.forEach(e => { try { e.update(dt); } catch (err) { this.fail(e, 'update', err); } });
-    if (this.entities.some(e => e.dead)) { this.entities = this.entities.filter(e => !e.dead); this.layerLists = null; }
+    this.presence?.update(this.entities);
+    this.entities.forEach(e => { if (e.visible === 0) return; try { e.update(dt); } catch (err) { this.fail(e, 'update', err); } });
+    if (this.entities.some(e => e.dead)) { this.entities = this.entities.filter(e => !e.dead); this.#changed(); }
   }
 
   /**
@@ -33,8 +42,9 @@ export class Scene {
    */
   drawLayer(name, c, t, resetTransform = () => {}, view = null) {
     for (const [e, method] of this.#layer(name)) {
-      if (e.dead || (view && !Scene.inView(e, view))) continue;
+      if (e.dead || e.visible === 0 || (view && !Scene.inView(e, view))) continue;
       c.save();
+      if (e.visible < 1) c.globalAlpha = e.visible;   // coming out or going home: fades in or out
       try {
         const sc = e.scale;
         if (sc !== 1 && !e.constructor.ownScale && e.x !== undefined) { c.translate(e.x, e.y); c.scale(sc, sc); c.translate(-e.x, -e.y); }
@@ -58,7 +68,7 @@ export class Scene {
       const list = this.#layer(LAYERS[l]);
       for (let i = list.length - 1; i >= 0; i--) {
         const e = list[i][0];
-        if (!e.constructor.clicks || seen.has(e) || e.dead) continue;
+        if (!e.constructor.clicks || seen.has(e) || e.dead || e.visible === 0) continue;
         seen.add(e); yield e;
       }
     }
@@ -69,9 +79,12 @@ export class Scene {
     this.onError(`${entity.constructor.name}.${where}: ${err?.message}`, err);
   }
 
+  /** Entities came or went: the drawing lists and who-is-out are worked out again. */
+  #changed() { this.layerLists = null; this.presence?.invalidate(); }
+
   #layer(name) {
     if (!this.layerLists) {
-      this.layerLists = Object.fromEntries(LAYERS.map(n => [n, []]));
+      this.layerLists = Object.fromEntries([...LAYERS, LIGHTS].map(n => [n, []]));
       this.entities.forEach(e => { for (const [layer, method] of Object.entries(e.constructor.passes)) this.layerLists[layer].push([e, method]); });
     }
     if (name === 'upright') this.layerLists.upright.sort((p, q) => p[0].y - q[0].y);

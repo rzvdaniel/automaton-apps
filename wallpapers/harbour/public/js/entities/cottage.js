@@ -9,6 +9,10 @@ export class Cottage extends House {
     super(world, Object.assign({ wall: '#f6f1e6', roof: ['#dcbd7e', '#c4a161'] }, o));
     this.straw = []; for (let i = 0; i < 90; i++) this.straw.push([-49 + Math.random() * 98, -30 + Math.random() * 58, 4 + Math.random() * 7, Math.random() < 0.5]);
   }
+  windowSpots() {
+    const u = this.w / 100, front = Math.cos(this.a) >= 0 ? 1 : -1;
+    return [-27, 27].map(x => [x * u, 37 * front * u]);
+  }
   draw(c) {
     const front = Math.cos(this.a) >= 0 ? 1 : -1, grow = 1 + 0.22 * this.pop * Math.sin(this.pop * 10), u = this.w / 100;
     const s = this.castShadow(0.0084); sprite(c, this.x + s.x, this.y + s.y, this.a, u, () => { c.fillStyle = shade(0.26 * s.a); rrect(c, -52, -34, 104, 70, 13); c.fill(); });

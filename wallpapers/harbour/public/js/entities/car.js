@@ -1,9 +1,11 @@
 // A small car that potters around the island's roads: it parks for a while at the end of a road,
 // and picks a new road at the crossroads. Click it and it toots and speeds off.
-import { shade, clamp, angDiff, disc, rrect, Entity } from '../core/index.js';
+import { shade, clamp, angDiff, disc, rrect, glow, switchOn, Entity } from '../core/index.js';
 
+const LAMPS = [0.34, -0.34];   // where the headlights sit across the car's front
 const L = 0.0125, Wd = 0.0062, PAINT = [['#d9473a', '#ee7563'], ['#f0b93a', '#f8d778'], ['#2b8089', '#58aab1'], ['#f3ede0', '#ffffff'], ['#5d86b4', '#8fb0d6']];
 export class Car extends Entity {
+  static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'one';
   constructor(world, G) {
     super(world); this.roads = world.map.roads; this.r = 1; this.s = G() * (this.roads[1].pts.length - 2); this.dir = G() < 0.5 ? 1 : -1;
@@ -31,6 +33,14 @@ export class Car extends Entity {
     }
     this.place();
     this.dust -= dt; if (this.dust <= 0) { this.dust = this.rush > 0 ? 0.07 : 0.22; this.world.burst(this.x - Math.cos(this.a) * L * 0.5, this.y - Math.sin(this.a) * L * 0.5, 1, 0.006, '226,210,176', 0.0022, 0.7); }
+  }
+  /** Headlights after dark: two lamps and a pool of light on the road ahead. */
+  drawLights(c) {
+    const a = switchOn(0.25, this.darkness);
+    if (a <= 0) return;
+    const cos = Math.cos(this.a), sin = Math.sin(this.a);
+    for (const k of LAMPS) glow(c, this.x + cos * L * 0.5 - sin * Wd * k, this.y + sin * L * 0.5 + cos * Wd * k, 0.004, a);
+    glow(c, this.x + cos * L * 1.6, this.y + sin * L * 1.6, 0.011, a * 0.45, '255,236,190');
   }
   draw(c, t) {
     const hop = this.bounce * Math.abs(Math.sin(this.bounce * 9)) * 0.002, idle = this.wait > 0 ? 0 : Math.sin(t * 30) * 0.00012;

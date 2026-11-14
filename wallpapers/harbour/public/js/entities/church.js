@@ -1,10 +1,21 @@
 // The church behind the town. Click it and the bell rings three times and the gulls leave the tower.
-import { TAU, shade, disc, Entity } from '../core/index.js';
+import { TAU, shade, disc, glow, switchOn, Entity } from '../core/index.js';
 import { Gull } from './gulls.js';
 
 export class Church extends Entity {
+  static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'one';
-  constructor(world, o) { super(world); Object.assign(this, o); this.pop = 0; }   // o: x, y, a
+  constructor(world, o) {   // o: x, y, a
+    super(world); Object.assign(this, o); this.pop = 0;
+    // tall windows along the nave and one up in the tower, lit for evensong
+    this.windows = [[-0.018, 0.0135], [-0.006, 0.0135], [0.006, 0.0135], [0.018, 0.0135], [-0.036, 0.009]]
+      .map(([lx, ly]) => [this.x + Math.cos(this.a) * lx - Math.sin(this.a) * ly, this.y + Math.sin(this.a) * lx + Math.cos(this.a) * ly]);
+  }
+  drawLights(c) {
+    const a = switchOn(0.3, this.darkness);
+    if (a <= 0) return;
+    for (const [x, y] of this.windows) glow(c, x, y, 0.007, a * 0.8);
+  }
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.03; }
   click() {

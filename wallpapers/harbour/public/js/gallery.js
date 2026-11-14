@@ -9,7 +9,7 @@ const SEA = '#17a3cb', DEEP = '#0f7fb0', GRASS = '#93c96b', SAND = '#efe3c9';
 
 /** A world with a pretend shore: 'sea' is all water, 'land' all grass, 'shore' has land on the left and sea on the right. */
 class Stage extends World {
-  constructor(kind) { super({ width: 400, height: 300, debug: false }); this.kind = kind; }
+  constructor(kind) { super({ width: 400, height: 300, debug: false }); this.kind = kind; this.scene.presence = null; }   // every element shows, whatever the hour
   get hw() { return 6; }
   get hh() { return 6; }
   get wind() { return [0.9, 0.2]; }

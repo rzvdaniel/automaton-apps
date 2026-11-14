@@ -1,5 +1,5 @@
 // Boats: rowing boats at their moorings in the cove, and sailing boats out at sea. Click one to rock it or send it off.
-import { shade, angDiff, disc, Entity } from '../core/index.js';
+import { shade, angDiff, disc, glow, switchOn, Entity } from '../core/index.js';
 
 const hull = (c, L, Wd) => { c.beginPath(); c.moveTo(L, 0); c.quadraticCurveTo(L * 0.4, -Wd, -L * 0.75, -Wd * 0.85); c.lineTo(-L * 0.75, Wd * 0.85); c.quadraticCurveTo(L * 0.4, Wd, L, 0); c.closePath(); };
 // Anything that moves through water can leave a wake: it remembers where it has been.
@@ -7,9 +7,13 @@ export const trail = (k, step, back) => { k.tick += step; if (k.tick > 0.3) { k.
 export const drawWake = (c, k, spread, size, strength) => { const n = k.trail.length; for (let i = 0; i < n; i++) { const p = k.trail[i], age = 1 - i / n, sp = spread * (0.25 + age), r = size * (1 - age * 0.5); [-1, 1].forEach(s => disc(c, p[0] - Math.sin(p[2]) * sp * s, p[1] + Math.cos(p[2]) * sp * s, r, 'rgba(255,255,255,' + ((1 - age) * 0.5 * (strength === undefined ? 1 : strength)) + ')')); } };
 
 export class MooredBoat extends Entity {
-  static passes = { water: 'draw' };
+  static passes = { water: 'draw', lights: 'drawLights' };
   static clicks = 'many';
-  constructor(world, o) { super(world); Object.assign(this, o); this.rock = 0; }   // o: x, y, a, col, mast
+  constructor(world, o) {   // o: x, y, a, col, mast
+    super(world); Object.assign(this, o); this.rock = 0;
+    this.lanternAt = Math.random() < 0.35 ? 0.2 + Math.random() * 0.4 : 2;   // a few have a lantern lit at night
+  }
+  drawLights(c) { glow(c, this.x, this.y, 0.006, switchOn(this.lanternAt, this.darkness) * 0.8); }
   update(dt) { this.rock = Math.max(0, this.rock - dt * 0.7); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.014; }
   click() { this.rock = 1; this.world.ripple(this.x, this.y, 0.6); }

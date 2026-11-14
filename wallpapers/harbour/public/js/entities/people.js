@@ -1,5 +1,5 @@
 // The islanders: people standing about, walkers on the roads, parasols on the beach and the harbour cat.
-import { TAU, shade, disc, oval, Entity } from '../core/index.js';
+import { TAU, shade, disc, oval, glow, switchOn, Entity } from '../core/index.js';
 const STANDING = 0.0022;   // how far a standing person's shadow lies from them, at the reference sun
 
 const COATS = ['#2fa7a0', '#e2553f', '#3f6fb5', '#f3c148'];
@@ -8,9 +8,15 @@ export const drawPerson = (c, x, y, n, lift, s) => {   // s: where the shadow fa
   oval(c, x, y - lift, 0.0018, 0.0025, COATS[n % 4]); disc(c, x, y - lift - 0.0006, 0.0014, n % 3 ? '#f3e2b3' : '#6b4a32');
 };
 
-// Stands in one place; hops when clicked.
+/** The small lantern carried by someone still out after dark. */
+const lantern = (c, e) => glow(c, e.x + 0.0028, e.y - 0.001, 0.0055, switchOn(0.3, e.darkness) * e.visible);
+
+// Stands in one place; hops when clicked. At night most go home; one or two stay, with a lantern.
 export class Person extends Entity {
+  static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'many';
+  static nightShare = 0.1;
+  drawLights(c) { lantern(c, this); }
   constructor(world, x, y, col) { super(world); this.x = x; this.y = y; this.col = col; this.hop = 0; }
   update(dt) { this.hop = Math.max(0, this.hop - dt); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.014; }
@@ -18,9 +24,12 @@ export class Person extends Entity {
   draw(c) { drawPerson(c, this.x, this.y, this.col, this.hop > 0 ? Math.abs(Math.sin(this.hop * 14)) * 0.003 : 0, this.castShadow(STANDING)); }
 }
 
-// Walks a road end to end and back; hurries when clicked.
+// Walks a road end to end and back; hurries when clicked. Most go home at night.
 export class Walker extends Entity {
+  static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'many';
+  static nightShare = 0.1;
+  drawLights(c) { lantern(c, this); }
   constructor(world, o) { super(world); Object.assign(this, o); this.rush = 0; this.x = this.y = 0; this.place(); }   // o: road, s, dir, speed, col
   place() { const r = this.road, n = Math.min(r.length - 2, Math.floor(this.s)), u = this.s - n; this.x = r[n][0] + (r[n + 1][0] - r[n][0]) * u + 0.003; this.y = r[n][1] + (r[n + 1][1] - r[n][1]) * u + 0.002; }
   update(dt) {
@@ -36,6 +45,7 @@ export class Walker extends Entity {
 
 export class Parasol extends Entity {
   static clicks = 'many';
+  static active = 'day';   // folded away at dusk
   constructor(world, o) { super(world); Object.assign(this, o); this.pop = 0; }   // o: x, y, col, rot
   update(dt) { this.pop = Math.max(0, this.pop - dt * 0.8); this.rot += this.pop * dt * 9; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.012; }
