@@ -173,11 +173,19 @@ def make_handler(app: Console):
             parts = urlsplit(self.path)
             # A page of this app sets this header; a form on another site cannot.
             operations = {"/api/maintenance/logs": "logs", "/api/maintenance/restart": "restart", "/api/maintenance/disk": "disk"}
-            if self.headers.get("X-Server-Console") != "1" or (parts.path != "/api/maintenance/cleanup" and parts.path not in operations):
+            machine = {"/api/maintenance/os-update": "os-update", "/api/maintenance/reboot": "reboot"}
+            if self.headers.get("X-Server-Console") != "1" or (parts.path != "/api/maintenance/cleanup" and parts.path not in operations and parts.path not in machine):
                 return self.json(404, {"error": "Not found"})
             query = parse_qs(parts.query)
             runner = (query.get("runner") or [""])[0]
             token = self.headers.get("X-Automaton-Viewer-Token")
+            if parts.path in machine:
+                try:
+                    body = json.loads(self.rfile.read(max(0, min(int(self.headers.get("Content-Length") or 0), 2000))).decode("utf-8") or "{}")
+                    confirm = body.get("confirm") if isinstance(body, dict) else None
+                except (ValueError, UnicodeDecodeError):
+                    confirm = None
+                return self.maintain(lambda settings: console.machine_operation(settings, machine[parts.path], runner, confirm, token))
             if parts.path in operations:
                 return self.maintain(lambda settings: console.app_operation(settings, operations[parts.path], runner,
                                                                            (query.get("target") or [""])[0], token, (query.get("lines") or ["100"])[0]))

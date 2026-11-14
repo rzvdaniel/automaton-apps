@@ -137,7 +137,7 @@ GUID = re.compile(r"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
 MAINTAIN_STATUS = {400: "not_found", 401: "not_approved", 403: "forbidden", 404: "not_found", 409: "conflict"}
 
 
-def maintain_call(settings: Settings, method: str, path: str, viewer_token: str | None = None, timeout: float = 30, opener=None) -> tuple[str, dict | list | None, str | None]:
+def maintain_call(settings: Settings, method: str, path: str, viewer_token: str | None = None, timeout: float = 30, opener=None, body: dict | None = None) -> tuple[str, dict | list | None, str | None]:
     """Calls one fixed endpoint of /api/server/runners (permission runner:maintain, approved per Runner). The path is
     built from a fixed list; the person's viewer token is passed on only for the one call that changes something.
     Returns (status, data, message); status is ok, not_approved, forbidden, not_found, conflict, no_key, not_configured or error."""
@@ -148,7 +148,10 @@ def maintain_call(settings: Settings, method: str, path: str, viewer_token: str 
     headers = {"Authorization": "Bearer " + settings.api_key, "Accept": "application/json", "User-Agent": USER_AGENT}
     if viewer_token:
         headers["X-Automaton-Viewer-Token"] = viewer_token
-    request = Request(settings.api_base_url + path, method=method, headers=headers, data=b"" if method == "POST" else None)
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    request = Request(settings.api_base_url + path, method=method, headers=headers,
+                      data=json.dumps(body).encode("utf-8") if body is not None else b"" if method == "POST" else None)
     try:
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
             return "ok", json.loads(response.read(2_000_000).decode("utf-8") or "null"), None
@@ -196,6 +199,19 @@ def app_operation(settings: Settings, operation: str, runner_id: str, target_id:
     else:
         return "not_found", None, "Unknown operation."
     return maintain_call(settings, "POST", path, viewer_token, timeout=170 if operation == "restart" else 40, **kwargs)
+
+
+def machine_operation(settings: Settings, operation: str, runner_id: str, confirm: str, viewer_token: str | None, **kwargs):
+    """OS security updates or a restart of one machine. Only the two fixed names reach the path; the machine's name is typed
+    again by the person for this one call and the server checks it."""
+    if not GUID.match(runner_id or ""):
+        return "not_found", None, "Unknown machine."
+    if operation not in ("os-update", "reboot"):
+        return "not_found", None, "Unknown operation."
+    if not isinstance(confirm, str) or not confirm or len(confirm) > 200:
+        return "not_found", None, "Type the machine's name to confirm."
+    return maintain_call(settings, "POST", f"/api/server/runners/{runner_id}/{operation}", viewer_token,
+                         timeout=1300 if operation == "os-update" else 40, body={"confirm": confirm}, **kwargs)
 
 
 def cleanup_run(settings: Settings, runner_id: str, run_id: str, **kwargs):
