@@ -3,8 +3,17 @@
   "summary": "A living harbour island for your desktop that reacts to clicks: the sea, the sheep, the boats and the church bell.",
   "application": {
     "build": {
-      "singlePageApp": false,
-      "timeoutSeconds": 900
+      "image": "node:22-bookworm-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "node --check server.js && mkdir -p dist && cp -r server.js public dist/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
     },
     "runtime": {
       "image": "node:22-bookworm-slim",
@@ -13,7 +22,7 @@
         "arguments": [
           "server.js"
         ],
-        "workingDirectory": ".",
+        "workingDirectory": "dist",
         "environment": {},
         "useShell": false
       },
