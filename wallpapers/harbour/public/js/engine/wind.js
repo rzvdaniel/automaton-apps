@@ -94,6 +94,30 @@ export class Wind {
   /** How strong the wind is for the sea shader: 0 on a calm day (the sea as it always was), rising to 1 in a storm. */
   get sea() { return Math.max(0, (this.strength - SEA_CALM) / (1 - SEA_CALM)); }
 
+  /**
+   * How the wind crests look for a waves style (see Settings `waves`) at a wind strength 0..1. The shader works out the
+   * same numbers (shader-source.js, the crest block); this copy is here so they can be checked. Only Crescents and
+   * Dashes have crests. Two ramps, and the bigger one wins:
+   *   - light wind: from strength 0.06 a sprinkling of small, faint crests appears, full by 0.2 (a few per screen,
+   *     at most 0.36 opaque, a bit smaller than a breeze's), so the style shows a little on most Auto days;
+   *   - the storm ramp from #181: from sea strength 0.15 up, more, bigger and whiter crests, up to the full look at 0.9.
+   * @param {number} strength the wind strength 0..1
+   * @param {string} waves 'off' | 'original' | 'crescents' | 'dashes'
+   * @returns {{ density: number, size: number, opacity: number }} density: the share of cells that get a crest (before
+   *   the gusty patches); size: how big (1 = a middling crest); opacity: how white at their peak
+   */
+  static crests(strength, waves) {
+    if (waves !== 'crescents' && waves !== 'dashes') return { density: 0, size: 0, opacity: 0 };
+    const ws = Math.max(0, (strength - SEA_CALM) / (1 - SEA_CALM));
+    const ramp = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };   // GLSL smoothstep
+    const light = ramp(0.06, 0.2, strength);
+    return {
+      density: Math.max(Math.min(1, Math.max(0, (ws - 0.15) * 1.2)), 0.05 * light),
+      size: Math.max(0.6 + 0.6 * ws, 0.5 + 0.1 * light),
+      opacity: Math.max(ramp(0, 0.2, ws) * (0.58 + 0.12 * ws), 0.36 * light)
+    };
+  }
+
   /** How much more than usual things move in this wind: 1 at the reference strength, about 0.5 when calm, about 1.8 in a storm. */
   get push() { return 0.4 + 0.6 * this.strength / REFERENCE; }
 

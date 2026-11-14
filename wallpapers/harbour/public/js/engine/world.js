@@ -125,7 +125,7 @@ export class World {
 
   /** Paints the island as it is now. */
   render() {
-    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness, wind: this.windField });
+    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness, wind: this.windField, waves: this.settings.get('waves') });
     this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, wind: this.windField.strength, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
   }
 
