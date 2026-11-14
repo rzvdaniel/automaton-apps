@@ -14,7 +14,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import Request, build_opener, urlopen
 
 import console
@@ -197,9 +197,15 @@ def make_handler(app: Console):
             runner = (query.get("runner") or [""])[0]
             token = self.headers.get("X-Automaton-Viewer-Token")
             if parts.path in machine:
+                # The typed name travels in a header (URL-encoded) as well as in the body: the platform's proxy does not always pass a body on.
+                header_name = self.headers.get("X-Confirm-Machine")
                 try:
+                    if header_name is not None and len(header_name) <= 600:
+                        raise KeyError
                     body = json.loads(self.read_body(2000).decode("utf-8") or "{}")
                     confirm = body.get("confirm") if isinstance(body, dict) else None
+                except KeyError:
+                    confirm = unquote(header_name)
                 except (ValueError, UnicodeDecodeError):
                     confirm = None
                 return self.maintain(lambda settings: console.machine_operation(settings, machine[parts.path], runner, confirm, token))
