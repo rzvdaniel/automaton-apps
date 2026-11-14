@@ -99,7 +99,8 @@ export class Wind {
    * same numbers (shader-source.js, the crest block); this copy is here so they can be checked. Only Crescents and
    * Dashes have crests. Two ramps, and the bigger one wins:
    *   - light wind: from strength 0.06 a sprinkling of small, faint crests appears, full by 0.2 (a few per screen,
-   *     at most 0.36 opaque, a bit smaller than a breeze's), so the style shows a little on most Auto days;
+   *     at most 0.48 opaque, a bit smaller than a breeze's), so the style shows a handful to a dozen per screen on most Auto days.
+   *     A chosen Calm (strength 0.05) is below 0.06, so it shows no crests at all;
    *   - the storm ramp from #181: from sea strength 0.15 up, more, bigger and whiter crests, up to the full look at 0.9.
    * @param {number} strength the wind strength 0..1
    * @param {string} waves 'off' | 'original' | 'crescents' | 'dashes'
@@ -112,9 +113,9 @@ export class Wind {
     const ramp = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };   // GLSL smoothstep
     const light = ramp(0.06, 0.2, strength);
     return {
-      density: Math.max(Math.min(1, Math.max(0, (ws - 0.15) * 1.2)), 0.05 * light),
+      density: Math.max(Math.min(1, Math.max(0, (ws - 0.15) * 1.2)), 0.18 * light),
       size: Math.max(0.6 + 0.6 * ws, 0.5 + 0.1 * light),
-      opacity: Math.max(ramp(0, 0.2, ws) * (0.58 + 0.12 * ws), 0.36 * light)
+      opacity: Math.max(ramp(0, 0.2, ws) * (0.58 + 0.12 * ws), 0.48 * light)
     };
   }
 

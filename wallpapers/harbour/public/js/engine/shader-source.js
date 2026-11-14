@@ -81,14 +81,14 @@ export const FRAGMENT_SHADER = [
   '    float surf = ws * step(0.5, u_waves.x) * (0.12 + 0.88 * face * face);',                    // strong on the shore the wind blows onto, modest on the lee side
   '    col = mix(col, c_foam, w2 * (0.22 + 0.6 * surf));',
   '    col = mix(col, c_foam, (1.0 - smoothstep(0.0, 0.004 + 0.016 * surf, sd)) * surf * 0.85);',   // a wide band of white water on the beach
-  '    float wl = smoothstep(0.06, 0.2, u_waves.y);',                      // light wind: a sprinkling of small, faint crests (see Wind.crests)
+  '    float wl = smoothstep(0.06, 0.2, u_waves.y);',                      // light wind: a sprinkling of small, faint crests (see Wind.crests); none below 0.06, so a chosen Calm (0.05) shows none
   '    if (u_waves.x > 1.5 && wl * u_wind.w > 0.001) {',                   // crests: Crescents or Dashes, some wind, and a fast enough device
   '      vec2 wf = vec2(dot(q, wd) - t * 0.012, dot(q, wn));',             // the sea in the wind frame (x downwind), drifting with the wind
   '      float patches = smoothstep(0.35, 0.75, noise(wf * vec2(1.6, 2.4) + 40.0));',   // noise 1: busy gusty patches (1) and calm lanes (0)
   '      vec2 cg = wf / vec2(0.06, 0.05), id = floor(cg), lp = (fract(cg) - 0.5) * vec2(0.06, 0.05);',   // one possible cap per cell
   '      float h0 = hash(id + 0.37), age = t / 4.0 + h0 * 7.0, cyc = floor(age); age = fract(age);',   // each cap lives about four seconds
   '      float h = hash(id + cyc * vec2(13.7, 5.3));',                      // a new cap, somewhere else in the cell, every life
-  '      float dens = max(clamp((ws - 0.15) * 1.2, 0.0, 1.0), 0.05 * wl) * (0.08 + 0.85 * patches);',   // sparse, except in the gusts; few at a breeze, more in a storm
+  '      float dens = max(clamp((ws - 0.15) * 1.2, 0.0, 1.0), 0.18 * wl) * (0.08 + 0.85 * patches);',   // sparse, except in the gusts; few at a breeze, more in a storm
   '      float life = step(1.0 - dens, h) * smoothstep(0.0, 0.25, age) * (1.0 - smoothstep(0.45, 1.0, age));',   // forms, peaks, fades
   '      float r = fract(h * 37.0), sz = (0.4 + 0.8 * r * r) * max(0.6 + 0.6 * ws, 0.5 + 0.1 * wl);',   // sizes vary threefold, most caps small
   '      vec2 dc = lp - (vec2(fract(h * 91.0), fract(h * 53.0)) - 0.5) * vec2(0.024, 0.016);',   // anywhere in its cell, so no rows or columns
@@ -97,7 +97,7 @@ export const FRAGMENT_SHADER = [
   '      float trail = smoothstep(0.0, 0.002, -dc.x) * (1.0 - smoothstep(0.0, 0.012 * sz, -dc.x)) * (1.0 - smoothstep(0.3, 1.0, abs(dc.y) / (0.008 * sz)));',   // the foam the crest leaves behind it, upwind
   '      float grain = mix(0.8, noise(wf * vec2(380.0, 160.0)), clamp(u_S * u_zoom / 1500.0, 0.0, 1.0));',   // noise 2: breaks the foam up softly; fades out when its specks would be smaller than a pixel
   '      float foam = max(crest * (0.75 + 0.25 * grain), trail * 0.45 * grain) * life;',
-  '      col = mix(col, c_foam, foam * max(smoothstep(0.0, 0.2, ws) * (0.58 + 0.12 * ws), 0.36 * wl) * smoothstep(0.03, 0.09, sd));',
+  '      col = mix(col, c_foam, foam * max(smoothstep(0.0, 0.2, ws) * (0.58 + 0.12 * ws), 0.48 * wl) * smoothstep(0.03, 0.09, sd));',
   '    }',
   '    float rip = 0.0;',
   '    for (int i = 0; i < ' + MAX_RIPPLES + '; i++) { vec4 r = u_rip[i]; if (r.w > 0.001) {',
@@ -114,8 +114,9 @@ export const FRAGMENT_SHADER = [
   '  vec2 cs = p * (S * u_zoom / (u_dpr * 3.0));',
   '  float h2 = hash(floor(cs) + 3.7);',
   '  float rs = 1.0 - smoothstep(0.34, 0.5, length(fract(cs) - 0.5));',
-  '  if (u_waves.x > 0.5 && u_waves.x < 1.5)',                             // Original only: the twinkling dots
+  '  if (u_waves.x > 0.5 && u_waves.x < 1.5) {',                            // Original only: the twinkling dots
   '  col = mix(col, c_foam, step(0.9965, h2) * rs * step(0.04, sd) * (0.5 + 0.5 * sin(t * 1.5 + h2 * 40.0)) * 0.75);',
+  '  }',
   '  col = u_light * col;',                                              // the time of day's light (see Lighting)
   '  col *= 1.0 - 0.14 * dot(ps * 0.75, ps * 0.75);',
   '  col += (hash(fc + 1.3) - 0.5) * 0.04;',

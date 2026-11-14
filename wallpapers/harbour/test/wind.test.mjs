@@ -133,7 +133,7 @@ test('Shader: whitecap crests and trails, and the surf, are all scaled by the se
   const end = lines.findIndex((l, i) => i > start && /^\s*}\s*$/.test(l));
   const block = lines.slice(start, end).join('\n');
   assert.match(block, /float foam = max\(crest[^;]*trail[^;]*\)/, 'foam is made of the crest and its trail');
-  assert.match(block, /mix\(col, c_foam, foam \* max\(smoothstep\(0\.0, 0\.2, ws\)[^;]*0\.36 \* wl\)/, 'the foam is multiplied by (a ramp of) the sea strength, or the light-wind ramp');
+  assert.match(block, /mix\(col, c_foam, foam \* max\(smoothstep\(0\.0, 0\.2, ws\)[^;]*0\.48 \* wl\)/, 'the foam is multiplied by (a ramp of) the sea strength, or the light-wind ramp');
   assert.equal((block.match(/noise\(/g) || []).length, 2, 'at most two noise calls for the caps');
   assert.match(FRAGMENT_SHADER, /float surf = ws \*/, 'the surf grows from the sea strength');
   assert.match(FRAGMENT_SHADER, /\* surf \* 0\.85\)/, 'the beach band is multiplied by it');
@@ -168,7 +168,8 @@ test('Shader: a waves uniform picks Off, Original, Crescents or Dashes', () => {
   assert.deepEqual(WAVE_STYLES, { off: 0, original: 1, crescents: 2, dashes: 3 });
   const lines = FRAGMENT_SHADER.split('\n'), at = lines.indexOf(OLD_SPARKLE);
   assert.ok(at > 0, 'Original keeps the old twinkling dots, line for line');
-  assert.match(lines[at - 1], /^\s*if \(u_waves\.x > 0\.5 && u_waves\.x < 1\.5\)$/, 'only Original draws them (not Off, not the crests)');
+  assert.match(lines[at + 1], /^\s*}$/, 'in braces');
+  assert.match(lines[at - 1], /^\s*if \(u_waves\.x > 0\.5 && u_waves\.x < 1\.5\) \{$/, 'only Original draws them (not Off, not the crests)');
   assert.match(FRAGMENT_SHADER, /if \(u_waves\.x > 1\.5 && wl \* u_wind\.w > 0\.001\)/, 'crests only for Crescents and Dashes');
   assert.match(FRAGMENT_SHADER, /dc\.x \+= step\(u_waves\.x, 2\.5\) \*[^;]*dc\.y \* dc\.y;/, 'Crescents bend the crest; Dashes stay straight');
   assert.match(FRAGMENT_SHADER, /float surf = ws \* step\(0\.5, u_waves\.x\)/, 'Off: no wind surf');
@@ -182,8 +183,8 @@ test('Wind: with Crescents or Dashes a light wind already has a few small faint 
   const light = fresh(fixed(0.2)).strength;   // a light Auto-like day
   for (const w of ['crescents', 'dashes']) {
     const c = Wind.crests(light, w);
-    assert.ok(c.density > 0 && c.density <= 0.06, `${w} density ${c.density}`);
-    assert.ok(c.opacity >= 0.3 && c.opacity <= 0.4, `${w} opacity ${c.opacity}`);
+    assert.ok(c.density > 0 && c.density >= 0.15 && c.density <= 0.2, `${w} density ${c.density}`);
+    assert.ok(c.opacity >= 0.45 && c.opacity <= 0.5, `${w} opacity ${c.opacity}`);
     assert.ok(c.size < Wind.crests(0.9, w).size, 'smaller than in a storm');
     let last = Wind.crests(0, w);
     assert.equal(last.density, 0, 'dead calm: none');
