@@ -750,6 +750,20 @@ class MaintenanceServerTests(unittest.TestCase):
             self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}, body), 200)
             self.assertEqual(self.seen, [("POST", f"/api/server/runners/{self.RUNNER}/{operation}", "vt")])
 
+    def test_a_chunked_body_from_a_proxy_is_read_too(self):
+        import http.client
+        for operation in ("os-update", "reboot"):
+            self.seen.clear()
+            connection = http.client.HTTPConnection("127.0.0.1", self.server.server_address[1])
+            connection.putrequest("POST", f"/api/maintenance/{operation}?runner={self.RUNNER}")
+            connection.putheader("X-Server-Console", "1")
+            connection.putheader("Transfer-Encoding", "chunked")
+            connection.endheaders()
+            body = b'{"confirm":"Runner-01"}'
+            connection.send(hex(len(body))[2:].encode() + b"\r\n" + body + b"\r\n0\r\n\r\n")
+            self.assertEqual(connection.getresponse().status, 200)
+            self.assertEqual(len(self.seen), 1)
+
     def test_only_the_cleanup_can_be_posted(self):
         self.assertEqual(self.post("/api/maintenance/exec?runner=x", {"X-Server-Console": "1"}), 404)
         self.assertEqual(self.post("/api/maintenance", {"X-Server-Console": "1"}), 404)

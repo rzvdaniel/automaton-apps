@@ -169,6 +169,23 @@ def make_handler(app: Console):
             code = {"ok": 200, "not_approved": 403, "forbidden": 403, "not_found": 404, "conflict": 409, "no_key": 403, "not_configured": 404}.get(status, 502)
             self.json(code, {"status": status, "message": message, "data": data})
 
+        def read_body(self, limit: int) -> bytes:
+            """The request body, at most `limit` bytes. A proxy may send it chunked instead of with a Content-Length."""
+            if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                data = b""
+                while len(data) <= limit:
+                    size = int((self.rfile.readline(20).split(b";")[0].strip() or b"0"), 16)
+                    if size <= 0:
+                        break
+                    data += self.rfile.read(min(size, limit + 1 - len(data)))
+                    self.rfile.readline(3)
+                return data[:limit]
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                length = 0
+            return self.rfile.read(max(0, min(length, limit)))
+
         def do_POST(self):  # noqa: N802
             parts = urlsplit(self.path)
             # A page of this app sets this header; a form on another site cannot.
@@ -181,7 +198,7 @@ def make_handler(app: Console):
             token = self.headers.get("X-Automaton-Viewer-Token")
             if parts.path in machine:
                 try:
-                    body = json.loads(self.rfile.read(max(0, min(int(self.headers.get("Content-Length") or 0), 2000))).decode("utf-8") or "{}")
+                    body = json.loads(self.read_body(2000).decode("utf-8") or "{}")
                     confirm = body.get("confirm") if isinstance(body, dict) else None
                 except (ValueError, UnicodeDecodeError):
                     confirm = None
