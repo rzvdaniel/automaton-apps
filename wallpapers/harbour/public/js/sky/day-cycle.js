@@ -89,6 +89,7 @@ export class DayCycle {
   static lightAt(altitude, morning, moonlight) {
     const night = mix(NIGHT_DARK, NIGHT_MOON, moonlight);
     const keys = [...(morning ? MORNING : EVENING), [DayCycle.TWILIGHT, night]];
+    // above the first key it is full daylight; the loop below then finds the two keys the sun is between, down to night
     let colour = altitude >= keys[0][0] ? keys[0][1] : night;
     for (let i = 1; i < keys.length; i++) {
       const [highAlt, high] = keys[i - 1], [lowAlt, low] = keys[i];

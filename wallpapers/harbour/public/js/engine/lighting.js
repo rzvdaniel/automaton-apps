@@ -46,6 +46,8 @@ export class Lighting {
 
   /** Uses this light from now on. Does nothing when it has not changed. */
   apply(light) {
+    if (light === this.last) return;   // world.day makes a new light only when it changes (about once a second)
+    this.last = light;
     const m = Lighting.matrix(light), key = m.map(v => v.toFixed(3)).join(' ');
     if (key === this.key) return;
     this.key = key;
