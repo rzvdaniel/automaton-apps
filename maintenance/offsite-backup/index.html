@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-look="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Off-site Backup</title>
+<link rel="stylesheet" href="ui/app.css">
+<script src="ui/app.js"></script>
+</head>
+<body>
+<header class="a-topbar">
+  <div class="a-topbar__inner">
+    <div class="a-header__brand">
+      <div class="a-brand" aria-hidden="true">&gt;_</div>
+      <div>
+        <h1 class="a-header__title">Off-site Backup</h1>
+        <p class="a-header__sub">Encrypted server backups, copied to your bucket</p>
+      </div>
+    </div>
+    <div class="a-header__actions">
+      <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button>
+    </div>
+  </div>
+</header>
+<main class="a-page">
+  <div class="a-card" id="card"><p class="a-empty">Loading</p></div>
+  <p class="a-footer">The copy is uploaded by the Off-site backup Action, which checks every 15 minutes.</p>
+</main>
+<script src="backup.js"></script>
+</body>
+</html>

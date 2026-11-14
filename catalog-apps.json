@@ -1,6 +1,6 @@
 {
   "apps": [
-    { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.31" },
+    { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.126" },
     { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/server-console", "category": "Monitoring", "minServerVersion": "0.2.63" },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },

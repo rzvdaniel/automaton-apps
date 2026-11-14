@@ -1,6 +1,6 @@
 # Off-site backup
 
-An Actions-only Automaton app that copies the newest encrypted server backup to S3-compatible storage. It requests only `backups:read`; it cannot read the server's private backup key or unencrypted backup folders.
+An Automaton app (an Action plus a small page) that copies the newest encrypted server backup to S3-compatible storage. It requests `backups:read`, `backups:run` (start a server backup) and `notify:email`; it cannot read the server's private backup key or unencrypted backup folders.
 
 ## Install
 
@@ -8,8 +8,12 @@ Install the app from the store page in Studio (**Install on your server**). The 
 
 - settings: `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and the optional `S3_PREFIX`, `RETENTION_DAYS` and `MIN_BACKUPS`;
 - secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`;
-- approval of the `backups:read` and `notify:email` permissions (a system administrator approves them);
-- the nightly schedule (04:30 UTC; move it if your server's 03:00 backup time is not UTC), which you can skip.
+- approval of the `backups:read`, `backups:run` and `notify:email` permissions (a system administrator approves them);
+- the schedule: the Action checks every 15 minutes and uploads any new copy, so the off-site copy follows the server's nightly backup within 15 minutes (you can skip the schedule and run it by hand).
+
+## Back up now
+
+The app's page shows the newest server backup. A system administrator presses **Back up now and send off-site**: the app asks the server for a backup (`POST /api/Install/backups/run`, with the administrator's viewer token; anyone else gets 403), the server makes and encrypts it, and the next 15-minute check uploads it. The app never sees the backup key or the database.
 
 | Provider | `S3_ENDPOINT` | `S3_REGION` |
 |---|---|---|

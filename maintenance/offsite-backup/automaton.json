@@ -1,26 +1,112 @@
 {
   "name": "Off-site Backup",
-  "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
-  "description": "An Actions-only app that uploads the newest encrypted backup to your own bucket. It asks for backups:read (it cannot read the backup key) and notify:email, to email you when a backup fails.",
+  "summary": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
+  "description": "Uploads each new encrypted backup to your own bucket (checks every 15 minutes; an upload that already exists is skipped). The page shows the newest backup and lets a system administrator press Back up now and send off-site. It asks for backups:read, backups:run (start a backup; it cannot read the backup key) and notify:email.",
   "application": {
-    "description": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
-    "permissions": ["backups:read", "notify:email"],
+    "kind": "web",
+    "description": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Off-site backup"
+      }
+    ],
+    "permissions": [
+      "backups:read",
+      "backups:run",
+      "notify:email"
+    ],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "python -m py_compile main.py backup.py && mkdir -p dist/ui && cp main.py backup.py index.html backup.js dist/ && cp ui/app.css ui/app.js dist/ui/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "python",
+        "arguments": [
+          "main.py"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
     "settings": [
-      { "name": "S3_ENDPOINT", "description": "S3-compatible object storage endpoint URL", "required": true },
-      { "name": "S3_BUCKET", "description": "Bucket for encrypted Automaton backups", "required": true },
-      { "name": "S3_REGION", "description": "Object storage region (use us-east-1 for MinIO)", "default": "us-east-1" },
-      { "name": "API_BASE_URL", "description": "Base URL of this Automaton server's API, for example https://api.example.com", "required": true },
-      { "name": "NOTIFY_EMAIL_TO", "description": "Who gets the failure email: administrators (default), owner or project" },
-      { "name": "RETENTION_DAYS", "description": "Keep backups newer than this many days (default 30)", "default": "30" },
-      { "name": "MIN_BACKUPS", "description": "Always keep at least this many newest backups (default 7)", "default": "7" },
-      { "name": "S3_PREFIX", "description": "Optional folder for this install's copies; empty uses automaton/<server host>/<app ID>/" }
+      {
+        "name": "S3_ENDPOINT",
+        "description": "S3-compatible object storage endpoint URL",
+        "required": true
+      },
+      {
+        "name": "S3_BUCKET",
+        "description": "Bucket for encrypted Automaton backups",
+        "required": true
+      },
+      {
+        "name": "S3_REGION",
+        "description": "Object storage region (use us-east-1 for MinIO)",
+        "default": "us-east-1"
+      },
+      {
+        "name": "API_BASE_URL",
+        "description": "Base URL of this Automaton server's API, for example https://api.example.com",
+        "required": true
+      },
+      {
+        "name": "NOTIFY_EMAIL_TO",
+        "description": "Who gets the failure email: administrators (default), owner or project"
+      },
+      {
+        "name": "RETENTION_DAYS",
+        "description": "Keep backups newer than this many days (default 30)",
+        "default": "30"
+      },
+      {
+        "name": "MIN_BACKUPS",
+        "description": "Always keep at least this many newest backups (default 7)",
+        "default": "7"
+      },
+      {
+        "name": "S3_PREFIX",
+        "description": "Optional folder for this install's copies; empty uses automaton/<server host>/<app ID>/"
+      }
     ],
     "secrets": [
-      { "name": "S3_ACCESS_KEY_ID", "description": "Object storage access key ID" },
-      { "name": "S3_SECRET_ACCESS_KEY", "description": "Object storage secret access key" }
+      {
+        "name": "S3_ACCESS_KEY_ID",
+        "description": "Object storage access key ID"
+      },
+      {
+        "name": "S3_SECRET_ACCESS_KEY",
+        "description": "Object storage secret access key"
+      }
     ],
     "schedules": [
-      { "name": "Nightly off-site backup", "action": "upload", "cron": "30 4 * * *", "timeZone": "Etc/UTC", "input": {} }
+      {
+        "name": "Off-site backup check",
+        "action": "upload",
+        "cron": "*/15 * * * *",
+        "timeZone": "Etc/UTC",
+        "input": {}
+      }
     ]
   }
 }
