@@ -20,8 +20,7 @@ automaton repo's orchestrator. Production apps change only as [apps-ship-app](..
   Shared files (`catalog-apps.json`, `README.md`, `design/`, `tools/`) get one owner at a time.
 - Brief each with: the issue numbers, the app folder and what it must not touch, facts you already know, and that it
   ends with the apps-ship-app report.
-- Test apps on shared servers always use the `apps-e2e-` prefix, so copies from different agents never collide with
-  real apps; each agent deletes its own.
+- Each agent deletes its own `apps-e2e-` test copies.
 
 ## Evidence
 

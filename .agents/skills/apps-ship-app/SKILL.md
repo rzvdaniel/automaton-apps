@@ -20,7 +20,7 @@ All must pass; no Docker needed. Keep the output for the PR.
 
 ```bash
 <the app's tests, as its .github/workflows/<app>-tests.yml runs them>
-automaton validate                                   # in the app folder
+(cd <category>/<app> && automaton validate)
 python tools/check_vendored_ui.py
 python tools/validate_apps.py --changed-since origin/main
 python tools/generate_catalog.py --validate
@@ -33,7 +33,7 @@ For a page, take screenshots of it running locally: light and dark, desktop and 
 - Open it as [apps-write-pr](../apps-write-pr/SKILL.md) says.
 - Review: a fresh Opus subagent that did not write the change. Give it the issue, the PR number and the app folder;
   it reads the diff against the surrounding code. It posts a formal review (`gh pr review <N> --comment --body-file`)
-  that starts with `CHANGES NEEDED` only if it does, then `Tier: low|medium|high - why`, the findings, and a
+  that starts with `CHANGES NEEDED` only if it does, then `Tier: low|medium|high - why`, `Important: n, Nit: n`, the findings, and a
   `Security:` line when the change touches permissions, secrets, outbound calls or a path under the security marker
   in `.github/CODEOWNERS`. Fix Important findings; at most two rounds. A new commit needs a new review.
 - Merge only through the gate, never `gh pr merge`:
@@ -56,8 +56,9 @@ automaton catalog install <app> --name apps-e2e-<app> --profile runner-01 --wait
 automaton catalog update <app-or-id> --profile runner-01 --wait                  # or update an existing apps-e2e copy
 ```
 
-Apps with an empty slug are addressed by id. Check the "Done when" in a browser as a user and screenshot it. Then
-delete every `apps-e2e-` copy you made. Test apps on shared servers always carry the `apps-e2e-` prefix.
+Apps with an empty slug are addressed by id. Secrets go only through `--secrets-file`; an update of edited files needs
+`--confirm-edited`. Check the "Done when" in a browser as a user and screenshot it. Then
+delete every `apps-e2e-` copy you made; test apps on shared servers always carry that prefix.
 
 ## 6. Production
 
