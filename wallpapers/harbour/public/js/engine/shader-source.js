@@ -2,7 +2,8 @@
 // It is given the camera (u_zoom, u_cam) and the screen scale (u_S), so it is as sharp as you zoom.
 // The wind (u_wind: direction x, y; strength for the sea, 0 calm .. 1 stormy; whitecaps on or off for a slow device) and the
 // middle of the land (u_isle) shape the sea: with strength 0 everything below is exactly the calm sea. As it rises, the
-// ripples stretch along the wind and drift downwind, whitecaps break out on open water and drift with it, and the surf on
+// ripples stretch along the wind and drift downwind, whitecaps (short soft crests across the wind, each with a faint
+// foam streak downwind, living a few seconds, denser in gusty patches) break on open water, and the surf on
 // the shore grows wider and brighter, most on the shore the wind blows onto. The cost: at most two extra noise() calls
 // per sea pixel, and none when the wind is calm or the device is slow.
 export const MAX_LAND = 14;      // land blobs the shader can merge
@@ -70,14 +71,24 @@ export const FRAGMENT_SHADER = [
   '    col = mix(col, col * vec3(0.72, 0.9, 0.86), bed * 0.45);',
   '    float w2 = smoothstep(0.004, 0.0, abs(sd - 0.03 - 0.006 * sin(t * 0.9 - 1.6 + ph)));',
   '    float face = clamp(dot(normalize(w - u_isle + vec2(1e-4)), -wd), 0.0, 1.0);',   // 1 on the shore the wind blows onto
-  '    float surf = ws * (0.35 + 0.65 * face);',
-  '    col = mix(col, c_foam, w2 * (0.22 + 0.5 * surf));',
-  '    col = mix(col, c_foam, smoothstep(0.006 + 0.05 * surf, 0.0, sd) * surf * 0.55);',   // a wider band of white water on the beach
+  '    float surf = ws * (0.12 + 0.88 * face * face);',                    // strong on the shore the wind blows onto, modest on the lee side
+  '    col = mix(col, c_foam, w2 * (0.22 + 0.6 * surf));',
+  '    col = mix(col, c_foam, (1.0 - smoothstep(0.0, 0.004 + 0.022 * surf, sd)) * surf * 0.85);',   // a wide band of white water on the beach
   '    if (ws * u_wind.w > 0.001) {',                                       // whitecaps: only when it blows and the device is fast enough
-  '      vec2 cq = qw * 34.0 - wd * t * 0.25;',
-  '      float cap = noise(cq) * (0.6 + 0.4 * noise(cq * 2.3 + 11.0));',
-  '      float many = 0.93 - 0.2 * ws;',                                    // more of the sea breaks as the wind rises
-  '      col = mix(col, c_foam, smoothstep(many, many + 0.05 + 0.04 * ws, cap) * smoothstep(0.03, 0.09, sd) * (0.35 + 0.5 * ws));',
+  '      vec2 wf = vec2(dot(q, wd) - t * 0.012, dot(q, wn));',             // the sea in the wind frame (x downwind), drifting with the wind
+  '      float patches = noise(wf * vec2(2.2, 3.5) + 40.0);',               // noise 1: gusty patches and calmer lanes
+  '      vec2 cg = wf / vec2(0.045, 0.04), id = floor(cg), lp = (fract(cg) - 0.5) * vec2(0.045, 0.04);',   // one possible cap per cell
+  '      float h0 = hash(id + 0.37), ph = t / 4.0 + h0 * 7.0, cyc = floor(ph); ph = fract(ph);',   // each cap lives about four seconds
+  '      float h = hash(id + cyc * vec2(13.7, 5.3));',                      // a new cap, somewhere else in the cell, every life
+  '      float dens = clamp((ws - 0.15) * 1.2, 0.0, 1.0) * (0.25 + 1.1 * patches);',   // few at a breeze, many in a storm
+  '      float life = step(1.0 - dens, h) * smoothstep(0.0, 0.25, ph) * (1.0 - smoothstep(0.45, 1.0, ph));',   // forms, peaks, fades
+  '      float sz = (0.55 + 0.45 * fract(h * 37.0)) * (0.6 + 0.6 * ws);',
+  '      vec2 dc = lp - vec2(fract(h * 91.0) - 0.5, fract(h * 53.0) - 0.5) * vec2(0.012, 0.012);',
+  '      float crest = 1.0 - smoothstep(0.35, 1.0, length(dc / (vec2(0.0028, 0.009) * sz)));',   // short, thin, long across the wind
+  '      float trail = smoothstep(0.0, 0.002, dc.x) * (1.0 - smoothstep(0.0, 0.012 * sz, dc.x)) * (1.0 - smoothstep(0.3, 1.0, abs(dc.y) / (0.006 * sz)));',   // the foam streak behind it, downwind
+  '      float grain = noise(wf * vec2(700.0, 260.0));',                    // noise 2: breaks the foam up softly
+  '      float foam = max(crest * (0.75 + 0.25 * grain), trail * 0.45 * grain) * life;',
+  '      col = mix(col, c_foam, foam * ws * (0.62 + 0.08 * ws) * smoothstep(0.03, 0.09, sd));',
   '    }',
   '    float rip = 0.0;',
   '    for (int i = 0; i < ' + MAX_RIPPLES + '; i++) { vec4 r = u_rip[i]; if (r.w > 0.001) {',
