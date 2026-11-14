@@ -24,7 +24,7 @@ export class Gull extends Entity {
   static passes = { skyShadow: 'drawShadow', birds: 'draw' };
   static clicks = 'many';
   static sound = 'gull';
-  static active = 'day';   // goes home at dusk (see engine/presence.js)
+  static presence = { day: 1, night: 0.15 };   // most go home at dusk, a few still fly at night (see engine/presence.js)
   constructor(world, x, y, a) { super(world); this.x = x; this.y = y; this.a = a; this.v = 0.05 + Math.random() * 0.04; this.ph = Math.random() * 6; this.rush = 0; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.02; }
   click(x, y) { this.a = Math.atan2(this.y - y, this.x - x); this.rush = 1.5; }
@@ -47,7 +47,7 @@ export class GullFlock extends Entity {
   static cullRadius = 0.25;   // the birds wander around the leader
   static clicks = 'many';
   static sound = 'gull';
-  static active = 'day';   // goes home at dusk (see engine/presence.js)
+  static presence = { day: 1, night: 0.15 };   // most go home at dusk, a few still fly at night (see engine/presence.js)
   hit(x, y) { return this.birds.some(b => Math.hypot(b.x - x, b.y - y) < 0.02); }
   click(x, y) { this.onScare(x, y, 0.12); }
   constructor(world, G) {

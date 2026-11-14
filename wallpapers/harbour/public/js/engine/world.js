@@ -56,7 +56,7 @@ export class World {
     this.day = new DayCycle(); this.#updateDay();
     this.settings.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // a new time or place shows at once, not at the next tick
     this.effects = new Effects();
-    this.presence = new Presence({ day: this.day });
+    this.presence = new Presence({ day: this.day, dates: () => this.#dates() });
     this.scene = new Scene({ onError: line => this.#reportError(line), presence: this.presence });
     this.interaction = new Interaction({ scene: this.scene, camera: this.camera, terrain: this.terrain, effects: this.effects, sound, onActivity: ms => this.loop?.keepBusy(ms) });
     this.quality = new QualityMonitor();
@@ -135,6 +135,14 @@ export class World {
   }
 
   /** The sun moves slowly: the time of day is worked out again every DAY_EVERY seconds, not every frame. */
+  /**
+   * Which day and which night the island shows, at the place, as text: the seeds Presence draws who is out from. A night
+   * runs from noon to noon (its date is the evening's), so the draw never changes in the dark.
+   */
+  #dates() {
+    const now = this.skyClock.now().getTime(), date = t => { const l = this.place.local(new Date(t)); return `${l.year}-${l.month}-${l.day}`; };
+    return { day: date(now), night: date(now - 12 * 3600000) };
+  }
   #updateDay() { this.dayAt = this.clock; this.day.update(this.skyClock.now(), this.place.current); }
 
   /** One broken entity is reported once; the rest of the island carries on. */

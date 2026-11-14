@@ -1,6 +1,9 @@
 // A house: a pitched roof from above and a strip of painted front wall. Click it to light or put out the fire.
-import { shade, glow, switchOn, Entity } from '../core/index.js';
+import { shade, glow, halo, switchOn, Entity } from '../core/index.js';
 import { Smoke } from './smoke.js';
+
+const WINDOW_STEP = 0.06;      // how much more darkness each next window of a house waits before it comes on
+const HALO = 0.32, SPILL = 0.22;   // how bright the warm haze round a fully lit house is, and the light on the ground in front
 
 export class House extends Entity {
   static passes = { upright: 'draw', lights: 'drawLights' };
@@ -17,11 +20,19 @@ export class House extends Entity {
     const d = this.w * 0.68, y = Math.cos(this.a) >= 0 ? d / 2 + 0.0026 : -d / 2 - 0.0022;
     return [-0.3, 0, 0.3].map(k => [k * this.w, y]);
   }
-  /** Warm light in the windows after dark. */
+  /** How bright window `n` is now (0..1): the windows of a lit house come on one after another, a little apart. */
+  windowLight(n) { return switchOn(this.lightsAt + n * WINDOW_STEP, this.darkness); }
+  /**
+   * Warm light after dark: each lit window, and round the house a soft warm halo with a little light spilling on the ground
+   * in front. The halo is as bright as its windows together, so a house with all its windows on glows most.
+   */
   drawLights(c) {
-    const a = switchOn(this.lightsAt, this.darkness);
-    if (a <= 0) return;
-    for (const [x, y] of this.windows) glow(c, x, y, 0.006, a * 0.85);
+    if (switchOn(this.lightsAt, this.darkness) <= 0) return;
+    let lit = 0;
+    this.windows.forEach(([x, y], n) => { const a = this.windowLight(n); lit += a; glow(c, x, y, 0.006, a * 0.85); });
+    const share = lit / this.windows.length, front = Math.cos(this.a) >= 0 ? 1 : -1;
+    halo(c, this.x, this.y, this.w * 1.8, share * HALO);
+    halo(c, this.x, this.y + front * this.w * 0.75, this.w * 1.3, share * SPILL, undefined, 0.5);
   }
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.02; }

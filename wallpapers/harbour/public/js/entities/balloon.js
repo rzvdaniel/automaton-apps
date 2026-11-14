@@ -1,13 +1,13 @@
 // A red hot-air balloon drifting over the island on the wind, its shadow sliding across the ground below.
 // Click it: the burner roars and it climbs for a while (it grows, and its shadow moves further away).
 // new Balloon(world, { x, y })
-import { TAU, shade, disc, oval, rrect, sprite, Entity, AIRBORNE } from '../core/index.js';
+import { TAU, shade, disc, oval, rrect, sprite, glow, Entity, AIRBORNE } from '../core/index.js';
 
 const U = 0.00072, R = 50, GORES = 14, CROWN = [-3, -9];
 export class Balloon extends Entity {
-  static passes = { skyShadow: 'drawShadow', clouds: 'draw' };
+  static passes = { skyShadow: 'drawShadow', clouds: 'draw', lights: 'drawLights' };
   static clicks = 'top';
-  static active = 'day';   // goes home at dusk (see engine/presence.js)
+  static presence = { day: 1, night: 0.3 };   // some nights it drifts over, glowing from its burner (see engine/presence.js)
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.seed = Math.random() * 9; this.burn = 0; this.climb = 0; }
   get high() { return 1 + 0.04 * Math.sin(this.world.clock * 0.35 + this.seed) + 0.28 * this.climb; }   // 1 = cruising height
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < R * U * this.high; }
@@ -18,6 +18,18 @@ export class Balloon extends Entity {
     if (this.burn === 0 && Math.sin(w.clock * 0.21 + this.seed * 3) > 0.985) this.burn = 0.5;   // a short burst now and then keeps it up
     this.x += w.wind[0] * 0.007 * dt; this.y += w.wind[1] * 0.007 * dt;
     if (this.x > w.hw + m) this.x = -w.hw - m; if (this.x < -w.hw - m) this.x = w.hw + m; if (this.y > w.hh + m) this.y = -w.hh - m; if (this.y < -w.hh - m) this.y = w.hh + m;
+  }
+  /** How much the burner is roaring now (0: idle, about 1: full flame after a click or a burst). */
+  get flame() { return this.burn > 0 ? 0.75 + 0.25 * Math.sin(this.world.clock * 40) : 0; }
+  /**
+   * After dark the burner lights the envelope from inside: a warm glow over the basket, much brighter while it roars.
+   * It grows with the darkness, so by day nothing is drawn.
+   */
+  drawLights(c) {
+    const a = this.darkness * this.visible;
+    if (a <= 0.004) return;
+    const k = U * this.high, f = this.flame;
+    glow(c, this.x, this.y + 30 * k, R * k * (1.1 + 0.5 * f), a * (0.35 + 0.55 * f), '255,170,80');
   }
   drawShadow(c) { const s = this.castShadow(0.095 * this.high, 0, AIRBORNE); oval(c, this.x + s.x, this.y + s.y, R * U * 0.95, R * U * 0.86, shade((0.2 - 0.07 * this.climb) * s.a)); }
   draw(c, t) {
