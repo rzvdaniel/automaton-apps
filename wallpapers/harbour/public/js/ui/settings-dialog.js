@@ -2,7 +2,7 @@ import { Place } from '../sky/place.js';
 import { Wind } from '../engine/wind.js';
 
 /**
- * The settings dialog: a small window with the viewer's choices (sound, place, time, weather, wind).
+ * The settings dialog: a small window with the viewer's choices (sound, place, time, weather, wind, waves).
  * It builds its own form from the page's UI kit classes, shows the current choices each time it opens, and writes every
  * change straight to Settings (and to Sound, which keeps its own switch). It does no thinking of its own.
  * The dialog and its open button keep their taps and keys to themselves, so they never click or zoom the island.
@@ -16,7 +16,7 @@ export class SettingsDialog {
     this.dialog = document.createElement('dialog');
     this.dialog.className = 'settings-dialog';
     this.dialog.setAttribute('aria-labelledby', 'settings-title');
-    this.dialog.innerHTML = SettingsDialog.#markup();
+    this.dialog.innerHTML = SettingsDialog.markup();
     document.body.appendChild(this.dialog);
     this.#fillPlaces();
     this.#keepToSelf();
@@ -24,7 +24,8 @@ export class SettingsDialog {
     sound.onChange(() => this.#show());
   }
 
-  static #markup() {
+  /** The form's markup (the tests read it too). */
+  static markup() {
     return `<form class="a-card a-form" method="dialog">
   <div class="a-card__head"><h2 class="a-card__title" id="settings-title">Settings</h2></div>
   <div class="a-field"><span class="a-label" id="lbl-sound">Sound</span>
@@ -44,6 +45,8 @@ export class SettingsDialog {
     <select class="a-input" id="set-wind-mode"><option value="auto">Auto</option><option value="set">Choose</option></select>
     <input class="slider" id="set-wind" type="range" min="0" max="100" step="1" aria-label="Wind strength">
     <span class="slider-ends a-hint" id="wind-ends"><span>Calm</span><span>Stormy</span></span></div>
+  <div class="a-field"><label class="a-label" for="set-waves">Waves</label>
+    <select class="a-input" id="set-waves"><option value="off">Off</option><option value="original">Original</option><option value="crescents">Crescents</option><option value="dashes">Dashes</option></select></div>
   <div class="dialog-actions"><button class="a-btn a-btn--primary" id="set-close" value="close">Done</button></div>
 </form>`;
   }
@@ -75,6 +78,7 @@ export class SettingsDialog {
     const chosen = strength => ({ mode: 'fixed', strength });
     this.#el('set-wind-mode').addEventListener('change', e => s.set({ wind: e.target.value === 'auto' ? { mode: 'auto' } : chosen(Number(this.#el('set-wind').value) / 100) }));
     this.#el('set-wind').addEventListener('change', e => s.set({ wind: chosen(Number(e.target.value) / 100) }));
+    this.#el('set-waves').addEventListener('change', e => s.set({ waves: e.target.value }));
     this.dialog.addEventListener('click', e => { if (e.target === this.dialog) this.close(); });   // a click on the backdrop closes it
     s.onChange(() => { if (this.dialog.open) this.#show(); });
   }
@@ -101,6 +105,7 @@ export class SettingsDialog {
     const wind = Wind.chosen(s.get('wind')), auto = wind === null;
     this.#el('set-wind-mode').value = auto ? 'auto' : 'set';
     const slider = this.#el('set-wind'); slider.hidden = auto; this.#el('wind-ends').hidden = auto; if (!auto) slider.value = Math.round(wind * 100);
+    this.#el('set-waves').value = s.get('waves');
   }
 
   open() { this.#show(); if (!this.dialog.open) this.dialog.showModal(); this.#el('set-sound').focus(); }
