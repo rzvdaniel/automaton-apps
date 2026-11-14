@@ -750,6 +750,16 @@ class MaintenanceServerTests(unittest.TestCase):
             self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}, body), 200)
             self.assertEqual(self.seen, [("POST", f"/api/server/runners/{self.RUNNER}/{operation}", "vt")])
 
+    def test_the_typed_name_in_a_header_is_enough_when_the_proxy_drops_the_body(self):
+        for operation in ("os-update", "reboot"):
+            path = f"/api/maintenance/{operation}?runner={self.RUNNER}"
+            self.seen.clear()
+            self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Confirm-Machine": "Runner-01"}, b""), 200)
+            self.assertEqual(len(self.seen), 1)
+            self.seen.clear()
+            self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Confirm-Machine": ""}, b""), 404, "an empty name is refused")
+            self.assertEqual(self.seen, [])
+
     def test_a_chunked_body_from_a_proxy_is_read_too(self):
         import http.client
         for operation in ("os-update", "reboot"):

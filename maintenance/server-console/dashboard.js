@@ -404,7 +404,7 @@
     hostOp = { runner: item.runnerId, kind: kind, busy: true };
     paintMaintenance();
     fetch("api/maintenance/" + kind + "?runner=" + encodeURIComponent(item.runnerId), { method: "POST", cache: "no-store",
-      headers: { "X-Server-Console": "1", "Content-Type": "application/json" }, body: JSON.stringify({ confirm: typed }) }).then(function (response) {
+      headers: { "X-Server-Console": "1", "Content-Type": "application/json", "X-Confirm-Machine": encodeURIComponent(typed) }, body: JSON.stringify({ confirm: typed }) }).then(function (response) {
       return response.json().then(function (data) {
         hostOp = { runner: item.runnerId, kind: kind };
         if (data.status !== "ok" || !data.data) {
