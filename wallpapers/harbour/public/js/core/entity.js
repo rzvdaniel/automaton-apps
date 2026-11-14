@@ -19,11 +19,11 @@ export class Entity {
   static cullRadius = 0.15;
   /** True for a class that applies its own `scale` (it has several anchor points, or it needs a wake). */
   static ownScale = false;
-  /** When it is out (see engine/presence.js): 'day', 'night' or 'always'. */
-  static active = 'always';
-  /** For an 'always' group that thins out at night: the share that stays out (1: all of them), and how many stay at least. */
-  static nightShare = 1;
-  static nightKeep = 1;
+  /**
+   * How much of its kind is out by day and by night, 0..1 (see engine/presence.js): for a group the share of individuals,
+   * for a single thing the chance it is out that day or night. `keep` (optional): how many of a group stay out at least.
+   */
+  static presence = { day: 1, night: 1 };
 
   /** @param {import('../engine/world.js').World} world what the entity lives in */
   constructor(world) { this.world = world; this.dead = false; this.scale = 1; this.visible = 1; }   // visible: 0..1, set by Presence

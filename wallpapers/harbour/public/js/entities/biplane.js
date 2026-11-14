@@ -1,16 +1,18 @@
 // A vintage biplane on a lazy tour of the island: yellow wings, a red body, an open cockpit and a pilot whose scarf streams behind.
 // It banks into its turns. Click it for a barrel roll and a puff of smoke.
 // new Biplane(world, { x, y, a })
-import { TAU, shade, clamp, angDiff, disc, oval, rrect, sprite, fillPath, Entity, AIRBORNE } from '../core/index.js';
+import { TAU, shade, clamp, angDiff, disc, oval, rrect, sprite, fillPath, glow, Entity, AIRBORNE } from '../core/index.js';
 
 const U = 0.0007;
+const NAV_RED = '255,60,50', NAV_GREEN = '70,255,120', NAV_WHITE = '235,245,255';   // navigation light colours, as 'r,g,b'
+const STROBE = 1.1;   // strobe flashes a second
 const BODY = new Path2D('M32,0 C32,-6 28,-7.6 22,-7.6 L4,-7 C-14,-6 -30,-3.4 -45,-1.4 L-45,1.4 C-30,3.4 -14,6 4,7 L22,7.6 C28,7.6 32,6 32,0 Z');
 const TAIL = new Path2D('M-33,-2 C-31,-10 -34,-17 -40,-18 C-45,-18 -47,-12 -46,0 C-47,12 -45,18 -40,18 C-34,17 -31,10 -33,2 Z');
 const upper = c => { rrect(c, -1, -50, 18, 100, 8); }, lower = c => { rrect(c, -9, -45, 16, 90, 7); };
 export class Biplane extends Entity {
-  static passes = { skyShadow: 'drawShadow', clouds: 'draw' };
+  static passes = { skyShadow: 'drawShadow', clouds: 'draw', lights: 'drawLights' };
   static clicks = 'top';
-  static active = 'day';   // goes home at dusk (see engine/presence.js)
+  static presence = { day: 1, night: 0.5 };   // flies about every other night, with its navigation lights (see engine/presence.js)
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.a = o.a || 0; this.bank = 0; this.roll = 0; this.seed = Math.random() * 9; this.puff = 0; this.goal = this.pick(); }
   pick() { const w = this.world; return [(Math.random() - 0.5) * 2 * (w.hw + 0.1), (Math.random() - 0.5) * 2 * (w.hh + 0.1)]; }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.04; }
@@ -25,6 +27,23 @@ export class Biplane extends Entity {
       this.roll += dt * 4.2; if (this.roll > TAU) this.roll = 0;
       this.puff -= dt; if (this.puff <= 0) { this.puff = 0.05; w.burst(this.x - Math.cos(this.a) * 0.03, this.y - Math.sin(this.a) * 0.03, 1, 0.01, '255,255,255', 0.005, 1.4); }
     }
+  }
+  /** A point on the plane, (along, across) in drawing units, in world units: it follows the plane's heading and bank. */
+  at(along, across) {
+    const tilt = Math.cos(this.bank + this.roll), cos = Math.cos(this.a), sin = Math.sin(this.a), y = across * tilt;
+    return [this.x + (cos * along - sin * y) * U, this.y + (sin * along + cos * y) * U];
+  }
+  /**
+   * Its navigation lights after dark, as real planes carry them: red on the left wingtip, green on the right and a white
+   * strobe on the tail that blinks about once a second. They grow with the darkness, so by day nothing is drawn.
+   */
+  drawLights(c, t) {
+    const a = this.darkness * this.visible;
+    if (a <= 0.004) return;
+    const [lx, ly] = this.at(4, -49), [rx, ry] = this.at(4, 49), [sx, sy] = this.at(-46, 0);
+    glow(c, lx, ly, 0.008, a * 0.9, NAV_RED);
+    glow(c, rx, ry, 0.008, a * 0.9, NAV_GREEN);
+    if ((t * STROBE + this.seed) % 1 < 0.08) glow(c, sx, sy, 0.014, a, NAV_WHITE);
   }
   drawShadow(c) {
     const s = this.castShadow(0.078, 0, AIRBORNE);

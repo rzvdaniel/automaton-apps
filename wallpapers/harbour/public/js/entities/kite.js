@@ -7,7 +7,7 @@ const U = 0.0002;
 export class Kite extends Entity {
   static passes = { upright: 'drawChild', skyShadow: 'drawShadow', birds: 'drawKite' };
   static clicks = 'many';
-  static active = 'day';   // goes home at dusk (see engine/presence.js)
+  static presence = { day: 1, night: 0 };   // goes home at dusk (see engine/presence.js)
   static cullRadius = 0.2;   // the kite flies that far from the child
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.seed = Math.random() * 9; this.loop = 0; this.hop = 0; this.kx = o.x; this.ky = o.y; this.ka = 0; this.place(0); }
   place(dt) {

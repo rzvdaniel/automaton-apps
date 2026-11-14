@@ -1,4 +1,4 @@
-// A red fox, out only at night (see engine/presence.js). Now and then it trots off across the island to somewhere new,
+// A red fox, out at night and only very rarely by day (see engine/presence.js). Now and then it trots off across the island to somewhere new,
 // then sits a while. Click it and it jumps and yips.
 // new Fox(world)   it finds its own spot on the land
 import { TAU, shade, angDiff, disc, oval, sprite, Entity } from '../core/index.js';
@@ -9,7 +9,7 @@ const RUSSET = '#c4642c', DARK = '#7a3a1a', CREAM = '#f4ead8';
 const TROT = 0.022, DASH = 0.05;   // world units a second, trotting and running off after a click
 
 export class Fox extends Entity {
-  static active = 'night';
+  static presence = { day: 0.05, night: 1 };   // out at night; very rarely still about by day (see engine/presence.js)
   static clicks = 'one';
   static sound = 'yip';
 

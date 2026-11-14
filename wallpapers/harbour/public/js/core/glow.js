@@ -30,6 +30,16 @@ export function glow(c, x, y, r, a, rgb = WARM) {
 }
 
 /**
+ * A soft glow with no bright core: the warm haze around a lit house, or light spilling on the ground. `sy` squashes it
+ * up and down (1: round, 0.5: an oval twice as wide as tall). Nothing is drawn at a brightness of 0.
+ */
+export function halo(c, x, y, r, a, rgb = WARM, sy = 1) {
+  if (a <= 0.004) return;
+  c.globalAlpha = Math.min(1, a);
+  c.drawImage(sprite(rgb), x - r, y - r * sy, r * 2, r * 2 * sy);
+}
+
+/**
  * How bright a light is that switches on at darkness `at` (0..1; above 1: it never does): it fades on over a little more
  * darkness, then follows the darkness. So lights come on one by one at dusk, and are brightest in full night.
  */
