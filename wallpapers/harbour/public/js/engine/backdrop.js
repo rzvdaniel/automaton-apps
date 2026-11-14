@@ -1,7 +1,7 @@
 import { VERTEX_SHADER, FRAGMENT_SHADER, MAX_LAND, MAX_RIPPLES } from './shader-source.js';
 import { RepaintPolicy } from './repaint-policy.js';
 
-const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip'];
+const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light'];
 
 /**
  * The backdrop: sea, shore, sand and meadow, painted by a WebGL fragment shader onto its own canvas.
@@ -16,6 +16,7 @@ export class Backdrop {
     this.uniforms = {};
     this.landBuffer = new Float32Array(MAX_LAND * 3);
     this.rippleBuffer = new Float32Array(MAX_RIPPLES * 4);
+    this.lightMatrix = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);   // the time of day's light (see Lighting); plain daylight
     // the picture is kept between frames (preserveDrawingBuffer), so a frame can be skipped without the sea going blank
     this.gl = this.#setup(canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power', preserveDrawingBuffer: true }));
   }
@@ -48,6 +49,12 @@ export class Backdrop {
     land.forEach((blob, n) => { if (n < MAX_LAND) this.landBuffer.set(blob, n * 3); });
   }
 
+  /** Uses a new light: a 3 x 3 colour matrix, row by row, from Lighting. The picture is repainted with it next frame. */
+  setLight(rows) {
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) this.lightMatrix[c * 3 + r] = rows[r * 3 + c];   // GLSL wants it column by column
+    this.policy.invalidate();
+  }
+
   /** Resizes the drawing surface to `width` x `height` pixels (which clears it, so it is repainted next). */
   resize(width, height) { this.canvas.width = width; this.canvas.height = height; this.policy.invalidate(); }
 
@@ -72,6 +79,7 @@ export class Backdrop {
     gl.uniform3fv(u.u_obj, this.landBuffer);
     gl.uniform3f(u.u_bay, ...(map.bay ?? [0, 0, 0]));
     gl.uniform4fv(u.u_rip, this.rippleBuffer);
+    gl.uniformMatrix3fv(u.u_light, false, this.lightMatrix);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }

@@ -1,10 +1,12 @@
 import { disc } from '../core/draw.js';
 import { Backdrop } from './backdrop.js';
 import { LAYERS } from './scene.js';
+import { Lighting } from './lighting.js';
 
 /**
  * Puts the island on the screen: owns the two canvases (the shader's backdrop below, the 2D drawing above), sizes them,
- * and paints a frame: the backdrop first, then every drawing pass of the scene through the camera.
+ * and paints a frame: the backdrop first, then every drawing pass of the scene through the camera. The time of day's light
+ * goes over both at once, through Lighting.
  */
 export class Renderer {
   /** @param {HTMLElement} stage where the canvases go */
@@ -13,6 +15,7 @@ export class Renderer {
     this.backdrop = new Backdrop(make());
     this.canvas = make();
     this.ctx = this.canvas.getContext('2d');
+    this.lighting = new Lighting({ canvas: this.canvas, backdrop: this.backdrop });
   }
 
   /** Sizes both canvases for the viewport. */
@@ -22,9 +25,10 @@ export class Renderer {
   }
   setCursor(cursor) { this.canvas.style.cursor = cursor; }
 
-  /** @param {{ viewport, camera, terrain, effects, scene, time: number }} frame everything a picture is made of */
-  render({ viewport, camera, terrain, effects, scene, time }) {
+  /** @param {{ viewport, camera, terrain, effects, scene, time: number, light?: object }} frame everything a picture is made of */
+  render({ viewport, camera, terrain, effects, scene, time, light }) {
     const c = this.ctx, { canvas, backdrop } = this;
+    if (light) this.lighting.apply(light);
     backdrop.render({ viewport, camera, terrain, effects, time });
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
     if (!backdrop.gl) { c.fillStyle = '#16aed0'; c.fillRect(0, 0, canvas.width, canvas.height); }   // no WebGL: a flat sea and plain land
