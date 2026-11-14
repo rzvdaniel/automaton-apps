@@ -24,8 +24,9 @@ export class Fisherman extends Entity {
   paint(c, t) {
     const x = this.x, y = this.y - 0.0046, s = this.strike, lift = s ? Math.sin(Math.min(1, s / 0.5) * Math.PI / 2) * (s > 1.6 ? Math.max(0, 1 - (s - 1.6) / 0.6) : 1) : 0;
     // bucket, legs, body, sou'wester
-    oval(c, this.bx + 0.001, this.by + 0.0018, 0.002, 0.0015, shade(0.22)); disc(c, this.bx, this.by + 0.0006, 0.0019, '#2f5b9a'); disc(c, this.bx, this.by, 0.0019, '#4a7fc4'); disc(c, this.bx, this.by, 0.0012, '#243f66');
-    oval(c, x + 0.0016, y + 0.0026, 0.0032, 0.0034, shade(0.24));
+    const low = this.castShadow(0.0021), me = this.castShadow(0.0031);   // the bucket, then him
+    oval(c, this.bx + low.x, this.by + low.y, 0.002, 0.0015, shade(0.22 * low.a)); disc(c, this.bx, this.by + 0.0006, 0.0019, '#2f5b9a'); disc(c, this.bx, this.by, 0.0019, '#4a7fc4'); disc(c, this.bx, this.by, 0.0012, '#243f66');
+    oval(c, x + me.x, y + me.y, 0.0032, 0.0034, shade(0.24 * me.a));
     [-1, 1].forEach(k => disc(c, x + this.dx * 0.0032 - this.dy * 0.0013 * k, y + this.dy * 0.0032 + this.dx * 0.0013 * k + 0.0012, 0.0011, '#2b3a4a'));
     oval(c, x, y + 0.0006, 0.003, 0.0036, '#d9a52b'); oval(c, x - 0.0003, y, 0.0028, 0.0033, '#f3c148');
     disc(c, x, y - 0.0032, 0.0019, '#f1d6b8'); disc(c, x, y - 0.0038, 0.0025, '#b8322a'); disc(c, x - 0.0002, y - 0.0041, 0.0016, '#e0614f');   // a red sou'wester

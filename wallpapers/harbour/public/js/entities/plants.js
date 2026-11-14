@@ -9,7 +9,7 @@ export class Gorse extends Entity {
   click() { this.shake = 1; this.world.burst(this.x, this.y, 5, 0.04, '246,217,59', 0.002, 0.7); }
   draw(c, t) {
     const r = this.r, s = this.world.sway(this.x, this.y), sx = this.shake * 0.0015 * Math.sin(t * 30) + s[0] * r, y = this.y - r * 0.25;
-    disc(c, this.x + r * 0.4, this.y + r * 0.35, r, shade(0.2)); disc(c, this.x, y + r * 0.12, r, '#3c7439'); disc(c, this.x + sx * 0.5, y, r * 0.95, '#4b8a45'); disc(c, this.x - r * 0.2 + sx, y - r * 0.2, r * 0.6, '#63a352');
+    const sh = this.castShadow(r * 0.53); disc(c, this.x + sh.x, this.y + sh.y, r, shade(0.2 * sh.a)); disc(c, this.x, y + r * 0.12, r, '#3c7439'); disc(c, this.x + sx * 0.5, y, r * 0.95, '#4b8a45'); disc(c, this.x - r * 0.2 + sx, y - r * 0.2, r * 0.6, '#63a352');
     for (let i = 0; i < 5; i++) disc(c, this.x + Math.cos(this.rot + i * 1.9) * r * 0.55 + sx, y + Math.sin(this.rot + i * 1.9) * r * 0.5, r * 0.2, '#f6d93b');
   }
 }

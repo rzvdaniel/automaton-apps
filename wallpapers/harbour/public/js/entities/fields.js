@@ -9,8 +9,9 @@ export class Fields extends Entity {
       line(c, k.quad); c.closePath(); c.globalAlpha = 0.8; c.fillStyle = k.col; c.fill(); c.globalAlpha = 1;
       if (k.rows) { c.save(); c.clip(); c.strokeStyle = 'rgba(70,110,40,0.22)'; c.lineWidth = 0.0012; c.translate(k.mx, k.my); c.rotate(k.ang); for (let r = -6; r <= 6; r++) { c.beginPath(); c.moveTo(-0.06, r * 0.0052); c.lineTo(0.06, r * 0.0052); c.stroke(); } c.restore(); }
     });
+    const wall = this.castShadow(0.002);
     cells.forEach(k => {   // dry-stone walls
-      c.save(); c.translate(0.0012, 0.0016); line(c, k.quad); c.closePath(); c.strokeStyle = shade(0.2); c.lineWidth = 0.0022; c.stroke(); c.restore();
+      c.save(); c.translate(wall.x, wall.y); line(c, k.quad); c.closePath(); c.strokeStyle = shade(0.2 * wall.a); c.lineWidth = 0.0022; c.stroke(); c.restore();
       line(c, k.quad); c.closePath(); c.strokeStyle = '#dcdfd6'; c.lineWidth = 0.002; c.setLineDash([0.006, 0.0012]); c.stroke(); c.setLineDash([]);
     });
   }
@@ -37,7 +38,7 @@ export class Sheep extends Entity {
   }
   draw(c, t) {
     const m = this.lamb ? 0.65 : 1, lift = this.fear > 0 ? Math.abs(Math.sin(t * 22 + this.x * 90)) * 0.0012 : 0;
-    oval(c, this.x + 0.0018, this.y + 0.0024, 0.0045 * m, 0.0034 * m, shade(0.22));
+    const s = this.castShadow(0.003); oval(c, this.x + s.x, this.y + s.y, 0.0045 * m, 0.0034 * m, shade(0.22 * s.a));
     c.save(); c.translate(this.x, this.y - lift); c.rotate(this.a); oval(c, 0, 0, 0.0046 * m, 0.0034 * m, '#fbf8f0'); disc(c, -0.001 * m, -0.0008 * m, 0.0022 * m, '#ffffff'); oval(c, 0.0048 * m, 0, 0.0017 * m, 0.0013 * m, '#2f2a2a'); c.restore();
   }
 }

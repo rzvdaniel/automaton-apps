@@ -59,7 +59,7 @@ export class Whale extends Entity {
   paint(c, x, y, size, swim) {
     sprite(c, x, y, this.a, U * size, () => {
       // her shadow on the seabed
-      c.save(); c.translate(9, 13); this.body(c, swim, 1); c.fillStyle = shade(0.16); c.fill(); c.restore();
+      const s = this.castShadow(15.8, this.a); c.save(); c.translate(s.x, s.y); this.body(c, swim, 1); c.fillStyle = shade(0.16 * s.a); c.fill(); c.restore();
       // flippers: a third as long as she is, pale and knobbly along the leading edge
       const sh = this.spine(8, swim);
       [-1, 1].forEach(s => {

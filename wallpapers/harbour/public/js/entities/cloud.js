@@ -1,6 +1,6 @@
 // A cloud drifting on the wind, with its shadow on the island below. Click it and it blows away; a new one drifts in.
 // Drawn as vector shapes (not a cached picture), so it stays sharp at any zoom.
-import { TAU, SHADE, Entity } from '../core/index.js';
+import { TAU, SHADE, Entity, AIRBORNE } from '../core/index.js';
 
 export class Cloud extends Entity {
   static passes = { skyShadow: 'drawShadow', clouds: 'draw' };
@@ -33,7 +33,7 @@ export class Cloud extends Entity {
       else { this.y = -Math.sign(wind[1]) * (hh + this.r * 1.9); this.x = (Math.random() - 0.5) * 2 * hw; }
     }
   }
-  drawShadow(c) { this.outline(c, 0.05 / this.r, 0.072 / this.r, 1); c.globalAlpha = 0.2 * this.alpha; c.fillStyle = 'rgb(' + SHADE + ')'; c.fill(); }
+  drawShadow(c) { const s = this.castShadow(0.088, 0, AIRBORNE); this.outline(c, s.x / this.r, s.y / this.r, 1); c.globalAlpha = 0.2 * this.alpha * s.a; c.fillStyle = 'rgb(' + SHADE + ')'; c.fill(); }
   // three flat tones, lit from the top left: the whole shape white, then two shifted copies clipped to it
   draw(c) {
     c.globalAlpha = 0.96 * this.alpha; c.fillStyle = '#ffffff';

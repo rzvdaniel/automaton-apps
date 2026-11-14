@@ -13,7 +13,7 @@ export class House extends Entity {
   click() { this.pop = 1; this.plume.on = !this.plume.on; this.world.burst(this.x, this.y, 5, 0.03, '255,255,255', 0.004, 0.7); }
   draw(c) {
     const w = this.w, d = w * 0.68, front = Math.cos(this.a) >= 0 ? 1 : -1, grow = 1 + 0.22 * this.pop * Math.sin(this.pop * 10);
-    c.save(); c.translate(this.x + 0.005, this.y + 0.0068); c.rotate(this.a); c.fillStyle = shade(0.26); c.fillRect(-w / 2, -d / 2, w, d + 0.004); c.restore();
+    const s = this.castShadow(0.0084); c.save(); c.translate(this.x + s.x, this.y + s.y); c.rotate(this.a); c.fillStyle = shade(0.26 * s.a); c.fillRect(-w / 2, -d / 2, w, d + 0.004); c.restore();
     c.save(); c.translate(this.x, this.y); c.rotate(this.a); c.scale(grow, grow);
     c.fillStyle = this.wall; c.fillRect(-w / 2, front > 0 ? d / 2 - 0.001 : -d / 2 - 0.0045, w, 0.0055);   // the painted front, on the side that faces the viewer
     c.fillStyle = 'rgba(40,50,70,0.75)'; [-0.3, 0, 0.3].forEach((k, n) => c.fillRect(k * w - 0.0011, front > 0 ? d / 2 + 0.0012 : -d / 2 - 0.0034, 0.0022, n === 1 ? 0.0032 : 0.0022));

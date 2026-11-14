@@ -1,7 +1,7 @@
 // A red hot-air balloon drifting over the island on the wind, its shadow sliding across the ground below.
 // Click it: the burner roars and it climbs for a while (it grows, and its shadow moves further away).
 // new Balloon(world, { x, y })
-import { TAU, shade, disc, oval, rrect, sprite, Entity } from '../core/index.js';
+import { TAU, shade, disc, oval, rrect, sprite, Entity, AIRBORNE } from '../core/index.js';
 
 const U = 0.00072, R = 50, GORES = 14, CROWN = [-3, -9];
 export class Balloon extends Entity {
@@ -18,7 +18,7 @@ export class Balloon extends Entity {
     this.x += w.wind[0] * 0.007 * dt; this.y += w.wind[1] * 0.007 * dt;
     if (this.x > w.hw + m) this.x = -w.hw - m; if (this.x < -w.hw - m) this.x = w.hw + m; if (this.y > w.hh + m) this.y = -w.hh - m; if (this.y < -w.hh - m) this.y = w.hh + m;
   }
-  drawShadow(c) { const h = this.high; oval(c, this.x + 0.055 * h, this.y + 0.078 * h, R * U * 0.95, R * U * 0.86, shade(0.2 - 0.07 * this.climb)); }
+  drawShadow(c) { const s = this.castShadow(0.095 * this.high, 0, AIRBORNE); oval(c, this.x + s.x, this.y + s.y, R * U * 0.95, R * U * 0.86, shade((0.2 - 0.07 * this.climb) * s.a)); }
   draw(c, t) {
     sprite(c, this.x, this.y, 0.03 * Math.sin(t * 0.5 + this.seed), U * this.high, () => {
       const flame = this.burn > 0 ? 0.75 + 0.25 * Math.sin(t * 40) : 0;

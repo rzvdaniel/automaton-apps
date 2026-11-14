@@ -11,7 +11,7 @@ export class Cottage extends House {
   }
   draw(c) {
     const front = Math.cos(this.a) >= 0 ? 1 : -1, grow = 1 + 0.22 * this.pop * Math.sin(this.pop * 10), u = this.w / 100;
-    sprite(c, this.x + 0.005, this.y + 0.0068, this.a, u, () => { c.fillStyle = shade(0.26); rrect(c, -52, -34, 104, 70, 13); c.fill(); });
+    const s = this.castShadow(0.0084); sprite(c, this.x + s.x, this.y + s.y, this.a, u, () => { c.fillStyle = shade(0.26 * s.a); rrect(c, -52, -34, 104, 70, 13); c.fill(); });
     sprite(c, this.x, this.y, this.a, u * grow, () => {
       c.scale(1, front);   // the front wall is on whichever long side faces the viewer
       // a path and flowers by the door
