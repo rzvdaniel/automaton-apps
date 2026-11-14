@@ -2,6 +2,7 @@
 
 A dashboard for your Automaton server: how the machine and its Runners are doing, and the nightly cleanup, without SSH.
 
+- **Machines:** with more than one Machine Management Runner, a picker under the top bar switches the page between machines. Each one shows its own figures, 24 hours of history and needs-you list; an offline Runner shows "offline, last reported ..." instead of old figures. Backups, certificates and Cleanup are the server's and stay the same (read-only; changes are made in Studio). The choice is remembered in the browser. Per-machine figures need an Automaton Server that reports them per Runner; older servers show their one host.
 - **Resources:** CPU, memory, disk and load with 24 hours of history, and Docker disk use.
 - **Server:** Automaton version, whether a newer release exists, OS name and uptime.
 - **Updates:** pending and security OS updates (and how long security updates have been waiting) and whether a restart is required.

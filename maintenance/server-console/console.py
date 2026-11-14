@@ -156,7 +156,7 @@ def cleanup_warning(data: dict, now: float) -> str | None:
 
 def new_state() -> dict:
     return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None,
-            "alerts": {}, "securitySince": None, "sent": {}}
+            "alerts": {}, "securitySince": None, "sent": {}, "machines": {}}
 
 
 def load_state(path: str) -> dict:
@@ -201,6 +201,60 @@ def record(state: dict, health: dict, now: float) -> None:
         state["securitySince"] = state["securitySince"] or int(now)
     elif isinstance(waiting, int):
         state["securitySince"] = None
+
+
+def record_machines(state: dict, health: dict, now: float) -> None:
+    """Keeps 24 hours of history, and how long security updates have waited, for each Runner that reported figures."""
+    machines = state.setdefault("machines", {})
+    names = set()
+    for runner in health.get("runners") or []:
+        name, host = runner.get("name"), runner.get("host")
+        if not name or not isinstance(host, dict):
+            continue
+        names.add(name)
+        entry = machines.setdefault(name, {"history": [], "securitySince": None})
+        entry["history"] = [item for item in entry["history"] if now - item["t"] < HISTORY_SECONDS] + [sample({"host": host}, now)]
+        waiting = host.get("securityUpdates")
+        if isinstance(waiting, int) and waiting > 0:
+            entry["securitySince"] = entry["securitySince"] or int(now)
+        elif isinstance(waiting, int):
+            entry["securitySince"] = None
+    for gone in set(machines) - {r.get("name") for r in health.get("runners") or []}:
+        del machines[gone]  # a removed Runner takes its history with it
+
+
+def is_online(runner: dict) -> bool:
+    return str(runner.get("status", "")).lower() == "online"
+
+
+def machine_list(health: dict) -> list[dict]:
+    return [{"name": r.get("name"), "online": is_online(r), "status": r.get("status"), "lastHeartbeatAtUtc": r.get("lastHeartbeatAtUtc"),
+             "hostAgeSeconds": r.get("hostAgeSeconds"), "hasFigures": isinstance(r.get("host"), dict)} for r in health.get("runners") or []]
+
+
+def default_machine(health: dict) -> str | None:
+    """The online Runner with the newest figures, else the first online one, else the first."""
+    runners = [r for r in health.get("runners") or [] if r.get("name")]
+    online = [r for r in runners if is_online(r)]
+    reported = [r for r in online if r.get("hostAgeSeconds") is not None]
+    pool = reported or online or runners
+    return min(pool, key=lambda r: r.get("hostAgeSeconds") if r.get("hostAgeSeconds") is not None else 0)["name"] if pool else None
+
+
+def machine_view(health: dict, state: dict, name: str | None) -> tuple[dict, dict, dict | None]:
+    """The health, state and machine entry to judge and show for one Runner's machine. An offline Runner has no
+    live figures: its host is left out so nothing stale is shown as current. Unknown names fall back to the default."""
+    runners = {r.get("name"): r for r in health.get("runners") or []}
+    runner = runners.get(name) or runners.get(default_machine(health))
+    if not runner:
+        return health, state, None
+    if "host" not in runner:  # a server that does not report per-Runner figures: show the one host it has
+        return health, state, runner
+    online = is_online(runner)
+    view = dict(health, host=runner.get("host") if online else None, hostAgeSeconds=runner.get("hostAgeSeconds") if online else None)
+    entry = (state.get("machines") or {}).get(runner.get("name")) or {}
+    local = dict(state, history=entry.get("history", []) if online else [], securitySince=entry.get("securitySince") if online else None)
+    return view, local, runner
 
 
 # --- Judging the figures --------------------------------------------------------------------------------------------
@@ -404,18 +458,28 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
     if status == "ok" and health:
         state["health"], state["fetchedAt"] = health, int(now)
         record(state, health, now)
+        record_machines(state, health, now)
         evaluate_alerts(state, conditions(health, state, settings, now), send, True, now)
     return state
 
 
-def snapshot(state: dict, settings: Settings, now: float) -> dict:
-    """What the page receives. Without approval nothing from the server is shown; a passing error keeps the last figures."""
+def snapshot(state: dict, settings: Settings, now: float, machine: str | None = None) -> dict:
+    """What the page receives. Without approval nothing from the server is shown; a passing error keeps the last figures.
+    `machine` is the name of the Runner whose machine to show (default: the online Runner with the newest figures)."""
     status = state.get("status")
     shown = status in ("ok", "error")
     health = state.get("health") if shown else None
+    local, chosen, runner = state, None, None
+    if health:
+        health, local, runner = machine_view(health, state, machine)
+        chosen = runner.get("name") if runner else None
+    items = attention(health, assess(health, local, settings, now), settings, now) if health else []
+    if runner and not is_online(runner):
+        items.insert(0, {"level": CRITICAL, "title": f"{runner.get('name')} is offline.", "detail": "Its figures are not shown until the Runner reports again. Check the machine and the Runner service.", "command": "", "card": "runners"})
     return {"status": status, "message": state.get("message"), "fetchedAt": state.get("fetchedAt"),
-            "now": int(now), "health": health, "assessment": assess(health, state, settings, now),
-            "attention": attention(health, assess(health, state, settings, now), settings, now) if health else [],
+            "now": int(now), "health": health, "assessment": assess(health, local, settings, now),
+            "attention": items,
+            "machines": machine_list(health) if health else [], "machine": chosen,
             "reclaim": reclaimable((health or {}).get("host") or {}),
-            "history": state.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
+            "history": local.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
             "settings": settings.public()}

@@ -19,3 +19,10 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 @media (min-width: 1100px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .col { display: grid; gap: 16px; align-content: start; } }
 .a-topbar__inner { padding: 10px 0; }
 .a-header__brand .a-brand { flex: none; }
+.picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 16px; }
+.picker[hidden] { display: none; }
+.picker__label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.picker__list { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.picker__item { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; height: auto; padding: 6px 12px; text-align: left; }
+.picker__item.is-on { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange); }
+@media (max-width: 640px) { .picker__list { flex: 1 1 100%; } .picker__item { flex: 1 1 100%; } }
