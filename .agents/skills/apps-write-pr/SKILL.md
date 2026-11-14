@@ -20,7 +20,7 @@ One to three sentences per app touched.
 **New settings, secrets or permissions:** none / list them and why the app needs each.
 
 **How verified:** the commands run and what came back (app tests, `automaton validate`, the repo checks).
-For a page: screenshots, light and dark, desktop and phone (push them to the `pr-screenshots` branch and link them).
+For a page: link the issue's proof, which holds the screenshots (light and dark, desktop and phone).
 
 **Risk:** low / medium / high, and why.
 
