@@ -27,8 +27,7 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(opener.requests, [])
 
     def test_run_posts_the_fixed_path_with_the_viewer_token(self):
-        opener = Opener(202, b'{"requested":true}')
-        opener.status = 200
+        opener = Opener(200, b'{"requested":true}')
         status, data, _ = backup.run_backup(SETTINGS, "tok", opener=opener)
         request = opener.requests[0]
         self.assertEqual((status, request.get_method(), request.full_url), ("ok", "POST", "https://api.example.test/api/Install/backups/run"))

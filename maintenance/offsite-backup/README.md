@@ -1,6 +1,6 @@
 # Off-site backup
 
-An Actions-only Automaton app that copies the newest encrypted server backup to S3-compatible storage. It requests `backups:read`, `backups:run` (start a server backup) and `notify:email`; it cannot read the server's private backup key or unencrypted backup folders.
+An Automaton app (an Action plus a small page) that copies the newest encrypted server backup to S3-compatible storage. It requests `backups:read`, `backups:run` (start a server backup) and `notify:email`; it cannot read the server's private backup key or unencrypted backup folders.
 
 ## Install
 
