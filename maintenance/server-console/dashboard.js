@@ -325,6 +325,7 @@
   var cleanupTimer = null;
   var appsByRunner = {};   // runnerId -> [{ targetId, name, status }]
   var chosenApp = {};      // runnerId -> targetId
+  var hostOp = null;       // { runner, kind, typed, busy, text, error } OS update or restart of the machine, after typing its name
   var tool = null;         // { runner, kind, busy, text, error } the last logs, restart or disk answer
 
   function maintainedRunner() {
@@ -345,7 +346,7 @@
     }
     if (cleanupRun && cleanupRun.runner === item.runnerId && cleanupRun.error) result = '<p class="a-note a-note--warning" id="maintenance-result">' + esc(cleanupRun.error) + "</p>";
     if (!item.approved) return '<p class="a-hint">An administrator has not approved maintenance on ' + esc(item.name) + " for this app yet. Approve it in Studio under Admin, Apps, Permissions.</p>";
-    return toolsBody(item, offline) + '<p><button class="a-btn" type="button" id="cleanup-now"' + (running || offline ? " disabled" : "") + ">" + (running ? "Cleaning up..." : "Docker cleanup now") + "</button> " +
+    return toolsBody(item, offline) + hostBody(item, offline) + '<p><button class="a-btn" type="button" id="cleanup-now"' + (running || offline ? " disabled" : "") + ">" + (running ? "Cleaning up..." : "Docker cleanup now") + "</button> " +
       '<span class="a-hint">on ' + esc(item.name) + (offline ? " (offline)" : "") + "</span></p>" + result;
   }
 
@@ -364,6 +365,56 @@
       '<button class="a-btn" type="button" id="app-logs"' + (apps.length ? off : " disabled") + ">Logs</button> " +
       '<button class="a-btn" type="button" id="app-restart"' + (apps.length ? off : " disabled") + ">Restart app</button> " +
       '<button class="a-btn" type="button" id="disk-report"' + off + ">Disk report</button>" + (busy ? ' <span class="a-hint">Working...</span>' : "") + "</p>" + out;
+  }
+
+  var HOST_TEXT = {
+    "os-update": { button: "Install security updates", ask: "Installs the pending security updates on this machine. It can take several minutes.", done: "Security updates installed." },
+    "reboot": { button: "Restart machine", ask: "Restarts the whole machine one minute from now. Everything on it, including this app, is unavailable until it is back.", done: "The machine restarts in one minute." }
+  };
+
+  function hostBody(item, offline) {
+    var mine = hostOp && hostOp.runner === item.runnerId ? hostOp : null;
+    var busy = mine && mine.busy;
+    var html = '<p><button class="a-btn" type="button" id="host-os-update"' + (busy || offline ? " disabled" : "") + ">" + HOST_TEXT["os-update"].button + "</button> " +
+      '<button class="a-btn" type="button" id="host-reboot"' + (busy || offline ? " disabled" : "") + ">" + HOST_TEXT.reboot.button + "</button>" + (busy ? ' <span class="a-hint">Working...</span>' : "") + "</p>";
+    if (mine && mine.asking && !busy) {
+      html += '<div id="host-confirm"><p class="a-note a-note--warning">' + esc(HOST_TEXT[mine.kind].ask) + " Type <strong>" + esc(item.name) + '</strong> to confirm.</p>' +
+        '<p><input class="a-input" id="host-typed" autocomplete="off" spellcheck="false" aria-label="Type the machine name" value="' + esc(mine.typed || "") + '"> ' +
+        '<button class="a-btn" type="button" id="host-go"' + (mine.typed === item.name ? "" : " disabled") + ">" + esc(HOST_TEXT[mine.kind].button) + "</button> " +
+        '<button class="a-btn" type="button" id="host-cancel">Cancel</button></p></div>';
+    }
+    if (mine && !mine.asking && !busy && (mine.error || mine.text))
+      html += mine.error ? '<p class="a-note a-note--warning" id="host-result">' + esc(mine.error) + "</p>" : '<p class="a-note" id="host-result">' + esc(mine.text) + "</p>";
+    return html;
+  }
+
+  function askHost(kind) {
+    var item = maintainedRunner();
+    if (!item) return;
+    hostOp = { runner: item.runnerId, kind: kind, asking: true, typed: "" };
+    paintMaintenance();
+    var box = document.getElementById("host-typed");
+    if (box) box.focus();
+  }
+
+  function runHost() {
+    var item = maintainedRunner();
+    if (!item || !hostOp || hostOp.runner !== item.runnerId || hostOp.typed !== item.name) return;
+    var kind = hostOp.kind, typed = hostOp.typed;
+    hostOp = { runner: item.runnerId, kind: kind, busy: true };
+    paintMaintenance();
+    fetch("api/maintenance/" + kind + "?runner=" + encodeURIComponent(item.runnerId), { method: "POST", cache: "no-store",
+      headers: { "X-Server-Console": "1", "Content-Type": "application/json" }, body: JSON.stringify({ confirm: typed }) }).then(function (response) {
+      return response.json().then(function (data) {
+        hostOp = { runner: item.runnerId, kind: kind };
+        if (data.status !== "ok" || !data.data) {
+          hostOp.error = data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can do this, on a machine approved for this app." : data.message || "That did not work.";
+        } else if (kind === "os-update") {
+          hostOp.text = data.data.succeeded ? HOST_TEXT[kind].done + (data.data.restartRequired ? " A restart is now needed." : " No restart is needed.") : "The update failed: " + (data.data.summary || "unknown error");
+        } else hostOp.text = HOST_TEXT[kind].done;
+        paintMaintenance();
+      });
+    }).catch(function () { hostOp = { runner: item.runnerId, kind: kind, error: "The app could not be reached. Check the status above before trying again." }; paintMaintenance(); });
   }
 
   function loadApps(item) {
@@ -465,6 +516,17 @@
     else if (event.target.id === "app-logs") runTool("logs");
     else if (event.target.id === "app-restart") runTool("restart");
     else if (event.target.id === "disk-report") runTool("disk");
+    else if (event.target.id === "host-os-update") askHost("os-update");
+    else if (event.target.id === "host-reboot") askHost("reboot");
+    else if (event.target.id === "host-go") runHost();
+    else if (event.target.id === "host-cancel") { hostOp = null; paintMaintenance(); }
+  });
+  maintenanceBox.addEventListener("input", function (event) {
+    if (event.target.id !== "host-typed" || !hostOp) return;
+    var item = maintainedRunner();
+    hostOp.typed = event.target.value;
+    var go = document.getElementById("host-go");
+    if (go && item) go.disabled = hostOp.typed !== item.name;
   });
 
   UI.bindThemeToggle();

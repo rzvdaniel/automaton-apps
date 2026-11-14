@@ -673,6 +673,19 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(console.runner_apps(settings(), "x/../y", opener=opener)[0], "not_found")
         self.assertEqual(opener.requests, [])
 
+    def test_machine_operations_send_only_the_two_fixed_names_with_the_typed_name(self):
+        for operation in ("os-update", "reboot"):
+            opener = self.Opener(body=b"{}")
+            self.assertEqual(console.machine_operation(settings(), operation, self.RUNNER, "Runner-01", "vt", opener=opener)[0], "ok")
+            request = opener.requests[0]
+            self.assertEqual((request.method, request.full_url), ("POST", f"https://api.example.com/api/server/runners/{self.RUNNER}/{operation}"))
+            self.assertEqual(json.loads(request.data), {"confirm": "Runner-01"})
+            self.assertEqual(request.get_header("X-automaton-viewer-token"), "vt")
+        opener = self.Opener()
+        for runner, operation, confirm in [("../x", "reboot", "a"), (self.RUNNER, "shutdown", "a"), (self.RUNNER, "reboot", ""), (self.RUNNER, "reboot", None), (self.RUNNER, "os-update", "x" * 201)]:
+            self.assertEqual(console.machine_operation(settings(), operation, runner, confirm, "t", opener=opener)[0], "not_found")
+        self.assertEqual(opener.requests, [])
+
     def test_the_viewer_token_is_only_sent_with_the_one_change(self):
         opener = self.Opener(body=b"[]")
         console.maintenance_permissions(settings(), opener=opener)
@@ -699,8 +712,8 @@ class MaintenanceServerTests(unittest.TestCase):
         self.server.server_close()
         self.directory.cleanup()
 
-    def post(self, path, headers):
-        request = urllib.request.Request(self.base + path, data=b"", method="POST", headers=headers)
+    def post(self, path, headers, data=b""):
+        request = urllib.request.Request(self.base + path, data=data, method="POST", headers=headers)
         try:
             with urllib.request.urlopen(request) as response:
                 return response.status
@@ -724,6 +737,18 @@ class MaintenanceServerTests(unittest.TestCase):
             self.assertEqual(self.seen, [])
             self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}), 200)
             self.assertEqual(self.seen, [("POST", expected, "vt")])
+
+    def test_os_update_and_reboot_need_the_header_and_a_typed_name(self):
+        for operation in ("os-update", "reboot"):
+            path = f"/api/maintenance/{operation}?runner={self.RUNNER}"
+            self.seen.clear()
+            body = json.dumps({"confirm": "Runner-01"}).encode()
+            self.assertEqual(self.post(path, {}, body), 404, "a form on another site cannot set the header")
+            self.assertEqual(self.post(path, {"X-Server-Console": "1"}, b""), 404, "no typed name: nothing is sent")
+            self.assertEqual(self.post(path, {"X-Server-Console": "1"}, b"{not json"), 404)
+            self.assertEqual(self.seen, [])
+            self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}, body), 200)
+            self.assertEqual(self.seen, [("POST", f"/api/server/runners/{self.RUNNER}/{operation}", "vt")])
 
     def test_only_the_cleanup_can_be_posted(self):
         self.assertEqual(self.post("/api/maintenance/exec?runner=x", {"X-Server-Console": "1"}), 404)
