@@ -658,7 +658,7 @@ class MaintenanceTests(unittest.TestCase):
     def test_logs_restart_and_disk_are_three_fixed_posts_with_the_viewer_token(self):
         for operation, lines, path in [
             ("logs", "50", f"/apps/{self.TARGET}/logs?lines=50"), ("logs", "5000", f"/apps/{self.TARGET}/logs?lines=100"),
-            ("logs", "1; rm", f"/apps/{self.TARGET}/logs?lines=100"), ("restart", "1", f"/apps/{self.TARGET}/restart"), ("disk", "1", "/disk-report")]:
+            ("logs", "²", f"/apps/{self.TARGET}/logs?lines=100"), ("logs", "1; rm", f"/apps/{self.TARGET}/logs?lines=100"), ("restart", "1", f"/apps/{self.TARGET}/restart"), ("disk", "1", "/disk-report")]:
             opener = self.Opener(body=b"{}")
             self.assertEqual(console.app_operation(settings(), operation, self.RUNNER, self.TARGET, "vt", lines, opener=opener)[0], "ok")
             request = opener.requests[0]

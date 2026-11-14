@@ -187,7 +187,7 @@ def app_operation(settings: Settings, operation: str, runner_id: str, target_id:
     if not GUID.match(runner_id or "") or (operation != "disk" and not GUID.match(target_id or "")):
         return "not_found", None, "Unknown machine or app."
     if operation == "logs":
-        count = int(lines) if str(lines).isdigit() and 1 <= int(lines) <= 200 else 100
+        count = int(lines) if str(lines).isascii() and str(lines).isdigit() and 1 <= int(lines) <= 200 else 100
         path = f"/api/server/runners/{runner_id}/apps/{target_id}/logs?lines={count}"
     elif operation == "restart":
         path = f"/api/server/runners/{runner_id}/apps/{target_id}/restart"
