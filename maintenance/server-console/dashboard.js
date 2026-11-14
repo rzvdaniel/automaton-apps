@@ -459,6 +459,8 @@
   }
 
   function paintMaintenance() {
+    // Do not redraw under someone typing the machine's name.
+    if (hostOp && hostOp.asking && document.activeElement && document.activeElement.id === "host-typed") return;
     if (!machinesMaintained.length) { maintenanceBox.hidden = true; return; }
     var item = maintainedRunner();
     maintenanceBox.hidden = false;

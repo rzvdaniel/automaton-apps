@@ -181,7 +181,7 @@ def make_handler(app: Console):
             token = self.headers.get("X-Automaton-Viewer-Token")
             if parts.path in machine:
                 try:
-                    body = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length") or 0), 2000)).decode("utf-8") or "{}")
+                    body = json.loads(self.rfile.read(max(0, min(int(self.headers.get("Content-Length") or 0), 2000))).decode("utf-8") or "{}")
                     confirm = body.get("confirm") if isinstance(body, dict) else None
                 except (ValueError, UnicodeDecodeError):
                     confirm = None
