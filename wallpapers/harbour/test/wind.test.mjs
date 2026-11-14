@@ -16,7 +16,7 @@ const at = i => new Date(START + i * MINUTE);
 const average = list => list.reduce((a, b) => a + b, 0) / list.length;
 const AUTO = { mode: 'auto' };
 const DAY = '2026-11-14';
-const fixed = strength => ({ mode: 'fixed', strength, day: DAY });
+const fixed = strength => ({ mode: 'fixed', strength });
 const fresh = (setting, cover = 0.3) => new Wind().update({ setting, cover, date: at(0), day: DAY });
 const dayName = n => new Date(START + n * 86400000).toISOString().slice(0, 10);
 const median = list => [...list].sort((a, b) => a - b)[Math.floor(list.length / 2)];
@@ -55,13 +55,15 @@ test('Wind: a choice gives a fixed strength, calm to stormy, whatever the sky', 
   }
 });
 
-test('Wind: a choice holds for the rest of its day and is gone the next', () => {
+test('Wind: a choice is still in place the next day, and every day after', () => {
   const choice = fixed(1);
-  assert.equal(Wind.chosen(choice, DAY), 1);
-  assert.equal(Wind.chosen(choice, '2026-11-15'), null);
+  assert.equal(Wind.chosen(choice), 1);
+  assert.equal(Wind.chosen(AUTO), null);
   assert.equal(Wind.targetFor(choice, 0.2, at(1430), DAY), 0.9);
-  const next = new Date(START + 86400000 + 600000);
-  assert.equal(Wind.targetFor(choice, 0.2, next, '2026-11-15'), Wind.targetFor(AUTO, 0.2, next, '2026-11-15'));
+  for (const n of [1, 2, 30]) {
+    const later = new Date(START + n * 86400000 + 600000);
+    assert.equal(Wind.targetFor(choice, 0.2, later, dayName(n)), 0.9, `day ${n}`);
+  }
 });
 
 test('Wind: a change eases in over about ten seconds, never in a jump', () => {
@@ -102,7 +104,7 @@ test('Backdrop: the shader has the wind uniform, and the backdrop sets it from W
   assert.equal(backdrop.wind[3], 0, 'a slow device draws no whitecaps');
 });
 
-test('World: a wind chosen today drives the island, and goes back to Auto after midnight by itself', () => {
+test('World: a chosen wind still drives the island after midnight', () => {
   let real = Date.UTC(2026, 10, 14, 21, 50);   // 23:50 in Bucharest
   const settings = new Settings({ storage: null }); settings.set({ place: 'Europe/Bucharest', wind: fixed(1) });
   const world = new World({ width: 800, height: 600, settings });
@@ -112,15 +114,15 @@ test('World: a wind chosen today drives the island, and goes back to Auto after 
   assert.ok(Math.abs(world.windStrength - 0.9) < 0.01, `chosen: ${world.windStrength}`);
   real += 20 * 60000;   // 00:10 the next day
   for (let s = 0; s < 120; s++) world.update(1);
-  const now = world.skyClock.now(), auto = Wind.targetFor(AUTO, world.weather.cover, now, '2026-11-15');
-  assert.equal(Wind.dayAt(world.place, now), '2026-11-15');
-  assert.ok(Math.abs(world.windStrength - auto) < 0.02, `back to auto: ${world.windStrength} vs ${auto}`);
+  assert.equal(Wind.dayAt(world.place, world.skyClock.now()), '2026-11-15');
+  assert.ok(Math.abs(world.windStrength - 0.9) < 0.01, `still chosen: ${world.windStrength}`);
 });
 
-test('Settings: old saves of the wind ("auto" or a bare number) and damaged ones become Auto', () => {
+test('Settings: old saves of the wind ("auto" or a bare number) and damaged ones become Auto; an old choice with a day keeps its strength', () => {
   const load = wind => new Settings({ storage: { getItem: () => JSON.stringify({ wind }), setItem() {} } }).get('wind');
-  for (const old of ['auto', 0.7, 'gale', { mode: 'fixed', strength: 3, day: DAY }, { mode: 'fixed', strength: 0.5 }]) assert.deepEqual(load(old), AUTO, JSON.stringify(old));
+  for (const old of ['auto', 0.7, 'gale', { mode: 'fixed', strength: 3, day: DAY }, { mode: 'fixed', strength: 'x' }]) assert.deepEqual(load(old), AUTO, JSON.stringify(old));
   assert.deepEqual(load(fixed(0.5)), fixed(0.5));
+  assert.deepEqual(load({ mode: 'fixed', strength: 0.5, day: '2026-11-13' }), fixed(0.5), 'the day is dropped');
 });
 
 test('Shader: whitecap crests and trails, and the surf, are all scaled by the sea strength (so calm is today\'s sea)', () => {

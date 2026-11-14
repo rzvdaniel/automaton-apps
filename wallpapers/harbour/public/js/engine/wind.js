@@ -11,8 +11,8 @@
  *     for every viewer and every reload. Most days are calm or a light breeze, now and then a day is breezy, and rarely
  *     one is stormy. Within the day it rises and falls slowly (gusty spells), and it is a little stronger when the sky
  *     is cloudy (Weather.cover).
- *   - A choice for today: { mode: 'fixed', strength 0 calm .. 1 stormy, day }. It only counts on the day it was made;
- *     when the island's date moves on, the wind goes back to Auto by itself.
+ *   - A choice: { mode: 'fixed', strength 0 calm .. 1 stormy }. It lasts, whatever the date, until the viewer
+ *     switches back to Auto (like the Weather setting).
  * Either way the shown strength eases towards where it is going over about ten real seconds, so it never snaps.
  *
  * Nothing here uses Math.random or the island's seed: the island's layout must not change because of the wind.
@@ -35,15 +35,15 @@ export class Wind {
   static STORMY = STORMY;
   static REFERENCE = REFERENCE;
 
-  /** The local date at a place, as "YYYY-MM-DD": the day a wind belongs to. */
+  /** The local date at a place, as "YYYY-MM-DD": the day Auto draws its wind for. */
   static dayAt(place, date) {
     const l = place.local(date), two = n => String(n).padStart(2, '0');
     return `${l.year}-${two(l.month)}-${two(l.day)}`;
   }
 
-  /** The viewer's own choice, if it is for `day`: its strength 0..1; otherwise null (Auto). */
-  static chosen(setting, day) {
-    return setting?.mode === 'fixed' && setting.day === day ? setting.strength : null;
+  /** The viewer's own choice: its strength 0..1; null on Auto. */
+  static chosen(setting) {
+    return setting?.mode === 'fixed' ? setting.strength : null;
   }
 
   /**
@@ -59,14 +59,14 @@ export class Wind {
 
   /**
    * Where the strength is heading. Pure: the same inputs always give the same answer.
-   * @param {{ mode: 'auto' } | { mode: 'fixed', strength: number, day: string }} setting the viewer's choice
+   * @param {{ mode: 'auto' } | { mode: 'fixed', strength: number }} setting the viewer's choice
    * @param {number} cover how cloudy the sky is (Weather.cover)
    * @param {Date} date the moment the island shows (for the slow gusty spells)
-   * @param {string} day the island's local date, "YYYY-MM-DD"
+   * @param {string} day the island's local date, "YYYY-MM-DD" (Auto draws its wind from it; a choice ignores it)
    * @returns {number} 0..1
    */
   static targetFor(setting, cover, date, day) {
-    const own = Wind.chosen(setting, day);
+    const own = Wind.chosen(setting);
     if (own !== null) return CALM + (STORMY - CALM) * Math.min(1, Math.max(0, own));
     const s = date.getTime() / 1000, base = Wind.dayBase(day), phase = hash('gusts ' + day) * 100;
     const spells = 0.5 + 0.5 * (0.6 * Math.sin(s / 2300 + phase) + 0.4 * Math.sin(s / 870 + phase * 1.7));   // slow rises and lulls, 0..1
