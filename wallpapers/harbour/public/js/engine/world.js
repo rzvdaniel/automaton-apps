@@ -9,6 +9,7 @@ import { SkyClock } from '../sky/sky-clock.js';
 import { DayCycle } from '../sky/day-cycle.js';
 import { Effects } from './effects.js';
 import { Scene } from './scene.js';
+import { Presence } from './presence.js';
 import { Interaction } from './interaction.js';
 import { Input } from './input.js';
 import { Renderer } from './renderer.js';
@@ -31,6 +32,7 @@ const DAY_EVERY = 1;   // seconds between updates of the time of day
  *   renderer     the canvases and the picture    loop         one step per frame
  *   settings     the viewer's choices (saved)    place        where the island is (city, latitude, longitude)
  *   skyClock     the time the island shows       day          dawn, day, dusk or night, the light, where shadows fall
+ *   presence     who is out at this hour (balloons by day, the fox by night)
  *
  * Without a `stage` it runs headless (no page, no drawing): that is how the tests build islands.
  */
@@ -54,7 +56,8 @@ export class World {
     this.day = new DayCycle(); this.#updateDay();
     this.settings.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // a new time or place shows at once, not at the next tick
     this.effects = new Effects();
-    this.scene = new Scene({ onError: line => this.#reportError(line) });
+    this.presence = new Presence({ day: this.day });
+    this.scene = new Scene({ onError: line => this.#reportError(line), presence: this.presence });
     this.interaction = new Interaction({ scene: this.scene, camera: this.camera, terrain: this.terrain, effects: this.effects, sound, onActivity: ms => this.loop?.keepBusy(ms) });
     this.quality = new QualityMonitor();
 
@@ -113,7 +116,7 @@ export class World {
 
   /** Paints the island as it is now. */
   render() {
-    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light });
+    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness });
     this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
   }
 

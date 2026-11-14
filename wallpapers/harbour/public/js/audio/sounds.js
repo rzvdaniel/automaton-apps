@@ -5,6 +5,21 @@
 const m = (lo, hi) => lo + Math.random() * (hi - lo);
 
 export const SOUNDS = {
+  // A fox's yip: two or three short, high barks, each a quick rise and fall through a nasal filter.
+  yip(s, t, d) {
+    const c = s.ctx, g = c.createGain(), nose = c.createBiquadFilter();
+    g.gain.value = 0.5; nose.type = 'bandpass'; nose.frequency.value = m(1300, 1700); nose.Q.value = 3;
+    nose.connect(g); g.connect(d);
+    let at = t + 0.03;
+    for (let i = 2 + Math.floor(Math.random() * 2); i > 0; i--) {
+      const dur = m(0.09, 0.14), f = m(700, 900), osc = c.createOscillator(), env = c.createGain();
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(f * 0.8, at); osc.frequency.linearRampToValueAtTime(f * 1.25, at + dur * 0.3); osc.frequency.linearRampToValueAtTime(f * 0.7, at + dur);
+      env.gain.setValueAtTime(0, at); env.gain.linearRampToValueAtTime(0.12, at + dur * 0.15); env.gain.linearRampToValueAtTime(0, at + dur);
+      osc.connect(env); env.connect(nose); osc.start(at); osc.stop(at + dur + 0.02);
+      at += dur + m(0.12, 0.22);
+    }
+  },
+
   // A seagull's call: a few falling cries, each a bright tone that rises quickly and tails off.
   gull(s, t, d, o) {
     const c = s.ctx, g = c.createGain(), voice = c.createBiquadFilter(), far = c.createBiquadFilter();

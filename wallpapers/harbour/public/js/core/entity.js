@@ -19,9 +19,14 @@ export class Entity {
   static cullRadius = 0.15;
   /** True for a class that applies its own `scale` (it has several anchor points, or it needs a wake). */
   static ownScale = false;
+  /** When it is out (see engine/presence.js): 'day', 'night' or 'always'. */
+  static active = 'always';
+  /** For an 'always' group that thins out at night: the share that stays out (1: all of them), and how many stay at least. */
+  static nightShare = 1;
+  static nightKeep = 1;
 
   /** @param {import('../engine/world.js').World} world what the entity lives in */
-  constructor(world) { this.world = world; this.dead = false; this.scale = 1; }
+  constructor(world) { this.world = world; this.dead = false; this.scale = 1; this.visible = 1; }   // visible: 0..1, set by Presence
   /**
    * Where this thing's shadow falls, from the sun (world.day.shadow). `lift` is how far the shadow would lie from it with the
    * sun at the height the pictures were drawn for (bigger for taller things and things up in the air).
@@ -35,6 +40,11 @@ export class Entity {
     const len = Math.hypot(s.x, s.y), k = lift * (len > maxLength ? maxLength / len : 1);
     return { x: (s.x * cos + s.y * sin) * k, y: (s.y * cos - s.x * sin) * k, a: s.strength };
   }
+  /**
+   * How dark it is now (0 by day, 1 at full night): lights use it. A light's brightness is its own switch-on (see switchOn)
+   * times this.
+   */
+  get darkness() { return this.world?.day?.darkness ?? 0; }
   update(dt) {}
   /** Is the point (x, y), in world units, on this entity? */
   hit(x, y) { return false; }

@@ -1,12 +1,27 @@
 // A house: a pitched roof from above and a strip of painted front wall. Click it to light or put out the fire.
-import { shade, Entity } from '../core/index.js';
+import { shade, glow, switchOn, Entity } from '../core/index.js';
 import { Smoke } from './smoke.js';
 
 export class House extends Entity {
+  static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'one';
   constructor(world, o) {   // o: x, y, a, wall, roof, w, smoke
     super(world); Object.assign(this, o); this.pop = 0;
+    // at night its windows light up, one house after another; about one in four stays dark
+    this.lightsAt = Math.random() < 0.25 ? 2 : 0.15 + Math.random() * 0.45;
+    this.windows = this.windowSpots().map(([lx, ly]) => [this.x + Math.cos(this.a) * lx - Math.sin(this.a) * ly, this.y + Math.sin(this.a) * lx + Math.cos(this.a) * ly]);
     this.plume = world.add(new Smoke(world, this.x + this.w * 0.3 * Math.cos(this.a), this.y + this.w * 0.3 * Math.sin(this.a) - 0.0025, o.smoke));
+  }
+  /** Where its windows are, in its own turned frame (x along the house, y across it). */
+  windowSpots() {
+    const d = this.w * 0.68, y = Math.cos(this.a) >= 0 ? d / 2 + 0.0026 : -d / 2 - 0.0022;
+    return [-0.3, 0, 0.3].map(k => [k * this.w, y]);
+  }
+  /** Warm light in the windows after dark. */
+  drawLights(c) {
+    const a = switchOn(this.lightsAt, this.darkness);
+    if (a <= 0) return;
+    for (const [x, y] of this.windows) glow(c, x, y, 0.006, a * 0.85);
   }
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.02; }

@@ -12,6 +12,7 @@ export * from './dolphins.js';
 export * from './fields.js';
 export * from './fish.js';
 export * from './fisherman.js';
+export * from './fox.js';
 export * from './gulls.js';
 export * from './harbour.js';
 export * from './house.js';

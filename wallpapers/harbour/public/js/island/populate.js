@@ -1,7 +1,7 @@
 import { TAU } from '../core/math.js';
 import {
   Whale, Shark, SleekShark, FishSchool, DuneGrass, Heather, Fields, Sheep, Roads, Quay, MooredBoat, Sailboat, Rock, Lighthouse, Parasol, Gorse,
-  House, Cottage, Church, Oak, Pine, Birch, Person, Walker, Cat, Car, Fisherman, GullFlock, Gull, Cloud
+  House, Cottage, Church, Oak, Pine, Birch, Person, Walker, Cat, Car, Fisherman, Fox, GullFlock, Gull, Cloud
 } from '../entities/index.js';
 
 const TREES = { Oak, Pine, Birch };
@@ -44,13 +44,14 @@ export function populateIsland(ctx) {
   if (ctx.church) add(new Church(world, ctx.church));
   ctx.trees.forEach(t => add(new TREES[t.kind](world, t)));
 
-  // the islanders: people standing about, people walking the roads, the cat, the car, the fisherman
+  // the islanders: people standing about, people walking the roads, the cat, the car, the fisherman, and the fox (out only at night)
   ctx.standing.forEach((p, n) => add(new Person(world, p[0], p[1], n)));
   ctx.map.roads.forEach((r, n) => {
     for (let s = 0; s < (n === 2 ? 1 : 2); s++) add(new Walker(world, { road: r.pts, s: G() * (r.pts.length - 1), dir: G() < 0.5 ? 1 : -1, speed: ctx.between(0.008, 0.013), col: Math.floor(G() * 4) }));
   });
   add(new Cat(world)); add(new Car(world, G));
   if (ctx.fisher) add(new Fisherman(world, ctx.fisher));
+  add(new Fox(world));   // roams from a random spot (not the island's random source G), so it does not change the island's layout
 }
 
 /** The sky: a flock of gulls, a few loners, and clouds on one wind. */

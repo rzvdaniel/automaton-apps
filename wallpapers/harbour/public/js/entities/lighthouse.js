@@ -1,12 +1,13 @@
 // The lighthouse, seen from slightly to the south like the houses: a banded tower that narrows towards the lantern.
-// Click it to switch the light on or off.
-import { TAU, shade, lerp, disc, oval, rrect, Entity } from '../core/index.js';
+// At night its lantern is lit and a beam sweeps out to sea (see drawLights). Click it to switch the light on or off.
+import { TAU, shade, lerp, disc, oval, rrect, glow, Entity } from '../core/index.js';
 
 const TALL = 0.03, R0 = 0.0098, R1 = 0.0064, SLICES = 36;
+const BEAM = 0.45, SWEEP = 0.35;   // how far the beam reaches (world units) and how fast it turns (radians a second)
 export class Lighthouse extends Entity {
-  static passes = { upright: 'draw', air: 'drawBeam' };
+  static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'one';
-  static cullRadius = 0.3;   // its beam reaches that far
+  static cullRadius = 0.46;   // its beam reaches that far
   constructor(world, x, y) { super(world); this.x = x; this.y = y; this.off = false; }
   hit(x, y) { return Math.abs(x - this.x) < 0.014 && y > this.y - TALL - 0.014 && y < this.y + 0.013; }
   click() { this.off = !this.off; }
@@ -37,14 +38,22 @@ export class Lighthouse extends Entity {
     for (let i = 0; i <= 5; i++) disc(c, x - i * 0.00012, top - 0.0084 - i * 0.0008, 0.005 - i * 0.0008, i < 2 ? '#c93f33' : i < 4 ? '#dc5445' : '#ec7260');
     disc(c, x, top - 0.0132, 0.0007, '#2f3b45');
   }
-  drawBeam(c, t) {
-    if (this.off) return;
-    const y = this.y - TALL - 0.003;
-    c.save(); c.globalCompositeOperation = 'lighter';
-    const glow = c.createRadialGradient(this.x, y, 0, this.x, y, 0.022); glow.addColorStop(0, 'rgba(255,236,170,0.45)'); glow.addColorStop(1, 'rgba(255,236,170,0)');
-    c.fillStyle = glow; c.fillRect(this.x - 0.022, y - 0.022, 0.044, 0.044);
-    c.translate(this.x, y); c.rotate(t * 0.6);
-    const beam = c.createLinearGradient(0, 0, 0.22, 0); beam.addColorStop(0, 'rgba(255,236,170,0.34)'); beam.addColorStop(1, 'rgba(255,236,170,0)');
-    c.fillStyle = beam; c.beginPath(); c.moveTo(0, 0); c.lineTo(0.22, -0.045); c.lineTo(0.22, 0.045); c.closePath(); c.fill(); c.restore();
+  /**
+   * After dark: the lantern glows and a long beam sweeps slowly round, out over the sea. Off by day (and when clicked off).
+   * Drawn in the lights pass, above the night's tint; the beam's gradient is made once and reused.
+   */
+  drawLights(c, t) {
+    const dark = this.darkness;
+    if (this.off || dark <= 0) return;
+    const y = this.y - TALL - 0.004;
+    glow(c, this.x, y, 0.03, dark, '255,226,150');
+    glow(c, this.x, y, 0.009, dark);
+    if (!this.beam || this.beamFor !== c) {   // made in the beam's own frame, so the same gradient serves every frame
+      this.beamFor = c; this.beam = c.createLinearGradient(0, 0, BEAM, 0);
+      this.beam.addColorStop(0, 'rgba(255,238,184,0.55)'); this.beam.addColorStop(0.4, 'rgba(255,238,184,0.2)'); this.beam.addColorStop(1, 'rgba(255,238,184,0)');
+    }
+    c.translate(this.x, y); c.rotate(t * SWEEP);
+    c.globalAlpha = dark; c.fillStyle = this.beam;
+    c.beginPath(); c.moveTo(0, -0.002); c.lineTo(BEAM, -BEAM * 0.13); c.lineTo(BEAM, BEAM * 0.13); c.lineTo(0, 0.002); c.closePath(); c.fill();
   }
 }

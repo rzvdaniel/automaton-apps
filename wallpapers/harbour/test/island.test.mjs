@@ -8,7 +8,7 @@ import * as entities from '../public/js/entities/index.js';
 import { fakeContext, quietly, GOLDEN_SIZE } from './helpers.mjs';
 
 const golden = JSON.parse(readFileSync(new URL('./golden.json', import.meta.url), 'utf8'));
-const RANDOM_START = new Set(['Shark', 'SleekShark', 'Whale']);   // they start somewhere random, so they are not part of the fingerprint
+const RANDOM_START = new Set(['Shark', 'SleekShark', 'Whale', 'Fox']);   // they start somewhere random, so they are not part of the fingerprint
 
 const fnv = text => { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
 const round = n => n.toFixed(4);
