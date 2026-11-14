@@ -11,7 +11,8 @@
  * For a group (people, gulls) the share is the share of individuals: 25 people at 0.1 means two or three are out.
  * For a single thing (the biplane at night: 0.5) it is the chance it is out. That chance is drawn once per day and once per
  * night, from the date (see roll below), never per frame: so nothing pops in and out during one night, and the same night
- * looks the same after a reload. Any fraction left over in a group (2.5 people) is drawn the same way.
+ * looks the same after a reload. Any fraction left over in a group (2.5 people) is drawn the same way. There is one draw per
+ * class per night, so all of a class share the extra-one decision, and the same individuals (the last in the queue) stay out.
  *
  * Presence gives every entity a `visible` value, 0 (gone) to 1 (fully out), from how dark it is (world.day.darkness).
  * Over dusk the share slides from the day value to the night value: those who are out by day but not by night leave one by

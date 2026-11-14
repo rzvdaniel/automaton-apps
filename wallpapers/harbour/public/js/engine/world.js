@@ -134,7 +134,6 @@ export class World {
     if (turned && this.seed !== undefined) this.generate(this.seed);
   }
 
-  /** The sun moves slowly: the time of day is worked out again every DAY_EVERY seconds, not every frame. */
   /**
    * Which day and which night the island shows, at the place, as text: the seeds Presence draws who is out from. A night
    * runs from noon to noon (its date is the evening's), so the draw never changes in the dark.
@@ -143,6 +142,7 @@ export class World {
     const now = this.skyClock.now().getTime(), date = t => { const l = this.place.local(new Date(t)); return `${l.year}-${l.month}-${l.day}`; };
     return { day: date(now), night: date(now - 12 * 3600000) };
   }
+  /** The sun moves slowly: the time of day is worked out again every DAY_EVERY seconds, not every frame. */
   #updateDay() { this.dayAt = this.clock; this.day.update(this.skyClock.now(), this.place.current); }
 
   /** One broken entity is reported once; the rest of the island carries on. */

@@ -13,6 +13,7 @@ export class House extends Entity {
     // at night its windows light up, one house after another; about one in four stays dark
     this.lightsAt = Math.random() < 0.25 ? 2 : 0.15 + Math.random() * 0.45;
     this.windows = this.windowSpots().map(([lx, ly]) => [this.x + Math.cos(this.a) * lx - Math.sin(this.a) * ly, this.y + Math.sin(this.a) * lx + Math.cos(this.a) * ly]);
+    this.spillY = this.y + (Math.cos(this.a) >= 0 ? 1 : -1) * this.w * 0.75;   // where its light falls on the ground, in front
     this.plume = world.add(new Smoke(world, this.x + this.w * 0.3 * Math.cos(this.a), this.y + this.w * 0.3 * Math.sin(this.a) - 0.0025, o.smoke));
   }
   /** Where its windows are, in its own turned frame (x along the house, y across it). */
@@ -29,10 +30,10 @@ export class House extends Entity {
   drawLights(c) {
     if (switchOn(this.lightsAt, this.darkness) <= 0) return;
     let lit = 0;
-    this.windows.forEach(([x, y], n) => { const a = this.windowLight(n); lit += a; glow(c, x, y, 0.006, a * 0.85); });
-    const share = lit / this.windows.length, front = Math.cos(this.a) >= 0 ? 1 : -1;
+    for (let n = 0; n < this.windows.length; n++) { const a = this.windowLight(n), w = this.windows[n]; lit += a; glow(c, w[0], w[1], 0.006, a * 0.85); }
+    const share = lit / this.windows.length;
     halo(c, this.x, this.y, this.w * 1.8, share * HALO);
-    halo(c, this.x, this.y + front * this.w * 0.75, this.w * 1.3, share * SPILL, undefined, 0.5);
+    halo(c, this.x, this.spillY, this.w * 1.3, share * SPILL, undefined, 0.5);
   }
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.02; }

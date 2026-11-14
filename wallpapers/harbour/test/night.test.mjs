@@ -22,8 +22,11 @@ function recordingContext() {
 }
 
 /** A built island at a darkness (headless; the time of day is set by hand, not from the clock). */
+// Every island test runs on the same fixed day, never the real date, so who is out is the same on every run.
+// On this day the fox is not one of its rare daytime walks (see Presence).
+const FIXED_DAY = Date.UTC(2026, 10, 14, 12);
 function islandAt(darkness, seed = 7) {
-  const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: true, sound: recordingSound() }); w.generate(seed); return w; });
+  const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: true, sound: recordingSound() }); w.skyClock.realNow = () => FIXED_DAY; w.generate(seed); return w; });
   world.day.darkness = darkness; world.presence.update(world.scene.entities);
   return world;
 }
@@ -171,7 +174,7 @@ test('the lighthouse beam shines only out to sea: none towards the island, full 
 // ----- the fox -----
 test('the fox: on every island, out at night; a click makes it jump and yip', () => {
   const day = islandAt(NOON), fox = day.all(E.Fox)[0];
-  assert.ok(fox, 'there is a fox'); assert.equal(fox.visible, fox.outByDay ? 1 : 0, 'gone by day, unless this is one of its rare days');
+  assert.ok(fox, 'there is a fox'); assert.equal(fox.visible, 0, 'gone by day');
   assert.ok(day.field(fox.x, fox.y) < 0, 'it lives on the land');
 
   const night = islandAt(MIDNIGHT), f = night.all(E.Fox)[0], sound = night.sound;
