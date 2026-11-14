@@ -25,10 +25,11 @@
   body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
   /* the settings dialog: the kit's card and form classes, only laid out here; colours come from the kit's tokens */
   .settings-dialog { padding: 0; border: 0; background: transparent; color: var(--text); width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; touch-action: pan-y; user-select: none; }
-  .settings-dialog::backdrop { background: rgb(0 0 0 / 40%); }
-  .settings-dialog .a-card { box-shadow: 0 12px 40px rgb(0 0 0 / 30%); }
+  .settings-dialog::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
+  .settings-dialog .a-card { box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 35%, transparent); }
   .settings-dialog .a-card__head { margin: 0; }
-  .settings-dialog .a-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
+  .settings-dialog #set-sound svg { width: 20px; height: 20px; flex: none; }
+  .settings-dialog #set-sound .waves { display: none; } .settings-dialog #set-sound.on .waves { display: inline; } .settings-dialog #set-sound.on .cross { display: none; }
   .settings-dialog .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
   .settings-dialog .slider-ends { display: flex; justify-content: space-between; }
   .settings-dialog .dialog-actions { display: flex; justify-content: flex-end; }

@@ -27,7 +27,10 @@ export class SettingsDialog {
     return `<form class="a-card a-form" method="dialog">
   <div class="a-card__head"><h2 class="a-card__title" id="settings-title">Settings</h2></div>
   <div class="a-field"><span class="a-label" id="lbl-sound">Sound</span>
-    <button type="button" class="a-btn" id="set-sound" aria-labelledby="lbl-sound" aria-pressed="false"></button></div>
+    <button type="button" class="a-btn" id="set-sound" aria-labelledby="lbl-sound" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9.5h3l4.5-4v13l-4.5-4H4z" fill="currentColor"/><path class="waves" d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.6a7.6 7.6 0 0 1 0 10.8"/><path class="cross" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>
+      </svg><span id="sound-text"></span></button></div>
   <div class="a-field"><label class="a-label" for="set-place">Place</label>
     <select class="a-input" id="set-place"></select><span class="a-hint" id="place-hint"></span></div>
   <div class="a-field"><label class="a-label" for="set-time-mode">Time</label>
@@ -66,9 +69,9 @@ export class SettingsDialog {
       if (e.target.value === 'now') this.clock.setNow(); else this.clock.setStart(this.#el('set-time').value || this.#nowText());
     });
     this.#el('set-time').addEventListener('change', e => { if (e.target.value) this.clock.setStart(e.target.value); });
-    this.#el('set-weather').addEventListener('input', e => s.set({ weather: Number(e.target.value) / 100 }));
+    this.#el('set-weather').addEventListener('change', e => s.set({ weather: Number(e.target.value) / 100 }));
     this.#el('set-wind-mode').addEventListener('change', e => s.set({ wind: e.target.value === 'auto' ? 'auto' : Number(this.#el('set-wind').value) / 100 }));
-    this.#el('set-wind').addEventListener('input', e => s.set({ wind: Number(e.target.value) / 100 }));
+    this.#el('set-wind').addEventListener('change', e => s.set({ wind: Number(e.target.value) / 100 }));
     this.dialog.addEventListener('click', e => { if (e.target === this.dialog) this.close(); });   // a click on the backdrop closes it
     s.onChange(() => { if (this.dialog.open) this.#show(); });
   }
@@ -82,7 +85,8 @@ export class SettingsDialog {
   /** Shows the current choices in the form. */
   #show() {
     const s = this.settings, sound = this.#el('set-sound');
-    sound.textContent = this.sound.on ? 'On' : 'Off';
+    this.#el('sound-text').textContent = this.sound.on ? 'On' : 'Off';
+    sound.classList.toggle('on', this.sound.on); sound.classList.toggle('a-btn--primary', this.sound.on);
     sound.setAttribute('aria-pressed', this.sound.on ? 'true' : 'false');
     const picked = s.get('place');
     this.#el('set-place').value = picked && Place.cities.some(c => c.zone === picked) ? picked : '';

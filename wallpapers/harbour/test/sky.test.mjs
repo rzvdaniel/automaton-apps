@@ -134,6 +134,26 @@ test('SkyClock: back to Now, and bad times are ignored', () => {
   clock.setNow(); assert.equal(clock.now().getTime(), real.t);
 });
 
+test('SkyClock: a start time means the nearest occurrence, not always today', () => {
+  const { clock, real } = setup('2025-11-14T21:30:00Z');   // 23:30 in Bucharest
+  clock.setStart('01:00');
+  assert.equal(clock.now().toISOString(), '2025-11-14T23:00:00.000Z');   // 01:00 on the 15th, 1.5 hours ahead
+  real.t += 30 * 60000;
+  assert.equal(clock.text(), '01:30:00');   // runs forward from 01:00
+  const late = setup('2025-11-14T01:00:00Z');               // 03:00 in Bucharest
+  late.clock.setStart('23:00');
+  assert.equal(late.clock.text(), '23:00:00');
+  assert.equal(late.clock.now().toISOString(), '2025-11-13T21:00:00.000Z');   // last night's 23:00, 4 hours back
+});
+
+test('SkyClock: across the clock change (Bucharest, 26 Oct 2025, 04:00 -> 03:00)', () => {
+  const { clock, real } = setup('2025-10-25T22:30:00Z');   // 01:30 local, still summer time (UTC+3)
+  clock.setStart('05:00');
+  assert.equal(clock.now().toISOString(), '2025-10-26T03:00:00.000Z');   // 05:00 is UTC+2 by then: 3.5 real hours ahead
+  real.t += 3.5 * 3600000;
+  assert.equal(clock.text(), '08:30:00');   // 05:00 plus 3.5 hours
+});
+
 test('World: owns the settings, place and clock (headless, no browser storage)', async () => {
   await import('./helpers.mjs');
   const { World } = await import('../public/js/engine/world.js');

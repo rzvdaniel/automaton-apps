@@ -2,7 +2,7 @@
  * SkyClock: the date and time the island shows.
  *
  * Normally that is simply the real time. If the viewer picks a start time such as 22:00, the clock shows 22:00 (at the chosen
- * place) at that moment and then keeps running forward at normal speed. To survive a reload it saves the start time and the
+ * place, the 22:00 nearest to that moment, so 01:00 picked at 23:30 is 1.5 hours ahead) at that moment and then keeps running forward at normal speed. To survive a reload it saves the start time and the
  * real moment it was set; the time now is the start plus however long has passed since. Ask it with now(), which gives a Date.
  * For tests, the way of reading the real time can be handed in.
  */
@@ -20,9 +20,11 @@ export class SkyClock {
     const real = this.realNow(), t = this.settings.get('time');
     if (t?.mode !== 'start') return new Date(real);
     const [hours, minutes] = t.start.split(':').map(Number);
-    const set = this.place.local(new Date(t.setAt));   // the day it was at the place when the viewer chose
-    const start = this.place.instantOf({ ...set, hours, minutes });
-    return new Date(start.getTime() + Math.max(0, real - t.setAt));
+    // the occurrence of HH:MM at the place nearest to the moment it was set: yesterday's, today's or tomorrow's
+    const set = this.place.local(new Date(t.setAt));
+    const at = k => { const d = new Date(Date.UTC(set.year, set.month - 1, set.day + k)); return this.place.instantOf({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hours, minutes }).getTime(); };
+    const start = [at(-1), at(0), at(1)].reduce((best, x) => Math.abs(x - t.setAt) < Math.abs(best - t.setAt) ? x : best);
+    return new Date(start + Math.max(0, real - t.setAt));
   }
 
   /** Is the clock showing the real time? */
