@@ -122,3 +122,16 @@ test('Settings: old saves of the wind ("auto" or a bare number) and damaged ones
   for (const old of ['auto', 0.7, 'gale', { mode: 'fixed', strength: 3, day: DAY }, { mode: 'fixed', strength: 0.5 }]) assert.deepEqual(load(old), AUTO, JSON.stringify(old));
   assert.deepEqual(load(fixed(0.5)), fixed(0.5));
 });
+
+test('Shader: whitecap crests and trails, and the surf, are all scaled by the sea strength (so calm is today\'s sea)', () => {
+  const lines = FRAGMENT_SHADER.split('\n');
+  const start = lines.findIndex(l => /if \(ws \* u_wind\.w > 0\.001\)/.test(l));
+  assert.ok(start > 0, 'whitecaps only when it blows and the device is fast');
+  const end = lines.findIndex((l, i) => i > start && /^\s*}\s*$/.test(l));
+  const block = lines.slice(start, end).join('\n');
+  assert.match(block, /float foam = max\(crest[^;]*trail[^;]*\)/, 'foam is made of the crest and its trail');
+  assert.match(block, /mix\(col, c_foam, foam \* smoothstep\(0\.0, 0\.2, ws\)/, 'the foam is multiplied by (a ramp of) the sea strength');
+  assert.equal((block.match(/noise\(/g) || []).length, 2, 'at most two noise calls for the caps');
+  assert.match(FRAGMENT_SHADER, /float surf = ws \*/, 'the surf grows from the sea strength');
+  assert.match(FRAGMENT_SHADER, /\* surf \* 0\.85\)/, 'the beach band is multiplied by it');
+});
