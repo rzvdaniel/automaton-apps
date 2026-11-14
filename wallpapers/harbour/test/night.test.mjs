@@ -119,6 +119,19 @@ test('the lighthouse: lantern and beam on at night, off at noon, off when clicke
   world.day.darkness = MIDNIGHT; house.click(); assert.deepEqual(drawn(), [], 'switched off');
 });
 
+test('the lighthouse beam shines only out to sea: none towards the island, full straight out', () => {
+  for (const seed of [3, 7, 11, 27]) {
+    const house = islandAt(MIDNIGHT, seed).all(E.Lighthouse)[0];
+    const inland = Math.atan2(-house.y, -house.x);   // towards the island's middle
+    assert.equal(house.beamStrength(inland), 0, `seed ${seed}: dark towards the land`);
+    assert.ok(house.beamStrength(house.seaward) > 0.99, `seed ${seed}: full out to sea`);
+    assert.ok(house.beamStrength(house.seaward + 1.2) > 0, `seed ${seed}: still shining partway round`);
+    // drawn: at a moment when the sweep points inland, no beam
+    const c = recordingContext(); house.drawLights(c, ((inland % (2 * Math.PI)) + 2 * Math.PI) / 0.35);
+    assert.ok(!c.calls.includes('fill'), `seed ${seed}: no beam drawn over the village`);
+  }
+});
+
 // ----- the fox -----
 test('the fox: on every island, out only at night; a click makes it jump and yip', () => {
   const day = islandAt(NOON), fox = day.all(E.Fox)[0];

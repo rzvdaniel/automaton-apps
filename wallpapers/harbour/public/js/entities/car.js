@@ -2,6 +2,7 @@
 // and picks a new road at the crossroads. Click it and it toots and speeds off.
 import { shade, clamp, angDiff, disc, rrect, glow, switchOn, Entity } from '../core/index.js';
 
+const LAMPS = [0.34, -0.34];   // where the headlights sit across the car's front
 const L = 0.0125, Wd = 0.0062, PAINT = [['#d9473a', '#ee7563'], ['#f0b93a', '#f8d778'], ['#2b8089', '#58aab1'], ['#f3ede0', '#ffffff'], ['#5d86b4', '#8fb0d6']];
 export class Car extends Entity {
   static passes = { upright: 'draw', lights: 'drawLights' };
@@ -38,7 +39,7 @@ export class Car extends Entity {
     const a = switchOn(0.25, this.darkness);
     if (a <= 0) return;
     const cos = Math.cos(this.a), sin = Math.sin(this.a);
-    for (const k of [0.34, -0.34]) glow(c, this.x + cos * L * 0.5 - sin * Wd * k, this.y + sin * L * 0.5 + cos * Wd * k, 0.004, a);
+    for (const k of LAMPS) glow(c, this.x + cos * L * 0.5 - sin * Wd * k, this.y + sin * L * 0.5 + cos * Wd * k, 0.004, a);
     glow(c, this.x + cos * L * 1.6, this.y + sin * L * 1.6, 0.011, a * 0.45, '255,236,190');
   }
   draw(c, t) {

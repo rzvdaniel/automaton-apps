@@ -1,14 +1,25 @@
 // The lighthouse, seen from slightly to the south like the houses: a banded tower that narrows towards the lantern.
 // At night its lantern is lit and a beam sweeps out to sea (see drawLights). Click it to switch the light on or off.
-import { TAU, shade, lerp, disc, oval, rrect, glow, Entity } from '../core/index.js';
+import { TAU, shade, lerp, angDiff, disc, oval, rrect, glow, Entity } from '../core/index.js';
 
 const TALL = 0.03, R0 = 0.0098, R1 = 0.0064, SLICES = 36;
 const BEAM = 0.45, SWEEP = 0.35;   // how far the beam reaches (world units) and how fast it turns (radians a second)
+const FULL = 95 * Math.PI / 180, NONE = 115 * Math.PI / 180;   // the beam is full within FULL of straight out to sea, and gone beyond NONE (an arc of about 230 degrees)
 export class Lighthouse extends Entity {
   static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'one';
   static cullRadius = 0.46;   // its beam reaches that far
-  constructor(world, x, y) { super(world); this.x = x; this.y = y; this.off = false; }
+  constructor(world, x, y) {
+    super(world); this.x = x; this.y = y; this.off = false;
+    // straight out to sea: up the shore's slope (the field grows towards the sea), or away from the island's middle
+    const g = world.grad?.(x, y);
+    this.seaward = g && (g.gx || g.gy) ? Math.atan2(g.gy, g.gx) : Math.atan2(y, x);
+  }
+  /** How strong the beam is (0..1) when it points at `angle`: full out to sea, fading to nothing as it turns towards the land. */
+  beamStrength(angle) {
+    const off = Math.abs(angDiff(angle, this.seaward)), t = Math.min(1, Math.max(0, (NONE - off) / (NONE - FULL)));
+    return t * t * (3 - 2 * t);
+  }
   hit(x, y) { return Math.abs(x - this.x) < 0.014 && y > this.y - TALL - 0.014 && y < this.y + 0.013; }
   click() { this.off = !this.off; }
   draw(c) {
@@ -52,8 +63,10 @@ export class Lighthouse extends Entity {
       this.beamFor = c; this.beam = c.createLinearGradient(0, 0, BEAM, 0);
       this.beam.addColorStop(0, 'rgba(255,238,184,0.55)'); this.beam.addColorStop(0.4, 'rgba(255,238,184,0.2)'); this.beam.addColorStop(1, 'rgba(255,238,184,0)');
     }
-    c.translate(this.x, y); c.rotate(t * SWEEP);
-    c.globalAlpha = dark; c.fillStyle = this.beam;
+    const angle = t * SWEEP, strength = this.beamStrength(angle);
+    if (strength <= 0) return;   // turned towards the land: it never washes over the village
+    c.translate(this.x, y); c.rotate(angle);
+    c.globalAlpha = dark * strength; c.fillStyle = this.beam;
     c.beginPath(); c.moveTo(0, -0.002); c.lineTo(BEAM, -BEAM * 0.13); c.lineTo(BEAM, BEAM * 0.13); c.lineTo(0, 0.002); c.closePath(); c.fill();
   }
 }

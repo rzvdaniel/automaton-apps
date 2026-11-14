@@ -2,6 +2,7 @@
 // then sits a while. Click it and it jumps and yips.
 // new Fox(world)   it finds its own spot on the land
 import { TAU, shade, angDiff, disc, oval, sprite, Entity } from '../core/index.js';
+import { House } from './house.js';
 
 const U = 0.00016;   // world units per drawing unit: the fox is drawn about 60 units long, nose to tail tip
 const RUSSET = '#c4642c', DARK = '#7a3a1a', CREAM = '#f4ead8';
@@ -16,7 +17,11 @@ export class Fox extends Entity {
   constructor(world, random = Math.random) {
     super(world); this.random = random;
     this.x = this.y = 0; this.a = random() * TAU;
-    this.findLand(0, 0, 0.4); this.tx = this.x; this.ty = this.y;
+    if (!this.findLand(0, 0, 0.4)) {   // an oddly shaped island: start by a house, or on the quay
+      const home = world.all?.(House)[0], quay = world.map?.quay?.[0];
+      if (home) { this.x = home.x; this.y = home.y + 0.01; } else if (quay) { this.x = quay[0]; this.y = quay[1]; }
+    }
+    this.tx = this.x; this.ty = this.y;
     this.wait = 2 + random() * 6; this.step = 0; this.jump = 0; this.rush = 0;
   }
 
