@@ -7,6 +7,8 @@ import { Settings } from '../sky/settings.js';
 import { Place } from '../sky/place.js';
 import { SkyClock } from '../sky/sky-clock.js';
 import { DayCycle } from '../sky/day-cycle.js';
+import { Weather } from '../sky/weather.js';
+import { CloudBank } from './cloud-bank.js';
 import { Effects } from './effects.js';
 import { Scene } from './scene.js';
 import { Presence } from './presence.js';
@@ -33,6 +35,7 @@ const DAY_EVERY = 1;   // seconds between updates of the time of day
  *   settings     the viewer's choices (saved)    place        where the island is (city, latitude, longitude)
  *   skyClock     the time the island shows       day          dawn, day, dusk or night, the light, where shadows fall
  *   presence     who is out at this hour (balloons by day, the fox by night)
+ *   weather      how cloudy it is (changing slowly over hours)   cloudBank    keeps the number of clouds in step with it
  *
  * Without a `stage` it runs headless (no page, no drawing): that is how the tests build islands.
  */
@@ -53,6 +56,8 @@ export class World {
     this.settings = settings ?? new Settings({ storage: headless ? null : undefined });   // headless worlds (tests) never touch the browser's storage
     this.place = new Place({ settings: this.settings });
     this.skyClock = new SkyClock({ settings: this.settings, place: this.place });
+    this.weather = new Weather({ settings: this.settings });
+    this.cloudBank = new CloudBank(this);
     this.day = new DayCycle(); this.#updateDay();
     this.settings.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // a new time or place shows at once, not at the next tick
     this.effects = new Effects();
@@ -142,8 +147,14 @@ export class World {
     const now = this.skyClock.now().getTime(), date = t => { const l = this.place.local(new Date(t)); return `${l.year}-${l.month}-${l.day}`; };
     return { day: date(now), night: date(now - 12 * 3600000) };
   }
-  /** The sun moves slowly: the time of day is worked out again every DAY_EVERY seconds, not every frame. */
-  #updateDay() { this.dayAt = this.clock; this.day.update(this.skyClock.now(), this.place.current); }
+  /** The sun and the weather move slowly: they are worked out again every DAY_EVERY seconds, not every frame. */
+  #updateDay() {
+    const seconds = this.clock - (this.dayAt ?? this.clock), now = this.skyClock.now();
+    this.dayAt = this.clock;
+    this.weather.update(now, seconds);
+    this.day.update(now, this.place.current, this.weather.cover);
+    if (seconds > 0) this.cloudBank.update(seconds);   // not while the island is being built: its clouds come from its seed
+  }
 
   /** One broken entity is reported once; the rest of the island carries on. */
   #reportError(line) {
