@@ -5,13 +5,14 @@
     {
       "id": "offsite-backup",
       "name": "Off-site Backup",
-      "summary": "Copies the newest encrypted server backup to S3-compatible storage on a nightly schedule.",
+      "summary": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "56e0ef50a507e6e5f006de2612777368d6b0d0bb",
-      "minServerVersion": "0.2.31",
+      "commit": "4a04ba17ce647c7a737cd77eed680f936dd03fa9",
+      "minServerVersion": "0.2.126",
       "permissions": [
         "backups:read",
+        "backups:run",
         "notify:email"
       ]
     },
