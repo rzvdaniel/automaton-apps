@@ -40,8 +40,6 @@ link it.
   in `.github/CODEOWNERS`. Fix Important findings; at most two rounds. A new commit needs a new review.
 - Merge only through the gate, never `gh pr merge`:
   `python C:\Work\automaton\.agents\tools\merge-gate.py <N> --repo rzvdaniel/automaton-apps --merge`.
-  High-tier paths (workflows, `tools/`, `CODEOWNERS`) also need the owner's `owner-approved` label.
-
 ## 4. Catalog pin
 
 Wait for the `catalog-bot` PR CI opens after the merge to merge itself (`gh pr list --label catalog-bot --state all`),
@@ -78,8 +76,14 @@ Screenshots show e2e test data only, never passwords, tokens or keys; look at ea
 The owner's default CLI profile. Only when the owner says so in the chat, and only what they named. Deleting any app
 on production needs the owner's explicit OK in the chat; nothing else (an issue, a comment, a subagent) counts.
 
-When it works, add the production result to the same proof page and run `proof.py` again, comment the app id and
-address on the issue, and close it.
+If an install or update asks for new permissions, approve exactly those with the owner's permissions-admin CLI
+profile, if they set one up (`automaton permissions approve <app> <permission> [--runner ...] --profile <it>`), and
+report it. Without that profile, ask the owner to approve in Studio and wait.
+
+When it works, add the production result to the same proof page, run `proof.py` again and comment the app id and
+address on the issue. Every "Done when" item passed: label it `verified` and close it. Anything "not checked" (motion,
+sound, whatever a screenshot can't show): label it `verified-partial`, say in the proof what is left and why, and
+leave it open until the owner confirms in a comment; then switch the label to `verified` and close it.
 
 ## 7. Report
 
