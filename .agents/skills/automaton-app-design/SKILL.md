@@ -16,9 +16,8 @@ Every app page is built from `design/automaton-app-ui/` and nothing else: no oth
 4. **Colours** come from the tokens (`--ink`, `--orange`, `--ok`, `--warn`, `--critical`); never hard-code a colour in an app.
 5. **Escape** every dynamic value before it goes into `innerHTML` (`AutomatonUI.escapeHtml`).
 
-## Check before the pull request
+## Checks
 
-- Light and dark both look right (`agent-browser set media dark`, then `light`).
-- At 390 px wide nothing scrolls sideways or is cut off.
-- A light and a dark screenshot of the page are in the pull request.
-- `python tools/check_vendored_ui.py` and the app's tests pass.
+- Before the pull request: `python tools/check_vendored_ui.py` and the app's tests pass.
+- On the test server, in a real browser (no headless browser): light and dark both look right, and at 390 px wide
+  nothing scrolls sideways or is cut off. The screenshots go in the issue's proof.

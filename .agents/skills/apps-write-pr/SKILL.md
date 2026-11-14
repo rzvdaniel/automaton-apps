@@ -20,7 +20,7 @@ One to three sentences per app touched.
 **New settings, secrets or permissions:** none / list them and why the app needs each.
 
 **How verified:** the commands run and what came back (app tests, `automaton validate`, the repo checks).
-For a page: link the issue's proof, which holds the screenshots (light and dark, desktop and phone).
+For a page: the screenshots (light and dark, desktop and phone) go in the issue's proof after the test-server check.
 
 **Risk:** low / medium / high, and why.
 

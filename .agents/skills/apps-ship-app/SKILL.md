@@ -26,9 +26,8 @@ python tools/validate_apps.py --changed-since origin/main
 python tools/generate_catalog.py --validate
 ```
 
-For a page, take viewport screenshots of it running locally (light and dark, desktop and phone width) and publish
-them as the issue's first proof (see Proof in step 5; server rows "not checked: test server pending"), so the PR can
-link it.
+No headless browser for local screenshots or frame rates: it renders in software, pins the CPU and its numbers are
+not representative. Screenshots and frame rates come from the test server in step 5, in a real browser.
 
 ## 3. PR, review, merge
 
@@ -60,12 +59,12 @@ automaton catalog update <app-or-id> --profile runner-01 --wait                 
 
 Apps with an empty slug are addressed by id. Secrets go only through `--secrets-file`. If an update says the app was
 edited after the install, stop and tell the owner: `--confirm-edited` is only for real code edits on the server, never
-routine. Check the "Done when" in a browser as a user, then publish the proof and delete every `apps-e2e-`
+routine. Check the "Done when" in a real browser as a user (for a page: light and dark, desktop and
+phone width; the frame rate from `?debug` when it matters), then publish the proof and delete every `apps-e2e-`
 copy you made; test apps on shared servers always carry that prefix.
 
 **Proof.** Write one HTML page next to a `shots/` folder: one `<table>` (criterion, result, evidence) with a row per
-"Done when" item (pass, fail, or not checked and why), the app id and the pinned commit (the first proof, before
-merge, names the branch commit); inline `<style>` only, no
+"Done when" item (pass, fail, or not checked and why), the app id and the pinned commit; inline `<style>` only, no
 scripts; screenshots as `<img src="shots/name.png" alt="...">`, viewport only. Publish it as the issue's `proof`
 artifact (replaces an older one; under 1 MB; needs `pip install pillow`):
 
