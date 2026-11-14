@@ -653,6 +653,26 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(console.start_cleanup(settings(), self.RUNNER, "t", opener=self.Opener(409))[2], "No.")
         self.assertEqual(console.start_cleanup(settings(APP_AUTOMATON_API_KEY=""), self.RUNNER, "t")[0], "no_key")
 
+    TARGET = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    def test_logs_restart_and_disk_are_three_fixed_posts_with_the_viewer_token(self):
+        for operation, lines, path in [
+            ("logs", "50", f"/apps/{self.TARGET}/logs?lines=50"), ("logs", "5000", f"/apps/{self.TARGET}/logs?lines=100"),
+            ("logs", "1; rm", f"/apps/{self.TARGET}/logs?lines=100"), ("restart", "1", f"/apps/{self.TARGET}/restart"), ("disk", "1", "/disk-report")]:
+            opener = self.Opener(body=b"{}")
+            self.assertEqual(console.app_operation(settings(), operation, self.RUNNER, self.TARGET, "vt", lines, opener=opener)[0], "ok")
+            request = opener.requests[0]
+            self.assertEqual((request.method, request.full_url), ("POST", f"https://api.example.com/api/server/runners/{self.RUNNER}{path}"))
+            self.assertEqual(request.get_header("X-automaton-viewer-token"), "vt")
+
+    def test_only_guids_and_known_operations_reach_the_path(self):
+        opener = self.Opener()
+        for runner, target, operation in [("../x", self.TARGET, "logs"), (self.RUNNER, "a/b", "logs"), (self.RUNNER, "", "restart"),
+                                          (self.RUNNER, self.TARGET, "exec"), (self.RUNNER, self.TARGET, "shell")]:
+            self.assertEqual(console.app_operation(settings(), operation, runner, target, "t", opener=opener)[0], "not_found")
+        self.assertEqual(console.runner_apps(settings(), "x/../y", opener=opener)[0], "not_found")
+        self.assertEqual(opener.requests, [])
+
     def test_the_viewer_token_is_only_sent_with_the_one_change(self):
         opener = self.Opener(body=b"[]")
         console.maintenance_permissions(settings(), opener=opener)
@@ -694,8 +714,19 @@ class MaintenanceServerTests(unittest.TestCase):
         self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}), 200)
         self.assertEqual(self.seen, [("POST", f"/api/server/runners/{self.RUNNER}/cleanup", "vt")])
 
+    def test_logs_restart_and_disk_need_the_header_and_pass_the_token_on(self):
+        target = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        for path, expected in [(f"/api/maintenance/logs?runner={self.RUNNER}&target={target}&lines=20", f"/api/server/runners/{self.RUNNER}/apps/{target}/logs?lines=20"),
+                               (f"/api/maintenance/restart?runner={self.RUNNER}&target={target}", f"/api/server/runners/{self.RUNNER}/apps/{target}/restart"),
+                               (f"/api/maintenance/disk?runner={self.RUNNER}", f"/api/server/runners/{self.RUNNER}/disk-report")]:
+            self.seen.clear()
+            self.assertEqual(self.post(path, {}), 404)
+            self.assertEqual(self.seen, [])
+            self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}), 200)
+            self.assertEqual(self.seen, [("POST", expected, "vt")])
+
     def test_only_the_cleanup_can_be_posted(self):
-        self.assertEqual(self.post("/api/maintenance/restart?runner=x", {"X-Server-Console": "1"}), 404)
+        self.assertEqual(self.post("/api/maintenance/exec?runner=x", {"X-Server-Console": "1"}), 404)
         self.assertEqual(self.post("/api/maintenance", {"X-Server-Console": "1"}), 404)
 
 

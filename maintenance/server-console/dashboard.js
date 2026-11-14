@@ -302,7 +302,7 @@
     var summary = cleanupSummary(c);
     cleanupBox.hidden = false;
     cleanupBox.innerHTML = card("Cleanup", summary.status, '<div id="cleanup-summary">' + summary.html + studioLink(c) + "</div>",
-      "Frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit. Never volumes, apps in use or backups.");
+      "Reads an app's recent logs, restarts an app or reads Docker's disk use on this one machine, and frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit. Never volumes, apps in use or backups.");
     cleanupBox.firstChild.classList.add("spaced");
     UI.updateRelativeTimes(cleanupBox);
   }
@@ -323,6 +323,9 @@
   var machinesMaintained = [];
   var cleanupRun = null; // { runner, runId, state } of the cleanup this page started
   var cleanupTimer = null;
+  var appsByRunner = {};   // runnerId -> [{ targetId, name, status }]
+  var chosenApp = {};      // runnerId -> targetId
+  var tool = null;         // { runner, kind, busy, text, error } the last logs, restart or disk answer
 
   function maintainedRunner() {
     return machinesMaintained.filter(function (item) { return item.name === chosenName(); })[0];
@@ -342,8 +345,56 @@
     }
     if (cleanupRun && cleanupRun.runner === item.runnerId && cleanupRun.error) result = '<p class="a-note a-note--warning" id="maintenance-result">' + esc(cleanupRun.error) + "</p>";
     if (!item.approved) return '<p class="a-hint">An administrator has not approved maintenance on ' + esc(item.name) + " for this app yet. Approve it in Studio under Admin, Apps, Permissions.</p>";
-    return '<p><button class="a-btn" type="button" id="cleanup-now"' + (running || offline ? " disabled" : "") + ">" + (running ? "Cleaning up..." : "Docker cleanup now") + "</button> " +
+    return toolsBody(item, offline) + '<p><button class="a-btn" type="button" id="cleanup-now"' + (running || offline ? " disabled" : "") + ">" + (running ? "Cleaning up..." : "Docker cleanup now") + "</button> " +
       '<span class="a-hint">on ' + esc(item.name) + (offline ? " (offline)" : "") + "</span></p>" + result;
+  }
+
+  function toolsBody(item, offline) {
+    var apps = appsByRunner[item.runnerId] || [];
+    var picked = chosenApp[item.runnerId] || (apps[0] && apps[0].targetId) || "";
+    var busy = tool && tool.runner === item.runnerId && tool.busy;
+    var options = apps.map(function (a) { return '<option value="' + esc(a.targetId) + '"' + (a.targetId === picked ? " selected" : "") + ">" + esc(a.name) + " (" + esc(a.status) + ")</option>"; }).join("");
+    var off = busy || offline ? " disabled" : "";
+    var out = "";
+    if (tool && tool.runner === item.runnerId && !tool.busy) {
+      out = tool.error ? '<p class="a-note a-note--warning" id="tool-result">' + esc(tool.error) + "</p>"
+        : '<pre class="a-code" id="tool-result" style="max-height:20rem;overflow:auto;white-space:pre-wrap">' + esc(tool.text) + "</pre>";
+    }
+    return '<p><select id="app-pick" class="a-input" aria-label="App on this machine"' + (apps.length ? "" : " disabled") + ">" + (options || "<option>No apps on this machine</option>") + "</select> " +
+      '<button class="a-btn" type="button" id="app-logs"' + (apps.length ? off : " disabled") + ">Logs</button> " +
+      '<button class="a-btn" type="button" id="app-restart"' + (apps.length ? off : " disabled") + ">Restart app</button> " +
+      '<button class="a-btn" type="button" id="disk-report"' + off + ">Disk report</button>" + (busy ? ' <span class="a-hint">Working...</span>' : "") + "</p>" + out;
+  }
+
+  function loadApps(item) {
+    fetch("api/maintenance/apps?runner=" + encodeURIComponent(item.runnerId), { cache: "no-store" }).then(function (response) {
+      return response.json().then(function (data) {
+        if (data.status === "ok" && Array.isArray(data.data)) { appsByRunner[item.runnerId] = data.data; paintMaintenance(); }
+      });
+    }).catch(function () { /* keep what is shown */ });
+  }
+
+  function runTool(kind) {
+    var item = maintainedRunner();
+    if (!item) return;
+    var picked = (document.getElementById("app-pick") || {}).value || "";
+    chosenApp[item.runnerId] = picked;
+    if (kind === "restart" && !window.confirm("Restart this app on " + item.name + "? It is unavailable for a short while.")) return;
+    tool = { runner: item.runnerId, kind: kind, busy: true };
+    paintMaintenance();
+    var query = "runner=" + encodeURIComponent(item.runnerId) + (kind === "disk" ? "" : "&target=" + encodeURIComponent(picked)) + (kind === "logs" ? "&lines=100" : "");
+    fetch("api/maintenance/" + kind + "?" + query, { method: "POST", headers: { "X-Server-Console": "1" }, cache: "no-store" }).then(function (response) {
+      return response.json().then(function (data) {
+        tool.busy = false;
+        if (data.status !== "ok" || !data.data) {
+          tool.error = data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can do this, on a machine approved for this app." : data.message || "That did not work.";
+        } else if (kind === "logs") tool.text = data.data.running ? (data.data.text || "(no output yet)") : "That app has no running container on this machine.";
+        else if (kind === "restart") tool.text = data.data.restarted ? "Restarted. The app is back." : "The app was not restarted.";
+        else tool.text = "Images " + bytes(data.data.imagesBytes) + "\nContainers " + bytes(data.data.containersBytes) + "\nVolumes " + bytes(data.data.volumesBytes) +
+          "\nBuild cache " + bytes(data.data.buildCacheBytes) + "\nCleanup could free about " + bytes(data.data.reclaimableBytes);
+        paintMaintenance();
+      });
+    }).catch(function () { tool.busy = false; tool.error = "The app could not be reached."; paintMaintenance(); });
   }
 
   function paintMaintenance() {
@@ -360,6 +411,8 @@
       return response.json().then(function (data) {
         machinesMaintained = data.status === "ok" && Array.isArray(data.data) ? data.data : [];
         paintMaintenance();
+        var item = maintainedRunner();
+        if (item && item.approved && !appsByRunner[item.runnerId]) loadApps(item);
       });
     }).catch(function () { /* keep what is shown */ });
   }
@@ -397,7 +450,12 @@
     }).catch(function () { cleanupRun.state = "failed"; cleanupRun.error = "The app could not be reached."; paintMaintenance(); });
   }
 
-  maintenanceBox.addEventListener("click", function (event) { if (event.target.id === "cleanup-now") startCleanup(); });
+  maintenanceBox.addEventListener("click", function (event) {
+    if (event.target.id === "cleanup-now") startCleanup();
+    else if (event.target.id === "app-logs") runTool("logs");
+    else if (event.target.id === "app-restart") runTool("restart");
+    else if (event.target.id === "disk-report") runTool("disk");
+  });
 
   UI.bindThemeToggle();
   load();

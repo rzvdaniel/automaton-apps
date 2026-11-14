@@ -134,7 +134,7 @@ def cleanup_call(settings: Settings, timeout: float = 30, opener=None) -> tuple[
 
 
 GUID = re.compile(r"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
-MAINTAIN_STATUS = {401: "not_approved", 403: "forbidden", 404: "not_found", 409: "conflict"}
+MAINTAIN_STATUS = {400: "not_found", 401: "not_approved", 403: "forbidden", 404: "not_found", 409: "conflict"}
 
 
 def maintain_call(settings: Settings, method: str, path: str, viewer_token: str | None = None, timeout: float = 30, opener=None) -> tuple[str, dict | list | None, str | None]:
@@ -174,6 +174,28 @@ def start_cleanup(settings: Settings, runner_id: str, viewer_token: str | None, 
     if not GUID.match(runner_id or ""):
         return "not_found", None, "Unknown machine."
     return maintain_call(settings, "POST", f"/api/server/runners/{runner_id}/cleanup", viewer_token, **kwargs)
+
+
+def runner_apps(settings: Settings, runner_id: str, **kwargs):
+    if not GUID.match(runner_id or ""):
+        return "not_found", None, "Unknown machine."
+    return maintain_call(settings, "GET", f"/api/server/runners/{runner_id}/apps", **kwargs)
+
+
+def app_operation(settings: Settings, operation: str, runner_id: str, target_id: str, viewer_token: str | None, lines: str = "100", **kwargs):
+    """One of the fixed named operations: logs, restart or disk. Only GUIDs and a bounded number reach the path."""
+    if not GUID.match(runner_id or "") or (operation != "disk" and not GUID.match(target_id or "")):
+        return "not_found", None, "Unknown machine or app."
+    if operation == "logs":
+        count = int(lines) if str(lines).isdigit() and 1 <= int(lines) <= 200 else 100
+        path = f"/api/server/runners/{runner_id}/apps/{target_id}/logs?lines={count}"
+    elif operation == "restart":
+        path = f"/api/server/runners/{runner_id}/apps/{target_id}/restart"
+    elif operation == "disk":
+        path = f"/api/server/runners/{runner_id}/disk-report"
+    else:
+        return "not_found", None, "Unknown operation."
+    return maintain_call(settings, "POST", path, viewer_token, timeout=170 if operation == "restart" else 40, **kwargs)
 
 
 def cleanup_run(settings: Settings, runner_id: str, run_id: str, **kwargs):

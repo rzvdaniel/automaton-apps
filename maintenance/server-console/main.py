@@ -172,10 +172,16 @@ def make_handler(app: Console):
         def do_POST(self):  # noqa: N802
             parts = urlsplit(self.path)
             # A page of this app sets this header; a form on another site cannot.
-            if self.headers.get("X-Server-Console") != "1" or parts.path != "/api/maintenance/cleanup":
+            operations = {"/api/maintenance/logs": "logs", "/api/maintenance/restart": "restart", "/api/maintenance/disk": "disk"}
+            if self.headers.get("X-Server-Console") != "1" or (parts.path != "/api/maintenance/cleanup" and parts.path not in operations):
                 return self.json(404, {"error": "Not found"})
-            runner = (parse_qs(parts.query).get("runner") or [""])[0]
-            self.maintain(lambda settings, r, t: console.start_cleanup(settings, r, t), runner, self.headers.get("X-Automaton-Viewer-Token"))
+            query = parse_qs(parts.query)
+            runner = (query.get("runner") or [""])[0]
+            token = self.headers.get("X-Automaton-Viewer-Token")
+            if parts.path in operations:
+                return self.maintain(lambda settings: console.app_operation(settings, operations[parts.path], runner,
+                                                                           (query.get("target") or [""])[0], token, (query.get("lines") or ["100"])[0]))
+            self.maintain(lambda settings, r, t: console.start_cleanup(settings, r, t), runner, token)
 
         def do_GET(self):  # noqa: N802
             path = urlsplit(self.path).path
@@ -192,6 +198,8 @@ def make_handler(app: Console):
                 return self.cleanup()
             if path == "/api/maintenance":
                 return self.maintain(console.maintenance_permissions)
+            if path == "/api/maintenance/apps":
+                return self.maintain(console.runner_apps, (parse_qs(urlsplit(self.path).query).get("runner") or [""])[0])
             if path == "/api/maintenance/cleanup":
                 query = parse_qs(urlsplit(self.path).query)
                 return self.maintain(console.cleanup_run, (query.get("runner") or [""])[0], (query.get("run") or [""])[0])
