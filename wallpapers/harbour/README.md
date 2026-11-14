@@ -7,7 +7,8 @@ A living Irish harbour island for your desktop. Every load builds a different is
 - **Click anything:** it reacts. (Things do not make sounds yet; see Sound.)
 - **Zoom:** mouse wheel (or `+` / `-`), always sharp; `0` resets. **Pan:** press and drag while zoomed.
 - **On a phone:** pinch to zoom, drag to pan, double-tap to zoom in or out, a button at the top right resets the zoom; a tap clicks on release. The island fits a tall screen, is laid out again when you rotate, and draws fewer pixels if the device is slow.
-- **Sound:** off until you press the speaker button at the top right; the choice is remembered. Only the sea (waves that swell and draw back) and the seagulls (a call now and then, and when you click one) make sound; both are synthesised in the browser. Everything else is silent until we find recordings that sound natural.
+- **Settings:** the button at the top right opens a dialog: Sound (off until you switch it on), Place (your browser's time zone, or a city), Time ("Now", or a start time that then runs forward), Weather (more sun or more clouds) and Wind (Auto, or calm to stormy). Choices are saved in the browser. Place and Time set the clock the island uses (shown in `?debug`); Weather and Wind are only stored for now.
+- **Sound:** the choice is remembered. Only the sea (waves that swell and draw back) and the seagulls (a call now and then, and when you click one) make sound; both are synthesised in the browser. Everything else is silent until we find recordings that sound natural.
 - `?seed=123` repeats an island, `N` makes a new one. `?debug` puts every extra on the island, shows a status panel and lists problems.
 - `/gallery.html` shows the extras large.
 
@@ -24,7 +25,8 @@ Plain ES modules in `public/js`: no build step, no dependencies. Each folder has
 | `island/` | Builds an island from a seed, as ordered steps (`land`, `cove`, `roads`, `town`, `fields`, `plants`, `shore`, `extras`, `populate`) sharing one `BuildContext`. `scales.js` sets how big each kind is drawn. |
 | `entities/` | One class per thing (`Shark`, `Gull`, `Car`, `Lighthouse`, ...), each with its own state, movement, drawing, click reaction and sound. `index.js` exports them all. |
 | `audio/` | `AudioEngine` (Web Audio and the building blocks `tone`, `noise`, `say`), `Ambience` (waves, gulls), `Sound` (what the rest of the code uses), `sounds.js` (the named sounds). |
-| `ui/` | The page's buttons. |
+| `sky/` | The viewer's choices and the island's place and time, one class each: `Settings` (saved in the browser), `Place` (time zone to city, latitude, longitude), `SkyClock` (the time shown). |
+| `ui/` | The page's buttons and the settings dialog, built from the UI kit copied into `public/ui/` (never edit it; see the repository's design skill). |
 
 `main.js` starts it. It needs to be served over http (the app's address, or `node server.js`): browsers do not load modules from a file.
 

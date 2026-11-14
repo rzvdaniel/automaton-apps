@@ -10,7 +10,8 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml',
+  '.css': 'text/css; charset=utf-8'
 };
 
 const server = http.createServer(async (req, res) => {
