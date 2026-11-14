@@ -6,6 +6,7 @@ import { Settings } from '../public/js/sky/settings.js';
 import { DayCycle } from '../public/js/sky/day-cycle.js';
 import { Cloud } from '../public/js/entities/cloud.js';
 import { World } from '../public/js/engine/world.js';
+import { Lighting } from '../public/js/engine/lighting.js';
 import { quietly } from './helpers.mjs';
 
 // Every test runs on fixed dates, never the real clock: 14 November 2026, Bucharest (UTC+2).
@@ -16,6 +17,7 @@ const settingsWith = weather => { const s = new Settings({ storage: null }); s.s
 /** The cover every minute for a week from START. */
 const week = mood => Array.from({ length: 7 * 1440 }, (_, i) => Weather.coverAt(new Date(START + i * MINUTE), mood));
 const average = list => list.reduce((a, b) => a + b, 0) / list.length;
+const smooth01 = c => Math.min(1, Math.max(0, (c - 0.35) / 0.5));
 const luma = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
 
 test('Weather: the cover stays between 0 and the cap, whatever the mood', () => {
@@ -99,17 +101,31 @@ test('CloudBank: the number of clouds follows the cover, one at a time and witho
   assert.equal(world.all(Cloud).length, 1, 'they have faded or drifted away');
 });
 
-test('Cloud: at night it is dark blue-grey, darker than by day and darker than the moonlit land', () => {
-  const day = Cloud.tones({ darkness: 0, moonlight: 0 }), night = Cloud.tones({ darkness: 1, moonlight: 1 }), moonless = Cloud.tones({ darkness: 1, moonlight: 0 });
-  const LAND = [169, 210, 119];
-  for (let i = 0; i < 3; i++) {
-    assert.ok(luma(night[i]) < luma(day[i]) * 0.5, `tone ${i}: night ${night[i]} vs day ${day[i]}`);
-    assert.ok(luma(night[i]) < luma(LAND) * 0.7, `tone ${i} darker than the land under the same moonlight`);
-    assert.ok(night[i][2] > night[i][0], 'bluish, not lavender-pink');
-    assert.ok(luma(moonless[i]) < luma(night[i]), 'darker still without a moon');
-  }
+test('Cloud: by day white, grey under heavy cover', () => {
+  const day = Cloud.tones({ darkness: 0, moonlight: 0 });
+  assert.deepEqual(day, [[255, 255, 255], [230, 236, 247], [213, 222, 239]], 'the daytime tones are as they always were');
   const overcast = Cloud.tones({ darkness: 0, moonlight: 0 }, { cover: 0.85, darkness: 1, speed: 1 });
   assert.ok(luma(overcast[0]) < luma(day[0]) * 0.8, 'grey under heavy cover');
+});
+
+// What the eye sees at night: the cloud's tones AFTER the night tint Lighting puts over the whole 2D canvas.
+const tinted = (rgb, light) => { const m = Lighting.matrix(light); return [0, 1, 2].map(row => m[row * 3] * rgb[0] + m[row * 3 + 1] * rgb[1] + m[row * 3 + 2] * rgb[2]); };
+const NIGHT_SEA = [16, 46, 80];   // the sea at night with no moon, as measured on the page (after its own tint)
+
+test('Cloud: at night, after the tint, a dark blue-grey a little lighter than the night sea, with three clear tones', () => {
+  for (const cover of [0, Weather.CAP]) {
+    const weather = { cover, darkness: smooth01(cover), speed: 1 };
+    const moonless = Cloud.tones({ darkness: 1, moonlight: 0 }, weather).map(t => tinted(t, DayCycle.lightAt(-30, false, 0)));
+    const sea = luma(NIGHT_SEA);
+    moonless.forEach((t, i) => {
+      assert.ok(luma(t) > sea && luma(t) < 2 * sea, `cover ${cover}, tone ${i}: ${t.map(Math.round)} (luma ${luma(t).toFixed(1)}) vs sea ${sea.toFixed(1)}`);
+      assert.ok(t[2] > t[1] && t[1] > t[0], `bluish grey ${t.map(Math.round)}`);
+    });
+    for (let i = 1; i < 3; i++) assert.ok(luma(moonless[i - 1]) - luma(moonless[i]) >= 4, `tone ${i - 1} vs ${i}: a visible step`);
+    // a bright moon lights them more (the tint itself is brighter then, and so are the tones)
+    const moonlit = Cloud.tones({ darkness: 1, moonlight: 1 }, weather).map(t => tinted(t, DayCycle.lightAt(-30, false, 1)));
+    moonlit.forEach((t, i) => assert.ok(luma(t) > luma(moonless[i]) * 1.2, `moonlit tone ${i}`));
+  }
 });
 
 test('Cloud: a light under it is mostly hidden, one in a gap is not', () => {

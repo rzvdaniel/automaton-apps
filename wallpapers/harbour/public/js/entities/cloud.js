@@ -13,8 +13,10 @@ const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
 // three tones each (lit top, middle, underside), before the time of day's tint is put over the picture
 const FAIR = [[255, 255, 255], [230, 236, 247], [213, 222, 239]];
 const OVERCAST = [[186, 191, 201], [166, 172, 185], [146, 153, 168]];
-const NIGHT_NO_MOON = [[64, 71, 90], [56, 63, 82], [48, 55, 73]];
-const NIGHT_MOON = [[104, 113, 134], [90, 99, 120], [76, 85, 106]];
+// At night the whole picture is then tinted dark blue (Lighting, world.day.light), so these are picked to come out, AFTER
+// that tint, a dark blue-grey a little lighter than the night sea: they are far lighter here than they will look.
+const NIGHT_NO_MOON = [[200, 210, 236], [172, 182, 210], [148, 158, 188]];
+const NIGHT_MOON = [[214, 222, 244], [186, 196, 224], [160, 170, 200]];
 
 export class Cloud extends Entity {
   static passes = { skyShadow: 'drawShadow', clouds: 'draw', cloudShade: 'drawShade' };
@@ -25,12 +27,12 @@ export class Cloud extends Entity {
 
   /**
    * The cloud's three colours (lit top, middle, underside) as [r, g, b], for the time of day and the weather.
-   * By day greyer the more overcast it is; at night dark blue-grey, a little lighter under a bright moon, and always darker
-   * than the moonlit land (the whole picture is then tinted by the night light on top of this).
+   * By day greyer the more overcast it is. At night the canvas's night tint comes on top of these, so the night tones are
+   * chosen to end up, after it, a dark blue-grey a little lighter than the night sea (lighter still under a bright moon).
    */
   static tones(day = NOON, weather = CLEAR) {
     const lit = FAIR.map((t, i) => mix(t, OVERCAST[i], weather.darkness));
-    const night = NIGHT_NO_MOON.map((t, i) => mix(t, NIGHT_MOON[i], day.moonlight ?? 0).map(v => v * (1 - 0.2 * weather.darkness)));
+    const night = NIGHT_NO_MOON.map((t, i) => mix(t, NIGHT_MOON[i], day.moonlight ?? 0).map(v => v * (1 - 0.06 * weather.darkness)));
     return lit.map((t, i) => mix(t, night[i], day.darkness ?? 0).map(Math.round));
   }
 
@@ -95,7 +97,9 @@ export class Cloud extends Entity {
   // three flat tones, lit from the top left: the whole shape, then two shifted copies clipped to it
   draw(c) {
     const [top, middle, under] = Cloud.fills(this.world?.day, this.weather);
-    c.globalAlpha = 0.96 * this.alpha; c.fillStyle = top;
+    const night = this.world?.day?.darkness ?? 0;
+    if (night > 0) { c.globalAlpha = 0.35 * night * this.alpha; c.fillStyle = middle; this.outline(c, 0, 0, 1.07); c.fill(); }   // a soft rim, so it reads as a cloud and not a hole
+    c.globalAlpha = (0.96 - 0.08 * night) * this.alpha; c.fillStyle = top;
     this.outline(c, 0, 0, 1); c.fill(); c.clip();
     this.outline(c, 0.055, 0.08, 0.99); c.fillStyle = middle; c.fill();
     this.outline(c, 0.2, 0.27, 0.96); c.fillStyle = under; c.fill();
