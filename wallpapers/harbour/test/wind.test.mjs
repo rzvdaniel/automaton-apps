@@ -130,7 +130,7 @@ test('Shader: whitecap crests and trails, and the surf, are all scaled by the se
   const end = lines.findIndex((l, i) => i > start && /^\s*}\s*$/.test(l));
   const block = lines.slice(start, end).join('\n');
   assert.match(block, /float foam = max\(crest[^;]*trail[^;]*\)/, 'foam is made of the crest and its trail');
-  assert.match(block, /mix\(col, c_foam, foam \* ws/, 'the foam is multiplied by the sea strength');
+  assert.match(block, /mix\(col, c_foam, foam \* smoothstep\(0\.0, 0\.2, ws\)/, 'the foam is multiplied by (a ramp of) the sea strength');
   assert.equal((block.match(/noise\(/g) || []).length, 2, 'at most two noise calls for the caps');
   assert.match(FRAGMENT_SHADER, /float surf = ws \*/, 'the surf grows from the sea strength');
   assert.match(FRAGMENT_SHADER, /\* surf \* 0\.85\)/, 'the beach band is multiplied by it');
