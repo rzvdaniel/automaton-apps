@@ -164,6 +164,19 @@ def make_handler(app: Console):
             data["studioUrl"] = console.studio_server_url(app.settings, data.get("studioUrl"))
             self.json(200, {"status": "ok", "cleanup": data})
 
+        def maintain(self, call, *args) -> None:
+            status, data, message = call(app.settings, *args)
+            code = {"ok": 200, "not_approved": 403, "forbidden": 403, "not_found": 404, "conflict": 409, "no_key": 403, "not_configured": 404}.get(status, 502)
+            self.json(code, {"status": status, "message": message, "data": data})
+
+        def do_POST(self):  # noqa: N802
+            parts = urlsplit(self.path)
+            # A page of this app sets this header; a form on another site cannot.
+            if self.headers.get("X-Server-Console") != "1" or parts.path != "/api/maintenance/cleanup":
+                return self.json(404, {"error": "Not found"})
+            runner = (parse_qs(parts.query).get("runner") or [""])[0]
+            self.maintain(lambda settings, r, t: console.start_cleanup(settings, r, t), runner, self.headers.get("X-Automaton-Viewer-Token"))
+
         def do_GET(self):  # noqa: N802
             path = urlsplit(self.path).path
             if path == "/health":
@@ -177,6 +190,11 @@ def make_handler(app: Console):
                 return self.json(200, app.view((query.get("machine") or [None])[0]))
             if path == "/api/cleanup":
                 return self.cleanup()
+            if path == "/api/maintenance":
+                return self.maintain(console.maintenance_permissions)
+            if path == "/api/maintenance/cleanup":
+                query = parse_qs(urlsplit(self.path).query)
+                return self.maintain(console.cleanup_run, (query.get("runner") or [""])[0], (query.get("run") or [""])[0])
             entry = STATIC.get(path)
             if not entry:
                 return self.json(404, {"error": "Not found"})
