@@ -6,6 +6,7 @@
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "utilities/it-tools", "category": "Utilities", "minServerVersion": "0.2.31" },
     { "folder": "analytics/goatcounter", "category": "Analytics", "minServerVersion": "0.2.55" },
-    { "folder": "productivity/linkding", "category": "Productivity", "minServerVersion": "0.2.55" }
+    { "folder": "productivity/linkding", "category": "Productivity", "minServerVersion": "0.2.55" },
+    { "folder": "wallpapers/harbour", "category": "Wallpapers", "minServerVersion": "0.2.31" }
   ]
 }
