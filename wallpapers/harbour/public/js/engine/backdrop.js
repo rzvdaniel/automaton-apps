@@ -1,7 +1,7 @@
 import { VERTEX_SHADER, FRAGMENT_SHADER, MAX_LAND, MAX_RIPPLES } from './shader-source.js';
 import { RepaintPolicy } from './repaint-policy.js';
 
-const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light'];
+const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light', 'u_wind', 'u_isle'];
 
 /**
  * The backdrop: sea, shore, sand and meadow, painted by a WebGL fragment shader onto its own canvas.
@@ -17,6 +17,8 @@ export class Backdrop {
     this.landBuffer = new Float32Array(MAX_LAND * 3);
     this.rippleBuffer = new Float32Array(MAX_RIPPLES * 4);
     this.lightMatrix = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);   // the time of day's light (see Lighting); plain daylight
+    this.wind = new Float32Array([1, 0, 0, 1]);   // u_wind: which way it blows (x, y), how hard for the sea (0 calm), and whether to draw whitecaps (1) or not (0)
+    this.isle = new Float32Array(2);              // u_isle: the middle of the land, so the shader knows which shore faces the wind
     // the picture is kept between frames (preserveDrawingBuffer), so a frame can be skipped without the sea going blank
     this.gl = this.#setup(canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power', preserveDrawingBuffer: true }));
   }
@@ -47,6 +49,22 @@ export class Backdrop {
     this.policy.invalidate();
     this.landBuffer.fill(0);
     land.forEach((blob, n) => { if (n < MAX_LAND) this.landBuffer.set(blob, n * 3); });
+    let x = 0, y = 0, sum = 0;   // the middle of the land: each blob counts as much as it is big
+    land.forEach(([bx, by, r]) => { x += bx * r; y += by * r; sum += r; });
+    this.isle[0] = sum ? x / sum : 0; this.isle[1] = sum ? y / sum : 0;
+  }
+
+  /**
+   * Uses the wind (see Wind): its direction, made one long, and its strength for the sea. On a slow device (`quality`
+   * below 1, see Viewport) the whitecaps are left out, which saves the shader its extra noise. The picture is repainted
+   * only when the wind has changed enough to see.
+   * @param {{ vector: number[], sea: number }} wind
+   * @param {number} quality 1 = full detail
+   */
+  setWind(wind, quality = 1) {
+    const [x, y] = wind.vector, len = Math.hypot(x, y) || 1;
+    const next = [x / len, y / len, wind.sea, quality >= 1 ? 1 : 0];
+    if (next.some((v, i) => Math.abs(v - this.wind[i]) > 0.002)) { this.wind.set(next); this.policy.invalidate(); }
   }
 
   /** Uses a new light: a 3 x 3 colour matrix, row by row, from Lighting. The picture is repainted with it next frame. */
@@ -80,6 +98,8 @@ export class Backdrop {
     gl.uniform3f(u.u_bay, ...(map.bay ?? [0, 0, 0]));
     gl.uniform4fv(u.u_rip, this.rippleBuffer);
     gl.uniformMatrix3fv(u.u_light, false, this.lightMatrix);
+    gl.uniform4fv(u.u_wind, this.wind);
+    gl.uniform2fv(u.u_isle, this.isle);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }

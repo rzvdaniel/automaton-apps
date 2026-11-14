@@ -28,7 +28,7 @@ const DAY_EVERY = 1;   // seconds between updates of the time of day
  * The world is where everything meets. It owns the parts, each with one job, and hands entities the few things they need:
  *
  *   viewport     screen size and scale           camera       zoom and pan
- *   terrain      the land and the shore          wind         the wind and its gusts
+ *   terrain      the land and the shore          windField    the wind: its direction, strength and gusts
  *   effects      ripples, spray, bell rings      scene        the entities, and drawing them in order
  *   interaction  what a tap or hover does        input        mouse, finger and pen gestures
  *   renderer     the canvases and the picture    loop         one step per frame
@@ -82,6 +82,10 @@ export class World {
   get hh() { return this.viewport.hh; }
   get map() { return this.terrain.map; }
   get wind() { return this.windField.vector; }
+  /** How strong the wind is, 0 calm .. 1 stormy (see Wind). */
+  get windStrength() { return this.windField.strength; }
+  /** How much more than usual wind-blown things move: 1 at an ordinary breeze, less when calm, about twice in a storm. */
+  get windPush() { return this.windField.push; }
   get mouse() { return this.interaction.pointer; }
   field(x, y) { return this.terrain.field(x, y); }
   grad(x, y) { return this.terrain.grad(x, y); }
@@ -121,8 +125,8 @@ export class World {
 
   /** Paints the island as it is now. */
   render() {
-    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness });
-    this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
+    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness, wind: this.windField });
+    this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, wind: this.windField.strength, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
   }
 
   #frame(dt, gapMs) {
@@ -152,6 +156,7 @@ export class World {
     const seconds = this.clock - (this.dayAt ?? this.clock), now = this.skyClock.now();
     this.dayAt = this.clock;
     this.weather.update(now, seconds);
+    this.windField.update({ setting: this.settings.get('wind'), cover: this.weather.cover, date: now, day: Wind.dayAt(this.place, now), seconds });
     this.day.update(now, this.place.current, this.weather.cover);
     if (seconds > 0) this.cloudBank.update(seconds);   // not while the island is being built: its clouds come from its seed
   }

@@ -19,7 +19,8 @@ export class MooredBoat extends Entity {
   click() { this.rock = 1; this.world.ripple(this.x, this.y, 0.6); }
   draw(c, t) {
     const L = 0.0105, Wd = 0.0042;
-    const turn = this.a + (0.12 + this.rock * 0.5) * Math.sin(t * (0.8 + this.rock * 6) + this.x * 40), s = this.castShadow(0.0036, turn);
+    const push = this.world.windPush ?? 1;   // a stronger wind rocks it more, and a little faster
+    const turn = this.a + (0.12 * push + this.rock * 0.5) * Math.sin(t * (0.8 * (0.7 + 0.3 * push) + this.rock * 6) + this.x * 40), s = this.castShadow(0.0036, turn);
     c.save(); c.translate(this.x, this.y); c.rotate(turn);
     c.save(); c.translate(s.x, s.y); hull(c, L, Wd); c.fillStyle = shade(0.24 * s.a); c.fill(); c.restore();
     hull(c, L, Wd); c.fillStyle = this.col; c.fill(); c.save(); c.scale(0.8, 0.7); hull(c, L, Wd); c.fillStyle = '#ecd9b0'; c.fill(); c.restore();
@@ -39,7 +40,7 @@ export class Sailboat extends Entity {
   update(dt) {
     const w = this.world, g = w.grad(this.x, this.y), hw = w.hw, hh = w.hh; this.rush = Math.max(0, this.rush - dt);
     if (g.d < 0.17) this.a += angDiff(Math.atan2(g.gy, g.gx), this.a) * Math.min(1, dt * 1.2); else this.a += Math.sin(w.clock * 0.15 + this.x * 5) * 0.05 * dt;
-    const v = 0.013 * (1 + 2 * Math.min(1, this.rush));
+    const v = 0.013 * (0.7 + 0.3 * (w.windPush ?? 1)) * (1 + 2 * Math.min(1, this.rush));   // faster in a stronger wind
     this.x += Math.cos(this.a) * v * dt; this.y += Math.sin(this.a) * v * dt;
     let wrapped = false;
     if (this.x > hw + 0.08) { this.x = -hw - 0.08; wrapped = true; } if (this.x < -hw - 0.08) { this.x = hw + 0.08; wrapped = true; } if (this.y > hh + 0.08) { this.y = -hh - 0.08; wrapped = true; } if (this.y < -hh - 0.08) { this.y = hh + 0.08; wrapped = true; }
@@ -47,7 +48,7 @@ export class Sailboat extends Entity {
     trail(this, dt * v / 0.013, 0.012 * this.scale);
   }
   draw(c, t) {
-    const L = 0.015, Wd = 0.0052, heel = 0.004 + 0.001 * Math.sin(t * 0.9 + this.x * 20) + 0.002 * Math.min(1, this.rush);
+    const L = 0.015, Wd = 0.0052, heel = (0.004 + 0.001 * Math.sin(t * 0.9 + this.x * 20)) * (this.world.windPush ?? 1) + 0.002 * Math.min(1, this.rush);   // the sails belly further in a stronger wind
     drawWake(c, this, 0.012 * this.scale, 0.0022 * this.scale);
     c.save(); c.translate(this.x, this.y); c.rotate(this.a); c.scale(this.scale, this.scale);
     const s = this.castShadow(0.005, this.a), sail = this.castShadow(0.0066, this.a);   // the sail stands taller than the hull

@@ -85,7 +85,7 @@ export class Cloud extends Entity {
   leave() { this.leaving = true; }
 
   update(dt) {
-    const w = this.world, wind = w.wind, hw = w.hw, hh = w.hh, speed = this.speed * this.weather.speed;
+    const w = this.world, wind = w.wind, hw = w.hw, hh = w.hh, speed = this.speed * this.weather.speed * (0.5 + 0.5 * (w.windPush ?? 1));   // faster when cloudier, and when it blows harder
     this.x += wind[0] * speed * dt; this.y += wind[1] * speed * dt;
     if (this.leaving) this.alpha = Math.max(0, this.alpha - dt / 40);   // forty seconds to fade away
     else this.alpha += ((this.fade ? 0 : 1) - this.alpha) * Math.min(1, dt * (this.fade ? 2.5 : 0.3));   // blown away quickly, fades in slowly
