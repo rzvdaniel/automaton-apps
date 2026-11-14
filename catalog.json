@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repo": "rzvdaniel/automaton-apps",
+  "apps": [
+    {
+      "id": "offsite-backup",
+      "name": "Off-site Backup",
+      "summary": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
+      "category": "Maintenance",
+      "folder": "maintenance/offsite-backup",
+      "commit": "4a04ba17ce647c7a737cd77eed680f936dd03fa9",
+      "minServerVersion": "0.2.126",
+      "permissions": [
+        "backups:read",
+        "backups:run",
+        "notify:email"
+      ]
+    },
+    {
+      "id": "website-monitor",
+      "name": "Website Monitor",
+      "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
+      "category": "Monitoring",
+      "folder": "maintenance/website-monitor",
+      "commit": "e6f88a8f600e032cf2e21d192b8a9b63eaeba67b",
+      "minServerVersion": "0.2.31",
+      "permissions": [
+        "notify:email"
+      ]
+    },
+    {
+      "id": "server-console",
+      "name": "Server Console",
+      "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
+      "category": "Monitoring",
+      "folder": "maintenance/server-console",
+      "commit": "0930825a7a4a316773f3726ee7de8f399204c71a",
+      "minServerVersion": "0.2.63",
+      "permissions": [
+        "server:read",
+        "notify:email",
+        "server:cleanup",
+        "runner:maintain"
+      ]
+    },
+    {
+      "id": "heartbeat",
+      "name": "Heartbeat",
+      "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
+      "category": "Monitoring",
+      "folder": "maintenance/heartbeat",
+      "commit": "e6f88a8f600e032cf2e21d192b8a9b63eaeba67b",
+      "minServerVersion": "0.2.31",
+      "permissions": [
+        "notify:email"
+      ]
+    },
+    {
+      "id": "it-tools",
+      "name": "IT-Tools",
+      "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
+      "category": "Utilities",
+      "folder": "utilities/it-tools",
+      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    },
+    {
+      "id": "goatcounter",
+      "name": "GoatCounter",
+      "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
+      "category": "Analytics",
+      "folder": "analytics/goatcounter",
+      "commit": "f5642cbcaecdcbe723269c6c1ff867a84e7d3c92",
+      "minServerVersion": "0.2.55",
+      "permissions": []
+    },
+    {
+      "id": "linkding",
+      "name": "linkding",
+      "summary": "Save, tag and search bookmarks on your own server.",
+      "category": "Productivity",
+      "folder": "productivity/linkding",
+      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
+      "minServerVersion": "0.2.55",
+      "permissions": []
+    },
+    {
+      "id": "harbour",
+      "name": "Harbour Wallpaper",
+      "summary": "A living harbour island for your desktop that reacts to clicks: the sea, the sheep, the boats and the church bell.",
+      "category": "Wallpapers",
+      "folder": "wallpapers/harbour",
+      "commit": "420ebd911f7fc7b03464a905e897c3c72c8282ed",
+      "minServerVersion": "0.2.31",
+      "permissions": []
+    }
+  ]
+}
