@@ -3,6 +3,9 @@ import { Viewport } from './viewport.js';
 import { Camera } from './camera.js';
 import { Terrain } from './terrain.js';
 import { Wind } from './wind.js';
+import { Settings } from '../sky/settings.js';
+import { Place } from '../sky/place.js';
+import { SkyClock } from '../sky/sky-clock.js';
 import { Effects } from './effects.js';
 import { Scene } from './scene.js';
 import { Interaction } from './interaction.js';
@@ -24,6 +27,8 @@ const SILENT = { play() {}, live: false, on: false };
  *   effects      ripples, spray, bell rings      scene        the entities, and drawing them in order
  *   interaction  what a tap or hover does        input        mouse, finger and pen gestures
  *   renderer     the canvases and the picture    loop         one step per frame
+ *   settings     the viewer's choices (saved)    place        where the island is (city, latitude, longitude)
+ *   skyClock     the time the island shows
  *
  * Without a `stage` it runs headless (no page, no drawing): that is how the tests build islands.
  */
@@ -31,7 +36,7 @@ export class World {
   /**
    * @param {{ stage?: HTMLElement, sound?: object, width?: number, height?: number, debug?: boolean }} options
    */
-  constructor({ stage = null, sound = SILENT, width, height, debug } = {}) {
+  constructor({ stage = null, sound = SILENT, width, height, debug, settings } = {}) {
     const headless = !stage;
     this.sound = sound;
     this.debug = debug ?? (typeof location !== 'undefined' && /[?&](debug|all)\b/.test(location.search));   // ?debug shows every extra element and a status panel
@@ -41,6 +46,9 @@ export class World {
     this.camera = new Camera(this.viewport);
     this.terrain = new Terrain();
     this.windField = new Wind();
+    this.settings = settings ?? new Settings({ storage: headless ? null : undefined });   // headless worlds (tests) never touch the browser's storage
+    this.place = new Place({ settings: this.settings });
+    this.skyClock = new SkyClock({ settings: this.settings, place: this.place });
     this.effects = new Effects();
     this.scene = new Scene({ onError: line => this.#reportError(line) });
     this.interaction = new Interaction({ scene: this.scene, camera: this.camera, terrain: this.terrain, effects: this.effects, sound, onActivity: ms => this.loop?.keepBusy(ms) });
@@ -101,7 +109,7 @@ export class World {
   /** Paints the island as it is now. */
   render() {
     this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock });
-    this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors });
+    this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
   }
 
   #frame(dt, gapMs) {

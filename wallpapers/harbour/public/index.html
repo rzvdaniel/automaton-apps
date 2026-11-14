@@ -9,6 +9,7 @@
 <title>Harbour</title>
 <meta name="description" content="A living harbour island for your desktop. Click anything.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="ui/app.css">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #12a5c6; }
   /* the app handles every gesture itself: no page scroll, no browser pinch-zoom, no double-tap zoom, no text selection */
@@ -19,19 +20,26 @@
     background: rgba(255, 255, 255, 0.26); color: #fff; opacity: 0.8; transition: opacity 0.2s, background 0.2s, transform 0.2s; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   .btn:hover, .btn:focus-visible { opacity: 1; background: rgba(255, 255, 255, 0.38); outline: none; }
   .btn svg { width: 24px; height: 24px; display: block; margin: auto; }
-  #sound { top: max(12px, env(safe-area-inset-top)); }
-  #sound .waves { display: none; } #sound.on .waves { display: inline; } #sound.on .cross { display: none; }
+  #settings { top: max(12px, env(safe-area-inset-top)); }
   #home { top: calc(max(12px, env(safe-area-inset-top)) + 54px); transform: scale(0.6); opacity: 0; pointer-events: none; }
   body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
+  /* the settings dialog: the kit's card and form classes, only laid out here; colours come from the kit's tokens */
+  .settings-dialog { padding: 0; border: 0; background: transparent; color: var(--text); width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; touch-action: pan-y; user-select: none; }
+  .settings-dialog::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
+  .settings-dialog .a-card { box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 35%, transparent); }
+  .settings-dialog .a-card__head { margin: 0; }
+  .settings-dialog #set-sound svg { width: 20px; height: 20px; flex: none; }
+  .settings-dialog #set-sound .waves { display: none; } .settings-dialog #set-sound.on .waves { display: inline; } .settings-dialog #set-sound.on .cross { display: none; }
+  .settings-dialog .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
+  .settings-dialog .slider-ends { display: flex; justify-content: space-between; }
+  .settings-dialog .dialog-actions { display: flex; justify-content: flex-end; }
 </style>
 </head>
 <body>
 <div id="stage"></div>
-<button id="sound" class="btn" type="button" aria-label="Sound" aria-pressed="false" title="Sound">
+<button id="settings" class="btn" type="button" aria-label="Settings" title="Settings" aria-haspopup="dialog">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M4 9.5h3l4.5-4v13l-4.5-4H4z" fill="currentColor"/>
-    <path class="waves" d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.6a7.6 7.6 0 0 1 0 10.8"/>
-    <path class="cross" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>
   </svg>
 </button>
 <button id="home" class="btn" type="button" aria-label="Reset zoom" title="Reset zoom">

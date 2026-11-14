@@ -8,11 +8,11 @@ export class DebugPanel {
   }
 
   /** Call once per frame with the current facts; it refreshes the text twice a second. */
-  update(now, { entities, zoom, soundOn, errors }) {
+  update(now, { entities, zoom, soundOn, errors, clock }) {
     this.frames++;
     if (now - this.at < 500) return;
     const fps = Math.round((this.frames - this.shown) * 1000 / (now - this.at));
     this.at = now; this.shown = this.frames;
-    this.el.textContent = `Harbour debug\n${fps} fps   ${entities} entities   zoom ${zoom.toFixed(2)}\nsound ${soundOn ? 'on' : 'off'}\n${errors.length ? 'ERRORS\n' + errors.slice(-3).join('\n') : 'no errors'}`;
+    this.el.textContent = `Harbour debug\n${fps} fps   ${entities} entities   zoom ${zoom.toFixed(2)}\nsound ${soundOn ? 'on' : 'off'}   clock ${clock}\n${errors.length ? 'ERRORS\n' + errors.slice(-3).join('\n') : 'no errors'}`;
   }
 }
