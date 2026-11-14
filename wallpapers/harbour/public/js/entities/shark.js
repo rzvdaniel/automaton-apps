@@ -38,7 +38,11 @@ export class Shark extends Entity {
     }
     if (g.d < 0.15) turn = angDiff(Math.atan2(g.gy, g.gx), this.a) * 2.2;
     else if (Math.abs(this.x) > w.hw - 0.08 || Math.abs(this.y) > w.hh - 0.08) turn = angDiff(Math.atan2(-this.y, -this.x), this.a) * 1.8;
-    this.a += turn * dt; this.turn = turn;
+    // Ease towards the wanted turn rate instead of jumping to it: the branches above can switch or jitter from one frame to the next
+    // (shore gradient, a fish school close by), and the spine bend follows this value, so a raw one made the body shake.
+    turn = Math.max(-0.9, Math.min(0.9, turn));
+    this.turn = (this.turn || 0) + (turn - (this.turn || 0)) * Math.min(1, dt * 2.5);
+    this.a += this.turn * dt;
     // the big one is a little slower
     const v = 0.02 * Math.pow(this.size, -0.3) * (this.hunt ? 2.1 : 1); this.x += Math.cos(this.a) * v * dt; this.y += Math.sin(this.a) * v * dt;
     this.swim += dt * (this.hunt ? 7.5 : 3.6);
