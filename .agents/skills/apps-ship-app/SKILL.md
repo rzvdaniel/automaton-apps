@@ -26,9 +26,8 @@ python tools/validate_apps.py --changed-since origin/main
 python tools/generate_catalog.py --validate
 ```
 
-For a page, take viewport screenshots of it running locally (light and dark, desktop and phone width) and publish
-them as the issue's first proof (see Proof in step 5; server rows "not checked: test server pending"), so the PR can
-link it.
+No headless browser for local screenshots or frame rates: it renders in software, pins the CPU and its numbers mean
+nothing. Screenshots and frame rates come from the test server in step 5, in a real browser.
 
 ## 3. PR, review, merge
 
@@ -64,8 +63,7 @@ routine. Check the "Done when" in a browser as a user, then publish the proof an
 copy you made; test apps on shared servers always carry that prefix.
 
 **Proof.** Write one HTML page next to a `shots/` folder: one `<table>` (criterion, result, evidence) with a row per
-"Done when" item (pass, fail, or not checked and why), the app id and the pinned commit (the first proof, before
-merge, names the branch commit); inline `<style>` only, no
+"Done when" item (pass, fail, or not checked and why), the app id and the pinned commit; inline `<style>` only, no
 scripts; screenshots as `<img src="shots/name.png" alt="...">`, viewport only. Publish it as the issue's `proof`
 artifact (replaces an older one; under 1 MB; needs `pip install pillow`):
 
