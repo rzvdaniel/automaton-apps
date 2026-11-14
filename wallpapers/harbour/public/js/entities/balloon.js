@@ -5,7 +5,7 @@ import { TAU, shade, disc, oval, rrect, sprite, glow, Entity, AIRBORNE } from '.
 
 const U = 0.00072, R = 50, GORES = 14, CROWN = [-3, -9];
 export class Balloon extends Entity {
-  static passes = { skyShadow: 'drawShadow', clouds: 'draw', lights: 'drawLights' };
+  static passes = { skyShadow: 'drawShadow', clouds: 'draw', skyLights: 'drawLights' };
   static clicks = 'top';
   static presence = { day: 1, night: 0.3 };   // some nights it drifts over, glowing from its burner (see engine/presence.js)
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.seed = Math.random() * 9; this.burn = 0; this.climb = 0; }

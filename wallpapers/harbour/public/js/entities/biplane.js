@@ -10,7 +10,7 @@ const BODY = new Path2D('M32,0 C32,-6 28,-7.6 22,-7.6 L4,-7 C-14,-6 -30,-3.4 -45
 const TAIL = new Path2D('M-33,-2 C-31,-10 -34,-17 -40,-18 C-45,-18 -47,-12 -46,0 C-47,12 -45,18 -40,18 C-34,17 -31,10 -33,2 Z');
 const upper = c => { rrect(c, -1, -50, 18, 100, 8); }, lower = c => { rrect(c, -9, -45, 16, 90, 7); };
 export class Biplane extends Entity {
-  static passes = { skyShadow: 'drawShadow', clouds: 'draw', lights: 'drawLights' };
+  static passes = { skyShadow: 'drawShadow', clouds: 'draw', skyLights: 'drawLights' };
   static clicks = 'top';
   static presence = { day: 1, night: 0.5 };   // flies about every other night, with its navigation lights (see engine/presence.js)
   constructor(world, o) { super(world); this.x = o.x; this.y = o.y; this.a = o.a || 0; this.bank = 0; this.roll = 0; this.seed = Math.random() * 9; this.puff = 0; this.goal = this.pick(); }

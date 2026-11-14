@@ -13,7 +13,8 @@ import { Sky } from './sky.js';
  *   shadow    where shadows fall on the ground: { x, y, length, strength }
  *
  * The light follows the sun's height. At night the moon is the light: a full moon high up gives a brighter, bluer night
- * than a new moon or a moon below the horizon.
+ * than a new moon or a moon below the horizon. Under heavy cloud (the weather's cover) daylight is a little dimmer and
+ * greyer, so a cloudy afternoon looks dull.
  *
  * The shadow is a step on the screen per unit of height. Entities multiply it by how tall (or how high up) they are:
  * a balloon high in the air takes a big step, a cow a tiny one. Length 1 is the length the pictures were first drawn for
@@ -37,6 +38,8 @@ const EVENING = [[20, DAY], [6, [1, 0.86, 0.62]], [0, [0.92, 0.66, 0.5]], [-6, [
 const NIGHT_DARK = [0.24, 0.29, 0.45];   // no moon: dark blue, the land still readable
 const NIGHT_MOON = [0.36, 0.44, 0.66];   // a full moon high up: brighter, moonlit blue
 const NIGHT_GREY = 0.4;                  // how much colour fades at full night
+const CLOUD_DIM = 0.22;                  // how much darker daylight is under the heaviest cloud
+const CLOUD_GREY = 0.25;                 // and how much colour it loses
 
 export class DayCycle {
   static MAX_LENGTH = 3;      // a sun just above the horizon still casts a shadow that stays on the screen
@@ -57,9 +60,10 @@ export class DayCycle {
    * Sets the time of day for a moment and a place.
    * @param {Date} date the moment the island shows
    * @param {{ lat: number, lon: number }} place where the island is
+   * @param {number} [cover] how cloudy it is, 0..1 (world.weather.cover); 0 for a clear sky
    * @returns {this}
    */
-  update(date, place) {
+  update(date, place, cover = 0) {
     const { sun, moon } = this.sky.at(date, place);
     const { azimuth, altitude } = sun;
     this.sun = sun; this.moon = moon;
@@ -71,7 +75,7 @@ export class DayCycle {
 
     // how much the moon lights the night: 0 (new, or below the horizon) to 1 (full and high)
     this.moonlight = moon.fraction * smooth(-1, 25, moon.altitude);
-    this.light = DayCycle.lightAt(altitude, morning, this.moonlight);
+    this.light = DayCycle.underCloud(DayCycle.lightAt(altitude, morning, this.moonlight), cover, this.darkness);
 
     // shadows: from the sun while it is up; at night from the moon, faint, and none when the moon is down
     const sunStrength = smooth(-0.5, 4, altitude);
@@ -97,6 +101,17 @@ export class DayCycle {
     }
     const [r, g, b] = colour;
     return { r, g, b, grey: NIGHT_GREY * (1 - smooth(DayCycle.TWILIGHT, 0, altitude)) };
+  }
+
+  /**
+   * The light dimmed by cloud: heavy cover (from 0.3 up) takes up to CLOUD_DIM of the daylight and some of its colour.
+   * At night it changes nothing (the clouds themselves are dark then). A clear sky gives back the very same light.
+   */
+  static underCloud(light, cover, darkness) {
+    const k = smooth(0.3, 0.85, cover) * (1 - darkness);
+    if (k === 0) return light;
+    const dim = 1 - CLOUD_DIM * k;
+    return { r: light.r * dim, g: light.g * dim, b: light.b * dim, grey: Math.min(1, light.grey + CLOUD_GREY * k) };
   }
 
   /** The shadow cast by a light at that compass direction and height (degrees), with that strength. */

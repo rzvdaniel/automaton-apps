@@ -1,13 +1,14 @@
 import { disc } from '../core/draw.js';
 import { Backdrop } from './backdrop.js';
-import { LAYERS, LIGHTS } from './scene.js';
+import { LAYERS, LIGHTS, CLOUD_SHADE, SKY_LIGHTS } from './scene.js';
 import { Lighting } from './lighting.js';
 
 /**
  * Puts the island on the screen: owns the three canvases (the shader's backdrop at the bottom, the 2D drawing above it, and
  * the night lights on top), sizes them, and paints a frame: the backdrop first, then every drawing pass of the scene through
  * the camera, then, when it is dark, the lights. The time of day's light goes over the first two at once, through Lighting;
- * the lights canvas has no tint, so windows, lamps and the lighthouse stay warm and bright over the darkened island.
+ * the lights canvas has no tint, so windows, lamps and the lighthouse stay warm and bright over the darkened island;
+ * clouds then rub out the lights beneath them, so only the lights in the gaps shine.
  */
 export class Renderer {
   /** @param {HTMLElement} stage where the canvases go */
@@ -58,6 +59,11 @@ export class Renderer {
     l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(0, 0, lightsCanvas.width, lightsCanvas.height);
     camera.applyTo(l); l.globalCompositeOperation = 'lighter';   // light adds to light
     scene.drawLayer(LIGHTS, l, time, () => camera.applyTo(l), view);
-    l.globalCompositeOperation = 'source-over'; this.lightsShown = true;
+    l.globalCompositeOperation = 'source-over';
+    scene.drawLayer(CLOUD_SHADE, l, time, () => camera.applyTo(l), view);   // clouds hide the lights under them
+    l.globalCompositeOperation = 'lighter';
+    scene.drawLayer(SKY_LIGHTS, l, time, () => camera.applyTo(l), view);    // but not the plane's and the balloon's, up among them
+    l.globalCompositeOperation = 'source-over';
+    this.lightsShown = true;
   }
 }

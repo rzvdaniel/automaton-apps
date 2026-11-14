@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Entity } from '../public/js/core/entity.js';
 import { World } from '../public/js/engine/world.js';
-import { Scene, LAYERS, LIGHTS } from '../public/js/engine/scene.js';
+import { Scene, LAYERS, LIGHTS, CLOUD_SHADE, SKY_LIGHTS } from '../public/js/engine/scene.js';
 import * as entities from '../public/js/entities/index.js';
 import { SOUNDS } from '../public/js/audio/sounds.js';
 import { fakeContext, recordingSound, quietly } from './helpers.mjs';
@@ -126,7 +126,7 @@ test('every drawing pass an entity names is a real layer with a real method', ()
   const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: true }); w.generate(7); return w; });
   for (const e of world.scene.entities) {
     for (const [layer, method] of Object.entries(e.constructor.passes)) {
-      assert.ok(LAYERS.includes(layer) || layer === LIGHTS, `${e.constructor.name} draws in "${layer}", which is not a layer`);
+      assert.ok(LAYERS.includes(layer) || layer === LIGHTS || layer === CLOUD_SHADE || layer === SKY_LIGHTS, `${e.constructor.name} draws in "${layer}", which is not a layer`);
       assert.equal(typeof e[method], 'function', `${e.constructor.name}.${method} is missing`);
     }
   }
