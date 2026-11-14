@@ -1,5 +1,6 @@
 {
   "name": "Harbour Wallpaper",
+  "summary": "A living harbour island for your desktop that reacts to clicks: the sea, the sheep, the boats and the church bell.",
   "application": {
     "build": {
       "singlePageApp": false,
