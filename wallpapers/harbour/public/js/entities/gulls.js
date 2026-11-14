@@ -1,5 +1,5 @@
 // Gulls: loners that wander the sky, and a loose flock that travels together. Both veer away from a fright.
-import { TAU, shade, angDiff, disc, Entity } from '../core/index.js';
+import { TAU, shade, angDiff, disc, Entity, AIRBORNE } from '../core/index.js';
 
 // A gull from above: a small body and two long wings swept back in one curve, white at the root, grey, then dark tips.
 export const drawGull = (c, x, y, a, sz, flap, flat) => {
@@ -36,7 +36,7 @@ export class Gull extends Entity {
     const v = this.v * (1 + 4 * this.rush / 1.5); this.x += Math.cos(this.a) * v * dt; this.y += Math.sin(this.a) * v * dt;
     if (this.x > hw + 0.1) this.x = -hw - 0.1; if (this.x < -hw - 0.1) this.x = hw + 0.1; if (this.y > hh + 0.1) this.y = -hh - 0.1; if (this.y < -hh - 0.1) this.y = hh + 0.1;
   }
-  drawShadow(c) { shadow(c, this, this.castShadow(FLYING)); }
+  drawShadow(c) { shadow(c, this, this.castShadow(FLYING, 0, AIRBORNE)); }
   draw(c) { bird(c, this); }
 }
 
@@ -72,6 +72,6 @@ export class GullFlock extends Entity {
       b.a += angDiff(Math.atan2(b.y - py + sa * 0.0004, b.x - px + ca * 0.0004), b.a) * Math.min(1, dt * 6);
     });
   }
-  drawShadow(c) { const s = this.castShadow(FLYING); this.birds.forEach(b => shadow(c, b, s)); }
+  drawShadow(c) { const s = this.castShadow(FLYING, 0, AIRBORNE); this.birds.forEach(b => shadow(c, b, s)); }
   draw(c) { this.birds.forEach(b => bird(c, b)); }
 }

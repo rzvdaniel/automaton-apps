@@ -38,7 +38,7 @@ export class Pine extends Tree {
   static leaf = '61,127,86';
   draw(c, t) {
     const r = this.r * 0.9, x = this.x, cols = ['#1f4f3a', '#2a6347', '#387a55', '#4f9468', '#73b283'];
-    const s = this.castShadow(r * 0.65); oval(c, x + s.x, this.y + s.y, r * 0.9, r * 0.6, shade(0.22 * s.a));
+    const sh = this.castShadow(r * 0.65); oval(c, x + sh.x, this.y + sh.y, r * 0.9, r * 0.6, shade(0.22 * sh.a));
     this.trunk(c, x, this.y - r * 0.3, '#5d4532', r * 0.16);
     for (let i = 0; i < 5; i++) {
       const s = this.lean(t, 0.5 + i * 0.5), rad = r * (0.98 - i * 0.19), cx = x + s[0], cy = this.y - r * 0.22 - i * r * 0.27 + s[1], n = 9;

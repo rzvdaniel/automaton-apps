@@ -1,7 +1,7 @@
 // A vintage biplane on a lazy tour of the island: yellow wings, a red body, an open cockpit and a pilot whose scarf streams behind.
 // It banks into its turns. Click it for a barrel roll and a puff of smoke.
 // new Biplane(world, { x, y, a })
-import { TAU, shade, clamp, angDiff, disc, oval, rrect, sprite, fillPath, Entity } from '../core/index.js';
+import { TAU, shade, clamp, angDiff, disc, oval, rrect, sprite, fillPath, Entity, AIRBORNE } from '../core/index.js';
 
 const U = 0.0007;
 const BODY = new Path2D('M32,0 C32,-6 28,-7.6 22,-7.6 L4,-7 C-14,-6 -30,-3.4 -45,-1.4 L-45,1.4 C-30,3.4 -14,6 4,7 L22,7.6 C28,7.6 32,6 32,0 Z');
@@ -26,7 +26,7 @@ export class Biplane extends Entity {
     }
   }
   drawShadow(c) {
-    const s = this.castShadow(0.078);
+    const s = this.castShadow(0.078, 0, AIRBORNE);
     sprite(c, this.x + s.x, this.y + s.y, this.a, U * 0.92, () => { c.scale(1, Math.cos(this.bank + this.roll)); c.fillStyle = shade(0.18 * s.a); upper(c); c.fill(); c.fill(BODY); c.fill(TAIL); });
   }
   wing(c, shape, dark) {

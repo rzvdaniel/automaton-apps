@@ -66,3 +66,14 @@ test('Entity.castShadow: scales world.day.shadow by the lift and turns it into a
   const turned = e.castShadow(1, Math.PI / 2);   // a frame turned a quarter clockwise sees the same step turned back
   near(turned.x, -2, 1e-9, 'x'); near(turned.y, -1, 1e-9, 'y');
 });
+
+test('Cloud: its shadow stays within 1.5 x its lift of it at 16:00, when ground shadows are longer', async () => {
+  const { Cloud } = await import('../public/js/entities/cloud.js');
+  const day = new DayCycle().update(at(16), BUCHAREST);
+  assert.ok(day.shadow.length > 1.5, 'ground shadows are long at 16:00');
+  const cloud = Object.assign(Object.create(Cloud.prototype), { world: { day }, x: 0, y: 0, r: 1, scale: 1, alpha: 1, puffs: [{ x: 0, y: 0, r: 0.1 }] });
+  let centre; const c = new Proxy({}, { get: (t, k) => k === 'arc' ? (x, y) => { centre = [x, y]; } : () => {}, set: () => true });
+  cloud.drawShadow(c);
+  assert.ok(Math.hypot(...centre) <= 1.5 * 0.088 + 1e-12, `offset ${Math.hypot(...centre)}`);
+  near(Math.atan2(centre[0], -centre[1]), Math.atan2(day.shadow.x, -day.shadow.y), 1e-9, 'same direction as the sun gives');
+});

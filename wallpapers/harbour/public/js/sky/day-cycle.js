@@ -44,6 +44,8 @@ export class DayCycle {
     const { azimuth, altitude } = sun;
     this.sun = sun;
     this.darkness = 1 - smooth(DayCycle.TWILIGHT, 2, altitude);
+    // dawn or dusk by which half of the sky the sun is in: near the poles around the solstices the sun can stay low all day
+    // and cross south, so this can call a morning 'dusk' there (fine for the cities Place knows)
     this.phase = altitude >= 6 ? 'day' : altitude <= DayCycle.TWILIGHT / 2 ? 'night' : azimuth < 180 ? 'dawn' : 'dusk';
 
     // the shadow falls away from the sun: towards azimuth + 180. On the screen east is +x and north is -y.

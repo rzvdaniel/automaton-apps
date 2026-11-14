@@ -1,7 +1,7 @@
 // A child on the grass flying a kite. The kite swings in a slow figure of eight downwind, its tail of bows fluttering.
 // Click the kite and it loops the loop; click the child and they jump.
 // new Kite(world, { x, y })   x, y: where the child stands
-import { TAU, shade, angDiff, disc, oval, sprite, Entity } from '../core/index.js';
+import { TAU, shade, angDiff, disc, oval, sprite, Entity, AIRBORNE } from '../core/index.js';
 
 const U = 0.0002;
 export class Kite extends Entity {
@@ -28,7 +28,7 @@ export class Kite extends Entity {
     disc(c, x, y - 0.0009, 0.0016, '#f3e2b3'); disc(c, x - 0.0002, y - 0.0014, 0.0015, '#7a4a2a');   // hair
     c.strokeStyle = '#f0776a'; c.lineWidth = 0.0008; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + 0.001, y - 0.0004); c.lineTo(x + 0.003, y - 0.0028); c.stroke();   // the arm holding the line
   }
-  drawShadow(c) { const s = this.castShadow(0.052); sprite(c, this.kx + s.x, this.ky + s.y, this.ka, U * 0.9, () => { c.fillStyle = shade(0.16 * s.a); c.beginPath(); c.moveTo(50, 0); c.lineTo(12, -30); c.lineTo(-50, 0); c.lineTo(12, 30); c.closePath(); c.fill(); }); }
+  drawShadow(c) { const s = this.castShadow(0.052, 0, AIRBORNE); sprite(c, this.kx + s.x, this.ky + s.y, this.ka, U * 0.9, () => { c.fillStyle = shade(0.16 * s.a); c.beginPath(); c.moveTo(50, 0); c.lineTo(12, -30); c.lineTo(-50, 0); c.lineTo(12, 30); c.closePath(); c.fill(); }); }
   drawKite(c, t) {
     // the line sags between the hand and the kite
     c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 0.0005; c.beginPath(); c.moveTo(this.x + 0.003, this.y - 0.0028); c.quadraticCurveTo((this.x + this.kx) / 2 + 0.004, (this.y + this.ky) / 2 + 0.012, this.kx, this.ky); c.stroke();

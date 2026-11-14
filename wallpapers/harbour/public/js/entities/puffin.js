@@ -1,7 +1,7 @@
 // A puffin standing on the cliff top: black back, white front, and that great striped beak.
 // It looks about and shuffles. Click it (or frighten it) and it whirrs out over the sea and back to its spot.
 // new Puffin(world, { x, y, flip })   flip: faces left instead of right. Place a few together near the shore.
-import { TAU, shade, disc, oval, sprite, fillPath, Entity } from '../core/index.js';
+import { TAU, shade, disc, oval, sprite, fillPath, Entity, AIRBORNE } from '../core/index.js';
 
 const U = 0.00028;
 const BEAK = new Path2D('M12,-21 C19,-22.5 26,-19.5 28,-14.5 C24,-11 18,-10 12,-11 Z');
@@ -50,7 +50,7 @@ export class Puffin extends Entity {
   drawFlying(c, t) {
     if (!this.fly) return;
     const beat = Math.sin(t * 55);
-    const s = this.castShadow(0.021); oval(c, this.x + s.x, this.y + s.y, 0.0064, 0.0028, shade(0.16 * s.a), this.a);
+    const s = this.castShadow(0.021, 0, AIRBORNE); oval(c, this.x + s.x, this.y + s.y, 0.0064, 0.0028, shade(0.16 * s.a), this.a);
     sprite(c, this.x, this.y, this.a, U * 1.1, () => {
       [-1, 1].forEach(s => { oval(c, -1, s * 12, 5, 11 + beat * 2, 'rgba(23,25,29,0.55)', s * 0.25); oval(c, -1, s * 10, 4, 8, '#17191d', s * (0.25 + beat * 0.3)); });
       fillPath(c, new Path2D('M-16,-3 L-24,-4.5 L-24,-1.5 Z M-16,3 L-24,4.5 L-24,1.5 Z'), '#f08a2e');   // feet trailing
