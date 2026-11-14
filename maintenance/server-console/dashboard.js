@@ -414,7 +414,8 @@
         } else hostOp.text = HOST_TEXT[kind].done;
         paintMaintenance();
       });
-    }).catch(function () { hostOp = { runner: item.runnerId, kind: kind, error: "The app could not be reached. Check the status above before trying again." }; paintMaintenance(); });
+    }).catch(function () { // The Runner resets its connections while it works on the machine, which can drop this answer although the work went on.
+      hostOp = { runner: item.runnerId, kind: kind, error: kind === "os-update" ? "The connection dropped while the updates were installed. They usually still finish: the Updates card shows the result after the next check (up to 5 minutes)." : "The connection dropped. Check the machine before trying again." }; paintMaintenance(); });
   }
 
   function loadApps(item) {
