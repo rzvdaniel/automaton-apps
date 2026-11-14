@@ -25,11 +25,17 @@ test('Weather: the cover stays between 0 and the cap, whatever the mood', () => 
 
 test('Weather: "more sun" gives clearly less cloud over a week than "more clouds"', () => {
   const sunny = week(0), cloudy = week(1);
-  assert.ok(average(sunny) < 0.3, `more sun: average ${average(sunny)}`);
+  assert.ok(average(sunny) < 0.15, `more sun: average ${average(sunny)}`);
   assert.ok(average(cloudy) > 0.6, `more clouds: average ${average(cloudy)}`);
   const share = list => list.filter(c => c > 0.5).length / list.length;   // how much of the week is a cloudy spell
-  assert.ok(share(sunny) < 0.3 && share(cloudy) > 0.7, `cloudy spells ${share(sunny)} vs ${share(cloudy)}`);
+  assert.ok(share(sunny) < 0.15 && share(cloudy) > 0.65, `cloudy spells ${share(sunny)} vs ${share(cloudy)}`);
   assert.ok(Math.max(...sunny) > 0.6, 'even with more sun a cloudy spell comes now and then');
+});
+
+test('Weather: the default (the slider in the middle) stays mostly sunny, as Harbour always was', () => {
+  const middle = week(0.5), share = middle.filter(c => c > 0.5).length / middle.length;
+  assert.ok(share < 0.4, `cloudy ${share} of the week`);
+  assert.ok(average(middle) < 0.4, `average ${average(middle)}`);
 });
 
 test('Weather: the same moment always gives the same cover (a reload shows the same sky)', () => {
@@ -48,7 +54,7 @@ test('Weather: the cover changes smoothly, with no jumps from one minute to the 
 
 test('Weather: moving the slider changes the sky gradually, not at once', () => {
   const settings = settingsWith(0), weather = new Weather({ settings }), date = new Date(START + 15 * 3600000);
-  weather.update(date);
+  weather.update(date, 1);   // real time has passed: from now on it eases
   const before = weather.cover, target = Weather.coverAt(date, 1);
   settings.set({ weather: 1 });
   weather.update(date, 1);
@@ -127,8 +133,10 @@ test('DayCycle: daylight is dimmer and greyer under heavy cover, unchanged under
   assert.ok(cloudy.grey > 0);
 });
 
-test('World: owns the weather and passes its cover to the day', () => {
-  const world = new World({ width: 800, height: 600 });
+test('World: owns the weather, and follows a clock fixed after it was built without easing from today', () => {
+  const world = new World({ width: 800, height: 600 }), fixed = START + 15 * 3600000;
   assert.ok(world.weather instanceof Weather);
-  assert.ok(world.weather.cover >= 0 && world.weather.cover <= Weather.CAP);
+  world.skyClock.realNow = () => fixed;
+  world.update(1);
+  assert.ok(Math.abs(world.weather.cover - Weather.coverAt(new Date(fixed), 0.5)) < 1e-9);
 });

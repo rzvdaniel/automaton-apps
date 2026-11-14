@@ -1,6 +1,6 @@
 import { disc } from '../core/draw.js';
 import { Backdrop } from './backdrop.js';
-import { LAYERS, LIGHTS, CLOUD_SHADE } from './scene.js';
+import { LAYERS, LIGHTS, CLOUD_SHADE, SKY_LIGHTS } from './scene.js';
 import { Lighting } from './lighting.js';
 
 /**
@@ -61,6 +61,9 @@ export class Renderer {
     scene.drawLayer(LIGHTS, l, time, () => camera.applyTo(l), view);
     l.globalCompositeOperation = 'source-over';
     scene.drawLayer(CLOUD_SHADE, l, time, () => camera.applyTo(l), view);   // clouds hide the lights under them
+    l.globalCompositeOperation = 'lighter';
+    scene.drawLayer(SKY_LIGHTS, l, time, () => camera.applyTo(l), view);    // but not the plane's and the balloon's, up among them
+    l.globalCompositeOperation = 'source-over';
     this.lightsShown = true;
   }
 }

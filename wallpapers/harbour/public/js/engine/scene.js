@@ -7,6 +7,8 @@ export const LAYERS = ['deep', 'ground', 'roads', 'water', 'upright', 'air', 'ef
 export const LIGHTS = 'lights';
 /** Drawn on the lights canvas right after LIGHTS: clouds rub out the lights beneath them (see Cloud.drawShade). */
 export const CLOUD_SHADE = 'cloudShade';
+/** Drawn on the lights canvas after CLOUD_SHADE: the lights of things that fly (a plane, a balloon), which clouds do not hide. */
+export const SKY_LIGHTS = 'skyLights';
 
 /**
  * The list of everything in the island. It updates and draws entities, and keeps one broken entity from stopping the rest:
@@ -86,7 +88,7 @@ export class Scene {
 
   #layer(name) {
     if (!this.layerLists) {
-      this.layerLists = Object.fromEntries([...LAYERS, LIGHTS, CLOUD_SHADE].map(n => [n, []]));
+      this.layerLists = Object.fromEntries([...LAYERS, LIGHTS, CLOUD_SHADE, SKY_LIGHTS].map(n => [n, []]));
       this.entities.forEach(e => { for (const [layer, method] of Object.entries(e.constructor.passes)) this.layerLists[layer].push([e, method]); });
     }
     if (name === 'upright') this.layerLists.upright.sort((p, q) => p[0].y - q[0].y);

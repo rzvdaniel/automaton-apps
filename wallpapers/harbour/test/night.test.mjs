@@ -179,6 +179,7 @@ test('the fox: on every island, out at night; a click makes it jump and yip', ()
 
   const night = islandAt(MIDNIGHT), f = night.all(E.Fox)[0], sound = night.sound;
   assert.equal(f.visible, 1);
+  night.scene.clear(); night.add(f);   // nothing else to catch the tap (a cloud or a gull overhead would)
   const k = night.viewport.scale;
   night.interaction.tap(750 + f.x * k, 500 + f.y * k);
   assert.ok(f.jump > 0, 'it jumps'); assert.ok(sound.played.includes('yip'), 'and yips');

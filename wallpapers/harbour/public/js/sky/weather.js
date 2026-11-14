@@ -51,9 +51,9 @@ export class Weather {
   static coverAt(date, mood) {
     const hours = date.getTime() / HOUR;
     const line = 0.65 * wave(hours, 5, 1000) + 0.35 * wave(hours, 1.7, 7000);   // slow spells, with smaller changes on top
-    const threshold = 0.66 - 0.34 * mood;                                         // where on the line it turns cloudy
+    const threshold = 0.78 - 0.20 * mood - 0.24 * mood * mood;                    // where on the line it turns cloudy: mostly sunny unless the viewer asks for clouds
     const cloudy = smooth(threshold - 0.12, threshold + 0.12, line);
-    const fair = 0.06 + 0.14 * mood;                                              // a few clouds even on a fine day
+    const fair = 0.04 + 0.12 * mood;                                              // a few clouds even on a fine day
     return CAP * (fair + (1 - fair) * cloudy);
   }
 
@@ -67,14 +67,15 @@ export class Weather {
 
   /**
    * Moves the weather on to `date`. `seconds` is how much real time passed since the last call: the cover and the mood ease
-   * by that much. The first call puts the sky straight where it should be.
+   * by that much. Until real time has passed (seconds > 0) each call puts the sky straight where it should be, so a clock
+   * set right after the world is built (as tests do) is followed at once, not eased towards from today's sky.
    * @returns {this}
    */
   update(date, seconds = 0) {
     const k = this.started ? Math.min(1, seconds * EASE) : 1;
     this.mood += (this.settings.get('weather') - this.mood) * k;
     this.cover += (Weather.coverAt(date, this.mood) - this.cover) * k;
-    this.started = true;
+    if (seconds > 0) this.started = true;
     this.clouds = Math.round(1 + (MAX_CLOUDS - 1) * this.cover / CAP);
     this.darkness = smooth(0.35, CAP, this.cover);
     this.speed = 0.8 + 0.6 * this.cover;

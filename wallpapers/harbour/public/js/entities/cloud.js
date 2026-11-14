@@ -34,6 +34,18 @@ export class Cloud extends Entity {
     return lit.map((t, i) => mix(t, night[i], day.darkness ?? 0).map(Math.round));
   }
 
+  /**
+   * The three tones as fill styles. Worked out again only when the light or the weather changed (about once a second), not
+   * for every cloud in every frame.
+   */
+  static fills(day = NOON, weather = CLEAR) {
+    const k = Cloud.#key, d = day.darkness ?? 0, m = day.moonlight ?? 0, w = weather.darkness;
+    if (k.fills && k.d === d && k.m === m && k.w === w) return k.fills;
+    Object.assign(k, { d, m, w, fills: Cloud.tones(day, weather).map(t => `rgb(${t.join(',')})`) });
+    return k.fills;
+  }
+  static #key = {};
+
   constructor(world, rnd, x, y) { super(world); this.shape(rnd); this.x = x; this.y = y; this.leaving = false; }
   // A few large lumps and a ring of smaller ones on their edge: the outline carries the shape.
   shape(rnd) {
@@ -82,7 +94,7 @@ export class Cloud extends Entity {
   drawShadow(c) { const s = this.castShadow(0.088, 0, AIRBORNE); this.outline(c, s.x / this.r, s.y / this.r, 1); c.globalAlpha = (0.2 + 0.1 * this.weather.darkness) * this.alpha * s.a; c.fillStyle = 'rgb(' + SHADE + ')'; c.fill(); }
   // three flat tones, lit from the top left: the whole shape, then two shifted copies clipped to it
   draw(c) {
-    const [top, middle, under] = Cloud.tones(this.world?.day, this.weather).map(t => `rgb(${t.join(',')})`);
+    const [top, middle, under] = Cloud.fills(this.world?.day, this.weather);
     c.globalAlpha = 0.96 * this.alpha; c.fillStyle = top;
     this.outline(c, 0, 0, 1); c.fill(); c.clip();
     this.outline(c, 0.055, 0.08, 0.99); c.fillStyle = middle; c.fill();
@@ -92,12 +104,12 @@ export class Cloud extends Entity {
   /** How much of a night light at (x, y) this cloud hides, 0..1. */
   dimAt(x, y) { return this.hit(x, y) ? Cloud.MASK * this.alpha : 0; }
   /**
-   * On the lights canvas, after the lights: rubs out the lights under the cloud (MASK of them), with a soft edge, so a
-   * window under a cloud is mostly hidden and one in a gap still shines.
+   * On the lights canvas, after the lights: rubs out the lights under the cloud (MASK of them), so a window under a cloud
+   * is mostly hidden and one in a gap still shines. Two steps: a slightly bigger, lighter rub first, so the edge is softer.
    */
   drawShade(c) {
     c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000';
-    c.globalAlpha = 0.5 * Cloud.MASK * this.alpha; this.outline(c, 0, 0, 1.12); c.fill();   // the soft edge
+    c.globalAlpha = 0.5 * Cloud.MASK * this.alpha; this.outline(c, 0, 0, 1.12); c.fill();   // the wider, lighter step
     c.globalAlpha = Cloud.MASK * this.alpha; this.outline(c, 0, 0, 1); c.fill();
   }
 }
