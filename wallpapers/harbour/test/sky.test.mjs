@@ -19,11 +19,11 @@ test('Settings: defaults when nothing is saved or no storage exists', () => {
 test('Settings: choices are saved and come back after a reload', () => {
   const storage = fakeStorage();
   const a = new Settings({ storage });
-  a.set({ place: 'Asia/Tokyo', weather: 0.8, wind: 0.3, time: { mode: 'start', start: '22:00', setAt: 1000 } });
+  a.set({ place: 'Asia/Tokyo', weather: 0.8, wind: { mode: 'fixed', strength: 0.3, day: '2026-11-14' }, time: { mode: 'start', start: '22:00', setAt: 1000 } });
   const b = new Settings({ storage });
   assert.equal(b.get('place'), 'Asia/Tokyo');
   assert.equal(b.get('weather'), 0.8);
-  assert.equal(b.get('wind'), 0.3);
+  assert.deepEqual(b.get('wind'), { mode: 'fixed', strength: 0.3, day: '2026-11-14' });
   assert.deepEqual(b.get('time'), { mode: 'start', start: '22:00', setAt: 1000 });
 });
 
@@ -31,7 +31,7 @@ test('Settings: damaged saves fall back to defaults, value by value', () => {
   assert.deepEqual(new Settings({ storage: fakeStorage({ [KEY]: '{not json' }) }).values, DEFAULTS);
   const s = new Settings({ storage: fakeStorage({ [KEY]: JSON.stringify({ weather: 7, wind: 'gale', time: { mode: 'start', start: '25:99' }, place: 'Europe/Paris' }) }) });
   assert.equal(s.get('weather'), DEFAULTS.weather);
-  assert.equal(s.get('wind'), 'auto');
+  assert.deepEqual(s.get('wind'), { mode: 'auto' });
   assert.deepEqual(s.get('time'), { mode: 'now' });
   assert.equal(s.get('place'), 'Europe/Paris');
 });

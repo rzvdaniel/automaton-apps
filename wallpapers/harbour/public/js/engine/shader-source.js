@@ -1,5 +1,10 @@
 // The GLSL source of the backdrop: sea, shore, sand and meadow, painted from the distance to the land.
 // It is given the camera (u_zoom, u_cam) and the screen scale (u_S), so it is as sharp as you zoom.
+// The wind (u_wind: direction x, y; strength for the sea, 0 calm .. 1 stormy; whitecaps on or off for a slow device) and the
+// middle of the land (u_isle) shape the sea: with strength 0 everything below is exactly the calm sea. As it rises, the
+// ripples stretch along the wind and drift downwind, whitecaps break out on open water and drift with it, and the surf on
+// the shore grows wider and brighter, most on the shore the wind blows onto. The cost: at most two extra noise() calls
+// per sea pixel, and none when the wind is calm or the device is slow.
 export const MAX_LAND = 14;      // land blobs the shader can merge
 export const MAX_RIPPLES = 8;    // ripples it can show at once
 
@@ -7,7 +12,7 @@ export const VERTEX_SHADER = 'attribute vec2 a; void main(){ gl_Position = vec4(
 
 export const FRAGMENT_SHADER = [
   'precision highp float;',
-  'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAX_LAND + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAX_RIPPLES + ']; uniform mat3 u_light;',
+  'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAX_LAND + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAX_RIPPLES + ']; uniform mat3 u_light; uniform vec4 u_wind; uniform vec2 u_isle;',
   'const vec3 c_dry = vec3(0.957, 0.922, 0.882); const vec3 c_wet = vec3(0.925, 0.863, 0.714); const vec3 c_glow = vec3(0.812, 0.933, 0.769);',
   'const vec3 c_shallow = vec3(0.271, 0.827, 0.812); const vec3 c_mid = vec3(0.086, 0.682, 0.816); const vec3 c_deep = vec3(0.039, 0.416, 0.612);',
   'const vec3 c_foam = vec3(1.0); const vec3 c_grass = vec3(0.663, 0.824, 0.467); const vec3 c_grass2 = vec3(0.455, 0.706, 0.361);',
@@ -56,12 +61,24 @@ export const FRAGMENT_SHADER = [
   '    col = mix(col, c_deep, smoothstep(0.16, 0.62, sd));',
   '    col = mix(c_glow, col, smoothstep(-0.004, 0.075, sd));',
   '    col += 0.055 * (fbm(q * 1.7 + 50.0) - 0.47);',
-  '    col += 0.04 * (fbm(q * 4.0 + vec2(t * 0.03, -t * 0.02)) - 0.47);',
+  '    float ws = u_wind.z; vec2 wd = u_wind.xy, wn = vec2(-wd.y, wd.x);',
+  '    vec2 qa = vec2(dot(q, wd), dot(q, wn));',                             // the sea in the wind's frame: along it, across it
+  '    vec2 qw = mix(q, wd * qa.x * (1.0 - 0.55 * ws) + wn * qa.y * (1.0 + 0.6 * ws), ws) - wd * (t * 0.02 * ws);',   // stretched along the wind and drifting downwind (just q when calm)
+  '    col += (0.04 + 0.03 * ws) * (fbm(qw * 4.0 + vec2(t * 0.03, -t * 0.02)) - 0.47);',
   '    col += 0.03 * (noise(q * 40.0 + vec2(t * 0.1, -t * 0.07)) - 0.5) * smoothstep(1.4, 3.0, u_zoom);',
   '    float bed = smoothstep(0.56, 0.74, fbm(q * 3.4 + 31.0)) * smoothstep(0.06, 0.13, sd) * (1.0 - smoothstep(0.26, 0.42, sd));',
   '    col = mix(col, col * vec3(0.72, 0.9, 0.86), bed * 0.45);',
   '    float w2 = smoothstep(0.004, 0.0, abs(sd - 0.03 - 0.006 * sin(t * 0.9 - 1.6 + ph)));',
-  '    col = mix(col, c_foam, w2 * 0.22);',
+  '    float face = clamp(dot(normalize(w - u_isle + vec2(1e-4)), -wd), 0.0, 1.0);',   // 1 on the shore the wind blows onto
+  '    float surf = ws * (0.35 + 0.65 * face);',
+  '    col = mix(col, c_foam, w2 * (0.22 + 0.5 * surf));',
+  '    col = mix(col, c_foam, smoothstep(0.006 + 0.05 * surf, 0.0, sd) * surf * 0.55);',   // a wider band of white water on the beach
+  '    if (ws * u_wind.w > 0.001) {',                                       // whitecaps: only when it blows and the device is fast enough
+  '      vec2 cq = qw * 34.0 - wd * t * 0.25;',
+  '      float cap = noise(cq) * (0.6 + 0.4 * noise(cq * 2.3 + 11.0));',
+  '      float many = 0.93 - 0.2 * ws;',                                    // more of the sea breaks as the wind rises
+  '      col = mix(col, c_foam, smoothstep(many, many + 0.05 + 0.04 * ws, cap) * smoothstep(0.03, 0.09, sd) * (0.35 + 0.5 * ws));',
+  '    }',
   '    float rip = 0.0;',
   '    for (int i = 0; i < ' + MAX_RIPPLES + '; i++) { vec4 r = u_rip[i]; if (r.w > 0.001) {',
   '      float dist = length(w - r.xy);',

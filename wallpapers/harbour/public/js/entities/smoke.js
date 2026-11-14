@@ -16,9 +16,9 @@ export class Smoke extends Entity {
     if (this.puffs.length && this.puffs[0].age > LIFE) this.puffs.shift();
   }
   draw(c) {
-    const w = this.world.wind, shapes = [];
+    const w = this.world.wind, push = this.world.windPush ?? 1, lift = 1 / Math.sqrt(push), shapes = [];   // a strong wind blows it further and flatter
     this.puffs.forEach(p => {
-      const k = p.age / LIFE, rise = 0.024 * (1 - Math.exp(-k * 2.4)), drift = 0.062 * Math.pow(k, 1.35);
+      const k = p.age / LIFE, rise = 0.024 * lift * (1 - Math.exp(-k * 2.4)), drift = 0.062 * push * Math.pow(k, 1.35);
       const x = this.x + w[0] * drift + Math.sin(p.seed + p.age * 0.9) * 0.004 * k + p.side * 0.007 * k;
       const y = this.y - rise + w[1] * drift + Math.cos(p.seed * 1.7 + p.age * 0.7) * 0.0025 * k;
       shapes.push({ p: p, x: x, y: y, r: (0.0017 + 0.0078 * Math.pow(k, 0.7)) * p.size, a: Math.min(1, k * 14) * Math.pow(1 - k, 1.5), rise: rise });

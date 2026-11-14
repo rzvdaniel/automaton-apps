@@ -16,7 +16,8 @@ export class Balloon extends Entity {
     const w = this.world, m = 0.08;
     this.burn = Math.max(0, this.burn - dt); this.climb += ((this.burn > 0 ? 1 : 0) - this.climb) * Math.min(1, dt * (this.burn > 0 ? 1.2 : 0.35));
     if (this.burn === 0 && Math.sin(w.clock * 0.21 + this.seed * 3) > 0.985) this.burn = 0.5;   // a short burst now and then keeps it up
-    this.x += w.wind[0] * 0.007 * dt; this.y += w.wind[1] * 0.007 * dt;
+    const v = 0.007 * (0.6 + 0.4 * (w.windPush ?? 1));
+    this.x += w.wind[0] * v * dt; this.y += w.wind[1] * v * dt;
     if (this.x > w.hw + m) this.x = -w.hw - m; if (this.x < -w.hw - m) this.x = w.hw + m; if (this.y > w.hh + m) this.y = -w.hh - m; if (this.y < -w.hh - m) this.y = w.hh + m;
   }
   /** How much the burner is roaring now (0: idle, about 1: full flame after a click or a burst). */
