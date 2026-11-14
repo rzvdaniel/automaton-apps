@@ -394,7 +394,16 @@
           "\nBuild cache " + bytes(data.data.buildCacheBytes) + "\nCleanup could free about " + bytes(data.data.reclaimableBytes);
         paintMaintenance();
       });
-    }).catch(function () { tool.busy = false; tool.error = "The app could not be reached."; paintMaintenance(); });
+    }).catch(function () {
+      if (kind !== "restart") { tool.busy = false; tool.error = "The app could not be reached."; paintMaintenance(); return; }
+      // The Runner resets its connections while it restarts an app, which can drop this answer although the restart worked.
+      setTimeout(function () {
+        tool.busy = false;
+        tool.text = "The restart was sent, but the connection dropped while the Runner restarted the app. Check the status above.";
+        loadApps(item);
+        paintMaintenance();
+      }, 8000);
+    });
   }
 
   function paintMaintenance() {
