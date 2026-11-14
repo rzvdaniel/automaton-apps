@@ -179,10 +179,46 @@
       tile("runners", "Runners", a.runners, runners.length ? (stale ? "upgrade available" : "up to date") : undefined) + "</section>";
   }
 
+  // --- Machine picker: one button per Runner; the choice is remembered in this browser. ------------------------------
+
+  var picker = document.getElementById("machines");
+  var chosen = null;
+  try { chosen = window.localStorage.getItem("server-console-machine"); } catch (e) { /* storage blocked: the default machine */ }
+
+  function paintPicker(data) {
+    var list = data.machines || [];
+    picker.hidden = list.length < 2;
+    if (list.length < 2) return;
+    picker.innerHTML = '<span class="picker__label" id="picker-label">Machine</span><div class="picker__list" role="group" aria-labelledby="picker-label">' + list.map(function (m) {
+      var on = m.name === data.machine;
+      var seen = !m.online && m.lastHeartbeatAtUtc ? ago(data.now - Date.parse(m.lastHeartbeatAtUtc) / 1000) : "";
+      return '<button type="button" class="a-btn picker__item' + (on ? " is-on" : "") + '" aria-pressed="' + on + '" data-machine="' + esc(m.name) + '"><span>' + esc(m.name) + "</span>" +
+        (m.online ? "" : '<span class="a-hint">offline' + (seen ? ", last reported " + esc(seen) : "") + "</span>") + "</button>";
+    }).join("") + "</div>";
+  }
+
+  picker.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-machine]");
+    if (!button) return;
+    chosen = button.getAttribute("data-machine");
+    try { window.localStorage.setItem("server-console-machine", chosen); } catch (e) { /* ignore */ }
+    load();
+  });
+
+  function offlineCard(data) {
+    var m = (data.machines || []).filter(function (item) { return item.name === data.machine; })[0] || {};
+    var seen = m.lastHeartbeatAtUtc ? "last reported " + ago(data.now - Date.parse(m.lastHeartbeatAtUtc) / 1000) : "never reported";
+    return card(data.machine, "critical", '<div class="a-empty"><div class="a-empty__title">Offline</div>' + esc(data.machine) + " is offline, " + esc(seen) +
+      ". Its figures appear again when the Runner reports.</div>", "").replace(pill("critical"), pill("critical", "Offline"));
+  }
+
   function dashboard(data) {
     var h = data.health, a = data.assessment;
     var history = data.history || [];
-    view.innerHTML = banner(data) + summary(h, a, data) + '<div class="cards">' + "<div class=\"col\">" + resourcesCard(h, a, history, data) + "</div><div class=\"col\">" + updatesCard(h, a, data) + serverCard(h, a) +
+    var machine = (data.machines || []).filter(function (item) { return item.name === data.machine; })[0];
+    var offline = machine && !machine.online;
+    paintPicker(data);
+    view.innerHTML = banner(data) + summary(h, a, data) + '<div class="cards">' + "<div class=\"col\">" + (offline ? offlineCard(data) : resourcesCard(h, a, history, data)) + "</div><div class=\"col\">" + (offline ? "" : updatesCard(h, a, data)) + serverCard(h, a) +
       "</div><div class=\"col\">" + certificatesCard(h, a) + runnersCard(h, a, data.now) + backupsCard(h, a) + "</div></div>";
     overall.hidden = false;
     var count = (data.attention || []).length;
@@ -220,7 +256,7 @@
   }
 
   function load() {
-    fetch("api/state", { cache: "no-store" }).then(function (response) {
+    fetch("api/state" + (chosen ? "?machine=" + encodeURIComponent(chosen) : ""), { cache: "no-store" }).then(function (response) {
       return response.json().then(function (data) {
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);
         if (!data.health) return problem(data);

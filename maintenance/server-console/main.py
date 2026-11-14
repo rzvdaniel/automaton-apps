@@ -14,7 +14,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, build_opener, urlopen
 
 import console
@@ -128,9 +128,9 @@ class Console:
             self.run_once()
             time.sleep(self.settings.interval)
 
-    def view(self) -> dict:
+    def view(self, machine: str | None = None) -> dict:
         with self.lock:
-            return console.snapshot(self.state, self.settings, time.time())
+            return console.snapshot(self.state, self.settings, time.time(), machine)
 
 
 CLEANUP_STATUS = {"ok": 200, "not_approved": 403, "unavailable": 404, "no_key": 403, "not_configured": 404}
@@ -173,7 +173,8 @@ def make_handler(app: Console):
                     status = app.state.get("status")
                 return self.json(200, {"status": status})
             if path == "/api/state":
-                return self.json(200, app.view())
+                query = parse_qs(urlsplit(self.path).query)
+                return self.json(200, app.view((query.get("machine") or [None])[0]))
             if path == "/api/cleanup":
                 return self.cleanup()
             entry = STATIC.get(path)

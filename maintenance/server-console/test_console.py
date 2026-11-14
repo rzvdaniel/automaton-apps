@@ -271,6 +271,62 @@ class AttentionTests(unittest.TestCase):
         self.assertEqual(shot["reclaim"]["freeable"], GB)
 
 
+def two_machines(**second):
+    data = health()
+    busy = dict(data["host"], diskAvailableBytes=10 * GB, cpuPercent=50.0, **second)
+    data["runners"] = [
+        {"name": "Production", "status": "online", "version": "1.0", "upgradeAvailable": False, "host": data["host"], "hostAgeSeconds": 60},
+        {"name": "Runner-01", "status": "online", "version": "1.0", "upgradeAvailable": False, "host": busy, "hostAgeSeconds": 120},
+        {"name": "Renamed Twice", "status": "offline", "version": "1.0", "upgradeAvailable": False, "host": busy, "hostAgeSeconds": 10800,
+         "lastHeartbeatAtUtc": iso(10800)},
+    ]
+    return data
+
+
+class MachineTests(unittest.TestCase):
+    def snapshot(self, machine=None):
+        state = console.new_state()
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", two_machines(), None))
+        return console.snapshot(state, settings(), NOW, machine)
+
+    def test_each_machine_shows_its_own_figures_history_and_needs_you(self):
+        first, second = self.snapshot("Production"), self.snapshot("Runner-01")
+        self.assertEqual((first["health"]["host"]["diskAvailableBytes"], second["health"]["host"]["diskAvailableBytes"]), (60 * GB, 10 * GB))
+        self.assertEqual((first["history"][0]["disk"], second["history"][0]["disk"]), (40.0, 90.0))
+        self.assertEqual(first["machine"], "Production")
+        self.assertNotIn("Free disk space.", [i["title"] for i in first["attention"]])
+        self.assertIn("Free disk space.", [i["title"] for i in second["attention"]])
+
+    def test_the_list_names_every_machine_and_defaults_to_the_freshest_online_one(self):
+        shot = self.snapshot()
+        self.assertEqual([m["name"] for m in shot["machines"]], ["Production", "Runner-01", "Renamed Twice"])
+        self.assertEqual([m["online"] for m in shot["machines"]], [True, True, False])
+        self.assertEqual(shot["machine"], "Production")
+        self.assertEqual(self.snapshot("nobody")["machine"], "Production")
+
+    def test_an_offline_machine_shows_no_figures_and_says_so(self):
+        shot = self.snapshot("Renamed Twice")
+        self.assertIsNone(shot["health"]["host"])
+        self.assertEqual(shot["history"], [])
+        self.assertEqual(shot["attention"][0]["title"], "Renamed Twice is offline.")
+        self.assertEqual(shot["machines"][2]["hostAgeSeconds"], 10800)
+
+    def test_a_server_without_per_runner_figures_still_shows_its_host(self):
+        state = console.new_state()
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(), None))
+        shot = console.snapshot(state, settings(), NOW, "main")
+        self.assertEqual(shot["health"]["host"]["diskAvailableBytes"], 60 * GB)
+        self.assertEqual(len(shot["history"]), 1)
+
+    def test_a_removed_runner_loses_its_history(self):
+        state = console.new_state()
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", two_machines(), None))
+        data = two_machines()
+        data["runners"] = data["runners"][:1]
+        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: ("ok", data, None))
+        self.assertEqual(list(state["machines"]), ["Production"])
+
+
 class AlertTests(unittest.TestCase):
     def test_lowering_the_threshold_sends_exactly_one_warning_then_one_recovery(self):
         state, send = console.new_state(), Recorder()
