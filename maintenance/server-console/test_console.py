@@ -710,6 +710,51 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIsNone(opener.requests[0].get_header("X-automaton-viewer-token"))
 
 
+class TaskCallTests(unittest.TestCase):
+    RUNNER = MaintenanceTests.RUNNER
+    Opener = MaintenanceTests.Opener
+
+    def test_each_task_is_one_fixed_call_with_the_viewer_token(self):
+        for call, method, path in [
+            (lambda o: console.server_cleanup_run(settings(), "vt", opener=o), "POST", "/api/server/cleanup/run"),
+            (lambda o: console.backup_run(settings(), "vt", opener=o), "POST", "/api/Install/backups/run"),
+            (lambda o: console.runner_upgrade(settings(), self.RUNNER, "vt", opener=o), "POST", f"/api/server/runners/{self.RUNNER}/upgrade")]:
+            opener = self.Opener(body=b"{}")
+            self.assertEqual(call(opener)[0], "ok")
+            request = opener.requests[0]
+            self.assertEqual((request.method, request.full_url), (method, "https://api.example.com" + path))
+            self.assertEqual(request.get_header("X-automaton-viewer-token"), "vt")
+
+    def test_reading_the_upgrade_sends_no_viewer_token(self):
+        opener = self.Opener(body=b"{}")
+        console.runner_upgrade(settings(), self.RUNNER, "vt", start=False, opener=opener)
+        self.assertEqual(opener.requests[0].method, "GET")
+        self.assertIsNone(opener.requests[0].get_header("X-automaton-viewer-token"))
+
+    def test_only_a_guid_reaches_the_upgrade_path(self):
+        opener = self.Opener()
+        for bad in ["../x", "a/b", "", "x?y=1"]:
+            self.assertEqual(console.runner_upgrade(settings(), bad, "t", opener=opener)[0], "not_found")
+        self.assertEqual(opener.requests, [])
+
+    def test_cleanup_settings_are_checked_and_only_the_three_fields_are_sent(self):
+        good = {"timeUtc": "05:00", "keepDays": 7, "journalLimitMb": 200, "extra": "x"}
+        opener = self.Opener(body=b"{}")
+        self.assertEqual(console.server_cleanup_settings(settings(), good, "vt", opener=opener)[0], "ok")
+        request = opener.requests[0]
+        self.assertEqual((request.method, request.full_url), ("PUT", "https://api.example.com/api/server/cleanup/settings"))
+        self.assertEqual(json.loads(request.data), {"timeUtc": "05:00", "keepDays": 7, "journalLimitMb": 200})
+        opener = self.Opener()
+        for bad in [None, [], {**good, "timeUtc": "25:00"}, {**good, "timeUtc": "5:00"}, {**good, "keepDays": 0}, {**good, "keepDays": 366},
+                    {**good, "keepDays": "7"}, {**good, "keepDays": True}, {**good, "journalLimitMb": 49}, {**good, "journalLimitMb": 100001}]:
+            self.assertEqual(console.server_cleanup_settings(settings(), bad, "vt", opener=opener)[0], "not_found")
+        self.assertEqual(opener.requests, [])
+
+    def test_a_refusal_is_named(self):
+        self.assertEqual(console.backup_run(settings(), "vt", opener=self.Opener(403))[0], "forbidden")
+        self.assertEqual(console.backup_run(settings(), "vt", opener=self.Opener(503))[0], "error")
+
+
 class MaintenanceServerTests(unittest.TestCase):
     RUNNER = MaintenanceTests.RUNNER
 
@@ -804,6 +849,37 @@ class BuildTests(unittest.TestCase):
             script = json.load(handle)["application"]["build"]["command"]["arguments"][-1]
         for path, _ in main.STATIC.values():
             self.assertIn(os.path.basename(path), script, f"{path} is served but not copied into dist")
+
+
+class TaskServerTests(MaintenanceServerTests):
+    test_a_post_needs_the_pages_header_and_passes_the_viewer_token_on = None
+    test_logs_restart_and_disk_need_the_header_and_pass_the_token_on = None
+    test_os_update_and_reboot_need_the_header_and_a_typed_name = None
+    test_the_typed_name_in_a_header_is_enough_when_the_proxy_drops_the_body = None
+
+    def test_a_task_post_needs_the_pages_header_and_passes_the_token_on(self):
+        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"),
+                               (f"/api/tasks/upgrade?runner={self.RUNNER}", f"/api/server/runners/{self.RUNNER}/upgrade")]:
+            self.seen.clear()
+            self.assertEqual(self.post(path, {}), 404, "a form on another site cannot set the header")
+            self.assertEqual(self.seen, [])
+            self.assertEqual(self.post(path, {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}), 200)
+            self.assertEqual(self.seen, [("POST", expected, "vt")])
+
+    def test_settings_are_validated_before_the_server_is_asked(self):
+        headers = {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}
+        self.assertEqual(self.post("/api/tasks/cleanup-settings", {}, b'{"timeUtc":"05:00","keepDays":7,"journalLimitMb":200}'), 404)
+        self.assertEqual(self.post("/api/tasks/cleanup-settings", headers, b'{"timeUtc":"x","keepDays":7,"journalLimitMb":200}'), 404)
+        self.assertEqual(self.post("/api/tasks/cleanup-settings", headers, b"{bad"), 404)
+        self.assertEqual(self.seen, [])
+        self.assertEqual(self.post("/api/tasks/cleanup-settings", headers, b'{"timeUtc":"05:00","keepDays":7,"journalLimitMb":200}'), 200)
+        self.assertEqual(self.seen, [("PUT", "/api/server/cleanup/settings", "vt")])
+
+    def test_the_role_header_decides_what_the_page_shows(self):
+        for role, expected in [("administrator", True), ("user", False), (None, False)]:
+            request = urllib.request.Request(self.base + "/api/tasks", headers={"X-Automaton-Viewer-Role": role} if role else {})
+            with urllib.request.urlopen(request) as response:
+                self.assertEqual(json.loads(response.read()), {"admin": expected})
 
 
 if __name__ == "__main__":

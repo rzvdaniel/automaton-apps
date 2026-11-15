@@ -220,6 +220,43 @@ def cleanup_run(settings: Settings, runner_id: str, run_id: str, **kwargs):
     return maintain_call(settings, "GET", f"/api/server/runners/{runner_id}/cleanup/{run_id}", **kwargs)
 
 
+CLEANUP_TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def server_cleanup_run(settings: Settings, viewer_token: str | None, **kwargs):
+    """Starts the nightly cleanup now (permission server:cleanup, a system administrator's viewer token)."""
+    return maintain_call(settings, "POST", "/api/server/cleanup/run", viewer_token, **kwargs)
+
+
+def server_cleanup_settings(settings: Settings, body, viewer_token: str | None, **kwargs):
+    """Changes the cleanup time (UTC HH:mm), keep days (1-365) and journal limit (50-100000 MB). Only these three
+    checked fields are sent on."""
+    if not isinstance(body, dict):
+        return "not_found", None, "The settings are missing."
+    time_utc, keep, journal = body.get("timeUtc"), body.get("keepDays"), body.get("journalLimitMb")
+    if not isinstance(time_utc, str) or not CLEANUP_TIME.match(time_utc):
+        return "not_found", None, "The time must look like 05:00 (UTC)."
+    if type(keep) is not int or not 1 <= keep <= 365:
+        return "not_found", None, "Keep days must be a whole number from 1 to 365."
+    if type(journal) is not int or not 50 <= journal <= 100000:
+        return "not_found", None, "The journal limit must be a whole number from 50 to 100000 MB."
+    return maintain_call(settings, "PUT", "/api/server/cleanup/settings", viewer_token,
+                         body={"timeUtc": time_utc, "keepDays": keep, "journalLimitMb": journal}, **kwargs)
+
+
+def backup_run(settings: Settings, viewer_token: str | None, **kwargs):
+    """Asks the server for a backup now (permission backups:run, a system administrator's viewer token)."""
+    return maintain_call(settings, "POST", "/api/Install/backups/run", viewer_token, **kwargs)
+
+
+def runner_upgrade(settings: Settings, runner_id: str, viewer_token: str | None, start: bool = True, **kwargs):
+    """Starts (POST, with the viewer token) or reads (GET) the upgrade of one Runner (permission runner:maintain)."""
+    if not GUID.match(runner_id or ""):
+        return "not_found", None, "Unknown machine."
+    path = f"/api/server/runners/{runner_id}/upgrade"
+    return maintain_call(settings, "POST", path, viewer_token, **kwargs) if start else maintain_call(settings, "GET", path, **kwargs)
+
+
 def cleanup_warning(data: dict, now: float) -> str | None:
     """A sentence when the last cleanup failed or is older than two days, else None."""
     runs = data.get("runs") or []
