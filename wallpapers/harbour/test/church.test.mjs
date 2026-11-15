@@ -2,7 +2,7 @@ import './helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../public/js/engine/world.js';
-import { Church } from '../public/js/entities/church.js';
+import { Church, layout, paintChurch } from '../public/js/entities/church.js';
 import { fakeContext, recordingSound, quietly } from './helpers.mjs';
 
 const make = (o = {}) => {
@@ -27,15 +27,43 @@ test('church: the sprite is painted once and reused, not repainted every frame',
 });
 
 test('church: hit() covers the building (tower, nave, spire) and not the sky or sea around it', () => {
-  for (const a of [0, Math.PI]) {
-    const { church } = make({ a }), f = church.side, at = (dx, dy) => church.hit(0.5 + f * dx, 0.5 + 0.012 + dy);
-    assert.ok(at(-0.032, -0.02), 'the tower');
-    assert.ok(at(0.01, -0.01), 'the nave');
-    assert.ok(at(-0.03, -0.08), 'the spire');
-    assert.ok(!at(0.01, -0.06), 'the sky above the nave');
-    assert.ok(!at(0.2, -0.01) && !at(-0.2, -0.01), 'far to either side');
-    assert.ok(!at(0.01, 0.05), 'below it');
+  for (const a of [0, 0.35, -0.35]) {
+    const { church } = make({ a }), g = layout(a), at = (p, dx = 0, dy = 0) => church.hit(0.5 + p[0] + dx, 0.5 + p[1] + dy);
+    const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    assert.ok(at(g.ground(-0.0305, 0), 0, -0.012), 'the tower');
+    assert.ok(at(g.ground(0.015, 0), 0, -0.004), 'the nave');
+    assert.ok(at(mid(g.top[0], g.apex)), 'the spire');
+    assert.ok(!at(g.ground(0.015, 0), 0, -0.05), 'the sky above the nave');
+    assert.ok(!at(g.ground(0.2, 0)) && !at(g.ground(-0.2, 0)), 'far to either side');
+    assert.ok(!at(g.ground(0.015, 0), 0, 0.05), 'below it');
   }
+});
+
+test('church: drawn in the houses projection: the nave turns with a, heights go straight up the screen, the tower is taller than the nave', () => {
+  const flat = layout(0), turned = layout(0.4);
+  assert.ok(Math.abs(flat.nave[1][1] - flat.nave[0][1]) < 1e-9, 'a = 0: the nave runs level, like a house with a = 0');
+  assert.ok(Math.abs(Math.atan2(turned.nave[1][1] - turned.nave[0][1], turned.nave[1][0] - turned.nave[0][0]) - 0.4) < 1e-9, 'the nave runs along its a, as the houses do');
+  for (const g of [flat, turned]) {
+    const towerTop = g.top[0][1] - g.tower[0][1];
+    assert.ok(Math.abs(g.top[0][0] - g.tower[0][0]) < 1e-12 && towerTop < 0, 'the tower top is the base moved straight up');
+    assert.ok(g.apex[1] < g.top.reduce((m, p) => Math.min(m, p[1]), 1), 'the spire rises above the tower top');
+    assert.ok(-towerTop > 0.0075 * 2, 'the tower is clearly taller than the nave wall');
+    assert.ok(g.box.y0 < g.apex[1] && g.box.y1 > Math.max(...g.nave.map(p => p[1])), 'the sprite holds all of it');
+  }
+});
+
+test('church: it is built from a long nave and a square tower, drawn without error for any turn, with the shadow on the far side of the sun', () => {
+  for (const a of [-0.4, 0, 0.4, Math.PI]) {
+    const { world, church } = make({ a }); world.day.darkness = 1;
+    const c = fakeContext(); church.draw(c); church.drawLights(c); paintChurch(c, a); church.pop = 1; church.draw(c);
+  }
+  const { world, church } = make({ a: 0 }), pts = [];
+  world.day.shadow = { x: 0.5, y: 0.2, strength: 1 };
+  const c = new Proxy(fakeContext(), { get: (t, k) => k === 'moveTo' || k === 'lineTo' ? (x, y) => pts.push([x, y]) : t[k], set: (t, k, v) => { t[k] = v; return true; } });
+  church.drawShadow(c);
+  const g = church.shape, ground = Math.max(...g.nave.map(p => p[0]));
+  assert.ok(Math.max(...pts.map(p => p[0])) > ground + 0.003, 'the shadow reaches away from the sun (to the right, as the sun shines from the left)');
+  assert.ok(Math.max(...pts.map(p => p[1])) > Math.max(...g.nave.map(p => p[1])), 'and down the screen');
 });
 
 test('church: windows are lit at night and none by day', () => {
@@ -65,7 +93,7 @@ test('church: clicking rings three bells at the tower', () => {
   church.click();
   assert.equal(world.effects.rings.length, 3);
   const [bx, by] = church.bell;
-  assert.ok(Math.abs(bx - (0.5 - 0.0325)) < 0.01 && by < 0.5 + 0.012, 'the bell is up in the tower, at the tower end');
+  assert.ok(bx < 0.5 - 0.02 && by < 0.5 - 0.005, 'the bell is up in the tower, at the tower end');
   for (const r of world.effects.rings) assert.ok(Math.abs(r.x - bx) < 1e-9 && Math.abs(r.y - by) < 1e-9, 'each ring starts at the bell');
   assert.equal(church.pop, 1);
 });

@@ -1,7 +1,9 @@
-// The church behind the town: the island's second landmark, drawn like the lighthouse, standing upright and seen from
-// slightly to the south. A white nave under a slate roof whose two slopes are lit differently, a square bell tower at one
-// end with a pointed spire and a gold cross, arched windows along the nave, a round window over the door, and a shadow on
-// the ground. Zoomed in, the bell hangs in the tower's opening (it swings when the church is clicked).
+// The church behind the town: the island's second landmark, drawn like the houses (see house.js): seen from above at the
+// same angle, with the same small upward offset for height. The nave is a long house: its two roof slopes lit like the
+// houses' (the far one in the light), a strip of wall on the side facing the viewer, turned with the island by its angle
+// `a`. At one end stands a square bell tower, taller by the same kind of upward offset, with a pyramid spire and a gold cross.
+// Arched windows along the nave, a door and a round window in the tower, and the shadow cast away from the sun the way the
+// houses' is (Entity.castShadow). Zoomed in, the bell hangs in the tower's opening (it swings when the church is clicked).
 // Click it and the bell rings three times from the tower and the gulls leave it. At night its windows are flat warm panes,
 // like the houses' (see House.drawLights).
 //
@@ -12,111 +14,178 @@ import { TAU, shade, disc, Entity } from '../core/index.js';
 import { Gull } from './gulls.js';
 import { WindowLights } from '../engine/window-lights.js';
 
-// All sizes in world units, in the church's own frame: x along the nave (the tower at the -x end), y up the screen
-// (negative is up), 0 at the foot of the south wall.
-const BASE = 0.012;                              // the foot of the south wall lies this far below the church's x, y (its middle)
-const TX0 = -0.042, TX1 = -0.023, TH = 0.046;    // the tower's front face: left, right, height
-const SIDE = 0.004;                              // how much of the tower's shaded east side shows
-const NX0 = TX1, NX1 = 0.038, WH = 0.0125;       // the nave's south wall: left, right, height
-const S1 = 0.011, S2 = 0.0055;                   // the roof as seen: the south slope (towards the viewer) and the north slope beyond the ridge
-const TC = (TX0 + TX1) / 2;                      // the tower's middle
-const APEX = [(TX0 + TX1 + SIDE) / 2, -TH - 0.027];   // the spire's point
-const WINDOWS = [-0.0125, -0.0015, 0.0095, 0.0205, 0.0315];   // the nave's arched windows (their middles)
-const WIN = { foot: -0.0024, w: 0.003, h: 0.0068 };
-const ROSE = { x: TC, y: -0.0185, r: 0.0022 };   // the round window over the door
-const BELFRY = { x: TC, foot: -0.0335, w: 0.0068, h: 0.0088 };   // the opening the bell hangs in
-const BOX = { x0: -0.048, x1: 0.048, y0: -0.084, y1: 0.004 };  // what the sprite holds (wide enough either way round)
+// All sizes in world units. The church has its own frame on the ground: u along the nave (the tower at the -u end), v across
+// it, the origin at the middle of the whole footprint; `a` turns that frame on the island. Heights are drawn as the houses do:
+// a point z above the ground is drawn z higher up the screen.
+const NAVE = { u0: -0.021, u1: 0.04, v: 0.013, wall: 0.0075 };    // the nave: its footprint (v: half its depth) and wall height
+const TOWER = { u0: -0.04, u1: -0.021, v: 0.0095, wall: 0.024 };  // the tower, the same way
+const SPIRE = 0.026;                                              // the spire's height above the tower's top
+const LIFT = 1.5;                                                 // a shadow reaches this many times the height it is cast by (the houses' 0.0084 for a 0.0055 wall)
+const WINDOWS = [-0.01, 0.001, 0.012, 0.023, 0.034];              // the nave's arched windows (u of their middles)
+const WIN = { foot: -0.0012, w: 0.0026, h: 0.0047 };              // in a wall's own frame: y is up from the ground (negative)
+const TU = (TOWER.u0 + TOWER.u1) / 2;                             // the tower's middle
+const DOOR = { w: 0.0042, h: 0.0064 };
+const ROSE = { y: -0.0112, r: 0.0017 };                           // the round window over the door
+const BELFRY = { foot: -0.0155, w: 0.0055, h: 0.0068 };           // the opening the bell hangs in
 
-const WALL = '#f6f1e6', WALL_SIDE = '#cfc8b9', STONE = '#b9b3a6', TRIM = '#ddd6c6';
+const WALL = '#f6f1e6', WALL_SIDE = '#cfc8b9', TRIM = '#ddd6c6';
 const SLATE_LIT = '#8795a2', SLATE = '#5f6e7b', SLATE_DARK = '#4c5a66';
-const GLASS = '#3d5564', DOOR = '#5a4334', DARK = '#27323c', GOLD = '#e8b84a', BRONZE = '#c9973a';
-const LINE = 'rgba(34,48,62,0.5)';               // the outline
+const GLASS = '#3d5564', DOOR_COLOR = '#5a4334', DARK = '#27323c', GOLD = '#e8b84a', BRONZE = '#c9973a';
+const LINE = 'rgba(34,48,62,0.45)';              // the outline
 const PANE = 'rgb(255, 222, 140)';               // a lit window: the houses' flat warm pane
 const DUSK = 0.3;                                // the darkness at which the windows come on
+const MARGIN = 0.003;                            // how far outside the drawing a click still counts
 
 /** An arched opening as a path: `w` wide, `h` tall, standing on y = foot, its middle at x. */
 function arch(c, x, foot, w, h) {
   const r = w / 2;
   c.beginPath(); c.moveTo(x - r, foot); c.lineTo(x - r, foot - h + r); c.arc(x, foot - h + r, r, Math.PI, 0); c.lineTo(x + r, foot); c.closePath();
 }
-const box = (c, x, y, w, h, fill) => { c.fillStyle = fill; c.fillRect(x, y, w, h); };
-const tri = (c, ax, ay, bx, by, px, py, fill) => { c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.lineTo(px, py); c.closePath(); c.fillStyle = fill; c.fill(); };
+const poly = (c, pts, fill) => { c.beginPath(); pts.forEach((p, i) => c[i ? 'lineTo' : 'moveTo'](p[0], p[1])); c.closePath(); c.fillStyle = fill; c.fill(); };
+const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
+
+/** The convex hull of some points (Andrew's monotone chain), counter-clockwise on a y-down screen. */
+function hull(points) {
+  const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]), cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), out = [];
+  for (const side of [p, [...p].reverse()]) {
+    const start = out.length;
+    for (const q of side) { while (out.length >= start + 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0) out.pop(); out.push(q); }
+    out.pop();
+  }
+  return out;
+}
+/** Is (x, y) inside the convex polygon (from `hull`), or within `margin` of it? */
+const inside = (poly, x, y, margin) => poly.every((a, i) => { const b = poly[(i + 1) % poly.length], dx = b[0] - a[0], dy = b[1] - a[1]; return (dx * (y - a[1]) - dy * (x - a[0])) / (Math.hypot(dx, dy) || 1) >= -margin; });
 
 /**
- * Paints the whole building (no shadow, no bell, unlit windows) in its own frame: the tower on the left, the origin at
- * the foot of the south wall under the church's middle. `c` is any 2D context already scaled to world units.
- * Not called per frame: Church keeps the result as a sprite. Call it directly for a still picture (a gallery, a proof).
+ * The church's shape for a turn `a`, in world units relative to its middle: everything the drawing, the windows, the bell, the
+ * shadow and the click need. Pure.
  */
-export function paintChurch(c) {
-  const len = NX1 - NX0, eave = -WH, ridge = -WH - S1, back = ridge - S2;
-  c.lineJoin = 'round'; c.lineCap = 'round';
-  // the nave's roof: the far slope catches the light, the near one is in its own shade
-  box(c, NX0, back, len, S2, SLATE_LIT); box(c, NX0, ridge, len, S1, SLATE);
-  c.strokeStyle = 'rgba(0,0,0,0.09)'; c.lineWidth = 0.0005;
-  for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(NX0, ridge + S1 * i / 4); c.lineTo(NX1, ridge + S1 * i / 4); c.stroke(); }   // courses of slate
-  c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 0.0009; c.beginPath(); c.moveTo(NX0, ridge); c.lineTo(NX1, ridge); c.stroke();   // the ridge
-  box(c, NX1 - 0.0013, back, 0.0013, S1 + S2, TRIM);                                     // the east gable's coping
-  // the south wall, the shade under the eave, a stone footing
-  box(c, NX0, eave, len, WH, WALL); box(c, NX0, eave, len, 0.0013, shade(0.2)); box(c, NX0, -0.0017, len, 0.0017, STONE);
-  for (let i = 0; i < WINDOWS.length; i++) {
-    const x = WINDOWS[i];
-    if (i) box(c, (x + WINDOWS[i - 1]) / 2 - 0.0006, eave + 0.0013, 0.0012, WH - 0.0013, 'rgba(22,48,70,0.1)');   // a buttress between two windows
-    arch(c, x, WIN.foot, WIN.w + 0.001, WIN.h + 0.0006); c.fillStyle = TRIM; c.fill();                          // the stone surround
-    arch(c, x, WIN.foot, WIN.w, WIN.h); c.fillStyle = GLASS; c.fill();
-    c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 0.0003; c.beginPath(); c.moveTo(x, WIN.foot); c.lineTo(x, WIN.foot - WIN.h); c.stroke();   // the mullion
-  }
-  c.strokeStyle = LINE; c.lineWidth = 0.0005; c.strokeRect(NX0, back, len, S1 + S2 + WH);
-  // the tower: its shaded east side above the nave's roof, then the front with one wash of light and shade across it
-  box(c, TX1, -TH, SIDE, TH + back, WALL_SIDE);
-  box(c, TX0, -TH, TX1 - TX0, TH, WALL);
-  const wash = c.createLinearGradient(TX0, 0, TX1, 0); wash.addColorStop(0, 'rgba(255,255,255,0.25)'); wash.addColorStop(0.5, 'rgba(255,255,255,0)'); wash.addColorStop(1, 'rgba(22,48,70,0.16)');
-  box(c, TX0, -TH, TX1 - TX0, TH, wash);
-  box(c, TX0, -0.0017, TX1 - TX0, 0.0017, STONE);
-  box(c, TX0, -0.0308, TX1 - TX0, 0.0008, TRIM);                                         // a string course under the belfry
-  // the door, with the round window over it
-  arch(c, TC, 0, 0.0064, 0.0092); c.fillStyle = TRIM; c.fill();
-  arch(c, TC, 0, 0.005, 0.0084); c.fillStyle = DOOR; c.fill();
-  c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.0003; c.beginPath(); c.moveTo(TC, 0); c.lineTo(TC, -0.0084); c.stroke();
-  disc(c, TC + 0.0007, -0.0036, 0.00028, GOLD);
-  disc(c, ROSE.x, ROSE.y, ROSE.r + 0.0008, TRIM); disc(c, ROSE.x, ROSE.y, ROSE.r, GLASS);
-  c.strokeStyle = 'rgba(255,255,255,0.4)'; c.lineWidth = 0.0003; c.beginPath();
-  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 4; c.moveTo(ROSE.x - Math.cos(a) * ROSE.r, ROSE.y - Math.sin(a) * ROSE.r); c.lineTo(ROSE.x + Math.cos(a) * ROSE.r, ROSE.y + Math.sin(a) * ROSE.r); }
-  c.stroke();
-  // the belfry's opening (the bell is drawn live, over this)
-  arch(c, BELFRY.x, BELFRY.foot, BELFRY.w + 0.0012, BELFRY.h + 0.0007); c.fillStyle = TRIM; c.fill();
-  arch(c, BELFRY.x, BELFRY.foot, BELFRY.w, BELFRY.h); c.fillStyle = DARK; c.fill();
-  box(c, BELFRY.x - BELFRY.w / 2 - 0.0008, BELFRY.foot, BELFRY.w + 0.0016, 0.0008, TRIM);  // its sill
-  c.strokeStyle = LINE; c.lineWidth = 0.0005; c.strokeRect(TX0, -TH, TX1 - TX0, TH);
-  c.beginPath(); c.moveTo(TX1, -TH); c.lineTo(TX1 + SIDE, -TH); c.lineTo(TX1 + SIDE, back); c.stroke();
-  // the cornice and the spire: two faces, lit and shaded, and a bright edge between them
-  const top = -TH - 0.0014;
-  tri(c, TX1 - 0.0002, top, TX1 + SIDE + 0.0007, top, APEX[0], APEX[1], SLATE_DARK);
-  tri(c, TX0 - 0.0007, top, TX1 - 0.0002, top, APEX[0], APEX[1], SLATE_LIT);
-  c.strokeStyle = 'rgba(0,0,0,0.1)'; c.lineWidth = 0.0004;
-  for (let i = 1; i < 5; i++) { const u = i / 5, y = top + (APEX[1] - top) * u; c.beginPath(); c.moveTo(TX0 - 0.0007 + (APEX[0] - TX0 + 0.0007) * u, y); c.lineTo(TX1 + SIDE + 0.0007 + (APEX[0] - TX1 - SIDE - 0.0007) * u, y); c.stroke(); }
-  c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 0.0006; c.beginPath(); c.moveTo(TX1 - 0.0002, top); c.lineTo(APEX[0], APEX[1]); c.stroke();
-  c.strokeStyle = LINE; c.lineWidth = 0.0005; c.beginPath(); c.moveTo(TX0 - 0.0007, top); c.lineTo(APEX[0], APEX[1]); c.lineTo(TX1 + SIDE + 0.0007, top); c.stroke();
-  box(c, TX0 - 0.001, top, TX1 - TX0 + SIDE + 0.002, 0.0016, TRIM);
-  c.strokeRect(TX0 - 0.001, top, TX1 - TX0 + SIDE + 0.002, 0.0016);
-  // the cross
-  c.strokeStyle = '#7a5a1c'; c.lineWidth = 0.0015; c.beginPath(); c.moveTo(APEX[0], APEX[1] + 0.001); c.lineTo(APEX[0], APEX[1] - 0.0072); c.moveTo(APEX[0] - 0.0021, APEX[1] - 0.0048); c.lineTo(APEX[0] + 0.0021, APEX[1] - 0.0048); c.stroke();
-  c.strokeStyle = GOLD; c.lineWidth = 0.0009; c.stroke();
-  disc(c, APEX[0], APEX[1] + 0.0004, 0.0009, GOLD);
+export function layout(a = 0) {
+  const cos = Math.cos(a), sin = Math.sin(a), sigma = cos >= 0 ? 1 : -1;
+  const ground = (u, v) => [cos * u - sin * v, sin * u + cos * v];
+  const rect = ({ u0, u1, v }) => [ground(u0, -v), ground(u1, -v), ground(u1, v), ground(u0, v)];   // clockwise on the screen
+  const up = (pts, z) => pts.map(p => [p[0], p[1] - z]);
+  const nave = rect(NAVE), tower = rect(TOWER), top = up(tower, TOWER.wall);
+  const centre = ground(TU, 0), apex = [centre[0], centre[1] - TOWER.wall - SPIRE];
+  /** A wall's own frame (the wall on the viewer's side, at v = vw): x along the wall (u), y up the screen, origin on the ground at u = u0. */
+  const frame = (u0, vw) => { const o = ground(u0, vw); return [cos, sin, 0, 1, o[0], o[1]]; };
+  const naveFrame = frame(0, sigma * NAVE.v), towerFrame = frame(TU, sigma * TOWER.v);
+  const at = (f, x, y) => [f[4] + f[0] * x + f[2] * y, f[5] + f[1] * x + f[3] * y];
+  const points = [...nave, ...up(nave, NAVE.wall), ...tower, ...top, apex, [apex[0], apex[1] - 0.0075]];
+  const xs = points.map(p => p[0]), ys = points.map(p => p[1]), pad = 0.003;
+  return {
+    cos, sin, sigma, ground, nave, tower, top, apex, naveFrame, towerFrame,
+    box: { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, y0: Math.min(...ys) - pad, y1: Math.max(...ys) + pad },
+    windows: WINDOWS.map(u => at(naveFrame, u, WIN.foot - WIN.h / 2)),                 // the middles of the arched windows
+    rose: at(towerFrame, 0, ROSE.y),
+    bell: at(towerFrame, 0, BELFRY.foot - BELFRY.h / 2),
+    // what a click on the building hits: the nave and the tower each swept up by their height, and the spire
+    hit: [hull([...nave, ...up(nave, NAVE.wall)]), hull([...tower, ...top]), hull([...top, apex, [apex[0], apex[1] - 0.0075]])]
+  };
 }
 
 /**
- * Paints the bell in the belfry's opening, swung by `swing` radians about its headstock. Same frame as paintChurch.
- * Cheap (three small fills), so it can be drawn every frame over the sprite.
+ * Paints one block (the nave or the tower) as the houses are: the strip of wall on every side that faces the viewer, then the
+ * top. `corners` is the footprint, `wall` its height. The roof is drawn by `roof(top)`.
+ */
+function block(c, corners, wall, roof, details) {
+  corners.forEach((p, i) => {
+    const q = corners[(i + 1) % 4], dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy), nx = dy / len, ny = -dx / len;
+    if (ny <= 0.02) return;   // a wall facing away from the viewer is hidden behind the roof
+    poly(c, [p, q, [q[0], q[1] - wall], [p[0], p[1] - wall]], nx > 0.25 ? WALL_SIDE : WALL);
+    c.strokeStyle = LINE; c.lineWidth = 0.0005; c.beginPath(); c.moveTo(p[0], p[1] - wall); c.lineTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.lineTo(q[0], q[1] - wall); c.stroke();
+  });
+  details?.();
+  roof(corners.map(p => [p[0], p[1] - wall]));
+}
+
+/** The windows, the door, the round window and the belfry's opening, painted onto the walls (in each wall's own frame). */
+function paintDetails(c, g, where) {
+  c.save();
+  if (where === 'nave') {
+    c.transform(...g.naveFrame);
+    for (const u of WINDOWS) {
+      arch(c, u, WIN.foot, WIN.w + 0.0009, WIN.h + 0.0005); c.fillStyle = TRIM; c.fill();
+      arch(c, u, WIN.foot, WIN.w, WIN.h); c.fillStyle = GLASS; c.fill();
+      c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 0.00025; c.beginPath(); c.moveTo(u, WIN.foot); c.lineTo(u, WIN.foot - WIN.h); c.stroke();
+    }
+  } else {
+    c.transform(...g.towerFrame);
+    arch(c, 0, 0, DOOR.w + 0.0012, DOOR.h + 0.0006); c.fillStyle = TRIM; c.fill();
+    arch(c, 0, 0, DOOR.w, DOOR.h); c.fillStyle = DOOR_COLOR; c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.00025; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -DOOR.h); c.stroke();
+    disc(c, 0.0006, -0.003, 0.00025, GOLD);
+    disc(c, 0, ROSE.y, ROSE.r + 0.0006, TRIM); disc(c, 0, ROSE.y, ROSE.r, GLASS);
+    c.fillStyle = TRIM; c.fillRect(TOWER.u0 - TU, -0.0148, TOWER.u1 - TOWER.u0, 0.0006);   // a string course under the belfry
+    arch(c, 0, BELFRY.foot, BELFRY.w + 0.001, BELFRY.h + 0.0006); c.fillStyle = TRIM; c.fill();
+    arch(c, 0, BELFRY.foot, BELFRY.w, BELFRY.h); c.fillStyle = DARK; c.fill();
+  }
+  c.restore();
+}
+
+/** The nave's roof, like a house's: two slopes along the nave, the far one in the light, with courses and a bright ridge. */
+function paintNaveRoof(c, g) {
+  const { ground } = g, lift = NAVE.wall, up = p => [p[0], p[1] - lift];
+  const slopes = [[-NAVE.v, 0], [0, NAVE.v]].map(([v0, v1]) => [ground(NAVE.u0, v0), ground(NAVE.u1, v0), ground(NAVE.u1, v1), ground(NAVE.u0, v1)].map(up));
+  slopes.sort((p, q) => p[0][1] - q[0][1]);   // the far (higher on the screen) slope first
+  poly(c, slopes[0], SLATE_LIT); poly(c, slopes[1], SLATE);
+  c.strokeStyle = 'rgba(0,0,0,0.09)'; c.lineWidth = 0.0005;
+  for (const v of [-0.5 * NAVE.v, 0.5 * NAVE.v]) { const a = up(ground(NAVE.u0, v)), b = up(ground(NAVE.u1, v)); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+  const r0 = up(ground(NAVE.u0, 0)), r1 = up(ground(NAVE.u1, 0));
+  c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 0.0009; c.beginPath(); c.moveTo(r0[0], r0[1]); c.lineTo(r1[0], r1[1]); c.stroke();   // the ridge
+  c.strokeStyle = LINE; c.lineWidth = 0.0005; c.beginPath(); g.nave.map(up).forEach((p, i) => c[i ? 'lineTo' : 'moveTo'](p[0], p[1])); c.closePath(); c.stroke();
+}
+
+/** The tower's spire: a pyramid on the tower's top, its four faces drawn far to near, each lit by the way it faces. */
+function paintSpire(c, g) {
+  const top = g.top, apex = g.apex, cx = top.reduce((s, p) => s + p[0], 0) / 4, cy = top.reduce((s, p) => s + p[1], 0) / 4;
+  const grow = p => [cx + (p[0] - cx) * 1.12, cy + (p[1] - cy) * 1.12];   // the eaves reach a little past the walls
+  const eave = top.map(grow);
+  const faces = eave.map((p, i) => {
+    const q = eave[(i + 1) % 4], dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy), nx = dy / len, ny = -dx / len;
+    return { pts: [p, q, apex], mid: (p[1] + q[1]) / 2, light: Math.min(1, Math.max(0, 0.5 - 0.5 * (nx * 0.45 + ny * 0.9))) };   // light comes from the top left of the screen
+  }).sort((p, q) => p.mid - q.mid);
+  poly(c, eave, SLATE_DARK);
+  for (const f of faces) {
+    const k = f.light, col = k > 0.5 ? mix([76, 90, 102], [135, 149, 162], (k - 0.5) * 2) : mix([62, 78, 92], [76, 90, 102], k * 2);
+    poly(c, f.pts, `rgb(${col.map(Math.round)})`);
+    c.strokeStyle = LINE; c.lineWidth = 0.0004; c.stroke();
+  }
+  // the cross
+  c.strokeStyle = '#7a5a1c'; c.lineWidth = 0.0015; c.beginPath(); c.moveTo(apex[0], apex[1] + 0.001); c.lineTo(apex[0], apex[1] - 0.0072); c.moveTo(apex[0] - 0.0021, apex[1] - 0.0048); c.lineTo(apex[0] + 0.0021, apex[1] - 0.0048); c.stroke();
+  c.strokeStyle = GOLD; c.lineWidth = 0.0009; c.stroke();
+  disc(c, apex[0], apex[1] + 0.0004, 0.0009, GOLD);
+}
+
+/**
+ * Paints the whole building (no shadow, no bell, unlit windows) relative to the church's middle, for the turn `a` (or a
+ * ready `layout`). `c` is any 2D context already scaled to world units. Not called per frame: Church keeps the result as a
+ * sprite. Call it directly for a still picture (a gallery, a proof).
+ */
+export function paintChurch(c, a = 0) {
+  const g = typeof a === 'object' ? a : layout(a);
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  const naveY = (g.nave[0][1] + g.nave[2][1]) / 2, towerY = (g.tower[0][1] + g.tower[2][1]) / 2;
+  const drawNave = () => block(c, g.nave, NAVE.wall, () => paintNaveRoof(c, g), () => paintDetails(c, g, 'nave'));
+  const drawTower = () => { block(c, g.tower, TOWER.wall, () => paintSpire(c, g), () => paintDetails(c, g, 'tower')); };
+  // the one farther up the screen first, so the nearer one overlaps it
+  if (naveY < towerY) { drawNave(); drawTower(); } else { drawTower(); drawNave(); }
+}
+
+/**
+ * Paints the bell in the belfry's opening, swung by `swing` radians about its headstock. In the tower wall's own frame (the
+ * caller has applied `layout(a).towerFrame`). Cheap (three small fills), so it can be drawn every frame over the sprite.
  */
 export function paintBell(c, swing = 0) {
   const top = BELFRY.foot - BELFRY.h + 0.0018;
-  c.save(); c.translate(BELFRY.x, top); c.rotate(swing);
+  c.save(); c.translate(0, top); c.rotate(swing);
   c.fillStyle = BRONZE; c.beginPath();
   c.moveTo(-0.0009, 0.0002); c.quadraticCurveTo(-0.0012, 0.0028, -0.0024, 0.0046); c.lineTo(0.0024, 0.0046); c.quadraticCurveTo(0.0012, 0.0028, 0.0009, 0.0002); c.closePath(); c.fill();
   c.fillStyle = GOLD; c.fillRect(-0.0024, 0.0042, 0.0048, 0.0006);     // the lip catches the light
   disc(c, 0, 0.0052, 0.0006, '#6d4e1a');                                  // the clapper
   c.restore();
-  c.fillStyle = '#4a3a2c'; c.fillRect(BELFRY.x - BELFRY.w / 2, top - 0.0005, BELFRY.w, 0.0008);   // the beam it hangs from
+  c.fillStyle = '#4a3a2c'; c.fillRect(-BELFRY.w / 2, top - 0.0005, BELFRY.w, 0.0008);   // the beam it hangs from
 }
 
 export class Church extends Entity {
@@ -124,13 +193,13 @@ export class Church extends Entity {
   static clicks = 'one';
   static MAX_SPRITE = 1024;   // the longest side of its sprite, in pixels
 
-  constructor(world, o) {   // o: x, y, a (which way the nave runs: it only decides at which end the tower stands)
+  constructor(world, o) {   // o: x, y, a (which way the nave runs, as the houses' a: the tower stands at its -u end)
     super(world); Object.assign(this, o); this.pop = 0;
-    this.side = Math.cos(this.a ?? 0) >= 0 ? 1 : -1;   // 1: the tower at the west end (the left), -1: at the right
+    this.shape = layout(this.a ?? 0);
     /** Where the bell is, in world units: the rings and the gulls start there. */
-    this.bell = [this.x + this.side * BELFRY.x, this.y + BASE + BELFRY.foot - BELFRY.h / 2];
+    this.bell = [this.x + this.shape.bell[0], this.y + this.shape.bell[1]];
     /** The middles of the windows that light up, in world units (the nave's, then the round one). */
-    this.windows = [...WINDOWS.map(x => [this.x + this.side * x, this.y + BASE + WIN.foot - WIN.h / 2]), [this.x + this.side * ROSE.x, this.y + BASE + ROSE.y]];
+    this.windows = [...this.shape.windows, this.shape.rose].map(p => [this.x + p[0], this.y + p[1]]);
     // each window has its own evening and night, like the houses' (see WindowLights)
     this.lights = this.windows.map((p, n) => (world.windowLights ??= new WindowLights()).add(p[0], p[1], n));
   }
@@ -144,19 +213,19 @@ export class Church extends Entity {
   /** The lit windows as flat warm panes in the windows' own shapes (no halo), on the lights canvas. */
   drawLights(c) {
     if (this.darkness <= 0) return;
-    c.globalCompositeOperation = 'source-over'; c.translate(this.x, this.y + BASE); c.scale(this.side, 1);
-    c.fillStyle = PANE;
+    const g = this.shape; c.globalCompositeOperation = 'source-over'; c.translate(this.x, this.y); c.fillStyle = PANE;
     for (let i = 0; i <= WINDOWS.length; i++) {
       const a = this.windowLight(i);
       if (a <= 0.01) continue;
-      c.globalAlpha = a;
-      if (i < WINDOWS.length) { arch(c, WINDOWS[i], WIN.foot, WIN.w, WIN.h); c.fill(); }
-      else { c.beginPath(); c.arc(ROSE.x, ROSE.y, ROSE.r, 0, TAU); c.fill(); }
+      c.save(); c.globalAlpha = a;
+      if (i < WINDOWS.length) { c.transform(...g.naveFrame); arch(c, WINDOWS[i], WIN.foot, WIN.w, WIN.h); c.fill(); }
+      else { c.transform(...g.towerFrame); c.beginPath(); c.arc(0, ROSE.y, ROSE.r, 0, TAU); c.fill(); }
+      c.restore();
     }
   }
 
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
-  hit(x, y) { const dx = (x - this.x) * this.side, dy = y - this.y - BASE; return dx > TX0 - 0.003 && dx < NX1 + 0.003 && dy < 0.004 && dy > (dx < TX1 + SIDE ? APEX[1] - 0.008 : -WH - S1 - S2 - 0.003); }
+  hit(x, y) { const dx = x - this.x, dy = y - this.y; return this.shape.hit.some(p => inside(p, dx, dy, MARGIN)); }
   click() {
     const w = this.world, [bx, by] = this.bell; this.pop = 1;
     for (let i = 0; i < 3; i++) w.ring(bx, by, i * 0.45);
@@ -165,36 +234,34 @@ export class Church extends Entity {
 
   /** The sprite, painted again when it is missing or shown clearly bigger than it was painted for. */
   sprite(shown) {
-    const long = Math.max(BOX.x1 - BOX.x0, BOX.y1 - BOX.y0), want = Math.min(shown, Church.MAX_SPRITE / long);
+    const { box } = this.shape, long = Math.max(box.x1 - box.x0, box.y1 - box.y0), want = Math.min(shown, Church.MAX_SPRITE / long);
     if (this.canvas && this.spritePpu >= want * 0.98) return this.canvas;
     const ppu = Math.min(want * 1.3, Church.MAX_SPRITE / long), canvas = this.canvas ??= document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round((BOX.x1 - BOX.x0) * ppu)); canvas.height = Math.max(1, Math.round((BOX.y1 - BOX.y0) * ppu));   // sizing it also wipes it
+    canvas.width = Math.max(1, Math.round((box.x1 - box.x0) * ppu)); canvas.height = Math.max(1, Math.round((box.y1 - box.y0) * ppu));   // sizing it also wipes it
     const c = canvas.getContext('2d');
-    c.setTransform(ppu, 0, 0, ppu, -BOX.x0 * ppu, -BOX.y0 * ppu);
-    paintChurch(c);
+    c.setTransform(ppu, 0, 0, ppu, -box.x0 * ppu, -box.y0 * ppu);
+    paintChurch(c, this.shape);
     this.spritePpu = ppu;
     return canvas;
   }
 
-  /** The shadow on the ground, away from the sun: the nave's, the tower's, and the spire's running out to a point. */
+  /** The shadow on the ground, away from the sun like the houses': the nave's, and the tower's with its spire running out to a point. */
   drawShadow(c) {
-    const f = this.side, x = this.x, y = this.y + BASE;
-    const nave = this.castShadow(0.026), body = this.castShadow(0.06), tip = this.castShadow(0.095);
+    const g = this.shape, nave = this.castShadow(NAVE.wall * LIFT), body = this.castShadow(TOWER.wall * LIFT), tip = this.castShadow((TOWER.wall + SPIRE) * LIFT);
     if (nave.a <= 0) return;
-    c.fillStyle = shade(0.26 * nave.a); c.beginPath();
-    // the nave: its footprint (a strip behind the south wall) pushed away from the sun
-    c.moveTo(x + f * NX0, y); c.lineTo(x + f * NX1, y); c.lineTo(x + f * NX1 + nave.x, y + nave.y); c.lineTo(x + f * NX1 + nave.x, y + nave.y - 0.007); c.lineTo(x + f * NX0 + nave.x, y + nave.y - 0.007); c.lineTo(x + f * NX0, y - 0.007); c.closePath();
-    // the tower and its spire
-    c.moveTo(x + f * TX0, y); c.lineTo(x + f * (TX1 + SIDE), y); c.lineTo(x + f * (TX1 + SIDE) + body.x, y + body.y); c.lineTo(x + f * APEX[0] + tip.x, y + tip.y); c.lineTo(x + f * TX0 + body.x, y + body.y); c.closePath();
-    c.fill();
+    const move = (pts, s) => pts.map(p => [p[0] + s.x, p[1] + s.y]), centre = g.ground(TU, 0);
+    const parts = [hull([...g.nave, ...move(g.nave, nave)]), hull([...g.tower, ...move(g.tower, body), [centre[0] + tip.x, centre[1] + tip.y]])];
+    c.save(); c.translate(this.x, this.y); c.fillStyle = shade(0.26 * nave.a); c.beginPath();
+    for (const part of parts) part.forEach((p, i) => c[i ? 'lineTo' : 'moveTo'](p[0], p[1])), c.closePath();
+    c.fill(); c.restore();
   }
 
   draw(c) {
-    const w = this.world, v = w?.viewport, grow = 1 + 0.12 * this.pop * Math.sin(this.pop * 10);
+    const w = this.world, v = w?.viewport, grow = 1 + 0.12 * this.pop * Math.sin(this.pop * 10), { box } = this.shape;
     this.drawShadow(c);
     const shown = (v ? v.dpr * v.scale * (w.camera?.zoom ?? 1) : 4000) * this.scale;   // screen pixels to a world unit
-    c.translate(this.x, this.y + BASE); c.scale(this.side * grow, grow);                // it swells from its foot when rung
-    c.drawImage(this.sprite(shown), BOX.x0, BOX.y0, BOX.x1 - BOX.x0, BOX.y1 - BOX.y0);
-    if (shown > 2500 || this.pop > 0) paintBell(c, 0.55 * this.pop * Math.sin(this.pop * 14));   // too small to see at normal zoom unless it swings
+    c.translate(this.x, this.y); c.scale(grow, grow);                                    // it swells from its middle when rung
+    c.drawImage(this.sprite(shown), box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+    if (shown > 2500 || this.pop > 0) { c.transform(...this.shape.towerFrame); paintBell(c, 0.55 * this.pop * Math.sin(this.pop * 14)); }   // too small to see at normal zoom unless it swings
   }
 }
