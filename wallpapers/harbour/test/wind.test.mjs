@@ -235,7 +235,8 @@ test('WindSwirls: stronger wind makes them longer, faster and shorter-lived (1.5
     assert.ok(life >= 1.5 && life <= 3, `strength ${strength}: lives ${life} s`);
   }
   assert.ok(WindSwirls.lifeFor(STORM) < WindSwirls.lifeFor(WINDY));
-  const reach = strength => { const swirls = new WindSwirls(); airborne(swirls, blowing(strength), 30); return average(swirls.pool.filter(s => s.reach > 0).map(s => s.reach)); };
+  // seeded, so both strengths get the same random numbers and the comparison is stable
+  const reach = strength => { const real = Math.random; let n = 4242; Math.random = () => (n = (n * 16807) % 2147483647) / 2147483647; try { const swirls = new WindSwirls(); airborne(swirls, blowing(strength), 30); return average(swirls.pool.filter(s => s.reach > 0).map(s => s.reach)); } finally { Math.random = real; } };
   assert.ok(reach(STORM) > 1.3 * reach(WINDY), 'longer in a storm');
 });
 
