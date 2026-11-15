@@ -115,6 +115,14 @@ test('DayCycle: the light is warm at dawn, white at noon, golden in the evening 
   assert.ok(midnight.grey > 0 && noon.grey === 0, 'colour fades at night');
 });
 
+test('DayCycle: the light is plain from 10 degrees up, and still golden at 6 degrees in the evening', () => {
+  for (const alt of [12, 15]) for (const morning of [true, false]) {
+    assert.deepEqual({ ...DayCycle.lightAt(alt, morning, 0) }, { r: 1, g: 1, b: 1, grey: 0 }, `${alt} degrees, morning ${morning}`);
+  }
+  const evening = DayCycle.lightAt(6, false, 0);
+  assert.ok(evening.r > evening.g && evening.g > evening.b, `golden ${JSON.stringify(evening)}`);
+});
+
 test('DayCycle: a night with a full moon is brighter than one with a new moon', () => {
   const day = new DayCycle(), brightness = l => l.r + l.g + l.b;
   const full = brightness(day.update(utc(24, 22), BUCHAREST).light);   // full moon, high up
