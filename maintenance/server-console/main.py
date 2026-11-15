@@ -186,8 +186,28 @@ def make_handler(app: Console):
                 length = 0
             return self.rfile.read(max(0, min(length, limit)))
 
+        def task(self, parts) -> None:
+            """The Maintenance section's four changes. Each passes the viewer token on; the server decides who may."""
+            name = parts.path[len("/api/tasks/"):]
+            if self.headers.get("X-Server-Console") != "1" or name not in ("cleanup-run", "cleanup-settings", "backup", "upgrade"):
+                return self.json(404, {"error": "Not found"})
+            token = self.headers.get("X-Automaton-Viewer-Token")
+            if name == "cleanup-run":
+                return self.maintain(console.server_cleanup_run, token)
+            if name == "backup":
+                return self.maintain(console.backup_run, token)
+            if name == "upgrade":
+                return self.maintain(console.runner_upgrade, (parse_qs(parts.query).get("runner") or [""])[0], token)
+            try:
+                body = json.loads(self.read_body(2000).decode("utf-8") or "null")
+            except (ValueError, UnicodeDecodeError):
+                body = None
+            self.maintain(console.server_cleanup_settings, body, token)
+
         def do_POST(self):  # noqa: N802
             parts = urlsplit(self.path)
+            if parts.path.startswith("/api/tasks/"):
+                return self.task(parts)
             # A page of this app sets this header; a form on another site cannot.
             operations = {"/api/maintenance/logs": "logs", "/api/maintenance/restart": "restart", "/api/maintenance/disk": "disk"}
             machine = {"/api/maintenance/os-update": "os-update", "/api/maintenance/reboot": "reboot"}
@@ -227,6 +247,10 @@ def make_handler(app: Console):
                 return self.json(200, app.view((query.get("machine") or [None])[0]))
             if path == "/api/cleanup":
                 return self.cleanup()
+            if path == "/api/tasks":  # the proxy's role header is for display only; the server checks every change
+                return self.json(200, {"admin": (self.headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"})
+            if path == "/api/tasks/upgrade":
+                return self.maintain(console.runner_upgrade, (parse_qs(urlsplit(self.path).query).get("runner") or [""])[0], None, False)
             if path == "/api/maintenance":
                 return self.maintain(console.maintenance_permissions)
             if path == "/api/maintenance/apps":

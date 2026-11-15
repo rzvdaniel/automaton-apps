@@ -31,3 +31,11 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 .disk-row:last-child { border-bottom: 0; }
 .disk-size { white-space: nowrap; }
 .disk-row > span { min-width: 0; overflow-wrap: anywhere; }
+
+.tasks { list-style: none; padding: 0; margin: 0; }
+.task { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.task:last-child { border-bottom: 0; }
+.task__main { min-width: 0; flex: 1 1 260px; display: grid; gap: 4px; }
+.task__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.task__form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-top: 6px; }
+.task__form label { display: grid; gap: 2px; font-size: 12px; }

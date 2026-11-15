@@ -279,6 +279,7 @@
         lastData = data;
         dashboard(data);
         if (typeof paintMaintenance === "function") paintMaintenance();
+        if (typeof paintTasks === "function") paintTasks();
       });
     }).catch(function () {
       view.innerHTML = '<div class="a-empty"><div class="a-empty__title">Cannot reach the app</div>Retrying shortly.</div>';
@@ -287,46 +288,13 @@
 
   // --- Cleanup card: shown only when an administrator approved server:cleanup for this app. -----------------------------
 
-  var cleanupBox = document.getElementById("cleanup-box");
-
-  function runLine(run) {
-    var result = run.result === "succeeded" ? pill("ok", "Done") : run.result === "failed" ? pill("critical", "Failed") : pill("unknown", run.result === "queued" ? "Queued" : "Running");
-    var freed = run.result === "succeeded" ? " \u00b7 freed " + esc(bytes(run.bytesFreed)) : "";
-    return "<li><span>" + when(run.startedAtUtc) + freed + '<br><span class="a-hint">' + esc(run.runnerName) + " \u00b7 " + esc(run.trigger) +
-      (run.result === "failed" && run.message ? " \u00b7 " + esc(run.message) : "") + "</span></span>" + result + "</li>";
-  }
-
-  function cleanupSummary(c) {
-    var last = (c.runs || [])[0];
-    var status = c.warning ? "warning" : last && last.result === "succeeded" ? "ok" : "unknown";
-    var tiles = stat("Last run", last ? when(last.startedAtUtc) : "never", last ? esc(last.result === "succeeded" ? "succeeded" : last.result) : "", last && last.result === "failed" ? "critical" : last ? "ok" : "") +
-      stat("Freed", last && last.result === "succeeded" ? esc(bytes(last.bytesFreed)) : "-", last && last.message && last.result === "succeeded" ? esc(last.message) : "") +
-      stat("Next run", when(c.nextRunAtUtc), esc(c.settings.timeUtc) + " UTC");
-    return { status: status, html: (c.warning ? '<p class="a-note a-note--warning">' + esc(c.warning) + "</p>" : "") + '<div class="a-stats">' + tiles + "</div>" +
-      ((c.runs || []).length ? '<ul class="a-list spaced">' + c.runs.slice(0, 5).map(runLine).join("") + "</ul>" : "") };
-  }
-
-  function studioLink(c) {
-    // Framed in Studio, the page's parent is Studio itself; otherwise use the address the server worked out.
-    var origin = window.location.ancestorOrigins && window.location.ancestorOrigins[0];
-    var url = origin && /^https?:\/\//.test(origin) ? origin.replace(/\/$/, "") + "/server" : c.studioUrl;
-    return url ? '<p class="spaced"><a class="a-btn" id="cleanup-studio" target="_blank" rel="noopener" href="' + esc(url) + '">Change in Studio</a></p>' : '<p class="a-hint spaced">Change it in Studio, on the Server page.</p>';
-  }
-
-  function paintCleanup(c) {
-    var summary = cleanupSummary(c);
-    cleanupBox.hidden = false;
-    cleanupBox.innerHTML = card("Cleanup", summary.status, '<div id="cleanup-summary">' + summary.html + studioLink(c) + "</div>",
-      "Reads an app's recent logs, restarts an app or reads Docker's disk use on this one machine, and frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit. Never volumes, apps in use or backups.");
-    cleanupBox.firstChild.classList.add("spaced");
-    UI.updateRelativeTimes(cleanupBox);
-  }
+  var cleanupInfo = null; // the nightly cleanup read through server:cleanup, or { needsApproval: true }
 
   function loadCleanup() {
     fetch("api/cleanup", { cache: "no-store" }).then(function (response) {
       return response.json().then(function (data) {
-        if (data.status !== "ok") { cleanupBox.hidden = true; return; }
-        paintCleanup(data.cleanup);
+        cleanupInfo = data.status === "ok" ? data.cleanup : { needsApproval: true };
+        if (typeof paintTasks === "function") paintTasks();
       });
     }).catch(function () { /* keep what is shown */ });
   }
@@ -480,7 +448,7 @@
     if (!machinesMaintained.length) { maintenanceBox.hidden = true; return; }
     var item = maintainedRunner();
     maintenanceBox.hidden = false;
-    maintenanceBox.innerHTML = card("Maintenance", item && item.approved ? "ok" : "unknown", '<div id="maintenance-body">' + maintenanceBody(item) + "</div>",
+    maintenanceBox.innerHTML = card("This machine", item && item.approved ? "ok" : "unknown", '<div id="maintenance-body">' + maintenanceBody(item) + "</div>",
       "Frees Docker images no container uses and build cache older than the keep days, and old journal files above the limit, on this one machine. Never volumes, apps in use or backups. Needs a system administrator.");
     maintenanceBox.firstChild.classList.add("spaced");
   }
@@ -490,6 +458,7 @@
       return response.json().then(function (data) {
         machinesMaintained = data.status === "ok" && Array.isArray(data.data) ? data.data : [];
         paintMaintenance();
+        paintTasks();
         var item = maintainedRunner();
         if (item && item.approved && !appsByRunner[item.runnerId]) loadApps(item);
       });
@@ -546,6 +515,192 @@
     var go = document.getElementById("host-go");
     if (go && item) go.disabled = hostOp.typed !== item.name;
   });
+
+
+  // --- Maintenance section: every task in one place. Reads are open to anyone who may see the page; Run now and Settings
+  // are shown to system administrators only (the proxy's role header; the server checks the viewer token on every change). ---
+
+  var tasksBox = document.getElementById("tasks-box");
+  var isAdmin = false;
+  var cleanupOp = null;   // { error } after Run now on the cleanup
+  var cleanupEdit = false;
+  var backupOp = null;    // { since, state: "waiting" | "done" | "failed", text, needsApproval }
+  var upgradeOp = null;   // { items: [{ runnerId, name, state, text }], busy }
+  var tasksTimer = null;
+  var APPROVAL = "Needs approval. An administrator approves it in Studio under Admin, Apps, Permissions.";
+
+  function post(path, body) {
+    return fetch(path, { method: "POST", cache: "no-store", headers: { "X-Server-Console": "1", "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
+      .then(function (response) { return response.json(); });
+  }
+
+  function refused(data, fallback) {
+    return data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can do this, and the app needs the permission approved." : data.message || fallback;
+  }
+
+  function row(id, name, status, lines, actions) {
+    return '<li id="task-' + id + '" class="task"><div class="task__main"><div class="task__name"><strong>' + esc(name) + "</strong> " + pill(status) + "</div>" +
+      lines.filter(Boolean).map(function (line) { return '<div class="a-hint">' + line + "</div>"; }).join("") + "</div>" +
+      (actions ? '<div class="task__actions">' + actions + "</div>" : "") + "</li>";
+  }
+
+  function cleanupRow() {
+    if (!cleanupInfo || cleanupInfo.needsApproval) return row("cleanup", "Cleanup", "unknown", [esc(APPROVAL)], "");
+    var last = (cleanupInfo.runs || [])[0];
+    var running = last && (last.result === "queued" || last.result === "running");
+    var status = cleanupInfo.warning || (last && last.result === "failed") ? "warning" : last && last.result === "succeeded" ? "ok" : "unknown";
+    var line = "Nightly at " + esc(cleanupInfo.settings.timeUtc) + " UTC, next " + when(cleanupInfo.nextRunAtUtc) + ", keeps " + esc(String(cleanupInfo.settings.keepDays)) + " days, journal limit " + esc(String(cleanupInfo.settings.journalLimitMb)) + " MB.";
+    var result = running ? "Cleaning up on " + esc(last.runnerName) + "..." : last ? "Last run " + when(last.startedAtUtc) + ", " + (last.result === "succeeded" ? "freed " + esc(bytes(last.bytesFreed)) : esc(last.result)) + (last.result === "failed" && last.message ? ": " + esc(last.message) : "") : "Never run.";
+    var actions = "";
+    var form = "";
+    if (isAdmin) {
+      actions = '<button class="a-btn" type="button" id="cleanup-run"' + (running ? " disabled" : "") + ">" + (running ? "Running..." : "Run now") + '</button> <button class="a-btn" type="button" id="cleanup-settings">Settings</button>';
+      if (cleanupEdit) {
+        var st = cleanupInfo.settings;
+        form = '<div id="cleanup-form" class="task__form"><label>Time (UTC) <input class="a-input" id="cs-time" value="' + esc(st.timeUtc) + '" size="5"></label> <label>Keep days <input class="a-input" id="cs-keep" type="number" min="1" max="365" value="' + esc(String(st.keepDays)) + '"></label> ' +
+          '<label>Journal limit (MB) <input class="a-input" id="cs-journal" type="number" min="50" max="100000" value="' + esc(String(st.journalLimitMb)) + '"></label> <button class="a-btn" type="button" id="cleanup-save">Save</button> <button class="a-btn" type="button" id="cleanup-cancel">Cancel</button></div>';
+      }
+    }
+    return row("cleanup", "Cleanup", status, [line, result, cleanupInfo.warning ? esc(cleanupInfo.warning) : "", cleanupOp && cleanupOp.error ? '<span class="a-note a-note--warning" id="cleanup-error">' + esc(cleanupOp.error) + "</span>" : "", form], actions);
+  }
+
+  function backupRow() {
+    var h = lastData && lastData.health, a = lastData && lastData.assessment;
+    var b = (h && h.backup) || {};
+    if (!b.available) return row("backup", "Backup", "unknown", ["No backup status yet. Run the latest server update to enable backups."], "");
+    var last = b.lastSuccessAt ? "Last backup " + when(b.lastSuccessAt) + " succeeded." : "No successful backup yet.";
+    var op = backupOp;
+    var note = !op ? "" : op.needsApproval ? esc(APPROVAL) : '<span class="a-note' + (op.state === "failed" ? " a-note--warning" : "") + '" id="backup-result">' + esc(op.text) + "</span>";
+    var busy = op && op.state === "waiting";
+    return row("backup", "Backup", a ? a.backup : "unknown", [last, b.lastError ? '<span class="a-note a-note--critical">' + esc(b.lastError) + "</span>" : "", note],
+      isAdmin ? '<button class="a-btn" type="button" id="backup-run"' + (busy ? " disabled" : "") + ">" + (busy ? "Backing up..." : "Run now") + "</button>" : "");
+  }
+
+  function upgradeTargets() {
+    var runners = (lastData && lastData.health && lastData.health.runners) || [];
+    return runners.filter(function (r) { return r.upgradeAvailable && String(r.status || "").toLowerCase() === "online"; });
+  }
+
+  function approvedRunner(name) {
+    return machinesMaintained.filter(function (m) { return m.name === name && m.approved; })[0];
+  }
+
+  function upgradeRow() {
+    var runners = (lastData && lastData.health && lastData.health.runners) || [];
+    if (!runners.length) return row("upgrade", "Upgrade Runners", "unknown", ["No Runners are registered."], "");
+    var old = upgradeTargets();
+    var ready = old.filter(function (r) { return approvedRunner(r.name); });
+    var busy = upgradeOp && upgradeOp.busy;
+    var line = old.length ? old.length + (old.length === 1 ? " Runner is" : " Runners are") + " old: " + old.map(function (r) { return esc(r.name); }).join(", ") + "." : "All Runners are current.";
+    var lacking = old.length && !ready.length ? esc(APPROVAL) : old.length > ready.length ? "Needs approval for: " + old.filter(function (r) { return !approvedRunner(r.name); }).map(function (r) { return esc(r.name); }).join(", ") + "." : "";
+    var progress = upgradeOp ? upgradeOp.items.map(function (i) { return '<span class="a-note' + (i.state === "failed" ? " a-note--warning" : "") + '" id="upgrade-' + esc(i.runnerId) + '">' + esc(i.name) + ": " + esc(i.text) + "</span>"; }).join("<br>") : "";
+    return row("upgrade", "Upgrade Runners", old.length ? "warning" : "ok", [line, lacking, progress],
+      isAdmin ? '<button class="a-btn" type="button" id="upgrade-run"' + (busy || !ready.length ? " disabled" : "") + ">" + (busy ? "Upgrading..." : "Run now") + "</button>" : "");
+  }
+
+  function updatesRow() {
+    var h = lastData && lastData.health, a = lastData && lastData.assessment;
+    var host = (h && h.host) || {};
+    if (typeof host.updatesPending !== "number") return row("updates", "OS updates", "unknown", ["Update counts need Ubuntu's update notifier on the server."], "");
+    var line = plural(host.updatesPending, "update") + " waiting" + (typeof host.securityUpdates === "number" ? ", " + host.securityUpdates + " of them security" : "") + "; " + (host.rebootRequired ? "a restart is needed." : "no restart needed.");
+    return row("updates", "OS updates", a ? a.updates : "unknown", [line, "Check only here. Install them under This machine below."], "");
+  }
+
+  function paintTasks() {
+    if (!lastData) return;
+    // Do not redraw under someone typing in the settings form.
+    if (cleanupEdit && document.activeElement && /^cs-/.test(document.activeElement.id || "")) return;
+    tasksBox.hidden = false;
+    tasksBox.innerHTML = '<section class="a-card spaced" id="maintenance"><div class="a-card__head"><h2 class="a-card__title">Maintenance</h2></div><ul class="a-list tasks">' +
+      cleanupRow() + backupRow() + upgradeRow() + updatesRow() + "</ul></section>";
+    UI.updateRelativeTimes(tasksBox);
+  }
+
+  function pollTasks() {
+    clearTimeout(tasksTimer);
+    var last = cleanupInfo && (cleanupInfo.runs || [])[0];
+    var cleaning = last && (last.result === "queued" || last.result === "running");
+    var backing = backupOp && backupOp.state === "waiting";
+    if (!cleaning && !backing) return;
+    if (cleaning) loadCleanup();
+    if (backing) {
+      load();
+      var b = lastData && lastData.health && lastData.health.backup;
+      if (b && b.lastSuccessAt && b.lastSuccessAt !== backupOp.since) backupOp = { state: "done", text: "The backup finished." };
+      else if (Date.now() - backupOp.started > 15 * 60000) backupOp = { state: "failed", text: "No new backup after 15 minutes. Check the server." };
+      else if (b && b.lastError && b.lastError !== backupOp.error) backupOp = { state: "failed", text: "The backup failed: " + b.lastError };
+    }
+    paintTasks();
+    tasksTimer = setTimeout(pollTasks, 5000);
+  }
+
+  function runCleanupNow() {
+    cleanupOp = null;
+    post("api/tasks/cleanup-run").then(function (data) {
+      if (data.status === "ok" && data.data) cleanupInfo = Object.assign({}, cleanupInfo, data.data);
+      else cleanupOp = { error: refused(data, "The cleanup could not be started.") };
+      paintTasks(); pollTasks();
+    }).catch(function () { cleanupOp = { error: "The app could not be reached." }; paintTasks(); });
+  }
+
+  function saveCleanup() {
+    var body = { timeUtc: document.getElementById("cs-time").value.trim(), keepDays: parseInt(document.getElementById("cs-keep").value, 10), journalLimitMb: parseInt(document.getElementById("cs-journal").value, 10) };
+    post("api/tasks/cleanup-settings", body).then(function (data) {
+      if (data.status === "ok") { cleanupEdit = false; cleanupOp = null; loadCleanup(); }
+      else cleanupOp = { error: refused(data, "The settings were not saved.") };
+      paintTasks();
+    }).catch(function () { cleanupOp = { error: "The app could not be reached." }; paintTasks(); });
+  }
+
+  function runBackupNow() {
+    var b = (lastData && lastData.health && lastData.health.backup) || {};
+    backupOp = { state: "waiting", text: "Backup requested. Waiting for it to finish...", since: b.lastSuccessAt, error: b.lastError, started: Date.now() };
+    paintTasks();
+    post("api/tasks/backup").then(function (data) {
+      if (data.status === "ok") return pollTasks();
+      backupOp = data.status === "forbidden" || data.status === "not_approved" ? { state: "failed", needsApproval: true } : { state: "failed", text: data.message || "The backup could not be started." };
+      paintTasks();
+    }).catch(function () { backupOp = { state: "failed", text: "The app could not be reached." }; paintTasks(); });
+  }
+
+  function upgradeOne(item) {
+    var query = "?runner=" + encodeURIComponent(item.runnerId);
+    var tries = 0;
+    function poll() {
+      fetch("api/tasks/upgrade" + query, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
+        var state = data.data && data.data.state;
+        if (state === "Reconnected") { item.state = "done"; item.text = "upgraded and reconnected."; return finish(); }
+        if (state === "RolledBack") { item.state = "failed"; item.text = (data.data.message || "the upgrade was rolled back."); return finish(); }
+        if (++tries > 60) { item.state = "failed"; item.text = "still not back after 5 minutes. Check the machine."; return finish(); }
+        item.text = (data.data && data.data.message) || "upgrading..."; paintTasks(); setTimeout(poll, 5000);
+      }).catch(function () { if (++tries > 60) { item.state = "failed"; item.text = "could not read the result."; return finish(); } setTimeout(poll, 5000); });
+    }
+    function finish() { if (upgradeOp.items.every(function (i) { return i.state !== "waiting"; })) { upgradeOp.busy = false; load(); } paintTasks(); }
+    post("api/tasks/upgrade?runner=" + encodeURIComponent(item.runnerId)).then(function (data) {
+      if (data.status !== "ok") { item.state = "failed"; item.text = refused(data, "could not be started."); return finish(); }
+      item.text = "upgrading..."; paintTasks(); setTimeout(poll, 5000);
+    }).catch(function () { item.state = "failed"; item.text = "the app could not be reached."; finish(); });
+  }
+
+  function runUpgradeNow() {
+    var items = upgradeTargets().map(function (r) { var m = approvedRunner(r.name); return m && { runnerId: m.runnerId, name: r.name, state: "waiting", text: "starting..." }; }).filter(Boolean);
+    if (!items.length) return;
+    upgradeOp = { items: items, busy: true };
+    paintTasks();
+    items.forEach(upgradeOne);
+  }
+
+  tasksBox.addEventListener("click", function (event) {
+    var id = event.target.id;
+    if (id === "cleanup-run") runCleanupNow();
+    else if (id === "cleanup-settings") { cleanupEdit = !cleanupEdit; cleanupOp = null; paintTasks(); }
+    else if (id === "cleanup-cancel") { cleanupEdit = false; cleanupOp = null; paintTasks(); }
+    else if (id === "cleanup-save") saveCleanup();
+    else if (id === "backup-run") runBackupNow();
+    else if (id === "upgrade-run") runUpgradeNow();
+  });
+
+  fetch("api/tasks", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) { isAdmin = data.admin === true; paintTasks(); }).catch(function () { /* read-only */ });
 
   UI.bindThemeToggle();
   load();
