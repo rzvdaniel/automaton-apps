@@ -1,0 +1,40 @@
+{
+  "name": "Ghost",
+  "summary": "Publish a blog and send a newsletter from your own server.",
+  "description": "The MIT-licensed Ghost publishing platform, packaged from its upstream container image. Posts, images and the SQLite database live in Automaton's durable app directory. Newsletters stay off until the optional Mailgun settings are filled in.",
+  "category": "Publishing",
+  "application": {
+    "kind": "web",
+    "description": "Publish a blog and send a newsletter from your own server.",
+    "pages": [{ "path": "/", "label": "Blog" }, { "path": "/ghost/", "label": "Admin" }],
+    "build": {
+      "command": {
+        "executable": "sh",
+        "arguments": ["-ec", "test -f automaton.json && test -f LICENSE.upstream.txt"],
+        "workingDirectory": "."
+      }
+    },
+    "runtime": {
+      "image": "ghost@sha256:a1c2adb3ab81b6d3fcae4d33bebe56a94a57c3e76c2f0b7b3d213726b2ca8922",
+      "user": "1000:1000",
+      "command": { "executable": "sh", "arguments": ["run.sh"], "workingDirectory": "." },
+      "port": 2368
+    },
+    "health": { "path": "/ghost/api/admin/site/", "startupTimeoutSeconds": 180 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "publicAccess": { "level": "recommended", "reason": "Readers open your blog without an Automaton sign-in. Ghost has its own sign-in at /ghost/." },
+    "secrets": [
+      { "name": "MAILGUN_API_KEY", "description": "Optional. Mailgun API key for newsletters; leave empty to keep newsletters off" },
+      { "name": "SMTP_PASSWORD", "description": "Optional. Password for the SMTP server below" }
+    ],
+    "settings": [
+      { "name": "GHOST_URL", "description": "This app's full address, for example https://blog.example.com (no trailing slash). Ghost builds every link from it.", "default": "https://blog.example.com", "required": true },
+      { "name": "MAILGUN_DOMAIN", "description": "Optional. Mailgun sending domain, for example mg.example.com", "default": "" },
+      { "name": "MAILGUN_REGION", "description": "Optional. Mailgun region: EU or US", "default": "EU" },
+      { "name": "MAIL_FROM", "description": "Optional. Sender address for Ghost's own emails (sign-in, notifications)", "default": "" },
+      { "name": "SMTP_HOST", "description": "Optional. SMTP server for Ghost's own emails", "default": "" },
+      { "name": "SMTP_PORT", "description": "Optional. SMTP port", "default": "587" },
+      { "name": "SMTP_USER", "description": "Optional. SMTP user name", "default": "" }
+    ]
+  }
+}
