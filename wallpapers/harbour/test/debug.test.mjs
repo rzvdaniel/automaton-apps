@@ -65,7 +65,8 @@ test('DayCycle moon override: Full and New change only the moon, Real leaves it 
   assert.equal(day.moon.fraction, 1);
   assert.equal(day.moon.altitude, 50);
   assert.deepEqual(day.sun, real.sun, 'the sun is not touched');
-  assert.ok(day.moonlight > real.moonlight || real.moonlight === day.moonlight, 'a full high moon lights at least as much');
+  assert.ok(day.moonlight > 0, 'a full high moon lights the night');
+  assert.ok(day.glitter.strength > 0, 'and glitters on the sea');
   day.moonOverride = 'new'; day.update(date, place);
   assert.equal(day.moon.fraction, 0);
   assert.equal(day.moonlight, 0);
@@ -103,4 +104,24 @@ test('SettingsForm: the dialog keeps its old ids, and a prefixed copy shares non
   const a = ids(dialog), b = ids(DebugPanel.markup());
   assert.deepEqual([...a].filter(id => b.has(id)), [], 'both can be on one page');
   assert.ok(SettingsForm.markup({ time: false }).indexOf('set-time') < 0);
+});
+
+test('SettingsForm: with a stub root, a change on a control still writes to Settings', () => {
+  const els = {};
+  const el = id => els[id] ??= { id, value: '', hidden: false, textContent: '', ownerDocument: { createElement: () => ({}) }, listeners: {}, classList: { toggle() {} },
+    addEventListener(type, fn) { this.listeners[type] = fn; }, appendChild() {}, setAttribute() {} };
+  const root = { querySelector: sel => el(sel.slice(1)) };
+  const { settings, place, clock } = setup();
+  const sound = { on: false, onChange() {}, toggle() { this.toggled = true; } };
+  new SettingsForm({ root, settings, place, clock, sound, time: false, prefix: 'dbg-' });
+  els['dbg-waves'].listeners.change({ target: { value: 'dashes' } });
+  assert.equal(settings.get('waves'), 'dashes');
+  els['dbg-weather'].listeners.change({ target: { value: '80' } });
+  assert.equal(settings.get('weather'), 0.8);
+  els['dbg-wind'].listeners.change({ target: { value: '30' } });
+  assert.deepEqual(settings.get('wind'), { mode: 'fixed', strength: 0.3 });
+  els['dbg-wind-mode'].listeners.change({ target: { value: 'auto' } });
+  assert.deepEqual(settings.get('wind'), { mode: 'auto' });
+  els['dbg-sound'].listeners.click();
+  assert.ok(sound.toggled);
 });

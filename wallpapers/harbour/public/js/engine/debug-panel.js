@@ -56,7 +56,10 @@ export class DebugPanel {
     this.status = this.el.querySelector('#dbg-status');
     this.#keepToSelf();
     this.#wire();
-    this.collapse(typeof innerWidth !== 'undefined' && innerWidth < 640);   // a phone starts with the panel folded away
+    // a phone-width screen folds the panel away, and it folds or opens again when the width changes (a turned phone, a resized window)
+    const narrow = typeof matchMedia === 'function' ? matchMedia('(max-width: 639px)') : null;
+    this.collapse(!!narrow?.matches);
+    narrow?.addEventListener?.('change', e => this.collapse(e.matches));
     this.#showMoon();
     this.at = performance.now(); this.frames = 0; this.shown = 0;
   }

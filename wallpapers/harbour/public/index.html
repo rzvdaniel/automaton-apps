@@ -44,6 +44,9 @@
   .debug-panel.collapsed .a-card__title, .debug-panel.collapsed #dbg-body { display: none; }
   .debug-panel.collapsed .a-card__head { margin: 0; }
   body.debug #settings { display: none; }
+  /* Reset zoom stays clear of the panel: left of it when open, left of its button when folded */
+  body.debug #home { top: max(12px, env(safe-area-inset-top)); right: calc(280px + 12px); }
+  body.debug:has(.debug-panel.collapsed) #home { right: 68px; }
 </style>
 </head>
 <body>
