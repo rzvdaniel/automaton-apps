@@ -224,8 +224,8 @@ import { Backdrop } from '../public/js/engine/backdrop.js';
 test('night palette: the shader mixes every ground colour to its night colour by u_night, divided by the light so it shows as chosen', () => {
   assert.match(FRAGMENT_SHADER, /uniform vec2 u_night;/);
   for (const n of ['dry', 'wet', 'grass', 'grass2', 'shallow', 'mid', 'deep', 'glow', 'foam']) {
-    assert.match(FRAGMENT_SHADER, new RegExp(`g_${n} = mix\(c_${n}, n_${n} \* nsc, u_night\.x\)`), n);
-    assert.ok(!new RegExp(`\bc_${n}\b`).test(FRAGMENT_SHADER.split('g_foam = mix(c_foam, n_foam * nsc, u_night.x);')[1]), `${n} is used through its mixed colour`);
+    assert.match(FRAGMENT_SHADER, new RegExp(`g_${n} = mix\\(c_${n}, n_${n} \\* nsc, u_night\\.x\\)`), n);
+    assert.ok(!new RegExp(`\\bc_${n}\\b`).test(FRAGMENT_SHADER.split('g_foam = mix(c_foam, n_foam * nsc, u_night.x);')[1]), `${n} is used through its mixed colour`);
   }
   assert.match(FRAGMENT_SHADER, /nsc = \(1\.0 \+ 0\.15 \* u_night\.y\) \/ max\(u_light \* vec3\(1\.0\)/);
   assert.match(FRAGMENT_SHADER, /n_deep = vec3\(0\.03, 0\.12, 0\.30\)/);
