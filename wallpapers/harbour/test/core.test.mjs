@@ -114,6 +114,23 @@ test('QualityMonitor: a longer fast stretch raises quality, and flapping backs o
   assert.deepEqual(feed(m, 15, 33, 5), [1]);
 });
 
+test('QualityMonitor: very long work is slowness; late uneven frames are slow, a steady cap is not; long gaps block raising', () => {
+  assert.deepEqual(feed(new QualityMonitor(), 30, 300, 300), [-1], '300 ms of work per frame');
+  assert.deepEqual(feed(new QualityMonitor(), 60, 66, 4), [], 'a steady 66 ms cap');
+  const m = new QualityMonitor(), out = [];
+  for (let t = 0, i = 0; t < 10000; i++) { const gap = i % 2 ? 150 : 30; t += gap; out.push(m.sample(4, gap)); }
+  assert.deepEqual(out.filter(Boolean), [-1], 'irregular long gaps');
+  const r = new QualityMonitor(); feed(r, 10, 50, 40);
+  assert.deepEqual(feed(r, 60, 100, 5), [], 'short work but long gaps: no raise');
+});
+
+test('QualityMonitor: work between the fast and slow limits resets the fast streak', () => {
+  const m = new QualityMonitor(); feed(m, 10, 50, 40);
+  assert.deepEqual(feed(m, 16, 33, 5), []); feed(m, 4, 33, 18);
+  assert.deepEqual(feed(m, 16, 33, 5), [], 'streak started again');
+  assert.deepEqual(feed(m, 8, 33, 5), [1]);
+});
+
 test('Viewport: quality steps down to the floor and back up to 1', () => {
   const v = new Viewport({ width: 800, height: 600, dpr: 1 });
   assert.equal(v.raiseQuality(), false);
