@@ -9,6 +9,10 @@
  *   the backdrop  (sea and land) gets the matrix as a shader uniform and multiplies each pixel by it
  *   the drawing   (every entity) gets a CSS filter: an SVG feColorMatrix with the same numbers, on its canvas
  *
+ * At night (`mapped`) the multiply by r, g, b moves out to the light map (the renderer's lights canvas, filled with that colour and
+ * multiplied over the picture, so the lamps can brighten their own pool): the two places then only drain colour and add the
+ * offset, divided by r, g, b so that (drain + offset / k) * k is the same picture as drain * k + offset (see split()).
+ *
  * By plain daylight there is no filter at all. The light changes at most once a second, and only then is anything redone.
  */
 const SVG = 'http://www.w3.org/2000/svg';
@@ -24,6 +28,16 @@ export class Lighting {
    */
   static matrix({ r, g, b, grey }) {
     return [r, g, b].flatMap((k, row) => LUMA.map((l, col) => k * ((row === col ? 1 - grey : 0) + grey * l)));
+  }
+
+  /**
+   * The same light with the multiply taken out for the light map: the drain matrix (r = g = b = 1) and the offset divided by
+   * r, g, b, so that multiplying the result by r, g, b gives exactly what matrix() and the offset give together.
+   * @returns {{ matrix: number[], add: number[] }}
+   */
+  static split({ r, g, b, grey, offset = ZERO }) {
+    const k = [r, g, b];
+    return { matrix: Lighting.matrix({ r: 1, g: 1, b: 1, grey }), add: offset.map((v, i) => v / k[i]) };
   }
 
   /** Is this light plain daylight (nothing to do)? */
@@ -47,15 +61,20 @@ export class Lighting {
     filter.appendChild(this.colorMatrix); svg.appendChild(filter); document.body.appendChild(svg);
   }
 
-  /** Uses this light from now on. Does nothing when it has not changed. */
-  apply(light) {
-    if (light === this.last) return;   // world.day makes a new light only when it changes (about once a second)
-    this.last = light;
-    const m = Lighting.matrix(light), add = light.offset ?? ZERO, key = [...m, ...add].map(v => v.toFixed(3)).join(' ');
+  /**
+   * Uses this light from now on. Does nothing when it has not changed.
+   * @param {object} light world.day.light
+   * @param {boolean} [mapped] the light map does the multiply (it is night): only the drain and the offset are applied here
+   */
+  apply(light, mapped = false) {
+    if (light === this.last && mapped === this.mapped) return;   // world.day makes a new light only when it changes (about once a second)
+    this.last = light; this.mapped = mapped;
+    const { matrix: m, add } = mapped ? Lighting.split(light) : { matrix: Lighting.matrix(light), add: light.offset ?? ZERO };
+    const key = [mapped, ...m, ...add].map(v => (typeof v === 'number' ? v.toFixed(3) : v)).join(' ');
     if (key === this.key) return;
     this.key = key;
     this.backdrop.setLight(m, add);
-    if (Lighting.isPlain(light)) { this.canvas.style.filter = ''; return; }
+    if (mapped ? light.grey === 0 && add.every(v => v === 0) : Lighting.isPlain(light)) { this.canvas.style.filter = ''; return; }
     // feColorMatrix is 4 x 5 (red, green, blue, alpha; the fifth column adds a constant: the offset): alpha stays as it is
     this.colorMatrix.setAttribute('values', `${m.slice(0, 3).join(' ')} 0 ${add[0]} ${m.slice(3, 6).join(' ')} 0 ${add[1]} ${m.slice(6).join(' ')} 0 ${add[2]} 0 0 0 1 0`);
     this.canvas.style.filter = `url(#${FILTER_ID})`;
