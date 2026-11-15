@@ -2,12 +2,13 @@ import './helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Weather } from '../public/js/sky/weather.js';
-import { Settings } from '../public/js/sky/settings.js';
+import { Settings, WEATHER_LEVELS } from '../public/js/sky/settings.js';
 import { DayCycle } from '../public/js/sky/day-cycle.js';
 import { Cloud } from '../public/js/entities/cloud.js';
 import { World } from '../public/js/engine/world.js';
+import { CloudBank } from '../public/js/engine/cloud-bank.js';
 import { Lighting } from '../public/js/engine/lighting.js';
-import { quietly } from './helpers.mjs';
+import { quietly, fakeContext } from './helpers.mjs';
 
 // Every test runs on fixed dates, never the real clock: 14 November 2026, Bucharest (UTC+2).
 const START = Date.UTC(2026, 10, 14);
@@ -31,11 +32,11 @@ test('Weather: "more sun" gives clearly less cloud over a week than "more clouds
   assert.ok(average(cloudy) > 0.6, `more clouds: average ${average(cloudy)}`);
   const share = list => list.filter(c => c > 0.5).length / list.length;   // how much of the week is a cloudy spell
   assert.ok(share(sunny) < 0.15 && share(cloudy) > 0.65, `cloudy spells ${share(sunny)} vs ${share(cloudy)}`);
-  assert.ok(Math.max(...sunny) > 0.6, 'even with more sun a cloudy spell comes now and then');
+  assert.ok(Math.max(...sunny) < 0.2 && Math.min(...cloudy) > 0.7, 'each weather keeps to its own sky: no cloudy spell on a sunny setting, no clear one on a stormy');
 });
 
-test('Weather: the default (the slider in the middle) stays mostly sunny, as Harbour always was', () => {
-  const middle = week(0.5), share = middle.filter(c => c > 0.5).length / middle.length;
+test('Weather: the default (partly sunny) stays mostly sunny, as Harbour always was', () => {
+  const middle = week(0.33), share = middle.filter(c => c > 0.5).length / middle.length;
   assert.ok(share < 0.4, `cloudy ${share} of the week`);
   assert.ok(average(middle) < 0.4, `average ${average(middle)}`);
 });
@@ -65,16 +66,38 @@ test('Weather: moving the slider changes the sky gradually, not at once', () => 
   assert.ok(Math.abs(weather.cover - target) < 0.01, 'a few minutes later it is there');
 });
 
-test('Weather: more cover means more and greyer clouds', () => {
-  const weather = new Weather({ settings: settingsWith(0.5) });
-  const at = cover => { weather.cover = cover; weather.started = true; weather.settings.get = () => weather.mood; Weather.coverAt = () => cover; return { ...weather.update(new Date(START), 0) }; };
-  const coverAt = Weather.coverAt;
-  try {
-    const clear = at(0.05), overcast = at(Weather.CAP);
-    assert.ok(overcast.clouds > clear.clouds + 4, `${clear.clouds} -> ${overcast.clouds}`);
-    assert.ok(overcast.darkness > clear.darkness);
-    assert.ok(clear.clouds >= 1 && overcast.clouds <= Weather.MAX_CLOUDS);
-  } finally { Weather.coverAt = coverAt; }
+/** The sky a weather level settles on, at a moment. */
+const skyOf = (level, date = new Date(START + 15 * 3600000)) => ({ ...new Weather({ settings: settingsWith(level) }).update(date) });
+
+test('Weather: the four levels are four different skies: more, larger and greyer clouds, then a storm of its own', () => {
+  for (let hour = 0; hour < 72; hour += 5) {
+    const [sunny, partly, cloudy, stormy] = WEATHER_LEVELS.map(level => skyOf(level, new Date(START + hour * 3600000)));
+    assert.ok(sunny.clouds >= 2 && sunny.clouds <= 4, `sunny: a few (${sunny.clouds})`);
+    assert.ok(partly.clouds > sunny.clouds && cloudy.clouds >= partly.clouds + 3, `more each step: ${sunny.clouds}, ${partly.clouds}, ${cloudy.clouds}`);
+    assert.ok(sunny.size < partly.size && partly.size < cloudy.size && cloudy.size >= 1.5 * partly.size, 'small, middling, large');
+    assert.ok(sunny.darkness === 0 && partly.darkness < 0.2 && cloudy.darkness > 0.7, 'white, white, grey');
+    assert.ok(sunny.speed < partly.speed && partly.speed < cloudy.speed, 'a slow drift on a sunny day');
+    for (const fair of [sunny, partly, cloudy]) { assert.equal(fair.stormClouds, 0); assert.equal(fair.storm, 0); }
+    assert.equal(stormy.clouds, 0, 'a storm has no fair clouds');
+    assert.ok(stormy.stormClouds >= 18 && stormy.stormClouds <= Weather.MAX_STORM_CLOUDS, `crowded: ${stormy.stormClouds}`);
+    assert.ok(stormy.speed >= 3 * cloudy.speed, 'and it races');
+    assert.equal(stormy.storm, 1);
+    assert.ok(sunny.cover < partly.cover && partly.cover < cloudy.cover && cloudy.cover < stormy.cover);
+  }
+});
+
+test('Weather: switching level turns one sky into the other over a few seconds, through blends of the two', () => {
+  const settings = settingsWith(0.67), weather = new Weather({ settings }), date = new Date(START + 15 * 3600000);
+  weather.update(date, 1);
+  const cloudy = { ...weather }, stormy = skyOf(1, date);
+  settings.set({ weather: 1 });
+  weather.update(date, 1);
+  assert.ok(weather.storm > 0 && weather.storm < 0.4, `one second later it has only begun (${weather.storm})`);
+  assert.ok(weather.clouds < cloudy.clouds && weather.clouds > 0 && weather.stormClouds > 0 && weather.stormClouds < stormy.stormClouds, 'both kinds are in the sky while it turns');
+  let last = weather.storm;
+  for (let i = 0; i < 14; i++) { weather.update(date, 1); assert.ok(weather.storm >= last); last = weather.storm; }
+  assert.ok(weather.storm > 0.97 && weather.clouds === 0 && weather.stormClouds === stormy.stormClouds, 'fifteen seconds later the storm is there');
+  assert.ok(Math.abs(weather.speed - stormy.speed) < 0.1);
 });
 
 test('CloudBank: the number of clouds follows the cover, one at a time and without popping', () => {
@@ -99,6 +122,110 @@ test('CloudBank: the number of clouds follows the cover, one at a time and witho
   assert.ok(world.all(Cloud).length > 1, 'but they do not vanish at once');
   run(60);
   assert.equal(world.all(Cloud).length, 1, 'they have faded or drifted away');
+});
+
+test('CloudBank: turning to stormy crowds the sky with storm clouds in seconds, formed in place and faded in, while the fair ones fade', () => {
+  const world = quietly(() => { const w = new World({ width: 1500, height: 1000 }); w.skyClock.realNow = () => START; w.generate(7); return w; });
+  const sky = { cover: 0.6, clouds: 12, stormClouds: 0, size: 1.9, darkness: 0.85, speed: 1.3, storm: 0, update() { return this; } };
+  world.weather = sky;
+  const count = storm => world.all(Cloud).filter(c => !c.leaving && c.storm === storm).length;
+  const run = seconds => { for (let i = 0; i < seconds; i++) world.update(1); };
+  run(60);
+  assert.equal(count(false), 12); assert.equal(count(true), 0);
+
+  Object.assign(sky, { cover: 0.8, clouds: 0, stormClouds: 21, storm: 1, speed: 4 });
+  run(1);
+  const fresh = world.all(Cloud).filter(c => c.storm);
+  assert.ok(fresh.length >= 3, `several form at once (${fresh.length})`);
+  for (const c of fresh) { assert.ok(c.alpha < 0.5, 'faded out at first'); assert.ok(Math.abs(c.x) <= world.hw + 0.1 && Math.abs(c.y) <= world.hh + 0.1, 'in the view, not out at its edge'); }
+  assert.ok(world.all(Cloud).some(c => !c.storm && c.alpha > 0.5), 'the fair clouds are still fading');
+  run(11);
+  assert.ok(count(true) >= 19, `twelve seconds later the sky is crowded (${count(true)})`);
+  assert.equal(count(false), 0, 'and no fair cloud is staying');
+  run(40);
+  assert.equal(count(true), 21);
+  assert.equal(world.all(Cloud).filter(c => !c.storm).length, 0, 'the fair ones are gone');
+  assert.ok(world.all(Cloud).length <= CloudBank.MAX, 'the count is capped');
+});
+
+test('CloudBank: a bigger screen holds more clouds in proportion, up to its cap', () => {
+  const bank = size => new CloudBank(new World(size));
+  assert.equal(bank({ width: 1500, height: 1000 }).wanted(20), 20);
+  assert.ok(bank({ width: 2560, height: 1080 }).wanted(20) > 20);
+  assert.ok(bank({ width: 5000, height: 1000 }).wanted(Weather.MAX_STORM_CLOUDS) <= CloudBank.MAX);
+});
+
+test('Cloud: a storm cloud is another shape: wide, low and flat along its base', () => {
+  const world = { hw: 0.75, hh: 0.5, wind: [1, 0], weather: { cover: 0.8, darkness: 1, speed: 4, size: 1.9 } };
+  for (let seed = 1; seed <= 20; seed++) {
+    let n = seed * 7919; const rnd = () => (n = (n * 16807) % 2147483647) / 2147483647;
+    const storm = new Cloud(world, rnd, 0, 0, true), fair = new Cloud(world, rnd, 0, 0), b = storm.box, f = fair.box;
+    assert.ok((b.x1 - b.x0) / (b.y1 - b.y0) > 2, `wide and low (${((b.x1 - b.x0) / (b.y1 - b.y0)).toFixed(2)})`);
+    assert.ok((b.x1 - b.x0) * storm.r > (f.x1 - f.x0) * fair.r, 'heavier than a fair cloud of its own size');
+    assert.equal(storm.floor, 0);
+    const s = storm.size;
+    for (let x = b.x0; x <= b.x1; x += 0.1) assert.equal(storm.hit(x * s, 0.02 * s), false, 'nothing hangs below the base');
+    assert.ok(storm.hit(0, -0.2 * s), 'the middle is cloud');
+    // the outline is cut off on that line too: every lump that reaches the base is an arc closed along it
+    const starts = []; let closed = 0;
+    storm.outline({ beginPath() {}, moveTo(x, y) { starts.push(y); }, arc() {}, closePath() { closed++; } }, 0, 0, 1);
+    assert.ok(closed >= 5, `the base is flat under every big lump (${closed})`);
+    assert.ok(starts.every(y => y <= 1e-9), 'no part of the outline starts below the base');
+    assert.equal(storm.size, storm.r, 'a storm cloud keeps its own size');
+    assert.ok(Math.abs(fair.size - fair.r * 1.9) < 1e-12, 'a fair cloud grows with the weather');
+  }
+});
+
+test('Cloud: a storm cloud is dark slate with a lighter rim, by day and by night', () => {
+  const noon = Cloud.tones({ darkness: 0, moonlight: 0 }, undefined, true), overcast = Cloud.tones({ darkness: 0, moonlight: 0 }, { darkness: 1 });
+  assert.equal(noon.length, 4, 'rim and three layers');
+  assert.ok(luma(noon[1]) < luma(overcast[2]) * 0.8, 'its lit layer is darker than the underside of a grey cloud');
+  assert.ok(luma(noon[0]) > luma(noon[1]) * 1.4, 'the rim is clearly lighter');
+  for (let i = 2; i < 4; i++) assert.ok(luma(noon[i - 1]) - luma(noon[i]) >= 15, 'each layer down is darker');
+  const sea = luma(NIGHT_SEA);
+  for (const moonlight of [0, 1]) {
+    const night = Cloud.tones({ darkness: 1, moonlight }, undefined, true).map(t => tinted(t, DayCycle.lightAt(-30, false, moonlight)));
+    assert.ok(luma(night[0]) > sea * 1.1, `moon ${moonlight}: the rim shows against the night sea (${luma(night[0]).toFixed(1)} vs ${sea.toFixed(1)})`);
+    for (let i = 1; i < 4; i++) assert.ok(luma(night[i]) < sea * 0.92, `moon ${moonlight}: layer ${i} is a dark mass against it (${luma(night[i]).toFixed(1)} vs ${sea.toFixed(1)})`);
+    for (let i = 2; i < 4; i++) assert.ok(luma(night[i - 1]) - luma(night[i]) >= 2.5, `the layers still read (${luma(night[i - 1]).toFixed(1)}, ${luma(night[i]).toFixed(1)})`);
+    night.forEach(t => assert.ok(t[2] > t[1] && t[1] > t[0], `bluish ${t.map(Math.round)}`));
+  }
+  const rim = moonlight => luma(tinted(Cloud.tones({ darkness: 1, moonlight }, undefined, true)[0], DayCycle.lightAt(-30, false, moonlight)));
+  assert.ok(rim(1) > rim(0) * 1.3, 'the moon lights the rim');
+});
+
+test('Cloud: its picture is painted once and then only copied each frame; colours repaint a few clouds a frame', () => {
+  const made = []; const real = globalThis.document;
+  globalThis.document = { createElement: () => { const canvas = { width: 0, height: 0, getContext: () => fakeContext() }; made.push(canvas); return canvas; } };
+  try {
+    const world = quietly(() => { const w = new World({ width: 750, height: 500 }); w.skyClock.realNow = () => START + 10 * 3600000; w.generate(7); return w; });
+    world.all(Cloud).forEach(c => { c.dead = true; }); world.update(0.016);
+    const clouds = Array.from({ length: 12 }, (_, i) => world.add(new Cloud(world, Math.random, 0, 0, i % 2 === 0)));
+    let paints = 0, copies = 0;
+    for (const c of clouds) { const paint = c.paint; c.paint = function (...a) { paints++; return paint.apply(this, a); }; }
+    const ctx = fakeContext(); ctx.drawImage = () => { copies++; };
+    const frame = () => { world.clock += 0.016; world.scene.drawLayer('clouds', ctx, world.clock); };
+    frame();
+    assert.equal(paints, 12, 'each paints its sprite the first time'); assert.equal(copies, 12);
+    assert.equal(made.length, 12, 'one small canvas each');
+    for (const canvas of made) assert.ok(canvas.width > 8 && canvas.height > 8 && Math.max(canvas.width, canvas.height) <= Cloud.MAX_SPRITE, `sprite ${canvas.width}x${canvas.height}`);
+    for (let i = 0; i < 100; i++) frame();
+    assert.equal(paints, 12, 'a hundred frames later nothing was painted again'); assert.equal(copies, 12 * 101);
+
+    world.day.darkness = 0.5;   // dusk: every cloud's colours change
+    frame();
+    assert.ok(paints - 12 > 0 && paints - 12 <= 6, `only a few repaint in one frame (${paints - 12})`);
+    for (let i = 0; i < 10; i++) frame();
+    assert.equal(paints, 24, 'and within a few frames all have');
+
+    world.camera.zoom = 4;   // zoomed in: the sprites are too small now
+    frame();
+    assert.equal(paints, 36, 'they are painted again, bigger');
+    for (const canvas of made) assert.ok(Math.max(canvas.width, canvas.height) <= Cloud.MAX_SPRITE, 'but never beyond the cap');
+    for (let i = 0; i < 20; i++) frame();
+    assert.equal(paints, 36);
+    assert.equal(made.length, 12, 'on the same canvases');
+  } finally { globalThis.document = real; }
 });
 
 test('Cloud: by day white, grey under heavy cover', () => {
@@ -148,6 +275,18 @@ test('DayCycle: daylight is dimmer and greyer under heavy cover, unchanged under
   assert.deepEqual({ ...clear, offset: [...clear.offset], moon: 0 }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0, phases: [1, 0, 0, 0] });
   assert.ok(Math.abs(cloudy.r + cloudy.g + cloudy.b - 2.7) < 1e-9, `cloudy light ${JSON.stringify(cloudy)}`);
   assert.ok(Math.abs(cloudy.grey - 0.1) < 1e-9, `grey ${cloudy.grey}`);
+});
+
+test('DayCycle: under a storm the island is clearly dimmer than under plain cloud, by day only', () => {
+  const noon = new Date(Date.UTC(2026, 10, 14, 10)), midnight = new Date(Date.UTC(2026, 10, 14, 22)), day = new DayCycle();
+  const sum = l => l.r + l.g + l.b;
+  const cloudy = { ...day.update(noon, BUCHAREST, Weather.CAP).light }, storm = { ...day.update(noon, BUCHAREST, Weather.CAP, 1).light };
+  assert.ok(sum(storm) < sum(cloudy) * 0.85, `storm ${sum(storm)} vs cloudy ${sum(cloudy)}`);
+  assert.ok(sum(storm) > 2, 'but it is still day');
+  assert.ok(storm.grey > cloudy.grey);
+  const half = { ...day.update(noon, BUCHAREST, Weather.CAP, 0.5).light };
+  assert.ok(sum(half) < sum(cloudy) && sum(half) > sum(storm), 'it comes on gradually');
+  assert.deepEqual({ ...day.update(midnight, BUCHAREST, Weather.CAP, 1).light }, { ...day.update(midnight, BUCHAREST, 0, 0).light }, 'the night is as dark as it was');
 });
 
 test('World: owns the weather, and follows a clock fixed after it was built without easing from today', () => {

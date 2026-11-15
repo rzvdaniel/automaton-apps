@@ -176,7 +176,7 @@ export class World {
     this.windField.update({ setting: this.settings.get('wind'), cover: this.weather.cover, date: now, day: Wind.dayAt(this.place, now), seconds });
     const moon = this.settings.get('moon');
     this.day.moonOverride = moon === 'full' || moon === 'new' ? moon : null;   // the viewer's moon setting
-    this.day.update(now, this.place.current, this.weather.cover);
+    this.day.update(now, this.place.current, this.weather.cover, this.weather.storm);
     if (seconds > 0) this.cloudBank.update(seconds);   // not while the island is being built: its clouds come from its seed
   }
 

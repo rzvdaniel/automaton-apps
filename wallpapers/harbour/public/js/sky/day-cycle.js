@@ -47,6 +47,8 @@ const NIGHT_GREY = 0.1;                  // how much colour fades at full night
 const NIGHT_OFFSET = [0, 0, 0];          // added after the multiply at full night, fading with grey (none now; the palette does the work)
 const CLOUD_DIM = 0.10;                  // how much darker daylight is under the heaviest cloud
 const CLOUD_GREY = 0.10;                 // and how much colour it loses
+const STORM_DIM = 0.16;                  // how much more daylight a storm takes (Weather.storm), on top of the cloud
+const STORM_GREY = 0.14;                 // and how much more colour
 
 export class DayCycle {
   static MAX_LENGTH = 3;      // a sun just above the horizon still casts a shadow that stays on the screen
@@ -70,9 +72,10 @@ export class DayCycle {
    * @param {Date} date the moment the island shows
    * @param {{ lat: number, lon: number }} place where the island is
    * @param {number} [cover] how cloudy it is, 0..1 (world.weather.cover); 0 for a clear sky
+   * @param {number} [storm] how much of a storm it is, 0..1 (world.weather.storm)
    * @returns {this}
    */
-  update(date, place, cover = 0) {
+  update(date, place, cover = 0, storm = 0) {
     const { sun, moon } = DayCycle.withMoon(this.sky.at(date, place), this.moonOverride);
     const { azimuth, altitude } = sun;
     this.sun = sun; this.moon = moon;
@@ -85,7 +88,7 @@ export class DayCycle {
 
     // how much the moon lights the night: 0 (new, or below the horizon) to 1 (full and high)
     this.moonlight = moon.fraction * smooth(-1, 25, moon.altitude);
-    this.light = DayCycle.underCloud(DayCycle.lightAt(altitude, morning, this.moonlight), cover, this.darkness);
+    this.light = DayCycle.underCloud(DayCycle.lightAt(altitude, morning, this.moonlight), cover, this.darkness, storm);
 
     const toMoon = moon.azimuth * RAD;
     this.glitter = { x: Math.sin(toMoon), y: -Math.cos(toMoon), strength: this.moonlight * this.darkness };
@@ -136,13 +139,14 @@ export class DayCycle {
 
   /**
    * The light dimmed by cloud: heavy cover (from 0.3 up) takes up to CLOUD_DIM of the daylight and some of its colour.
+   * A storm (0..1) takes up to STORM_DIM more, so the island under storm clouds is clearly dimmer.
    * At night it changes nothing (the clouds themselves are dark then). A clear sky gives back the very same light.
    */
-  static underCloud(light, cover, darkness) {
-    const k = smooth(0.3, 0.85, cover) * (1 - darkness);
-    if (k === 0) return light;
-    const dim = 1 - CLOUD_DIM * k;
-    return { ...light, r: light.r * dim, g: light.g * dim, b: light.b * dim, grey: Math.min(1, light.grey + CLOUD_GREY * k) };
+  static underCloud(light, cover, darkness, storm = 0) {
+    const k = smooth(0.3, 0.85, cover) * (1 - darkness), s = Math.min(1, Math.max(0, storm)) * (1 - darkness);
+    if (k === 0 && s === 0) return light;
+    const dim = 1 - CLOUD_DIM * k - STORM_DIM * s;
+    return { ...light, r: light.r * dim, g: light.g * dim, b: light.b * dim, grey: Math.min(1, light.grey + CLOUD_GREY * k + STORM_GREY * s) };
   }
 
   /** The shadow cast by a light at that compass direction and height (degrees), with that strength. */
