@@ -49,7 +49,6 @@ for (const [title, name, note, kind, zoom, make, background, fixed] of SHOW) {
     let hit = false;
     for (const e of stage.scene.entities) if (e.constructor.clicks && e.hit(x, y)) { e.click(x, y); hit = true; }
     if (!hit) main.click(main.x, main.y);
-    if (stage.field(x, y) > 0) stage.ripple(x, y, 1);
   });
   cells.push(cell);
 }

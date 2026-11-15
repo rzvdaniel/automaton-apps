@@ -1,10 +1,10 @@
 /**
  * Settings: the viewer's choices, kept in the browser.
  *
- * It remembers seven things: the place (a time zone, or null for "use my browser's"), the time ("now", a start time that
+ * It remembers nine things: the place (a time zone, or null for "use my browser's"), the time ("now", a start time that
  * runs on, or a fixed time that holds), the weather (one of four levels, see WEATHER_LEVELS), the wind (Auto, or one of
  * three strengths, see WIND_STRENGTHS, which stays until they change it), how the sea's waves look (see WAVES), the
- * palette set (see palettes.js) and the moon (see MOONS). A saved weather or wind strength that is not one of the levels
+ * palette set (see palettes.js) the moon (see MOONS), Every animal and whether the status lines show (default off). A saved weather or wind strength that is not one of the levels
  * (from an older version) snaps to the nearest level when it is loaded.
  * (Sound keeps its own switch in Sound.) Choices are saved in localStorage; if the browser will not let us (a private window),
  * the defaults are used and the choices last until the page is closed. Nothing is sent to a server.
@@ -21,7 +21,9 @@ export const DEFAULTS = Object.freeze({
   wind: Object.freeze({ mode: 'auto' }),  // { mode: 'auto' } or { mode: 'fixed', strength: one of WIND_STRENGTHS }
   waves: 'original',                      // one of WAVES
   palette: DEFAULT_PALETTE,               // the id of a palette set (see palettes.js)
-  moon: 'real'                            // one of MOONS
+  moon: 'real',                           // one of MOONS
+  everything: false,                      // every extra element, a calf with every whale, whales often (see World.everything)
+  status: false                           // show the status lines in the settings panel
 });
 
 /** The four weathers, sunny, partly sunny, cloudy and stormy, as the cloud mood each stands for. */
@@ -74,6 +76,8 @@ export class Settings {
     if (saved.waves !== undefined) out.waves = WAVES.includes(saved.waves) ? saved.waves : 'original';
     if (saved.palette !== undefined) out.palette = isPaletteId(saved.palette) ? saved.palette : DEFAULT_PALETTE;
     if (saved.moon !== undefined) out.moon = MOONS.includes(saved.moon) ? saved.moon : 'real';
+    if (typeof saved.everything === 'boolean') out.everything = saved.everything;
+    if (typeof saved.status === 'boolean') out.status = saved.status;
     return out;
   }
 
@@ -85,6 +89,8 @@ export class Settings {
     if ('waves' in changes && !WAVES.includes(changes.waves)) changes = { ...changes, waves: 'original' };   // an unknown style is the original sea
     if ('moon' in changes && !MOONS.includes(changes.moon)) changes = { ...changes, moon: 'real' };
     if ('palette' in changes && !isPaletteId(changes.palette)) changes = { ...changes, palette: DEFAULT_PALETTE };
+    if ('everything' in changes) changes = { ...changes, everything: changes.everything === true };
+    if ('status' in changes) changes = { ...changes, status: changes.status === true };
     this.values = { ...this.values, ...changes };
     try { this.storage?.setItem(KEY, JSON.stringify(this.values)); } catch { /* cannot save: carry on without */ }
     this.listeners.forEach(fn => fn(this.values, Object.keys(changes)));

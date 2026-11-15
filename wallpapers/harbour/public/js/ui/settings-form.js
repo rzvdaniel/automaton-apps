@@ -6,7 +6,7 @@ import { ICONS, swatch } from './icons.js';
 
 /**
  * The settings controls without a window around them: the time bar (live while dragged, Flowing or Fixed, Now), then rows of
- * round buttons for weather, wind, waves, colours, moon and sound, then the place picker. The settings panel shows them.
+ * round buttons for weather, wind, waves, colours, moon and sound, then the place picker and the status switch. The settings panel shows them.
  * It builds the markup, writes every change straight to Settings (and to Sound, which keeps its own switch, and to the clock)
  * and shows the current choices on show(). It does no thinking of its own. Ids start with `set-`.
  */
@@ -36,6 +36,12 @@ export class SettingsForm {
     ];
   }
 
+  /** The Every animal row, just before Status: on places every extra and gives whales calves, off leaves it to chance. */
+  static EVERYTHING = { key: 'everything', label: 'Every animal', options: [{ value: 'on', label: 'Every animal on', icon: ICONS.everythingOn }, { value: 'off', label: 'Every animal off', icon: ICONS.everythingOff }] };
+
+  /** The status row, last in the panel: on shows the status lines, off hides them. */
+  static STATUS = { key: 'status', label: 'Status', options: [{ value: 'on', label: 'Status on', icon: ICONS.statusOn }, { value: 'off', label: 'Status off', icon: ICONS.statusOff }] };
+
   /** The two ways time can go on once a time is chosen. */
   static FLOW = [{ value: 'flowing', label: 'Flowing' }, { value: 'fixed', label: 'Fixed' }];
 
@@ -51,7 +57,11 @@ export class SettingsForm {
     <span class="time-row">${IconRow.markup({ id: 'set-flow', labelId: 'set-lbl-time', options: SettingsForm.FLOW })}<button type="button" class="a-btn" id="set-now">Now</button></span></div>
   ${rows}
   <div class="a-field"><label class="a-label" for="set-place">Place</label>
-    <select class="a-input" id="set-place"></select><span class="a-hint" id="set-place-hint"></span></div>`;
+    <select class="a-input" id="set-place"></select><span class="a-hint" id="set-place-hint"></span></div>
+  <div class="a-field"><span class="a-label" id="set-lbl-everything">${SettingsForm.EVERYTHING.label}</span>
+    ${IconRow.markup({ id: 'set-everything', labelId: 'set-lbl-everything', options: SettingsForm.EVERYTHING.options })}</div>
+  <div class="a-field"><span class="a-label" id="set-lbl-status">${SettingsForm.STATUS.label}</span>
+    ${IconRow.markup({ id: 'set-status-toggle', labelId: 'set-lbl-status', options: SettingsForm.STATUS.options })}</div>`;
   }
 
   /**
@@ -84,10 +94,14 @@ export class SettingsForm {
     else if (key === 'colours') s.set({ palette: value });
     else if (key === 'moon') s.set({ moon: value });
     else if (key === 'sound') this.sound.set(value === 'on');
+    else if (key === 'everything') s.set({ everything: value === 'on' });
+    else if (key === 'status') s.set({ status: value === 'on' });
   }
 
   #wire() {
     for (const { key } of SettingsForm.rows()) IconRow.onPick(this.#el(key), value => this.pick(key, value));
+    IconRow.onPick(this.#el('everything'), value => this.pick('everything', value));
+    IconRow.onPick(this.#el('status-toggle'), value => this.pick('status', value));
     this.#el('place').addEventListener('change', e => this.settings.set({ place: e.target.value || null }));
     const hour = this.#el('hour');
     hour.addEventListener('input', () => { this.dragging = true; this.clock.setLocalMinutes(Number(hour.value)); this.#showHour(Number(hour.value)); });
@@ -138,6 +152,8 @@ export class SettingsForm {
     show('colours', s.get('palette'));
     show('moon', s.get('moon'));
     show('sound', this.sound.on ? 'on' : 'off');
+    show('everything', s.get('everything') ? 'on' : 'off');
+    show('status-toggle', s.get('status') ? 'on' : 'off');
     const picked = s.get('place');
     this.#el('place').value = picked && Place.cities.some(c => c.zone === picked) ? picked : '';
     this.#el('place-hint').textContent = `${this.place.current.city} (${this.place.zone})`;

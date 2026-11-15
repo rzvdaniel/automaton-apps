@@ -2,7 +2,7 @@ import { SHADE } from '../core/draw.js';
 
 /**
  * What a tap or a hover does to the island: finds what was touched (topmost first), lets it react and make its sound,
- * and otherwise ripples the water or scatters dust. It works on screen positions and knows nothing about gestures.
+ * and otherwise frightens the fish or scatters dust. It works on screen positions and knows nothing about gestures.
  */
 export class Interaction {
   /**
@@ -33,7 +33,7 @@ export class Interaction {
       if (mode === 'one') solid = true;
     }
     if (terrain.field(x, y) > 0.005) {   // open water
-      effects.ripple(x, y, 1); scene.scare(x, y, 0.2, true);   // rings and frightened fish, and no sound: a click on the sea stays quiet
+      scene.scare(x, y, 0.2, true);   // frightened fish, and no rings and no sound: a click on the sea stays quiet
     } else {
       scene.scare(x, y, 0.08, false);
       if (!hit) effects.burst(x, y, 6, 0.03, SHADE, 0.003, 0.5);

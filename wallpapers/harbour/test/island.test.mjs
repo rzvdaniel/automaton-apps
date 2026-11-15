@@ -8,7 +8,7 @@ import * as entities from '../public/js/entities/index.js';
 import { fakeContext, quietly, GOLDEN_SIZE } from './helpers.mjs';
 
 const golden = JSON.parse(readFileSync(new URL('./golden.json', import.meta.url), 'utf8'));
-const RANDOM_START = new Set(['Shark', 'SleekShark', 'Whale', 'Fox']);   // they start somewhere random, so they are not part of the fingerprint
+const RANDOM_START = new Set(['Shark', 'SleekShark', 'Whale']);   // they start somewhere random, so they are not part of the fingerprint
 
 const fnv = text => { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
 const round = n => n.toFixed(4);
@@ -22,7 +22,7 @@ function fingerprint(world) {
   return `${fnv(rows.join('|') + terrain)}/${rows.length}`;
 }
 
-const build = (seed, debug) => { const world = new World({ ...GOLDEN_SIZE, debug }); quietly(() => world.generate(seed)); return world; };
+const build = (seed, everything) => { const world = new World({ ...GOLDEN_SIZE, debug: false, everything }); quietly(() => world.generate(seed)); return world; };
 
 for (const mode of ['normal', 'debug']) {
   test(`every seed builds the same island as before (${mode} mode)`, () => {
@@ -43,7 +43,12 @@ test('every island has a harbour, a lighthouse, a town and a sky', () => {
   }
 });
 
-test('with debug on, every extra is placed or reported', () => {
+test('?debug alone adds no extras; with Every animal on, every extra is placed', () => {
+  const plain = new World({ ...GOLDEN_SIZE, debug: true, everything: false }); quietly(() => plain.generate(7));
+  const kinds = w => [entities.Seal, entities.Balloon, entities.Biplane, entities.DolphinPod, entities.Puffin, entities.Cow, entities.Cottage, entities.Kite, entities.Buoy, entities.JellyBloom].filter(T => w.count(T) > 0).length;
+  assert.equal(plain.everything, false); assert.ok(kinds(plain) < 10, 'not every extra');
+  plain.settings.set({ everything: true });   // the island is rebuilt with the same seed
+  assert.equal(plain.seed, 7); assert.equal(kinds(plain), 10, 'the toggle places every extra');
   const world = build(7, true);
   for (const Type of [entities.Seal, entities.Balloon, entities.Biplane, entities.DolphinPod, entities.Puffin, entities.Cow, entities.Cottage, entities.Kite, entities.Buoy, entities.JellyBloom]) {
     assert.ok(world.count(Type) > 0, `${Type.name} is on the island`);

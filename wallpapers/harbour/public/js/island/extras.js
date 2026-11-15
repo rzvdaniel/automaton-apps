@@ -4,11 +4,11 @@ import { Seal, Balloon, Biplane, DolphinPod, Puffin, Cow, Kite, Buoy, JellyBloom
 const EXTRAS = ['Seal', 'Balloon', 'Biplane', 'DolphinPod', 'Puffin', 'Cow', 'Cottage', 'Kite', 'Buoy', 'JellyBloom'];
 
 /**
- * Each island gets a random handful of extras, 4 to 6 of them (all of them with ?debug).
+ * Each island gets a random handful of extras, 4 to 6 of them (all of them with Every animal or ?all).
  * This picks which, and turns one or two ordinary houses into thatched cottages if the cottage was picked.
  */
 export function chooseExtras(ctx) {
-  const { G, world, houses } = ctx, everything = world.debug;
+  const { G, world, houses } = ctx, everything = world.everything;
   const mix = EXTRAS.slice();
   for (let i = mix.length - 1; i > 0; i--) { const j = Math.floor(G() * (i + 1)); [mix[i], mix[j]] = [mix[j], mix[i]]; }
   const target = everything ? EXTRAS.length : 4 + Math.floor(G() * 3);
