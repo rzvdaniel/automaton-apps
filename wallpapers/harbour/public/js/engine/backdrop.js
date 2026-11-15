@@ -1,7 +1,7 @@
 import { VERTEX_SHADER, FRAGMENT_SHADER, MAX_LAND, MAX_RIPPLES } from './shader-source.js';
 import { RepaintPolicy } from './repaint-policy.js';
 import { Wind } from './wind.js';
-import { paletteSet, flatten, DEFAULT_PALETTE } from '../sky/palettes.js';
+import { paletteSet, blend, DEFAULT_PALETTE } from '../sky/palettes.js';
 
 /** The waves styles (see Settings) as the shader's numbers. */
 export const WAVE_STYLES = Object.freeze({ off: 0, original: 1, crescents: 2, dashes: 3 });
@@ -25,7 +25,7 @@ export class Backdrop {
     this.wind = new Float32Array([1, 0, 0, 1]);   // u_wind: which way it blows (x, y), how hard for the sea (0 calm), and whether to draw whitecaps (1) or not (0)
     this.night = new Float32Array(2);   // u_night: how much the night palette shows (0 by day .. 1) and the moonlight (0..1)
     this.phase = new Float32Array([1, 0, 0, 0]);   // u_phase: how much the day, sunrise, sunset and night palettes show (they sum to 1)
-    this.palette = DEFAULT_PALETTE; this.pal = flatten(paletteSet(this.palette)); this.palDirty = true;   // u_pal: the 36 colours of the chosen set, sent only when the set changes
+    this.palette = DEFAULT_PALETTE; this.pal = blend(paletteSet(this.palette)); this.palDirty = true;   // u_pal: 18 colours, the day palette and the blended rest, sent only when they change
     this.moon = new Float32Array(3);   // u_moon: the moon's direction on the screen (x, y; east +x, north -y) and the strength of its glitter on the sea (0 by day, with no moon)
     this.lightAdd = new Float32Array(3);   // added after the multiply (u_lightAdd); none by day
     this.waves = new Float32Array([1, Wind.REFERENCE]);   // u_waves: the style (WAVE_STYLES) and the wind strength 0..1 (light-wind crests start before the sea strength does)
@@ -52,6 +52,7 @@ export class Backdrop {
     const attribute = gl.getAttribLocation(program, 'a');
     gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
     UNIFORMS.forEach(name => { this.uniforms[name] = gl.getUniformLocation(program, name); });
+    this.palDirty = true;   // the program is new: it has no palette yet
     return gl;
   }
 
@@ -84,7 +85,7 @@ export class Backdrop {
 
   /** Uses a new light: a 3 x 3 colour matrix, row by row, from Lighting, with the offset, the night amount, the moonlight and the palette weights. The picture is repainted with it next frame. */
   setLight(rows, add = [0, 0, 0], night = 0, moon = 0, phases = [1, 0, 0, 0]) {
-    this.lightAdd.set(add); this.night.set([night, moon]); this.phase.set(phases);
+    this.lightAdd.set(add); this.night.set([night, moon]); this.phase.set(phases); this.#blend();
     for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) this.lightMatrix[c * 3 + r] = rows[r * 3 + c];   // GLSL wants it column by column
     this.policy.invalidate();
   }
@@ -92,7 +93,13 @@ export class Backdrop {
   /** Uses a palette set (an id, see palettes.js); an unknown id is the default. The colours go to the shader at the next frame, once. */
   setPalette(id) {
     if (id === this.palette) return;
-    this.palette = id; this.pal = flatten(paletteSet(id)); this.palDirty = true; this.policy.invalidate();
+    this.palette = id; this.#blend(); this.policy.invalidate();
+  }
+
+  /** Blends the palettes for the current set, weights and moon; marks them to be sent only when they differ from what was sent. */
+  #blend() {
+    const next = blend(paletteSet(this.palette), this.phase, this.night[1]);
+    if (next.some((v, i) => Math.abs(v - this.pal[i]) > 1e-4)) { this.pal = next; this.palDirty = true; }
   }
 
   /** Uses the moon's glitter ({ x, y, strength }, see DayCycle.glitter); repaints only when it has changed enough to see. */

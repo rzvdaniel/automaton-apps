@@ -269,7 +269,7 @@ test('shader: the moon glitter is on open sea only, on a fast device only, and a
 });
 
 // ----- palette sets (#211) -----
-import { PALETTES, PHASES, COLOURS, paletteSet, flatten } from '../public/js/sky/palettes.js';
+import { PALETTES, PHASES, COLOURS, paletteSet, flatten, blend } from '../public/js/sky/palettes.js';
 import { Settings, DEFAULTS } from '../public/js/sky/settings.js';
 
 test('palettes: classic day is the old daylight constants and classic night the night of #205, exactly', () => {
@@ -335,10 +335,24 @@ test('palettes: the backdrop sends the colours once per set, and the form offers
   assert.equal(backdrop.palDirty, true);
   backdrop.palDirty = false; backdrop.setPalette('classic'); assert.equal(backdrop.palDirty, false, 'same set: nothing to send');
   backdrop.setPalette('nordic'); assert.equal(backdrop.palDirty, true);
-  assert.deepEqual([...backdrop.pal], [...flatten(paletteSet('nordic'))]);
+  assert.deepEqual([...backdrop.pal], [...blend(paletteSet('nordic'))]);
+  backdrop.palDirty = false;
   backdrop.setLight([1, 0, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0], 0, 0, [0, 0, 1, 0]);
   assert.deepEqual([...backdrop.phase], [0, 0, 1, 0]);
+  assert.equal(backdrop.palDirty, true, 'the blend changed with the light');
+  assert.deepEqual([...backdrop.pal.slice(27, 30)], [...Float32Array.from(paletteSet('nordic').sunset.dry)]);
+  backdrop.palDirty = false; backdrop.setLight([1, 0, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0], 0, 0, [0, 0, 1, 0]); assert.equal(backdrop.palDirty, false, 'same light: nothing to send');
   const { SettingsForm } = await import('../public/js/ui/settings-form.js');
   const html = SettingsForm.markup();
   for (const p of PALETTES) assert.ok(html.includes(`<option value="${p.id}">${p.name}</option>`), p.id);
+});
+
+test('palettes: the blend is the day palette plus the weighted rest, the moon brightening only the night part', () => {
+  const c = paletteSet('classic'), noon = blend(c, [1, 0, 0, 0], 1), night = blend(c, [0, 0, 0, 1], 1), dark = blend(c, [0, 0, 0, 1], 0);
+  assert.deepEqual([...noon.slice(0, 3)], [...c.day.dry].map(Math.fround), 'day colours as they are');
+  assert.deepEqual([...noon.slice(27)], new Array(27).fill(0), 'nothing else at noon');
+  assert.deepEqual([...dark.slice(27, 30)], [...c.night.dry].map(Math.fround), 'classic night exactly');
+  assert.ok(Math.abs(night[27] - c.night.dry[0] * 1.15) < 1e-6, 'a full moon brightens the night by 15%');
+  const mixed = blend(c, [0, 0.5, 0.5, 0], 1);
+  assert.ok(Math.abs(mixed[27] - (c.sunrise.dry[0] + c.sunset.dry[0]) / 2) < 1e-6, 'the moon does not touch dawn or dusk');
 });

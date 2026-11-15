@@ -42,7 +42,24 @@ export const isPaletteId = id => PALETTES.some(p => p.id === id);
 /** The set with this id; an unknown id is the default set. */
 export const paletteSet = id => PALETTES.find(p => p.id === id) ?? PALETTES[0];
 
-/** A set as the shader's `u_pal`: 36 colours (day, sunrise, sunset, night; nine each, in COLOURS order) as 108 numbers. */
+/**
+ * The shader's `u_pal`: 18 colours as 54 numbers. The first nine are the set's day palette; the next nine are the non-day part
+ * on screen, blended on the CPU: sunrise, sunset and night by their weights (`phases`, see DayCycle.phasesAt), the night one
+ * a little brighter by the moonlight (0..1). The shader adds the day weight times the first nine and the light-corrected second nine.
+ * Few uniforms matter on phones (some allow only 64 fragment vectors); it changes with the light, about once a second.
+ */
+export function blend(set, phases = [1, 0, 0, 0], moon = 0) {
+  const out = new Float32Array(54), w = [phases[1], phases[2], phases[3] * (1 + 0.15 * moon)];
+  COLOURS.forEach((name, k) => {
+    for (let i = 0; i < 3; i++) {
+      out[k * 3 + i] = set.day[name][i];
+      out[27 + k * 3 + i] = w[0] * set.sunrise[name][i] + w[1] * set.sunset[name][i] + w[2] * set.night[name][i];
+    }
+  });
+  return out;
+}
+
+/** A set as 108 numbers: 36 colours (day, sunrise, sunset, night; nine each, in COLOURS order). */
 export function flatten(set) {
   return new Float32Array(PHASES.flatMap(phase => COLOURS.flatMap(name => set[phase][name])));
 }

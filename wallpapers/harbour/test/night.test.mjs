@@ -222,15 +222,15 @@ import { FRAGMENT_SHADER } from '../public/js/engine/shader-source.js';
 import { DayCycle } from '../public/js/sky/day-cycle.js';
 import { Backdrop } from '../public/js/engine/backdrop.js';
 
-test('palettes: the shader mixes the four palettes of nine colours by u_phase, the non-day ones divided by the light so they show as chosen', () => {
+test('palettes: the shader mixes the day palette by u_phase.x and the blended rest divided by the light so they show as chosen', () => {
   assert.match(FRAGMENT_SHADER, /uniform vec4 u_phase;/);
-  assert.match(FRAGMENT_SHADER, /uniform vec3 u_pal\[36\];/);
+  assert.match(FRAGMENT_SHADER, /uniform vec3 u_pal\[18\];/);
   ['dry', 'wet', 'grass', 'grass2', 'shallow', 'mid', 'deep', 'glow', 'foam'].forEach((n, k) => {
-    assert.ok(FRAGMENT_SHADER.includes(`g_${n} = u_pal[${k}] * u_phase.x + (u_pal[${9 + k}] * u_phase.y + u_pal[${18 + k}] * u_phase.z + u_pal[${27 + k}] * u_phase.w * nm) * nsc;`), n);
+    assert.ok(FRAGMENT_SHADER.includes(`g_${n} = u_pal[${k}] * u_phase.x + u_pal[${9 + k}] * nsc;`), n);
   });
   assert.ok(!/[cn]_(dry|wet|grass|shallow|mid|deep|glow|foam)/.test(FRAGMENT_SHADER), 'no colour constants left: they live in palettes.js');
   assert.match(FRAGMENT_SHADER, /nsc = 1\.0 \/ max\(u_light \* vec3\(1\.0\)/);
-  assert.match(FRAGMENT_SHADER, /nm = 1\.0 \+ 0\.15 \* u_night\.y/);
+  assert.ok(!/u_pal\[(1[89]|[2-9][0-9])\]/.test(FRAGMENT_SHADER), 'only 18 colours are uniforms: phones can have few');
 });
 
 test('night palette: Lighting hands the amount and the moonlight to the backdrop', () => {
