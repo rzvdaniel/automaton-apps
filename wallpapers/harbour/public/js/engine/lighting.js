@@ -3,8 +3,8 @@
  * tinting itself.
  *
  * The light is one small colour sum, the same for every pixel: first drain some colour (mix each colour with its grey,
- * `grey` of the way), then multiply red, green and blue by the light's r, g, b. Both steps together are one 3 x 3 matrix
- * (see matrix()). It is applied in two places, both run by the graphics chip and costing next to nothing:
+ * `grey` of the way), then multiply red, green and blue by the light's r, g, b, then add the light's offset (a small colour, negative at night).
+ * The first two steps are one 3 x 3 matrix (see matrix()); the offset is the extra column. It is applied in two places, both run by the graphics chip and costing next to nothing:
  *
  *   the backdrop  (sea and land) gets the matrix as a shader uniform and multiplies each pixel by it
  *   the drawing   (every entity) gets a CSS filter: an SVG feColorMatrix with the same numbers, on its canvas
@@ -13,6 +13,7 @@
  */
 const SVG = 'http://www.w3.org/2000/svg';
 const FILTER_ID = 'harbour-light';
+const ZERO = [0, 0, 0];
 const LUMA = [0.299, 0.587, 0.114];   // how bright red, green and blue look to the eye
 
 export class Lighting {
@@ -26,10 +27,12 @@ export class Lighting {
   }
 
   /** Is this light plain daylight (nothing to do)? */
-  static isPlain({ r, g, b, grey }) { return r === 1 && g === 1 && b === 1 && grey === 0; }
+  static isPlain({ r, g, b, grey, offset = ZERO }) {
+    return r === 1 && g === 1 && b === 1 && grey === 0 && offset.every(v => v === 0);
+  }
 
   /**
-   * @param {{ canvas: HTMLCanvasElement, backdrop: { setLight(m: number[]): void } }} parts the 2D canvas and the backdrop
+   * @param {{ canvas: HTMLCanvasElement, backdrop: { setLight(m: number[], add: number[]): void } }} parts the 2D canvas and the backdrop
    */
   constructor({ canvas, backdrop }) {
     this.canvas = canvas; this.backdrop = backdrop; this.key = '';
@@ -48,13 +51,13 @@ export class Lighting {
   apply(light) {
     if (light === this.last) return;   // world.day makes a new light only when it changes (about once a second)
     this.last = light;
-    const m = Lighting.matrix(light), key = m.map(v => v.toFixed(3)).join(' ');
+    const m = Lighting.matrix(light), add = light.offset ?? ZERO, key = [...m, ...add].map(v => v.toFixed(3)).join(' ');
     if (key === this.key) return;
     this.key = key;
-    this.backdrop.setLight(m);
+    this.backdrop.setLight(m, add);
     if (Lighting.isPlain(light)) { this.canvas.style.filter = ''; return; }
-    // feColorMatrix is 4 x 5 (red, green, blue, alpha; the fifth column adds a constant): alpha stays as it is
-    this.colorMatrix.setAttribute('values', `${m.slice(0, 3).join(' ')} 0 0 ${m.slice(3, 6).join(' ')} 0 0 ${m.slice(6).join(' ')} 0 0 0 0 0 1 0`);
+    // feColorMatrix is 4 x 5 (red, green, blue, alpha; the fifth column adds a constant: the offset): alpha stays as it is
+    this.colorMatrix.setAttribute('values', `${m.slice(0, 3).join(' ')} 0 ${add[0]} ${m.slice(3, 6).join(' ')} 0 ${add[1]} ${m.slice(6).join(' ')} 0 ${add[2]} 0 0 0 1 0`);
     this.canvas.style.filter = `url(#${FILTER_ID})`;
   }
 }
