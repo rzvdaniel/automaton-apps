@@ -7,7 +7,7 @@ import { Gull, GullFlock } from './entities/gulls.js';
 
 const sound = new Sound();
 const world = new World({ stage: document.getElementById('stage'), sound });
-new Controls({ sound, camera: world.camera, panel: world.panel });
+new Controls({ sound, camera: world.camera, panel: world.panel, zoomStep: f => world.zoomStep(f) });
 
 // the ambient gull call comes from where a gull really is, heard from that side
 sound.gullPan = () => {

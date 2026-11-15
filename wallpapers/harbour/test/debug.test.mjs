@@ -304,3 +304,50 @@ test('SettingsPanel: toggle, aria-expanded, Escape, and focus in and out', () =>
   assert.equal(doc.activeElement, button, 'focus elsewhere is left alone');
   delete globalThis.window;
 });
+
+test('SettingsForm: a single click on the time bar (change without any input) sets and saves that hour', () => {
+  const { settings, els, clock, real } = stubForm();
+  els.hour.value = '1000';
+  els.hour.listeners.change();   // no input event before it: no drag
+  assert.deepEqual(settings.get('time'), { mode: 'start', start: '16:40', setAt: real.t });
+  assert.equal(clock.text(), '16:40:00');
+  assert.equal(els['hour-text'].textContent, '16:40');
+});
+
+test('SettingsForm: the -1 h and +1 h buttons step the hour, wrap around midnight and save', () => {
+  const { settings, els, clock, real, press } = stubForm();   // 12:00
+  els['hour-plus'].listeners.click();
+  assert.equal(clock.text(), '13:00:00');
+  assert.deepEqual(settings.get('time'), { mode: 'start', start: '13:00', setAt: real.t });
+  els['hour-minus'].listeners.click(); els['hour-minus'].listeners.click();
+  assert.equal(clock.text(), '11:00:00');
+  clock.setLocalMinutes(23 * 60 + 30); els['hour-plus'].listeners.click();
+  assert.equal(clock.text(), '00:30:00', 'wraps forward');
+  els['hour-minus'].listeners.click();
+  assert.equal(clock.text(), '23:30:00', 'wraps back');
+  press('flow', 'fixed'); els['hour-plus'].listeners.click();
+  assert.deepEqual(settings.get('time'), { mode: 'fixed', at: '00:30' }, 'Fixed stays Fixed');
+});
+
+test('Controls: the zoom buttons exist with labels, and zoom by the key step about the visible centre', async () => {
+  const { Controls } = await import('../public/js/ui/controls.js');
+  const { World } = await import('../public/js/engine/world.js');
+  const html = (await import('node:fs')).readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  for (const [id, label] of [['zoom-in', 'Zoom in'], ['zoom-out', 'Zoom out'], ['home', 'Reset zoom']]) assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
+  const els = {}, stopped = [];
+  const button = id => els[id] ??= { listeners: {}, addEventListener(t, fn) { this.listeners[t] = fn; } };
+  const document = { getElementById: button, body: { classList: { toggle() {} } } };
+  const steps = [];
+  new Controls({ sound: { on: false }, camera: { onChange() {}, reset() {} }, panel: { toggle() {} }, zoomStep: f => steps.push(f), document });
+  els['zoom-in'].listeners.click(); els['zoom-out'].listeners.click();
+  assert.deepEqual(steps, [1.4, 1 / 1.4]);
+  els['zoom-in'].listeners.pointerdown({ stopPropagation: () => stopped.push('in') });
+  els['zoom-out'].listeners.wheel({ stopPropagation: () => stopped.push('out') });
+  assert.deepEqual(stopped, ['in', 'out'], 'a press or wheel on a zoom button does not reach the island');
+  const world = new World({ width: 800, height: 600 });
+  const calls = [];
+  world.camera.zoomAt = (...a) => calls.push(a);
+  world.camera.targetOffsetX = -170;   // the settings panel is open: the island sits left of the screen's middle
+  world.zoomStep(1.4);
+  assert.deepEqual(calls, [[1.4, 800 / 2 - 170, 300]], 'zooms around the visible centre');
+});

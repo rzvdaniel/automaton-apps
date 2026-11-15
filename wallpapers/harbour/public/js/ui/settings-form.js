@@ -44,7 +44,9 @@ export class SettingsForm {
     const rows = SettingsForm.rows().map(r => `<div class="a-field"><span class="a-label" id="set-lbl-${r.key}">${r.label}</span>
     ${IconRow.markup({ id: 'set-' + r.key, labelId: 'set-lbl-' + r.key, options: r.options })}</div>`).join('\n  ');
     return `<div class="a-field"><label class="a-label" id="set-lbl-time" for="set-hour">Time <output id="set-hour-text"></output></label>
-    <input class="slider" id="set-hour" type="range" min="0" max="1439" step="1">
+    <span class="hour-row"><button type="button" class="icon-btn icon-btn--step" id="set-hour-minus" title="Back one hour" aria-label="Back one hour">−1 h</button>
+      <input class="slider" id="set-hour" type="range" min="0" max="1439" step="1">
+      <button type="button" class="icon-btn icon-btn--step" id="set-hour-plus" title="Forward one hour" aria-label="Forward one hour">+1 h</button></span>
     <span class="slider-ends a-hint"><span>00:00</span><span>23:59</span></span>
     <span class="time-row">${IconRow.markup({ id: 'set-flow', labelId: 'set-lbl-time', options: SettingsForm.FLOW })}<button type="button" class="a-btn" id="set-now">Now</button></span></div>
   ${rows}
@@ -89,13 +91,30 @@ export class SettingsForm {
     this.#el('place').addEventListener('change', e => this.settings.set({ place: e.target.value || null }));
     const hour = this.#el('hour');
     hour.addEventListener('input', () => { this.dragging = true; this.clock.setLocalMinutes(Number(hour.value)); this.#showHour(Number(hour.value)); });
-    hour.addEventListener('change', () => { this.dragging = false; this.clock.save(this.settings.get('time').mode === 'fixed'); this.show(); });   // saved when the drag ends
+    // saved when the drag ends or on a click, which fires `change` with no `input` before it: so the bar's own value is applied first
+    hour.addEventListener('change', () => this.#commit(Number(hour.value)));
+    this.#el('hour-minus').addEventListener('click', () => this.stepHour(-1));
+    this.#el('hour-plus').addEventListener('click', () => this.stepHour(1));
     IconRow.onPick(this.#el('flow'), value => {
       const fixed = this.settings.get('time').mode === 'fixed';
       if (value === 'fixed' && !fixed) this.clock.setFixed(this.clock.shownText());
       else if (value === 'flowing' && this.settings.get('time').mode !== 'start') this.clock.setStart(this.clock.shownText());
     });
     this.#el('now').addEventListener('click', () => { this.dragging = false; this.clock.setNow(); this.show(); });
+  }
+
+  /** Sets the time to `minutes` past local midnight and saves it as the bar does (Fixed stays Fixed, otherwise Flowing). */
+  #commit(minutes) {
+    this.clock.setLocalMinutes(minutes);
+    this.dragging = false;
+    this.clock.save(this.settings.get('time').mode === 'fixed');
+    this.show();
+  }
+
+  /** The -1 h / +1 h buttons: the shown hour moves by `hours` and is saved. It wraps around midnight (23:30 + 1 h is 00:30). */
+  stepHour(hours) {
+    const day = 1440;
+    this.#commit((((Math.round(this.clock.minutes()) + hours * 60) % day) + day) % day);
   }
 
   #showHour(minutes) { this.#el('hour-text').textContent = SettingsForm.hourText(minutes); }
