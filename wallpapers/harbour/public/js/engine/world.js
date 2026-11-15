@@ -11,6 +11,7 @@ import { DayCycle } from '../sky/day-cycle.js';
 import { Weather } from '../sky/weather.js';
 import { CloudBank } from './cloud-bank.js';
 import { Effects } from './effects.js';
+import { WindSwirls } from './wind-swirls.js';
 import { Scene } from './scene.js';
 import { Presence } from './presence.js';
 import { Interaction } from './interaction.js';
@@ -31,6 +32,7 @@ const DAY_EVERY = 1;   // seconds between updates of the time of day
  *   viewport     screen size and scale           camera       zoom and pan
  *   terrain      the land and the shore          windField    the wind: its direction, strength and gusts
  *   effects      ripples, spray, bell rings      scene        the entities, and drawing them in order
+ *   swirls       the wind shown as curling streaks
  *   interaction  what a tap or hover does        input        mouse, finger and pen gestures
  *   renderer     the canvases and the picture    loop         one step per frame
  *   settings     the viewer's choices (saved)    place        where the island is (city, latitude, longitude)
@@ -67,6 +69,7 @@ export class World {
     this.settings.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // a new time or place shows at once, not at the next tick
     this.skyClock.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // the panel's time slider while dragged
     this.effects = new Effects();
+    this.swirls = new WindSwirls();
     this.presence = new Presence({ day: this.day, dates: () => this.#dates() });
     this.scene = new Scene({ onError: line => this.#reportError(line), presence: this.presence });
     this.interaction = new Interaction({ scene: this.scene, camera: this.camera, terrain: this.terrain, effects: this.effects, sound, onActivity: ms => this.loop?.keepBusy(ms) });
@@ -110,7 +113,7 @@ export class World {
 
   // ---------- building and running ----------
   /** Forgets the island so a new one can be built. */
-  reset() { this.scene.clear(); this.windowLights.clear(); this.terrain.reset(); this.effects.clear(); this.windField.setAngle(0); }
+  reset() { this.scene.clear(); this.windowLights.clear(); this.terrain.reset(); this.effects.clear(); this.swirls.clear(); this.windField.setAngle(0); }
 
   /** Every animal: all the extras placed, a calf with every whale and whales often. From the setting or ?all. */
   get everything() { return this.allForVisit || this.settings.get('everything'); }
@@ -133,12 +136,13 @@ export class World {
     if (Math.abs(this.clock - this.dayAt) >= DAY_EVERY) this.#updateDay();
     if (this.camera.ease(dt)) this.loop?.keepBusy(200);   // still zooming: stay at full speed
     this.effects.update(dt);
+    this.swirls.update(dt, this.windField, this.hw, this.hh);
     this.scene.update(dt);
   }
 
   /** Paints the island as it is now. */
   render() {
-    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness, glitter: this.day.glitter, wind: this.windField, waves: this.settings.get('waves'), palette: this.settings.get('palette') });
+    this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, swirls: this.swirls, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness, glitter: this.day.glitter, wind: this.windField, waves: this.settings.get('waves'), palette: this.settings.get('palette') });
     this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, quality: this.viewport.quality, wind: this.windField.strength, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
   }
 
