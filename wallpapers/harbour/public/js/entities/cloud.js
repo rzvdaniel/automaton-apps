@@ -1,8 +1,9 @@
 // A cloud drifting on the wind, with its shadow on the island below. Click it and it blows away; a new one drifts in.
 //
 // There are two kinds. A fair cloud is a heap of round lumps in three flat tones. A storm cloud (`storm` true) is another
-// shape: wide and low, a row of heaped lumps cut off flat along its base, ragged along the top, dark slate in layers that
-// get darker towards the base, with a lighter rim along the top where the light catches it.
+// shape: wide and low, a row of heaped lumps with smaller ones hanging under it, so it is ragged and rounded all the way
+// round (no straight edge anywhere), solid dark slate in layers that get darker towards the base, with a lighter rim
+// along the top where the light catches it.
 //
 // It asks the weather (world.weather) how grey it is, how big it grows and how fast it drifts, and the time of day
 // (world.day) how it is lit: white by day, dark blue-grey at night, lit only by the moon. At night it also covers the lights
@@ -29,7 +30,7 @@ const NIGHT_MOON = [[91, 125, 172], [76, 108, 155], [60, 90, 138]];
 // A storm cloud has four: the rim along its top, then three layers of slate, the darkest along the base. At night the
 // layers come out, after the night light, darker than the night sea (a dark mass), and the rim lighter than it: with no
 // moon just enough to show the outline, under a bright moon clearly lit.
-const STORM = [[172, 180, 194], [100, 108, 124], [76, 83, 99], [54, 60, 75]];
+const STORM = [[156, 164, 180], [84, 91, 108], [62, 68, 84], [43, 48, 62]];
 const STORM_NO_MOON = [[84, 114, 150], [44, 64, 94], [35, 53, 81], [27, 43, 68]];
 const STORM_MOON = [[128, 160, 204], [38, 56, 84], [30, 46, 71], [23, 37, 59]];
 
@@ -91,17 +92,22 @@ export class Cloud extends Entity {
     for (let i = 0; i < 5 + Math.floor(rnd() * 4); i++) { const base = puffs[Math.floor(rnd() * lumps)], a = rnd() * TAU; puffs.push({ x: base.x + Math.cos(a) * base.r * 0.9, y: base.y + Math.sin(a) * base.r * 0.8, r: 0.13 + rnd() * 0.12 }); }
     this.puffs = puffs; this.floor = undefined; this.r = 0.05 + rnd() * 0.05; this.speed = 0.005 + rnd() * 0.005;
   }
-  // A long row of lumps standing on one flat base (the line y = 0, where every lump is cut off), heaped higher in the
-  // middle, with small ragged ones along the top and at the ends.
+  // A long row of lumps, close enough to merge into one body, heaped higher in the middle; each hangs to its own depth, and
+  // a few smaller lumps hang under the row, so the underside is ragged and round. Small ragged ones sit along the top.
+  // Nothing reaches below the line y = 0 (the floor): every lump stays whole above it, so no edge is ever cut straight.
   stormShape(rnd) {
-    const puffs = [], half = 1.15 + rnd() * 0.5, n = 5 + Math.floor(rnd() * 3);
+    const puffs = [], half = 1.25 + rnd() * 0.5, n = Math.round(half / 0.21) + 1;
     for (let i = 0; i < n; i++) {
-      const u = i / (n - 1), r = 0.34 + 0.24 * Math.sin(u * Math.PI) + rnd() * 0.1;
-      puffs.push({ x: (u * 2 - 1) * half + (rnd() - 0.5) * 0.1, y: -r * 0.55, r });
+      const u = i / (n - 1), r = 0.26 + 0.16 * Math.sin(u * Math.PI) + rnd() * 0.07;
+      puffs.push({ x: (u * 2 - 1) * half + (rnd() - 0.5) * 0.08, y: -r - 0.04 - rnd() * 0.14, r });
     }
     for (let i = 0; i < 6 + Math.floor(rnd() * 4); i++) {
       const base = puffs[Math.floor(rnd() * n)], a = Math.PI + rnd() * Math.PI;   // on the upper half of a lump
       puffs.push({ x: base.x + Math.cos(a) * base.r * 0.95, y: base.y + Math.sin(a) * base.r * 0.85, r: 0.1 + rnd() * 0.11 });
+    }
+    for (let i = 0; i < 4 + Math.floor(rnd() * 3); i++) {   // the ones hanging under the row, big enough to reach up into it
+      const r = 0.15 + rnd() * 0.1;
+      puffs.push({ x: (rnd() * 2 - 1) * half * 0.85, y: -r - rnd() * 0.04, r });
     }
     this.puffs = puffs; this.floor = 0; this.r = 0.12 + rnd() * 0.06; this.speed = 0.005 + rnd() * 0.005;
   }
@@ -118,7 +124,9 @@ export class Cloud extends Entity {
 
   /**
    * The outline of all the lumps together as one path, so it fills as one shape: each lump at (ox, oy) + its place times
-   * `s`, moved by (dx, dy) cloud-radii and grown by m. A lump that reaches below the cloud's flat base is cut off there.
+   * `s`, moved by (dx, dy) cloud-radii and grown by m. A lump that reaches below the cloud's floor is cut off there (only
+   * the moved or grown copies of a storm cloud do). Every lump is drawn the same way round: the path is filled by the
+   * nonzero rule, and two lumps drawn opposite ways would leave a hole where they overlap.
    */
   trace(c, ox, oy, s, dx, dy, m) {
     const floor = this.floor === undefined ? Infinity : oy + this.floor * s;
@@ -126,7 +134,7 @@ export class Cloud extends Entity {
     for (const p of this.puffs) {
       const x = ox + (p.x + dx) * s, y = oy + (p.y + dy) * s, r = p.r * s * m, t = (floor - y) / r;
       if (t >= 1) { c.moveTo(x + r, y); c.arc(x, y, r, 0, TAU); }
-      else if (t > -1) { const a = Math.asin(t); c.moveTo(x + r * Math.cos(a), y + r * t); c.arc(x, y, r, a, Math.PI - a, true); c.closePath(); }   // over the top, from the base back to the base
+      else if (t > -1) { const a = Math.asin(t); c.moveTo(x - r * Math.cos(a), y + r * t); c.arc(x, y, r, Math.PI - a, TAU + a); c.closePath(); }   // over the top, from the floor back to the floor
     }
   }
   /** The outline where the cloud is, in world units. */
@@ -168,7 +176,7 @@ export class Cloud extends Entity {
     const speed = this.speed * this.weather.speed * (this.storm ? 0.3 + 0.7 * push : 0.5 + 0.5 * push);
     this.x += wind[0] * speed * dt; this.y += wind[1] * speed * dt;
     if (this.leaving) this.alpha = Math.max(0, this.alpha - dt / 8);   // eight seconds to fade away
-    else this.alpha += ((this.fade ? 0 : 1) - this.alpha) * Math.min(1, dt * (this.fade ? 2.5 : 0.3));   // blown away quickly, fades in slowly
+    else this.alpha += ((this.fade ? 0 : 1) - this.alpha) * Math.min(1, dt * (this.fade ? 2.5 : this.storm ? 0.45 : 0.3));   // blown away quickly, fades in slowly (a storm cloud sooner: it is a solid mass)
     const out = this.outside(this.x, this.y);
     if (this.leaving && (out || this.alpha < 0.02)) { this.dead = true; if (this.canvas) { Cloud.#spare.push(this.canvas); this.canvas = null; } return; }
     if (out || (this.fade && this.alpha < 0.02)) { this.shape(Math.random); this.enter(this.storm ? null : w.cloudBank?.lane()); }   // a new one drifts in on the upwind side
@@ -183,8 +191,9 @@ export class Cloud extends Entity {
   /**
    * Paints the cloud's picture onto its sprite, `ppu` pixels to a cloud-radius.
    * A fair cloud: three flat tones, lit from the top left: the whole shape, then two shifted copies clipped to it.
-   * A storm cloud: the whole shape in the rim's tone, then three copies clipped to it, each pressed flatter towards the
-   * base and darker, so a light rim is left along the top and the dark gathers along the flat underside.
+   * A storm cloud: the whole shape in the rim's tone, fully opaque, then three copies clipped to it, each moved further
+   * down (and a little to the right) and darker, so a light rim is left along the top and the dark gathers in the lumps
+   * of the underside; the edge of each layer is the cloud's own lumpy outline, never a straight line.
    */
   paint(fills, ppu, night) {
     const b = this.box, canvas = this.canvas ??= Cloud.#spare.pop() ?? document.createElement('canvas');
@@ -192,15 +201,13 @@ export class Cloud extends Entity {
     const c = canvas.getContext('2d');
     c.setTransform(ppu, 0, 0, ppu, -b.x0 * ppu, -b.y0 * ppu);
     if (night > 0) { c.globalAlpha = 0.35 * night; c.fillStyle = fills[this.storm ? 0 : 1]; this.trace(c, 0, 0, 1, 0, 0, 1.07); c.fill(); }   // a soft rim, so it reads as a cloud and not a hole
-    c.globalAlpha = this.storm ? 0.97 : 0.96 - 0.08 * night; c.fillStyle = fills[0];
+    c.globalAlpha = this.storm ? 1 : 0.96 - 0.08 * night; c.fillStyle = fills[0];
     this.trace(c, 0, 0, 1, 0, 0, 1); c.fill(); c.clip();
     c.globalAlpha = 1;
     if (this.storm) {
-      for (let i = 1; i < 4; i++) {
-        c.save(); c.transform(1, 0, 0, [0, 0.9, 0.62, 0.34][i], 0.03 * i, 0);   // pressed towards the base (y = 0), a little to the right
-        this.trace(c, 0, 0, 1, 0, 0, 1); c.restore();
-        c.fillStyle = fills[i]; c.fill();
-      }
+      this.trace(c, 0, 0, 1, 0.03, 0.07, 0.98); c.fillStyle = fills[1]; c.fill();
+      this.trace(c, 0, 0, 1, 0.08, 0.3, 0.97); c.fillStyle = fills[2]; c.fill();
+      this.trace(c, 0, 0, 1, 0.14, 0.55, 0.95); c.fillStyle = fills[3]; c.fill();
     } else {
       this.trace(c, 0, 0, 1, 0.055, 0.08, 0.99); c.fillStyle = fills[1]; c.fill();
       this.trace(c, 0, 0, 1, 0.2, 0.27, 0.96); c.fillStyle = fills[2]; c.fill();
