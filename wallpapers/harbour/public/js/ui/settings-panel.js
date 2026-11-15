@@ -9,8 +9,8 @@ import { ICONS } from './icons.js';
  */
 export class SettingsPanel {
   /** The status lines for the facts of one frame. */
-  static statusText(fps, { entities, zoom, soundOn, errors, clock, wind = 0 }) {
-    return `${fps} fps   ${entities} entities   zoom ${zoom.toFixed(2)}\nsound ${soundOn ? 'on' : 'off'}   wind ${wind.toFixed(2)}   clock ${clock}\n${errors.length ? 'ERRORS\n' + errors.slice(-3).join('\n') : 'no errors'}`;
+  static statusText(fps, { entities, zoom, soundOn, errors, clock, wind = 0, quality = 1 }) {
+    return `${fps} fps   ${entities} entities   zoom ${zoom.toFixed(2)}\nsound ${soundOn ? 'on' : 'off'}   wind ${wind.toFixed(2)}   quality ${+quality.toFixed(2)}   clock ${clock}\n${errors.length ? 'ERRORS\n' + errors.slice(-3).join('\n') : 'no errors'}`;
   }
 
   static MARGIN = 10;      // px between the card and the screen edge (CSS)

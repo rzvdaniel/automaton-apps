@@ -193,7 +193,8 @@ test('Settings panel: the hour text and the status lines', () => {
   assert.equal(SettingsForm.hourText(1440), '24:00');
   assert.equal(SettingsForm.hourText(5000), '24:00');
   const facts = { entities: 120, zoom: 1, soundOn: true, errors: [], clock: '10:00:00 Bucharest', wind: 0.5 };
-  assert.equal(SettingsPanel.statusText(60, facts), '60 fps   120 entities   zoom 1.00\nsound on   wind 0.50   clock 10:00:00 Bucharest\nno errors');
+  assert.equal(SettingsPanel.statusText(60, facts), '60 fps   120 entities   zoom 1.00\nsound on   wind 0.50   quality 1   clock 10:00:00 Bucharest\nno errors');
+  assert.match(SettingsPanel.statusText(60, { ...facts, quality: 0.512 }), /quality 0.51 /);
   assert.match(SettingsPanel.statusText(60, { ...facts, errors: ['a', 'b', 'c', 'd'] }), /ERRORS\nb\nc\nd$/);
 });
 

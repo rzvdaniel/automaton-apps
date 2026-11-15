@@ -66,6 +66,7 @@ export class World {
     this.scene = new Scene({ onError: line => this.#reportError(line), presence: this.presence });
     this.interaction = new Interaction({ scene: this.scene, camera: this.camera, terrain: this.terrain, effects: this.effects, sound, onActivity: ms => this.loop?.keepBusy(ms) });
     this.quality = new QualityMonitor();
+    document?.addEventListener?.('visibilitychange', () => this.quality.reset());
 
     if (!headless) {
       this.renderer = new Renderer(stage);
@@ -129,13 +130,16 @@ export class World {
   /** Paints the island as it is now. */
   render() {
     this.renderer?.render({ viewport: this.viewport, camera: this.camera, terrain: this.terrain, effects: this.effects, scene: this.scene, time: this.clock, light: this.day.light, darkness: this.day.darkness, glitter: this.day.glitter, wind: this.windField, waves: this.settings.get('waves'), palette: this.settings.get('palette') });
-    this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, wind: this.windField.strength, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
+    this.panel?.update(performance.now(), { entities: this.scene.entities.length, zoom: this.camera.zoom, soundOn: this.sound.live, errors: this.errors, quality: this.viewport.quality, wind: this.windField.strength, clock: `${this.skyClock.text()} ${this.place.current.city}${this.skyClock.isNow ? '' : ' (set)'}` });
   }
 
   #frame(dt, gapMs) {
-    if (this.quality.sample(gapMs) && this.viewport.lowerQuality()) this.renderer.resize(this.viewport);   // a slow device draws fewer pixels
+    const start = performance.now();
     this.update(dt);
     this.render();
+    // the work of the frame, not the gap: a host that caps or throttles the frame rate must not look like a slow computer
+    const step = this.quality.sample(performance.now() - start, gapMs);
+    if ((step < 0 && this.viewport.lowerQuality()) || (step > 0 && this.viewport.raiseQuality())) this.renderer.resize(this.viewport);
   }
 
   /** The screen changed size (or the phone turned). A turn lays the island out again for the new shape. */
