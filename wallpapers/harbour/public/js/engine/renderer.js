@@ -30,8 +30,8 @@ export class Renderer {
   }
   setCursor(cursor) { this.canvas.style.cursor = cursor; }
 
-  /** @param {{ viewport, camera, terrain, effects, scene, time: number, light?: object, darkness?: number }} frame everything a picture is made of */
-  render({ viewport, camera, terrain, effects, scene, time, light, darkness = 0, glitter, wind, waves, palette }) {
+  /** @param {{ viewport, camera, terrain, effects, swirls?: object, scene, time: number, light?: object, darkness?: number }} frame everything a picture is made of */
+  render({ viewport, camera, terrain, effects, swirls, scene, time, light, darkness = 0, glitter, wind, waves, palette }) {
     const c = this.ctx, { canvas, backdrop } = this;
     if (light) this.lighting.apply(light);
     if (palette) backdrop.setPalette(palette);
@@ -46,7 +46,7 @@ export class Renderer {
     const k = viewport.scale * camera.zoom, halfW = viewport.width / (2 * k), halfH = viewport.height / (2 * k);
     const view = { minX: camera.centreX - halfW, maxX: camera.centreX + halfW, minY: camera.centreY - halfH, maxY: camera.centreY + halfH };   // what is on screen, in world units
     for (const layer of LAYERS) {
-      if (layer === 'effects') effects.draw(c);
+      if (layer === 'effects') { effects.draw(c); swirls?.draw(c, camera.zoom, k, darkness, view); }   // the wind's swirls: above land, sea and everything standing on them, below the clouds and their shadows
       scene.drawLayer(layer, c, time, () => camera.applyTo(c), view);
     }
     this.#drawLights({ camera, scene, time, view, darkness });
