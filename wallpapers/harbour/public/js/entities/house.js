@@ -3,7 +3,7 @@ import { shade, glow, halo, switchOn, Entity } from '../core/index.js';
 import { Smoke } from './smoke.js';
 
 const WINDOW_STEP = 0.06;      // how much more darkness each next window of a house waits before it comes on
-const HALO = 0.32, SPILL = 0.22;   // how bright the warm haze round a fully lit house is, and the light on the ground in front
+const HALO = 0.2, SPILL = 0.15;   // how bright the pool of light round a fully lit house is, and the light on the ground in front (on the light map)
 
 export class House extends Entity {
   static passes = { upright: 'draw', lights: 'drawLights' };

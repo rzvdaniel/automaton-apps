@@ -134,11 +134,13 @@ test('Cloud: a light under it is mostly hidden, one in a gap is not', () => {
   const cloud = Object.assign(Object.create(Cloud.prototype), { world, x: 0, y: 0, r: 0.1, scale: 1, alpha: 1, puffs: [{ x: 0, y: 0, r: 0.5 }] });
   assert.ok(cloud.dimAt(0, 0) >= 0.8, 'under the cloud');
   assert.equal(cloud.dimAt(0.5, 0.5), 0, 'in a gap');
-  // and that is how it draws on the lights canvas: rubbing out (not painting over) with that strength
+  // and that is how it draws on the light map: painting the night's own colour (not rubbing out, no bright hole) with that strength
   const seen = [];
-  const c = new Proxy({}, { get: (t, k) => k in t ? t[k] : (k === 'fill' ? () => seen.push({ op: t.globalCompositeOperation, alpha: t.globalAlpha }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+  const c = new Proxy({}, { get: (t, k) => k in t ? t[k] : (k === 'fill' ? () => seen.push({ op: t.globalCompositeOperation, alpha: t.globalAlpha, style: t.fillStyle }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+  world.day.light = { r: 0.4, g: 0.5, b: 0.78, grey: 0.15, offset: [-0.08, -0.06, -0.02] };
   cloud.drawShade(c);
-  assert.ok(seen.length > 0 && seen.every(f => f.op === 'destination-out'));
+  assert.ok(seen.length > 0 && seen.every(f => f.op !== 'destination-out'), 'it does not rub out');
+  assert.ok(seen.every(f => f.style === 'rgb(102,128,199)'), `the night colour: ${seen.map(f => f.style)}`);
   assert.equal(seen.at(-1).alpha, Cloud.MASK);
 });
 

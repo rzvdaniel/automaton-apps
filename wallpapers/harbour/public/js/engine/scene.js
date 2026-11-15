@@ -2,12 +2,13 @@
 export const LAYERS = ['deep', 'ground', 'roads', 'water', 'upright', 'air', 'effects', 'skyShadow', 'birds', 'clouds'];
 /**
  * The night-lights pass: windows, lamps, lanterns, headlights, the lighthouse. It is not one of LAYERS: the renderer draws it
- * on its own canvas above the others, where the time of day's tint does not dim it, and only when it is dark.
+ * on the light map (its own canvas above the others), and only when it is dark. It is also run once on the main canvas in
+ * bulb mode (see core/glow.js), where the lights are small bright dots.
  */
 export const LIGHTS = 'lights';
-/** Drawn on the lights canvas right after LIGHTS: clouds rub out the lights beneath them (see Cloud.drawShade). */
+/** Drawn on the light map right after LIGHTS: clouds paint the night's colour over the lights beneath them (see Cloud.drawShade). */
 export const CLOUD_SHADE = 'cloudShade';
-/** Drawn on the lights canvas after CLOUD_SHADE: the lights of things that fly (a plane, a balloon), which clouds do not hide. */
+/** Drawn on the light map after CLOUD_SHADE (and as dots on the main canvas, last): the lights of things that fly (a plane, a balloon), which clouds do not hide. */
 export const SKY_LIGHTS = 'skyLights';
 
 /**
