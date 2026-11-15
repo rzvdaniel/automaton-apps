@@ -26,3 +26,8 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 .picker__item { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; height: auto; padding: 6px 12px; text-align: left; }
 .picker__item.is-on { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange); }
 @media (max-width: 640px) { .picker__list { flex: 1 1 100%; } .picker__item { flex: 1 1 100%; } }
+
+.disk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.disk-row:last-child { border-bottom: 0; }
+.disk-size { white-space: nowrap; }
+.disk-row > span { min-width: 0; overflow-wrap: anywhere; }

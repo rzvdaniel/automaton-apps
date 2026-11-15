@@ -130,10 +130,10 @@
     var rows = apps.map(function (app) {
       var detail = parts.filter(function (p) { return typeof app[p[0]] === "number" && app[p[0]] > 0; })
         .map(function (p) { return p[1] + " " + bytes(app[p[0]]); }).join(", ");
-      return "<dt>" + esc(app.name) + (detail ? '<br><small class="a-hint">' + esc(detail) + "</small>" : "") + "</dt><dd><strong>" + esc(bytes(app.totalBytes)) + "</strong></dd>";
+      return '<div class="disk-row"><span>' + esc(app.name) + (detail ? '<br><small class="a-hint">' + esc(detail) + "</small>" : "") + '</span><strong class="disk-size">' + esc(bytes(app.totalBytes)) + "</strong></div>";
     }).join("");
-    return card("Disk by app", "", '<dl class="a-kv" data-testid="disk-by-app">' + rows + "</dl>",
-      "An image several apps share counts in full for each. Measured by the Runner every few minutes.");
+    return card("Disk by app", "", '<div data-testid="disk-by-app">' + rows + "</div>",
+      "An image several apps share counts in full for each. \"(unknown app)\" is data left on the machine by an app that no longer exists. Measured by the Runner every few minutes.");
   }
 
   function backupsCard(h, a) {
