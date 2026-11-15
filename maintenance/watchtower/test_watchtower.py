@@ -65,6 +65,33 @@ class BackupWatcher(unittest.TestCase):
         self.assertEqual(len(watchtower.active(state)), 1)
 
 
+class OffsiteWatcher(unittest.TestCase):
+    def check(self, apps):
+        watchtower.SOURCES["apps"] = lambda: apps
+        self.addCleanup(watchtower.SOURCES.pop, "apps", None)
+        return [f["key"] for f in watchtower.offsite_watcher(watchtower.new_state())]
+
+    def app(self, status, hours_ago):
+        import time
+        at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - hours_ago * 3600))
+        return [{"name": "Other"}, {"name": "Off-site Backup", "lastActionRun": {"moduleKey": "upload", "status": status, "createdAtUtc": at}}]
+
+    def test_good_recent_run(self):
+        self.assertEqual(self.check(self.app("Succeeded", 1)), [])
+
+    def test_failed_run(self):
+        self.assertEqual(self.check(self.app("Failed", 1)), ["offsite-backup-failed"])
+
+    def test_old_run(self):
+        self.assertEqual(self.check(self.app("Succeeded", 30)), ["offsite-backup-old"])
+
+    def test_never_ran(self):
+        self.assertEqual(self.check([{"name": "Off-site Backup", "lastActionRun": None}]), ["offsite-backup-old"])
+
+    def test_no_offsite_app(self):
+        self.assertEqual(self.check([{"name": "Other"}]), [])
+
+
 class Engine(unittest.TestCase):
     def setUp(self):
         self.state = watchtower.new_state()

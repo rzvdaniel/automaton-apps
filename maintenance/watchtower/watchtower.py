@@ -80,8 +80,32 @@ def backup_watcher(state: dict) -> list[dict]:
     return found
 
 
+def offsite_watcher(state: dict) -> list[dict]:
+    """The off-site backup app (GET /api/apps/status, permission apps:read-status): its last run failed or is too old."""
+    source = SOURCES.get("apps")
+    data = source() if source else None
+    if not isinstance(data, list):
+        return []
+    app = next((a for a in data if isinstance(a, dict) and "off-site" in str(a.get("name", "")).lower()), None)
+    if app is None:
+        return []  # no off-site backup app on this server; nothing to judge
+    run = app.get("lastActionRun") if isinstance(app.get("lastActionRun"), dict) else None
+    found = []
+    when = parse_time(run.get("createdAtUtc")) if run else None
+    if run and str(run.get("status", "")).lower() in ("failed", "timedout", "cancelled"):
+        found.append(finding("offsite-backup-failed", "The last off-site backup run failed",
+                             f"{run.get('moduleKey', 'run')} ended {run.get('status')}. Open the Off-site Backup app for the reason.", "critical"))
+    if when is None:
+        found.append(finding("offsite-backup-old", "The off-site backup has not run", "The server shows no run of the off-site backup app.", "critical"))
+    elif time.time() - when > BACKUP_MAX_AGE:
+        found.append(finding("offsite-backup-old", f"The last off-site backup run is {int((time.time() - when) // 3600)} hours old",
+                             "The off-site backup should run at least once a day. Check that the app is deployed and not paused.", "critical"))
+    return found
+
+
 # name -> (label, default interval in seconds, run(state) -> list of findings)
-WATCHERS = {"dummy": ("Dummy watcher", 30, dummy_watcher), "backups": ("Server backups", 600, backup_watcher)}
+WATCHERS = {"dummy": ("Dummy watcher", 30, dummy_watcher), "backups": ("Server backups", 600, backup_watcher),
+            "offsite": ("Off-site backup", 600, offsite_watcher)}
 
 
 def new_state() -> dict:

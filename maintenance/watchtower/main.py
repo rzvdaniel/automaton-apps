@@ -72,6 +72,19 @@ def fetch_backups(api_url: str, api_key: str, timeout: float = 15) -> dict:
     return data
 
 
+def fetch_apps(api_url: str, api_key: str, timeout: float = 15) -> list:
+    """Every app's status (permission apps:read-status). Raises when it cannot be read, so the alerts stay as they are."""
+    if not api_url or not api_key:
+        raise OSError("no server API address or key")
+    request = Request(api_url.rstrip("/") + "/api/apps/status", headers={
+        "Authorization": "Bearer " + api_key, "Accept": "application/json", "User-Agent": USER_AGENT})
+    with urlopen(request, timeout=timeout) as response:
+        data = json.loads(response.read(2_000_000).decode("utf-8"))
+    if not isinstance(data, list):
+        raise ValueError("unexpected app status")
+    return data
+
+
 class App:
     def __init__(self, env=None, now=time.time, email=None):
         env = os.environ if env is None else env
@@ -89,6 +102,7 @@ class App:
         self.pass_lock = threading.Lock()  # one pass at a time, so an alert is never emailed twice
         self.state = watchtower.load_state(self.path)
         watchtower.SOURCES["backups"] = lambda: fetch_backups(self.api_url, self.api_key)
+        watchtower.SOURCES["apps"] = lambda: fetch_apps(self.api_url, self.api_key)
 
     def mute_url(self, alert: dict) -> str | None:
         return f"{self.public_url}/mute/{alert['token']}" if self.public_url else None
