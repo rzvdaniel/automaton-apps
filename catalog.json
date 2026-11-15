@@ -86,6 +86,16 @@
       "permissions": []
     },
     {
+      "id": "ghost",
+      "name": "Ghost",
+      "summary": "Publish a blog and send a newsletter from your own server.",
+      "category": "Publishing",
+      "folder": "publishing/ghost",
+      "commit": "6f039b0136a65797d8b21eb11ec5556f83797772",
+      "minServerVersion": "0.2.130",
+      "permissions": []
+    },
+    {
       "id": "harbour",
       "name": "Harbour Wallpaper",
       "summary": "A living harbour island for your desktop that reacts to clicks: the sea, the sheep, the boats and the church bell.",
