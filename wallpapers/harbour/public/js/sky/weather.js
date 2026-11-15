@@ -35,6 +35,7 @@ const MAX_CLOUDS = 15;         // the most fair clouds a 3:2 view is asked to ho
 const MAX_STORM_CLOUDS = 24;   // and the most storm clouds
 const MOOD_EASE = 1 / 4;       // how quickly (per real second) the mood catches up with the chosen weather: there in about ten seconds
 const EASE = 1 / 8;            // and the cover with where it is heading
+const QUICK = 3;               // when the viewer has just picked a weather: the same, per real second, as a time constant (there in about a second and a half)
 const HOUR = 3600000;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -105,12 +106,13 @@ export class Weather {
    * Moves the weather on to `date`. `seconds` is how much real time passed since the last call: the cover and the mood ease
    * by that much. Until real time has passed (seconds > 0) each call puts the sky straight where it should be, so a clock
    * set right after the world is built (as tests do) is followed at once, not eased towards from today's sky.
+   * @param {boolean} quick ease over about a second and a half instead of ten (the viewer just changed the setting)
    * @returns {this}
    */
-  update(date, seconds = 0) {
-    const started = this.started;
-    this.mood += (this.settings.get('weather') - this.mood) * (started ? Math.min(1, seconds * MOOD_EASE) : 1);
-    this.cover += (Weather.coverAt(date, this.mood) - this.cover) * (started ? Math.min(1, seconds * EASE) : 1);
+  update(date, seconds = 0, quick = false) {
+    const started = this.started, fast = 1 - Math.exp(-QUICK * seconds);   // `quick`: the viewer has just chosen, so show it within a second or two
+    this.mood += (this.settings.get('weather') - this.mood) * (started ? (quick ? fast : Math.min(1, seconds * MOOD_EASE)) : 1);
+    this.cover += (Weather.coverAt(date, this.mood) - this.cover) * (started ? (quick ? fast : Math.min(1, seconds * EASE)) : 1);
     if (seconds > 0) this.started = true;
     const mood = this.mood, spell = Weather.spellAt(date), [i, f] = between(mood);
     this.clouds = Math.round(blend(mood, 'clouds', spell));

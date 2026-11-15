@@ -329,3 +329,45 @@ test('Cloud: a storm cloud paints its body fully opaque', () => {
   try { c.paint(['#111', '#222', '#333', '#444'], 100, 0); } finally { globalThis.document = real; }
   assert.equal(fills[0], 1, 'the body is filled at alpha 1');
 });
+
+// ---------- the viewer's choice shows within about two seconds (#279) ----------
+const hurried = () => quietly(() => {
+  const w = new World({ width: 1500, height: 1000 }); w.skyClock.realNow = () => START; w.generate(7);
+  w.settings.set({ weather: 0 }); for (let i = 0; i < 60 * 20; i++) w.update(0.05);   // settle on a sunny sky and a minute of it
+  return w;
+});
+const run = (w, seconds) => { for (let i = 0; i < seconds * 20; i++) w.update(0.05); };
+const shown = (w, storm) => w.all(Cloud).filter(c => c.storm === storm && !c.leaving && c.alpha > 0.6).length;
+
+test('Weather: clicking Stormy from Sunny fills the sky with storm clouds within two seconds, formed over the view, and Sunny clears it as fast', () => {
+  const w = hurried();
+  assert.equal(shown(w, true), 0);
+  w.settings.set({ weather: 1 });
+  run(w, 0.1); assert.ok(w.all(Cloud).filter(c => c.storm && c.alpha > 0.9).length === 0, 'nothing pops in at once');
+  run(w, 1.9);
+  assert.ok(shown(w, true) >= Weather.LOOKS[3].stormClouds[0] * 0.9, `two seconds later ${shown(w, true)} storm clouds are shown`);
+  assert.ok(w.weather.storm > 0.95, `storm ${w.weather.storm}`);
+  const spread = w.all(Cloud).filter(c => c.storm).map(c => Math.abs(c.x));
+  assert.ok(spread.filter(x => x < w.hw * 0.9).length > spread.length / 2, 'across the view, not only at its edge');
+
+  w.settings.set({ weather: 0 });
+  run(w, 2.2);
+  assert.equal(shown(w, true), 0, 'the storm clouds have cleared');
+  assert.equal(w.all(Cloud).filter(c => c.storm && c.alpha > 0.05).length, 0, 'faded away, not just hidden');
+  assert.ok(w.weather.storm < 0.02);
+});
+
+test('Weather: the slow drift stays slow when the viewer did not choose (the mood eases over ten seconds, clouds one at a time)', () => {
+  const w = hurried(), before = w.all(Cloud).length;
+  w.settings.set({ weather: 1 }); w.hurryUntil = -1;   // as if it came from somewhere other than the panel
+  run(w, 2);
+  assert.ok(w.weather.storm < 0.3, `storm ${w.weather.storm}`);
+  assert.ok(w.all(Cloud).length - before <= 8, 'no crowd');
+});
+
+test('Weather.update: quick eases in about a second and a half, a normal update only a fraction', () => {
+  const date = new Date(START + 15 * 3600000), make = () => { const s = settingsWith(0), x = new Weather({ settings: s }); x.update(date, 1); s.set({ weather: 1 }); return x; };
+  const slow = make(), fast = make();
+  for (let i = 0; i < 15; i++) { slow.update(date, 0.1); fast.update(date, 0.1, true); }
+  assert.ok(slow.mood < 0.5 && fast.mood > 0.98, `slow ${slow.mood}, quick ${fast.mood}`);
+});
