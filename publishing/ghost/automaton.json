@@ -24,8 +24,8 @@
     "storage": { "dataDirectory": "data", "mounts": [] },
     "publicAccess": { "level": "recommended", "reason": "Readers open your blog without an Automaton sign-in. Ghost has its own sign-in at /ghost/." },
     "secrets": [
-      { "name": "MAILGUN_API_KEY", "description": "Optional. Mailgun API key for newsletters; leave empty to keep newsletters off" },
-      { "name": "SMTP_PASSWORD", "description": "Optional. Password for the SMTP server below" }
+      { "name": "MAILGUN_API_KEY", "optional": true, "description": "Optional. Mailgun API key for newsletters; leave empty to keep newsletters off" },
+      { "name": "SMTP_PASSWORD", "optional": true, "description": "Optional. Password for the SMTP server below" }
     ],
     "settings": [
       { "name": "GHOST_URL", "description": "This app's full address, for example https://blog.example.com (no trailing slash). Ghost builds every link from it.", "default": "https://blog.example.com", "required": true },
