@@ -28,11 +28,25 @@
   .settings-dialog::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
   .settings-dialog .a-card { box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 35%, transparent); }
   .settings-dialog .a-card__head { margin: 0; }
-  .settings-dialog #set-sound svg { width: 20px; height: 20px; flex: none; }
-  .settings-dialog #set-sound .waves { display: none; } .settings-dialog #set-sound.on .waves { display: inline; } .settings-dialog #set-sound.on .cross { display: none; }
-  .settings-dialog .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
-  .settings-dialog .slider-ends { display: flex; justify-content: space-between; }
+  .settings-dialog #set-sound svg, .debug-panel #dbg-sound svg { width: 20px; height: 20px; flex: none; }
+  .settings-dialog #set-sound .waves, .debug-panel #dbg-sound .waves { display: none; } .settings-dialog #set-sound.on .waves, .debug-panel #dbg-sound.on .waves { display: inline; } .settings-dialog #set-sound.on .cross, .debug-panel #dbg-sound.on .cross { display: none; }
+  .settings-dialog .slider, .debug-panel .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
+  .settings-dialog .slider-ends, .debug-panel .slider-ends { display: flex; justify-content: space-between; }
   .settings-dialog .dialog-actions { display: flex; justify-content: flex-end; }
+  /* the debug side panel (?debug): fixed to the right edge, scrolls, semi-transparent; folds to its button on a phone */
+  .debug-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; box-sizing: border-box; overflow: auto; z-index: 5; border-radius: 0; touch-action: pan-y; user-select: none;
+    background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .debug-panel .a-card__head { margin-bottom: 10px; }
+  .debug-panel .a-label output { float: right; font-variant-numeric: tabular-nums; }
+  .debug-panel .dbg-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .debug-panel .dbg-status { margin: 12px 0 0; font: 11px/1.35 Consolas, monospace; color: var(--muted); white-space: pre-wrap; }
+  .debug-panel.collapsed { width: auto; bottom: auto; padding: 8px; border-bottom-left-radius: 12px; }
+  .debug-panel.collapsed .a-card__title, .debug-panel.collapsed #dbg-body { display: none; }
+  .debug-panel.collapsed .a-card__head { margin: 0; }
+  body.debug #settings { display: none; }
+  /* Reset zoom stays clear of the panel: left of it when open, left of its button when folded */
+  body.debug #home { top: max(12px, env(safe-area-inset-top)); right: calc(280px + 12px); }
+  body.debug:has(.debug-panel.collapsed) #home { right: 68px; }
 </style>
 </head>
 <body>

@@ -60,6 +60,7 @@ export class World {
     this.cloudBank = new CloudBank(this);
     this.day = new DayCycle(); this.#updateDay();
     this.settings.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // a new time or place shows at once, not at the next tick
+    this.skyClock.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // the debug panel's time slider
     this.effects = new Effects();
     this.presence = new Presence({ day: this.day, dates: () => this.#dates() });
     this.scene = new Scene({ onError: line => this.#reportError(line), presence: this.presence });
@@ -70,7 +71,7 @@ export class World {
       this.renderer = new Renderer(stage);
       this.loop = new FrameLoop((dt, gap) => this.#frame(dt, gap), { timeScale: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.25 : 1 });
       this.input = new Input(window, this.#gestureHandler()).start();
-      this.panel = this.debug ? new DebugPanel(document) : null;
+      this.panel = this.debug ? new DebugPanel(document, { settings: this.settings, place: this.place, clock: this.skyClock, sound, setMoon: mode => this.setMoon(mode) }) : null;
       this.camera.onChange(() => this.#updateCursor(false));
       window.addEventListener('resize', () => this.resize(innerWidth, innerHeight, devicePixelRatio));
       this.renderer.resize(this.viewport);
@@ -113,6 +114,9 @@ export class World {
   }
 
   start() { this.loop?.start(); }
+
+  /** Forces the moon for this page only: 'full', 'new' or null for the real one (the debug panel). Never saved. */
+  setMoon(mode) { this.day.moonOverride = mode; this.#updateDay(); this.loop?.keepBusy(200); }
 
   /** Advances the island by dt seconds. */
   update(dt) {

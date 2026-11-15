@@ -13,11 +13,41 @@ export class SkyClock {
    */
   constructor({ settings, place, realNow = () => Date.now() }) {
     this.settings = settings; this.place = place; this.realNow = realNow;
+    this.override = null; this.listeners = new Set();
+  }
+
+  /**
+   * A time for this page only, never saved (the debug panel's slider): null follows the setting, 'real' shows the real time
+   * whatever the setting says, a number is a frozen moment in milliseconds. Listeners hear of every change.
+   */
+  setOverride(value) { this.override = value; this.listeners.forEach(fn => fn(this)); }
+  /** Calls fn(clock) whenever the override changes. Returns a function that stops it. */
+  onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+
+  /** Freezes the island at `minutes` past midnight (0..1440, 1440 = the next midnight) of the real day at the place. */
+  setLocalMinutes(minutes) {
+    const m = Math.min(1440, Math.max(0, Math.round(minutes))), l = this.place.local(new Date(this.realNow()));
+    const day = new Date(Date.UTC(l.year, l.month - 1, l.day + Math.floor(m / 1440))), r = m % 1440;
+    this.setOverride(this.place.instantOf({ year: day.getUTCFullYear(), month: day.getUTCMonth() + 1, day: day.getUTCDate(), hours: Math.floor(r / 60), minutes: r % 60 }).getTime());
+  }
+
+  /** The real time again (the setting is untouched): what "Now" does on the debug panel. */
+  showReal() { this.setOverride(this.isNow ? null : 'real'); }
+
+  /** The time shown, as minutes past midnight at the place (0..1440). */
+  minutes() { const l = this.place.local(this.now()); return l.hours * 60 + l.minutes + l.seconds / 60; }
+
+  /** Saves the time shown as the start time setting (the debug panel's "Keep") and drops the override. */
+  keep() {
+    const l = this.place.local(this.now()), two = n => String(n).padStart(2, '0');
+    this.setStart(`${two(l.hours)}:${two(l.minutes)}`);
   }
 
   /** The time the island shows, as a Date. */
   now() {
     const real = this.realNow(), t = this.settings.get('time');
+    if (this.override === 'real') return new Date(real);
+    if (typeof this.override === 'number') return new Date(this.override);
     if (t?.mode !== 'start') return new Date(real);
     const [hours, minutes] = t.start.split(':').map(Number);
     // the occurrence of HH:MM at the place nearest to the moment it was set: yesterday's, today's or tomorrow's
@@ -28,16 +58,18 @@ export class SkyClock {
   }
 
   /** Is the clock showing the real time? */
-  get isNow() { return this.settings.get('time')?.mode !== 'start'; }
+  get isNow() { return this.override === null ? this.settings.get('time')?.mode !== 'start' : this.override === 'real'; }
 
   /** The island shows the real time. */
-  setNow() { this.settings.set({ time: { mode: 'now' } }); }
+  setNow() { this.#drop(); this.settings.set({ time: { mode: 'now' } }); }
 
   /** The island shows `hhmm` ("22:00") right now and runs forward from there. */
   setStart(hhmm) {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) return;
-    this.settings.set({ time: { mode: 'start', start: hhmm, setAt: this.realNow() } });
+    this.#drop(); this.settings.set({ time: { mode: 'start', start: hhmm, setAt: this.realNow() } });
   }
+
+  #drop() { if (this.override !== null) { this.override = null; this.listeners.forEach(fn => fn(this)); } }
 
   /** The time as text at the place, "22:00:05", for the debug panel. */
   text() {
