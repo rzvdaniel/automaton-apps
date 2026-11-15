@@ -182,6 +182,12 @@ export class World {
 
   #updateCursor(dragging) { this.renderer?.setCursor(this.camera.zoomed ? (dragging ? 'grabbing' : 'grab') : ''); }
 
+  /** Zooms by `factor` around the centre of what is visible (the middle of the screen, shifted with the camera's offset for the panel). Keys and the zoom buttons use it. */
+  zoomStep(factor) {
+    this.camera.zoomAt(factor, this.viewport.width / 2 + this.camera.targetOffsetX, this.viewport.height / 2);
+    this.loop?.keepBusy(1500);
+  }
+
   /** What the gesture recogniser tells the world to do. */
   #gestureHandler() {
     const { camera, interaction } = this, busy = ms => this.loop.keepBusy(ms);
@@ -196,8 +202,8 @@ export class World {
       zoomLevel: () => camera.targetZoom,
       key: key => {
         if (key === 'n' || key === 'N') this.generate(Math.floor(Math.random() * 1e9));
-        else if (key === '+' || key === '=') camera.zoomAt(1.4, this.viewport.width / 2 + camera.targetOffsetX, this.viewport.height / 2);
-        else if (key === '-' || key === '_') camera.zoomAt(1 / 1.4, this.viewport.width / 2 + camera.targetOffsetX, this.viewport.height / 2);
+        else if (key === '+' || key === '=') this.zoomStep(1.4);
+        else if (key === '-' || key === '_') this.zoomStep(1 / 1.4);
         else if (key === '0') camera.reset();
       }
     };

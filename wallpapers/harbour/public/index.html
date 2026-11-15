@@ -25,6 +25,9 @@
   :root { --settings-bottom: max(72px, env(safe-area-inset-bottom)); }
   #settings { right: max(10px, env(safe-area-inset-right)); bottom: var(--settings-bottom); z-index: 6; }
   #home { right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); transform: scale(0.6); opacity: 0; pointer-events: none; }
+  /* zoom buttons left of Reset zoom (always shown, so the wallpaper zooms without wheel or pinch) */
+  #zoom-in { right: calc(max(12px, env(safe-area-inset-right)) + 52px); top: max(12px, env(safe-area-inset-top)); }
+  #zoom-out { right: calc(max(12px, env(safe-area-inset-right)) + 104px); top: max(12px, env(safe-area-inset-top)); }
   body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
   /* the settings panel: the kit's card and form classes, only laid out here; colours come from the kit's tokens.
      Above the button, 10 px from the right edge, scrolls when taller than the space (the top 76 px stay free for Reset zoom). */
@@ -35,6 +38,9 @@
   .settings-panel[hidden] { display: none; }
   .settings-panel .a-card__head { margin: 0 0 10px; }
   .settings-panel .a-label output { float: right; font-variant-numeric: tabular-nums; }
+  .settings-panel .hour-row { display: flex; gap: 8px; align-items: center; }
+  .settings-panel .hour-row .slider { flex: 1; min-width: 0; width: auto; }
+  .icon-btn--step { flex: none; font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .settings-panel .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
   .settings-panel .slider-ends { display: flex; justify-content: space-between; }
   .settings-panel .a-btn svg { width: 18px; height: 18px; display: block; }
@@ -61,6 +67,12 @@
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>
   </svg>
+</button>
+<button id="zoom-in" class="btn" type="button" aria-label="Zoom in" title="Zoom in">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+<button id="zoom-out" class="btn" type="button" aria-label="Zoom out" title="Zoom out">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
 </button>
 <button id="home" class="btn" type="button" aria-label="Reset zoom" title="Reset zoom">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
