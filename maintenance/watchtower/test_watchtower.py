@@ -58,11 +58,7 @@ class Engine(unittest.TestCase):
         self.run_at(110)  # interval 30: not due, still active
         self.assertEqual(len(watchtower.active(self.state)), 1)
         watchtower.set_rule(self.state, "dummy", {"enabled": False})
-        self.run_at(500)
-        self.assertEqual(len(watchtower.active(self.state)), 1)
-        watchtower.set_rule(self.state, "dummy", {"enabled": True})
-        self.run_at(500)
-        self.assertEqual(watchtower.active(self.state), [])
+        self.assertEqual(watchtower.active(self.state), [])  # turning a watcher off ends its alerts
 
     def test_failing_watcher_keeps_alerts(self):
         self.state["dummy"] = True
@@ -229,6 +225,23 @@ class Server(unittest.TestCase):
         self.assertEqual(self.call("PUT", "/api/rules/dummy", {"interval": 1})[0], 400)
         self.assertEqual(self.call("PUT", "/api/rules/nope", {})[0], 404)
         self.assertEqual(self.call("POST", "/api/dummy", {"on": "yes"})[0], 400)
+
+    def test_concurrent_passes_email_once(self):
+        gate = threading.Event()
+        original = self.app.email
+
+        def slow(*args):
+            gate.wait(2)
+            return original(*args)
+        self.app.email = slow
+        self.app.state["dummy"] = True
+        threads = [threading.Thread(target=self.app.run_pass, kwargs={"force": True}) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        gate.set()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(len(self.mails), 1)
 
     def test_state_survives_restart(self):
         self.call("POST", "/api/dummy", {"on": True})

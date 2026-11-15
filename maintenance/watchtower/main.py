@@ -73,12 +73,17 @@ class App:
         self.interval = int(interval) if interval.isdigit() and 5 <= int(interval) <= 3600 else 10
         self.path = os.path.join(env.get("AUTOMATON_APP_DATA_DIR", "data"), "state.json")
         self.lock = threading.Lock()
+        self.pass_lock = threading.Lock()  # one pass at a time, so an alert is never emailed twice
         self.state = watchtower.load_state(self.path)
 
     def mute_url(self, alert: dict) -> str | None:
         return f"{self.public_url}/mute/{alert['token']}" if self.public_url else None
 
     def run_pass(self, force: bool = False) -> int:
+        with self.pass_lock:
+            return self._run_pass(force)
+
+    def _run_pass(self, force: bool) -> int:
         """Runs due watchers, then emails alerts that were never emailed and are not muted. Email is sent without the lock."""
         with self.lock:
             watchtower.run_watchers(self.state, self.now(), force=force, log=log)
@@ -126,7 +131,7 @@ class App:
 
 MUTE_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>Watchtower</title>
-<style>body{{font:16px system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem;color:#222}}button{{font:inherit;padding:.5rem 1rem}}</style></head>
+<style>body{{color-scheme:light dark;font:16px system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem}}button{{font:inherit;padding:.5rem 1rem}}</style></head>
 <body><h1>Watchtower</h1><p>{text}</p>{form}</body></html>"""
 
 
@@ -200,7 +205,13 @@ def make_handler(app: App, page: bytes):
             if self.command == "GET":
                 form = f'<form method="post"><button>Mute for {hours} hours</button></form>'
                 return self.reply(200, MUTE_PAGE.format(text=html.escape(title), form=form).encode(), html_type)
-            app.change(lambda state, now: watchtower.mute(watchtower.find_by_token(state, token), hours, now))
+            def act(state, now):
+                found = watchtower.find_by_token(state, token)
+                if found:
+                    watchtower.mute(found, hours, now)
+                return found
+            if not app.change(act):
+                return self.reply(404, MUTE_PAGE.format(text="This mute link is not valid.", form="").encode(), html_type)
             self.reply(200, MUTE_PAGE.format(text=f"Muted for {hours} hours: {html.escape(title)}", form="").encode(), html_type)
 
         def api(self, rest: list[str]):

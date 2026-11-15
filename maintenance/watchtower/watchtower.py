@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import time
 import uuid
 
 MAX_ALERTS = 500
@@ -61,6 +62,10 @@ def set_rule(state: dict, name: str, body: dict) -> dict:
         if not isinstance(body["enabled"], bool):
             raise InvalidInput("enabled must be true or false")
         current["enabled"] = body["enabled"]
+        if not body["enabled"]:  # a watcher that no longer runs cannot clear its alerts
+            for alert in active(state):
+                if alert["watcher"] == name:
+                    alert["resolved_at"] = time.time()
     if "interval" in body:
         value = body["interval"]
         if isinstance(value, bool) or not isinstance(value, int) or not MIN_INTERVAL <= value <= MAX_INTERVAL:
