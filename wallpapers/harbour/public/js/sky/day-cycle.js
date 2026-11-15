@@ -7,11 +7,11 @@ import { Sky } from './sky.js';
  *
  *   phase     'dawn', 'day', 'dusk' or 'night'
  *   darkness  0 in daylight, 1 in full night, in between at dawn and dusk
+ *   night     0 by day, 1 at full night (the same curve as the light's grey): how much of the night palette shows
  *   light     the colour of the light over the whole island: { r, g, b, grey, offset }. r, g, b multiply the picture's colours
- *             (1, 1, 1 is plain daylight; warm at dawn, golden in the evening, blue at night) and grey (0..1) is how much
+ *             (1, 1, 1 is plain daylight; warm at dawn, golden in the evening, mild blue at night) and grey (0..1) is how much
  *             colour drains out of it (none by day, some at night, when eyes see less colour); offset is a colour [r, g, b] added after
- *             the multiply ([0, 0, 0] by day, slightly negative at night: a high multiplier keeps the bright things bright, the
- *             offset lets only the dark things fall to deep blue, so contrast survives)
+ *             the multiply ([0, 0, 0] by day, none now; it can darken the darks without dimming the brights)
  *   shadow    where shadows fall on the ground: { x, y, length, strength }
  *
  * The light follows the sun's height. At night the moon is the light: a full moon high up gives a brighter, bluer night
@@ -35,12 +35,15 @@ const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
 // The light's colour (red, green, blue multipliers) at sun heights in degrees, from high sun down to full night.
 // Morning and evening differ only near the horizon: a rosy, soft dawn and a golden evening; both turn blue at twilight.
 const DAY = [1, 1, 1];
-const MORNING = [[10, DAY], [6, [1, 0.93, 0.84]], [0, [0.86, 0.74, 0.74]], [-6, [0.5, 0.5, 0.68]]];
-const EVENING = [[10, DAY], [6, [1, 0.86, 0.62]], [0, [0.92, 0.66, 0.5]], [-6, [0.5, 0.48, 0.66]]];
-const NIGHT_DARK = [0.40, 0.50, 0.78];   // no moon: deep blue, the land still readable
-const NIGHT_MOON = [0.55, 0.68, 0.95];   // a full moon high up: brighter, moonlit blue
-const NIGHT_GREY = 0.15;                 // how much colour fades at full night
-const NIGHT_OFFSET = [-0.08, -0.06, -0.02];   // added after the multiply at full night, fading with grey (keeps contrast)
+// The night light is mild: the backdrop has its own night colours for sand, grass and sea (see shader-source.js), and the
+// light only cools everything else a little. Brightness never rises as the sun goes down, so the keys near the horizon
+// stay at least as bright as the night (a pale tint, not a deep one; the palette's fade-in carries the dusk).
+const MORNING = [[10, DAY], [6, [1, 0.96, 0.9]], [0, [0.98, 0.92, 0.9]], [-6, [0.9, 0.93, 1]]];
+const EVENING = [[10, DAY], [6, [1, 0.96, 0.78]], [0, [1, 0.95, 0.68]], [-6, [0.9, 0.92, 1]]];
+const NIGHT_DARK = [0.78, 0.82, 0.95];   // no moon: a mild blue
+const NIGHT_MOON = [0.88, 0.92, 1.0];    // a full moon high up: a little brighter
+const NIGHT_GREY = 0.1;                  // how much colour fades at full night
+const NIGHT_OFFSET = [0, 0, 0];          // added after the multiply at full night, fading with grey (none now; the palette does the work)
 const CLOUD_DIM = 0.10;                  // how much darker daylight is under the heaviest cloud
 const CLOUD_GREY = 0.10;                 // and how much colour it loses
 
@@ -54,8 +57,8 @@ export class DayCycle {
     this.sky = sky;
     this.sun = { azimuth: 180, altitude: 35 };
     this.moon = { azimuth: 0, altitude: -30, fraction: 0, waxing: true };
-    this.phase = 'day'; this.darkness = 0; this.moonlight = 0;
-    this.light = { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] };
+    this.phase = 'day'; this.darkness = 0; this.night = 0; this.moonlight = 0;
+    this.light = { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 };
     this.shadow = { x: 0, y: -1, length: 1, strength: 1 };   // a plain midday until the first update
   }
 
@@ -71,6 +74,7 @@ export class DayCycle {
     const { azimuth, altitude } = sun;
     this.sun = sun; this.moon = moon;
     this.darkness = 1 - smooth(DayCycle.TWILIGHT, 2, altitude);
+    this.night = 1 - smooth(DayCycle.TWILIGHT, 0, altitude);   // how much of the night palette shows: the same curve as the light's grey
     // dawn or dusk by which half of the sky the sun is in: near the poles around the solstices the sun can stay low all day
     // and cross south, so this can call a morning 'dusk' there (fine for the cities Place knows)
     const morning = azimuth < 180;
@@ -104,7 +108,7 @@ export class DayCycle {
     }
     const [r, g, b] = colour;
     const night = 1 - smooth(DayCycle.TWILIGHT, 0, altitude);   // 0 by day, 1 at full night: grey and the offset fade together
-    return { r, g, b, grey: NIGHT_GREY * night, offset: NIGHT_OFFSET.map(v => v * night + 0) };
+    return { r, g, b, grey: NIGHT_GREY * night, offset: NIGHT_OFFSET.map(v => v * night + 0), night, moon: moonlight };   // night and moon go to the backdrop's palette
   }
 
   /**
@@ -115,7 +119,7 @@ export class DayCycle {
     const k = smooth(0.3, 0.85, cover) * (1 - darkness);
     if (k === 0) return light;
     const dim = 1 - CLOUD_DIM * k;
-    return { r: light.r * dim, g: light.g * dim, b: light.b * dim, grey: Math.min(1, light.grey + CLOUD_GREY * k), offset: light.offset };
+    return { ...light, r: light.r * dim, g: light.g * dim, b: light.b * dim, grey: Math.min(1, light.grey + CLOUD_GREY * k) };
   }
 
   /** The shadow cast by a light at that compass direction and height (degrees), with that strength. */

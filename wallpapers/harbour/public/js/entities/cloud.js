@@ -3,9 +3,9 @@
 //
 // It asks the weather (world.weather) how grey it is, how big it grows and how fast it drifts, and the time of day
 // (world.day) how it is lit: white by day, dark blue-grey at night, lit only by the moon. At night it also covers the lights
-// below it (see drawShade): the lights are drawn on their own light map above the picture, so the cloud paints the night's colour over them there.
+// below it (see drawShade): the lights are drawn on their own canvas above the picture, so the cloud rubs them out there.
 // How many clouds there are is not its business: engine/cloud-bank.js adds them and sends them away.
-import { TAU, SHADE, Entity, AIRBORNE, lightColour } from '../core/index.js';
+import { TAU, SHADE, Entity, AIRBORNE } from '../core/index.js';
 
 const CLEAR = { cover: 0, darkness: 0, speed: 1 };      // the weather for a world without one (a bare test world)
 const NOON = { darkness: 0, moonlight: 0 };
@@ -13,10 +13,10 @@ const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
 // three tones each (lit top, middle, underside), before the time of day's tint is put over the picture
 const FAIR = [[255, 255, 255], [230, 236, 247], [213, 222, 239]];
 const OVERCAST = [[186, 191, 201], [166, 172, 185], [146, 153, 168]];
-// At night the whole picture is then tinted dark blue (Lighting, world.day.light), so these are picked to come out, AFTER
-// that tint, a dark blue-grey a little lighter than the night sea: they are far lighter here than they will look.
-const NIGHT_NO_MOON = [[200, 210, 236], [172, 182, 210], [148, 158, 188]];
-const NIGHT_MOON = [[214, 222, 244], [186, 196, 224], [160, 170, 200]];
+// At night the whole picture then gets a mild blue light (Lighting, world.day.light), so these are picked to come out, AFTER
+// that light, a blue-grey a step lighter than the night sea on screen (middle sea about (0.07, 0.25, 0.48)).
+const NIGHT_NO_MOON = [[90, 122, 158], [74, 105, 142], [59, 88, 126]];
+const NIGHT_MOON = [[91, 125, 172], [76, 108, 155], [60, 90, 138]];
 
 export class Cloud extends Entity {
   static passes = { skyShadow: 'drawShadow', clouds: 'draw', cloudShade: 'drawShade' };
@@ -108,11 +108,11 @@ export class Cloud extends Entity {
   /** How much of a night light at (x, y) this cloud hides, 0..1. */
   dimAt(x, y) { return this.hit(x, y) ? Cloud.MASK * this.alpha : 0; }
   /**
-   * On the light map, after the lights: paints the night colour over the lights under the cloud (MASK of them), so a window under a cloud
-   * is mostly hidden and one in a gap still shines. Two steps: a slightly bigger, lighter one first, so the edge is softer.
+   * On the lights canvas, after the lights: rubs out the lights under the cloud (MASK of them), so a window under a cloud
+   * is mostly hidden and one in a gap still shines. Two steps: a slightly bigger, lighter rub first, so the edge is softer.
    */
   drawShade(c) {
-    c.fillStyle = lightColour(this.world.day?.light);   // on the light map, the night's own colour: lamps vanish, no bright hole
+    c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000';
     c.globalAlpha = 0.5 * Cloud.MASK * this.alpha; this.outline(c, 0, 0, 1.12); c.fill();   // the wider, lighter step
     c.globalAlpha = Cloud.MASK * this.alpha; this.outline(c, 0, 0, 1); c.fill();
   }

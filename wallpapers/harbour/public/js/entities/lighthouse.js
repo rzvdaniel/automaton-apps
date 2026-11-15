@@ -1,6 +1,6 @@
 // The lighthouse, seen from slightly to the south like the houses: a banded tower that narrows towards the lantern.
 // At night its lantern is lit and a beam sweeps out to sea (see drawLights). Click it to switch the light on or off.
-import { TAU, shade, lerp, angDiff, disc, oval, rrect, glow, drawingBulbs, Entity } from '../core/index.js';
+import { TAU, shade, lerp, angDiff, disc, oval, rrect, glow, Entity } from '../core/index.js';
 
 const TALL = 0.03, R0 = 0.0098, R1 = 0.0064, SLICES = 36;
 const BEAM = 0.45, SWEEP = 0.35;   // how far the beam reaches (world units) and how fast it turns (radians a second)
@@ -59,7 +59,6 @@ export class Lighthouse extends Entity {
     const y = this.y - TALL - 0.004;
     glow(c, this.x, y, 0.03, dark, '255,226,150');
     glow(c, this.x, y, 0.009, dark);
-    if (drawingBulbs()) return;   // only the lantern's dot on the main canvas; the beam is light, and belongs on the light map
     if (!this.beam || this.beamFor !== c) {   // made in the beam's own frame, so the same gradient serves every frame
       this.beamFor = c; this.beam = c.createLinearGradient(0, 0, BEAM, 0);
       this.beam.addColorStop(0, 'rgba(255,238,184,0.55)'); this.beam.addColorStop(0.4, 'rgba(255,238,184,0.2)'); this.beam.addColorStop(1, 'rgba(255,238,184,0)');

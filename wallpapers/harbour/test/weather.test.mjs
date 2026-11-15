@@ -110,14 +110,14 @@ test('Cloud: by day white, grey under heavy cover', () => {
 
 // What the eye sees at night: the cloud's tones AFTER the night tint Lighting puts over the whole 2D canvas.
 const tinted = (rgb, light) => { const m = Lighting.matrix(light); return [0, 1, 2].map(row => m[row * 3] * rgb[0] + m[row * 3 + 1] * rgb[1] + m[row * 3 + 2] * rgb[2] + 255 * light.offset[row]); };
-// the sea's own colours (about [67, 159, 178], measured under the old night tint as [16, 46, 80]) under the moonless night light
-const NIGHT_SEA = tinted([67, 159, 178], DayCycle.lightAt(-30, false, 0));
+// the night sea as it shows on screen (shader-source.js: middle (0.07, 0.25, 0.48), deep (0.03, 0.12, 0.30)), as 0..255
+const NIGHT_SEA = [0.07, 0.25, 0.48].map(v => v * 255), NIGHT_DEEP = [0.03, 0.12, 0.30].map(v => v * 255);
 
-test('Cloud: at night, after the tint, a dark blue-grey a little lighter than the night sea, with three clear tones', () => {
+test('Cloud: at night, after the tint, a blue-grey a step lighter than the on-screen night sea, with three clear tones', () => {
   for (const cover of [0, Weather.CAP]) {
     const weather = { cover, darkness: smooth01(cover), speed: 1 };
     const moonless = Cloud.tones({ darkness: 1, moonlight: 0 }, weather).map(t => tinted(t, DayCycle.lightAt(-30, false, 0)));
-    const sea = luma(NIGHT_SEA);
+    const sea = luma(NIGHT_SEA); assert.ok(luma(NIGHT_DEEP) < sea, 'the deep sea is darker still');
     moonless.forEach((t, i) => {
       assert.ok(luma(t) > sea && luma(t) < 2 * sea, `cover ${cover}, tone ${i}: ${t.map(Math.round)} (luma ${luma(t).toFixed(1)}) vs sea ${sea.toFixed(1)}`);
       assert.ok(t[2] > t[1] && t[1] > t[0], `bluish grey ${t.map(Math.round)}`);
@@ -125,7 +125,7 @@ test('Cloud: at night, after the tint, a dark blue-grey a little lighter than th
     for (let i = 1; i < 3; i++) assert.ok(luma(moonless[i - 1]) - luma(moonless[i]) >= 4, `tone ${i - 1} vs ${i}: a visible step`);
     // a bright moon lights them more (the tint itself is brighter then, and so are the tones)
     const moonlit = Cloud.tones({ darkness: 1, moonlight: 1 }, weather).map(t => tinted(t, DayCycle.lightAt(-30, false, 1)));
-    moonlit.forEach((t, i) => assert.ok(luma(t) > luma(moonless[i]) * 1.2, `moonlit tone ${i}`));
+    moonlit.forEach((t, i) => assert.ok(luma(t) > luma(moonless[i]) * 1.1, `moonlit tone ${i}`));
   }
 });
 
@@ -134,20 +134,18 @@ test('Cloud: a light under it is mostly hidden, one in a gap is not', () => {
   const cloud = Object.assign(Object.create(Cloud.prototype), { world, x: 0, y: 0, r: 0.1, scale: 1, alpha: 1, puffs: [{ x: 0, y: 0, r: 0.5 }] });
   assert.ok(cloud.dimAt(0, 0) >= 0.8, 'under the cloud');
   assert.equal(cloud.dimAt(0.5, 0.5), 0, 'in a gap');
-  // and that is how it draws on the light map: painting the night's own colour (not rubbing out, no bright hole) with that strength
+  // and that is how it draws on the lights canvas: rubbing out (not painting over) with that strength
   const seen = [];
-  const c = new Proxy({}, { get: (t, k) => k in t ? t[k] : (k === 'fill' ? () => seen.push({ op: t.globalCompositeOperation, alpha: t.globalAlpha, style: t.fillStyle }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
-  world.day.light = { r: 0.4, g: 0.5, b: 0.78, grey: 0.15, offset: [-0.08, -0.06, -0.02] };
+  const c = new Proxy({}, { get: (t, k) => k in t ? t[k] : (k === 'fill' ? () => seen.push({ op: t.globalCompositeOperation, alpha: t.globalAlpha }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
   cloud.drawShade(c);
-  assert.ok(seen.length > 0 && seen.every(f => f.op !== 'destination-out'), 'it does not rub out');
-  assert.ok(seen.every(f => f.style === 'rgb(102,128,199)'), `the night colour: ${seen.map(f => f.style)}`);
+  assert.ok(seen.length > 0 && seen.every(f => f.op === 'destination-out'));
   assert.equal(seen.at(-1).alpha, Cloud.MASK);
 });
 
 test('DayCycle: daylight is dimmer and greyer under heavy cover, unchanged under a clear sky', () => {
   const noon = new Date(Date.UTC(2026, 10, 14, 10)), day = new DayCycle();
   const clear = { ...day.update(noon, BUCHAREST, 0).light }, cloudy = { ...day.update(noon, BUCHAREST, Weather.CAP).light };
-  assert.deepEqual({ ...clear, offset: [...clear.offset] }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] });
+  assert.deepEqual({ ...clear, offset: [...clear.offset], moon: 0 }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 });
   assert.ok(Math.abs(cloudy.r + cloudy.g + cloudy.b - 2.7) < 1e-9, `cloudy light ${JSON.stringify(cloudy)}`);
   assert.ok(Math.abs(cloudy.grey - 0.1) < 1e-9, `grey ${cloudy.grey}`);
 });
