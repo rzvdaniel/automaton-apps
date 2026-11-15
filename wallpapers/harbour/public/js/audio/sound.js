@@ -44,16 +44,16 @@ export class Sound {
 
   /**
    * Plays a named sound (see sounds.js). options: pan -1 (left) to 1 (right); level volume; entity the thing that was clicked;
-   * calm true for the quiet, spaced-out kind. Does nothing while sound is off or the name is unknown.
+   * calm true for the quiet, spaced-out kind; delay seconds to wait before it starts. Does nothing while sound is off or the name is unknown.
    */
   play(name, options = {}) {
     if (!this.live) return;
     const sound = SOUNDS[name];
     if (!sound) { console.warn(`Harbour: no sound called "${name}"`); return; }
-    const now = this.engine.now;
-    if (now - (this.lastPlayed[name] ?? 0) < (options.calm ? 4 : 0.15)) return;
-    this.lastPlayed[name] = now;
-    try { sound(this.engine, now + 0.01, this.engine.out(options.pan, options.level), options); }
+    const at = this.engine.now + (options.delay ?? 0);   // a delayed sound is held back, and spaced from the others by when it starts
+    if (at - (this.lastPlayed[name] ?? -Infinity) < (options.calm ? 4 : 0.15)) return;
+    this.lastPlayed[name] = at;
+    try { sound(this.engine, at + 0.01, this.engine.out(options.pan, options.level), options); }
     catch (err) { console.error(`Harbour: sound "${name}" failed:`, err); }
   }
 }
