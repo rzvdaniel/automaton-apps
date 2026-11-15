@@ -74,7 +74,7 @@ export const FRAGMENT_SHADER = [
   '    col = mix(g_shallow, g_mid, smoothstep(0.03, 0.2, sd));',
   '    col = mix(col, g_deep, smoothstep(0.16, 0.62, sd));',
   '    col = mix(g_glow, col, smoothstep(-0.004, 0.075, sd));',
-  '    col += 0.055 * (fbm(q * 1.7 + 50.0) - 0.47);',
+  '    col += 0.055 * mix(1.0, 0.4, u_night.x) * (fbm(q * 1.7 + 50.0) - 0.47);',
   '    float ws = u_wind.z; vec2 wd = u_wind.xy, wn = vec2(-wd.y, wd.x);',
   '    vec2 qa = vec2(dot(q, wd), dot(q, wn));',                             // the sea in the wind's frame: along it, across it
   '    vec2 qw = mix(q, wd * qa.x * (1.0 - 0.55 * ws) + wn * qa.y * (1.0 + 0.6 * ws), ws) - wd * (t * 0.02 * ws);',   // stretched along the wind and drifting downwind (just q when calm)

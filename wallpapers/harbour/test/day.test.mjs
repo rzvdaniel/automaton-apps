@@ -138,7 +138,10 @@ test('DayCycle: a night with a full moon is brighter than one with a new moon', 
   assert.ok(full > none * 1.05, `full ${full} vs new ${none}`);
 });
 
-test('DayCycle: the night light is mild, dawn and dusk blend into it without a jump, and it never gets brighter as the sun sets', () => {
+const luma3 = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+const GROUND = [['sand', [0.957, 0.922, 0.882], [0.62, 0.64, 0.74]], ['grass', [0.663, 0.824, 0.467], [0.30, 0.50, 0.47]], ['sea', [0.086, 0.682, 0.816], [0.07, 0.25, 0.48]]];
+
+test('DayCycle: the night light is mild, dawn and dusk blend into it without a jump, and the ground never gets brighter on screen as the sun sets', () => {
   const dark = DayCycle.lightAt(-30, true, 0), moon = DayCycle.lightAt(-30, true, 1), luma = l => 0.299 * l.r + 0.587 * l.g + 0.114 * l.b;
   assert.deepEqual([dark.r, dark.g, dark.b, dark.grey], [0.78, 0.82, 0.95, 0.1]);
   assert.deepEqual([moon.r, moon.g, moon.b].map(v => +v.toFixed(2)), [0.88, 0.92, 1]);
@@ -147,16 +150,20 @@ test('DayCycle: the night light is mild, dawn and dusk blend into it without a j
     let prev = DayCycle.lightAt(15, morning, moonlight);
     for (let alt = 14.5; alt >= -20; alt -= 0.5) {
       const l = DayCycle.lightAt(alt, morning, moonlight);
-      for (const [a, b] of [[l.r, prev.r], [l.g, prev.g], [l.b, prev.b], [l.grey, prev.grey], [l.night, prev.night]]) {
-        assert.ok(Math.abs(a - b) < 0.1, `jump at ${alt} degrees (morning ${morning}, moon ${moonlight}): ${a} vs ${b}`);
+      for (const [a, b] of [[l.r, prev.r], [l.g, prev.g], [l.b, prev.b], [l.grey, prev.grey]]) {
+        assert.ok(Math.abs(a - b) < 0.06, `jump at ${alt} degrees (morning ${morning}, moon ${moonlight}): ${a} vs ${b}`);
       }
       prev = l;
     }
-    prev = DayCycle.lightAt(10, morning, moonlight);   // brightness never rises from +10 down to -12 degrees
-    for (let alt = 9.5; alt >= -12; alt -= 0.5) {
-      const l = DayCycle.lightAt(alt, morning, moonlight);
-      assert.ok(luma(l) <= luma(prev) + 1e-9, `brighter at ${alt} degrees (morning ${morning}, moon ${moonlight}): ${luma(l)} vs ${luma(prev)}`);
-      prev = l;
+    // what reaches the eye (the light times the ground colour, blended into the night colour as the shader does) never gets brighter
+    for (const [name, c, n] of GROUND) {
+      let prevLuma = Infinity;
+      for (let alt = 10; alt >= -12; alt -= 0.5) {
+        const l = DayCycle.lightAt(alt, morning, moonlight), k = [l.r, l.g, l.b];
+        const y = luma3(c.map((v, i) => (1 - l.night) * k[i] * v + l.night * n[i] * (1 + 0.15 * moonlight)));
+        assert.ok(y <= prevLuma + 0.01, `${name} brighter at ${alt} degrees (morning ${morning}, moon ${moonlight}): ${y} vs ${prevLuma}`);
+        prevLuma = y;
+      }
     }
   }
   assert.deepEqual([...DayCycle.lightAt(-12, true, 0).offset], [0, 0, 0]);

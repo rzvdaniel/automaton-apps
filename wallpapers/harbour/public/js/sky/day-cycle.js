@@ -35,11 +35,11 @@ const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
 // The light's colour (red, green, blue multipliers) at sun heights in degrees, from high sun down to full night.
 // Morning and evening differ only near the horizon: a rosy, soft dawn and a golden evening; both turn blue at twilight.
 const DAY = [1, 1, 1];
-// The night light is mild: the backdrop has its own night colours for sand, grass and sea (see shader-source.js), and the
-// light only cools everything else a little. Brightness never rises as the sun goes down, so the keys near the horizon
-// stay at least as bright as the night (a pale tint, not a deep one; the palette's fade-in carries the dusk).
-const MORNING = [[10, DAY], [6, [1, 0.96, 0.9]], [0, [0.98, 0.92, 0.9]], [-6, [0.9, 0.93, 1]]];
-const EVENING = [[10, DAY], [6, [1, 0.96, 0.78]], [0, [1, 0.95, 0.68]], [-6, [0.9, 0.92, 1]]];
+// The night light is mild: the backdrop has its own night colours for sand, grass and sea (see shader-source.js), which fade in
+// from 0 degrees down. The keys near the horizon can therefore be a real gold or rose; what must never rise as the sun goes
+// down is the brightness on screen (the light times the ground colour, blended into the night colour: see the day test).
+const MORNING = [[10, DAY], [6, [1, 0.93, 0.84]], [0, [0.88, 0.76, 0.76]], [-6, [0.74, 0.74, 0.9]]];
+const EVENING = [[10, DAY], [6, [1, 0.88, 0.64]], [0, [0.95, 0.72, 0.5]], [-6, [0.74, 0.72, 0.88]]];
 const NIGHT_DARK = [0.78, 0.82, 0.95];   // no moon: a mild blue
 const NIGHT_MOON = [0.88, 0.92, 1.0];    // a full moon high up: a little brighter
 const NIGHT_GREY = 0.1;                  // how much colour fades at full night

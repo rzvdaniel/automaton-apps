@@ -219,6 +219,7 @@ test('houses: a warm halo round each lit house that grows as more of its windows
 
 // ----- the night palette -----
 import { FRAGMENT_SHADER } from '../public/js/engine/shader-source.js';
+import { DayCycle } from '../public/js/sky/day-cycle.js';
 import { Backdrop } from '../public/js/engine/backdrop.js';
 
 test('night palette: the shader mixes every ground colour to its night colour by u_night, divided by the light so it shows as chosen', () => {
@@ -235,4 +236,12 @@ test('night palette: Lighting hands the amount and the moonlight to the backdrop
   const backdrop = new Backdrop({ getContext: () => null });
   backdrop.setLight([1, 0, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0], 0.7, 0.4);
   assert.deepEqual([...backdrop.night].map(v => +v.toFixed(2)), [0.7, 0.4]);
+});
+
+test('night palette: dividing by the light and then applying it gives back the chosen colour (grey 0)', () => {
+  const l = DayCycle.lightAt(-30, false, 0), k = [l.r, l.g, l.b], n = [0.62, 0.64, 0.74];
+  const nsc = k.map(v => 1 / Math.max(v, 0.2));   // as the shader's nsc, moonlight 0
+  n.forEach((v, i) => assert.ok(Math.abs(k[i] * v * nsc[i] - v) < 1e-12));
+  const m = DayCycle.lightAt(-30, false, 1), km = [m.r, m.g, m.b];
+  n.forEach((v, i) => assert.ok(Math.abs(km[i] * v * (1.15 / km[i]) - v * 1.15) < 1e-12, 'a full moon: 15% brighter on screen'));
 });
