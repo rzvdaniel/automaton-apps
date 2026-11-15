@@ -117,11 +117,23 @@ test('QualityMonitor: a longer fast stretch raises quality, and flapping backs o
 test('QualityMonitor: very long work is slowness; late uneven frames are slow, a steady cap is not; long gaps block raising', () => {
   assert.ok(feed(new QualityMonitor(), 30, 300, 300).every(r => r < 0) && feed(new QualityMonitor(), 30, 300, 300).length >= 1, '300 ms of work per frame');
   assert.deepEqual(feed(new QualityMonitor(), 60, 66, 4), [], 'a steady 66 ms cap');
-  const m = new QualityMonitor(), out = [];
-  for (let t = 0, i = 0; t < 10000; i++) { const gap = i % 2 ? 150 : 30; t += gap; out.push(m.sample(4, gap)); }
-  assert.deepEqual(out.filter(Boolean), [-1], 'irregular long gaps');
   const r = new QualityMonitor(); feed(r, 10, 50, 40);
   assert.deepEqual(feed(r, 60, 100, 5), [], 'short work but long gaps: no raise');
+});
+
+test('QualityMonitor: slow work with long gaps lowers; hitches and steady patterns do not; random long gaps do', () => {
+  const m = new QualityMonitor(), out = []; for (let i = 0; i < 500; i++) out.push(m.sample(150, 260));
+  assert.ok(out.includes(-1), '150 ms work, 260 ms gaps');
+  const h = new QualityMonitor(); let lowered = 0;
+  for (let i = 0; i < 2000; i++) lowered += h.sample(4, i % 60 === 59 ? 200 : 66) < 0;
+  assert.equal(lowered, 0, '15 fps cap with a hitch every 60 frames');
+  const a = new QualityMonitor(); lowered = 0;
+  for (let i = 0; i < 1000; i++) lowered += a.sample(4, i % 2 ? 95 : 40) < 0;
+  assert.equal(lowered, 0, 'alternating 40/95 ms');
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const r = new QualityMonitor(); lowered = 0;
+  for (let i = 0; i < 1000; i++) lowered += r.sample(4, 30 + rnd() * 120) < 0;
+  assert.ok(lowered >= 1, 'random 30-150 ms gaps');
 });
 
 test('QualityMonitor: work between the fast and slow limits resets the fast streak', () => {
