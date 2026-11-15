@@ -166,9 +166,9 @@ test('IconRow: the model has exactly one chosen option, and the markup says so w
   assert.deepEqual(buttons.map(b => b.attrs['aria-pressed']), ['false', 'true', 'false']);
 });
 
-test('Settings panel markup: time bar first, then the rows, then the place and the Status row; status lines hidden until it is on', () => {
+test('Settings panel markup: time bar first, then the rows, then the place, then Sound, Every animal and Status side by side; status lines hidden until it is on', () => {
   const html = SettingsForm.markup(), at = s => { const i = html.indexOf(s); assert.ok(i >= 0, s); return i; };
-  const order = ['id="set-hour"', 'id="set-flow"', 'id="set-now"', 'id="set-weather"', 'id="set-wind"', 'id="set-waves"', 'id="set-colours"', 'id="set-moon"', 'id="set-sound"', 'id="set-place"', 'id="set-everything"', 'id="set-status-toggle"'].map(at);
+  const order = ['id="set-hour"', 'id="set-flow"', 'id="set-now"', 'id="set-weather"', 'id="set-wind"', 'id="set-waves"', 'id="set-colours"', 'id="set-moon"', 'id="set-place"', 'id="set-sound"', 'id="set-everything"', 'id="set-status-toggle"'].map(at);
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   const values = id => [...html.match(new RegExp(`id="set-${id}" role="group"[^>]*>(.*?)</div>`, 's'))[1].matchAll(/data-value="([^"]*)"/g)].map(m => m[1]);
   assert.deepEqual(values('weather'), ['0', '0.33', '0.67', '1']);
@@ -179,6 +179,7 @@ test('Settings panel markup: time bar first, then the rows, then the place and t
   assert.deepEqual(values('sound'), ['on', 'off']);
   assert.deepEqual(values('everything'), ['on', 'off']);
   assert.deepEqual(values('status-toggle'), ['on', 'off']);
+  assert.match(html, /<div class="set-pair">.*?set-colours.*?set-moon/s, 'Colours and Moon share a line');
   assert.deepEqual(values('flow'), ['flowing', 'fixed']);
   assert.match(html, /<svg viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="swatch-classic">/, 'a colour button is a swatch of its set');
   assert.ok(!/start time|Keep/i.test(html), 'the start-time field and Keep are gone');

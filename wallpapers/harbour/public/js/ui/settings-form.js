@@ -47,21 +47,22 @@ export class SettingsForm {
 
   /** The fields' markup (the tests read it too). */
   static markup() {
-    const rows = SettingsForm.rows().map(r => `<div class="a-field"><span class="a-label" id="set-lbl-${r.key}">${r.label}</span>
-    ${IconRow.markup({ id: 'set-' + r.key, labelId: 'set-lbl-' + r.key, options: r.options })}</div>`).join('\n  ');
+    const field = r => `<div class="a-field"><span class="a-label" id="set-lbl-${r.key}">${r.label}</span>
+    ${IconRow.markup({ id: r.id ?? 'set-' + r.key, labelId: 'set-lbl-' + r.key, options: r.options })}</div>`;
+    const by = Object.fromEntries(SettingsForm.rows().map(r => [r.key, r]));
+    const status = { ...SettingsForm.STATUS, id: 'set-status-toggle' };
+    const pair = (...rs) => `<div class="set-pair">${rs.map(field).join(' ')}</div>`;
     return `<div class="a-field"><label class="a-label" id="set-lbl-time" for="set-hour">Time <output id="set-hour-text"></output></label>
     <span class="hour-row"><button type="button" class="icon-btn icon-btn--step" id="set-hour-minus" title="Back one hour" aria-label="Back one hour">−1 h</button>
       <input class="slider" id="set-hour" type="range" min="0" max="1439" step="1">
       <button type="button" class="icon-btn icon-btn--step" id="set-hour-plus" title="Forward one hour" aria-label="Forward one hour">+1 h</button></span>
     <span class="slider-ends a-hint"><span>00:00</span><span>23:59</span></span>
     <span class="time-row">${IconRow.markup({ id: 'set-flow', labelId: 'set-lbl-time', options: SettingsForm.FLOW })}<button type="button" class="a-btn" id="set-now">Now</button></span></div>
-  ${rows}
+  ${['weather', 'wind', 'waves'].map(k => field(by[k])).join(' ')}
+  ${pair(by.colours, by.moon)}
   <div class="a-field"><label class="a-label" for="set-place">Place</label>
     <select class="a-input" id="set-place"></select><span class="a-hint" id="set-place-hint"></span></div>
-  <div class="a-field"><span class="a-label" id="set-lbl-everything">${SettingsForm.EVERYTHING.label}</span>
-    ${IconRow.markup({ id: 'set-everything', labelId: 'set-lbl-everything', options: SettingsForm.EVERYTHING.options })}</div>
-  <div class="a-field"><span class="a-label" id="set-lbl-status">${SettingsForm.STATUS.label}</span>
-    ${IconRow.markup({ id: 'set-status-toggle', labelId: 'set-lbl-status', options: SettingsForm.STATUS.options })}</div>`;
+  ${pair(by.sound, SettingsForm.EVERYTHING, status)}`;
   }
 
   /**

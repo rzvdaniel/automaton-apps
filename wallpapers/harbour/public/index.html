@@ -31,13 +31,18 @@
   #settings[aria-expanded="true"] ~ #zoom-in, #settings[aria-expanded="true"] ~ #zoom-out { opacity: 0; pointer-events: none; }
   body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
   /* the settings panel: the kit's card and form classes, only laid out here; colours come from the kit's tokens.
-     Above the button, 10 px from the right edge, scrolls when taller than the space (the top 76 px stay free for Reset zoom). */
+     Above the button, 10 px from the right edge, stays compact (wider, short rows side by side, 36 px buttons) so it fits a 1080p screen without scrolling; it still scrolls when taller than the space (the top 76 px stay free for Reset zoom). */
   .settings-panel { position: fixed; z-index: 5; right: max(10px, env(safe-area-inset-right)); bottom: calc(var(--settings-bottom) + 54px);
-    width: 340px; max-width: calc(100vw - 20px); box-sizing: border-box; max-height: calc(100dvh - 192px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain;
+    width: 400px; max-width: calc(100vw - 20px); box-sizing: border-box; max-height: calc(100dvh - 192px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain;
     touch-action: pan-y; user-select: none; background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 30%, transparent); }
   .settings-panel[hidden] { display: none; }
-  .settings-panel .a-card__head { margin: 0 0 10px; }
+  .settings-panel .a-card__head { margin: 0 0 6px; }
+  .settings-panel .a-form { gap: 8px; }
+  .settings-panel .a-field { gap: 3px; }
+  /* short rows sit side by side: Colours + Moon, and Sound + Every animal + Status */
+  .set-pair { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .set-pair > .a-field { flex: 0 0 auto; }
   .settings-panel .a-label output { float: right; font-variant-numeric: tabular-nums; }
   .settings-panel .hour-row { display: flex; gap: 8px; align-items: center; }
   .settings-panel .hour-row .slider { flex: 1; min-width: 0; width: auto; }
@@ -47,16 +52,20 @@
   .settings-panel .a-btn svg { width: 18px; height: 18px; display: block; }
   .settings-panel .time-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
   .settings-panel .set-status { margin: 4px 0 0; font: 11px/1.35 Consolas, monospace; color: var(--muted); white-space: pre-wrap; user-select: text; }
-  /* a row of round buttons: about 44 px each, the chosen one filled with the accent */
-  .icon-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .icon-btn { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; display: grid; place-items: center; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
-  .icon-btn svg { width: 24px; height: 24px; display: block; }
+  /* a row of round buttons: 36 px each for the mouse (44 on the phone sheet), the chosen one filled with the accent */
+  .icon-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; display: grid; place-items: center; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .icon-btn svg { width: 20px; height: 20px; display: block; }
   .icon-btn:hover { border-color: var(--accent); }
   .icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .icon-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
-  .icon-btn--text { width: auto; min-width: 44px; padding: 0 14px; border-radius: 22px; font: inherit; font-size: 13px; font-weight: 600; }
+  .icon-btn--text { width: auto; min-width: 36px; padding: 0 12px; border-radius: 18px; font: inherit; font-size: 13px; font-weight: 600; }
   /* a phone-width screen: a sheet across the bottom, over the corner button (the sheet has its own close button) */
   @media (max-width: 639px) {
+    .icon-btn { width: 44px; height: 44px; }
+    .icon-btn svg { width: 24px; height: 24px; }
+    .icon-btn--text { width: auto; min-width: 44px; padding: 0 14px; border-radius: 22px; }
+    .icon-row { gap: 8px; }
     .settings-panel { z-index: 7; left: 0; right: 0; bottom: 0; width: auto; max-width: none; border-radius: 16px 16px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom));
       max-height: min(75dvh, calc(100dvh - 76px - env(safe-area-inset-top))); }
   }
