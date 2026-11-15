@@ -155,5 +155,5 @@ test('World: owns the weather, and follows a clock fixed after it was built with
   assert.ok(world.weather instanceof Weather);
   world.skyClock.realNow = () => fixed;
   world.update(1);
-  assert.ok(Math.abs(world.weather.cover - Weather.coverAt(new Date(fixed), 0.5)) < 1e-9);
+  assert.ok(Math.abs(world.weather.cover - Weather.coverAt(new Date(fixed), world.settings.get('weather'))) < 1e-9);
 });

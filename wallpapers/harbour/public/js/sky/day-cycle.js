@@ -56,7 +56,7 @@ export class DayCycle {
   /** @param {{ sky?: Sky }} parts */
   constructor({ sky = new Sky() } = {}) {
     this.sky = sky;
-    this.moonOverride = null;   // for this page only (the debug panel): null the real moon, 'full' or 'new'
+    this.moonOverride = null;   // from the moon setting: null the real moon, 'full' or 'new'
     this.sun = { azimuth: 180, altitude: 35 };
     this.moon = { azimuth: 0, altitude: -30, fraction: 0, waxing: true };
     this.phase = 'day'; this.darkness = 0; this.night = 0; this.moonlight = 0;

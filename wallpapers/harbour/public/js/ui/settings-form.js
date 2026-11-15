@@ -1,53 +1,70 @@
 import { Place } from '../sky/place.js';
-import { Wind } from '../engine/wind.js';
 import { PALETTES } from '../sky/palettes.js';
+import { WEATHER_LEVELS, WIND_STRENGTHS, WAVES, MOONS, snap } from '../sky/settings.js';
+import { IconRow } from './icon-row.js';
+import { ICONS, swatch } from './icons.js';
 
 /**
- * The settings controls (sound, place, time, weather, wind, waves, colours) without a window around them: the settings dialog and the
- * debug panel both show them. It builds the fields' markup, writes every change straight to Settings (and to Sound, which keeps
- * its own switch) and shows the current choices on show(). It does no thinking of its own.
- * `time: false` leaves out the start-time field (the debug panel has a slider instead). Ids start with `prefix`, so two forms never clash.
+ * The settings controls without a window around them: the time bar (live while dragged, Flowing or Fixed, Now), then rows of
+ * round buttons for weather, wind, waves, colours, moon and sound, then the place picker. The settings panel shows them.
+ * It builds the markup, writes every change straight to Settings (and to Sound, which keeps its own switch, and to the clock)
+ * and shows the current choices on show(). It does no thinking of its own. Ids start with `set-`.
  */
 export class SettingsForm {
-  /** The fields' markup (the tests read it too). */
-  static markup({ time = true, prefix = 'set-' } = {}) {
-    const p = prefix;
-    return `<div class="a-field"><span class="a-label" id="${p}lbl-sound">Sound</span>
-    <button type="button" class="a-btn" id="${p}sound" aria-labelledby="${p}lbl-sound" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 9.5h3l4.5-4v13l-4.5-4H4z" fill="currentColor"/><path class="waves" d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.6a7.6 7.6 0 0 1 0 10.8"/><path class="cross" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>
-      </svg><span id="${p}sound-text"></span></button></div>
-  <div class="a-field"><label class="a-label" for="${p}place">Place</label>
-    <select class="a-input" id="${p}place"></select><span class="a-hint" id="${p}place-hint"></span></div>${time ? `
-  <div class="a-field"><label class="a-label" for="${p}time-mode">Time</label>
-    <select class="a-input" id="${p}time-mode"><option value="now">Now</option><option value="start">Start at a time</option></select>
-    <input class="a-input" id="${p}time" type="time" aria-label="Start time" step="60"></div>` : ''}
-  <div class="a-field"><label class="a-label" for="${p}weather">Weather</label>
-    <input class="slider" id="${p}weather" type="range" min="0" max="100" step="1">
-    <span class="slider-ends a-hint"><span>More sun</span><span>More clouds</span></span></div>
-  <div class="a-field"><label class="a-label" for="${p}wind-mode">Wind</label>
-    <select class="a-input" id="${p}wind-mode"><option value="auto">Auto</option><option value="set">Choose</option></select>
-    <input class="slider" id="${p}wind" type="range" min="0" max="100" step="1" aria-label="Wind strength">
-    <span class="slider-ends a-hint" id="${p}wind-ends"><span>Calm</span><span>Stormy</span></span></div>
-  <div class="a-field"><label class="a-label" for="${p}waves">Waves</label>
-    <select class="a-input" id="${p}waves"><option value="off">Off</option><option value="original">Original</option><option value="crescents">Crescents</option><option value="dashes">Dashes</option></select></div>
-  <div class="a-field"><label class="a-label" for="${p}colours">Colours</label>
-    <select class="a-input" id="${p}colours">${PALETTES.map(x => `<option value="${x.id}">${x.name}</option>`).join('')}</select></div>`;
+  /** "06:30" for 390 minutes past midnight; 1440 is "24:00". */
+  static hourText(minutes) {
+    const m = Math.min(1440, Math.max(0, Math.round(minutes)));
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   }
 
   /**
-   * @param {{ root: Element, settings: object, place: Place, clock: object, sound: object, time?: boolean, prefix?: string }} parts
-   * root: an element whose innerHTML already holds SettingsForm.markup() with the same options
+   * The rows of round buttons, in the order shown: { key, label, options: [{ value, label, icon }] }. A row's `key` names its
+   * element (`set-<key>`); the value of an option is what `Settings` stores for it (see `pick`).
    */
-  constructor({ root, settings, place, clock, sound, time = true, prefix = 'set-' }) {
-    this.root = root; this.settings = settings; this.place = place; this.clock = clock; this.sound = sound; this.time = time; this.prefix = prefix;
+  static rows() {
+    const weather = [['sunny', 'Sunny'], ['partly', 'Partly sunny'], ['cloudy', 'Cloudy'], ['stormy', 'Stormy']];
+    const wind = [['calm', 'Calm'], ['windy', 'Windy'], ['gale', 'Stormy']];
+    const waves = [['wavesOff', 'Off'], ['wavesOriginal', 'Original'], ['wavesCrescents', 'Crescents'], ['wavesDashes', 'Dashes']];
+    const moon = [['moonReal', 'Real moon'], ['moonFull', 'Full moon'], ['moonNew', 'New moon']];
+    return [
+      { key: 'weather', label: 'Weather', options: WEATHER_LEVELS.map((v, i) => ({ value: v, label: weather[i][1], icon: ICONS[weather[i][0]] })) },
+      { key: 'wind', label: 'Wind', options: [{ value: 'auto', label: 'Auto', icon: ICONS.auto }, ...WIND_STRENGTHS.map((v, i) => ({ value: v, label: wind[i][1], icon: ICONS[wind[i][0]] }))] },
+      { key: 'waves', label: 'Waves', options: WAVES.map((v, i) => ({ value: v, label: waves[i][1], icon: ICONS[waves[i][0]] })) },
+      { key: 'colours', label: 'Colours', options: PALETTES.map(p => ({ value: p.id, label: p.name, icon: swatch(p) })) },
+      { key: 'moon', label: 'Moon', options: MOONS.map((v, i) => ({ value: v, label: moon[i][1], icon: ICONS[moon[i][0]] })) },
+      { key: 'sound', label: 'Sound', options: [{ value: 'on', label: 'Sound on', icon: ICONS.soundOn }, { value: 'off', label: 'Sound off', icon: ICONS.soundOff }] }
+    ];
+  }
+
+  /** The two ways time can go on once a time is chosen. */
+  static FLOW = [{ value: 'flowing', label: 'Flowing' }, { value: 'fixed', label: 'Fixed' }];
+
+  /** The fields' markup (the tests read it too). */
+  static markup() {
+    const rows = SettingsForm.rows().map(r => `<div class="a-field"><span class="a-label" id="set-lbl-${r.key}">${r.label}</span>
+    ${IconRow.markup({ id: 'set-' + r.key, labelId: 'set-lbl-' + r.key, options: r.options })}</div>`).join('\n  ');
+    return `<div class="a-field"><label class="a-label" id="set-lbl-time" for="set-hour">Time <output id="set-hour-text"></output></label>
+    <input class="slider" id="set-hour" type="range" min="0" max="1439" step="1">
+    <span class="slider-ends a-hint"><span>00:00</span><span>23:59</span></span>
+    <span class="time-row">${IconRow.markup({ id: 'set-flow', labelId: 'set-lbl-time', options: SettingsForm.FLOW })}<button type="button" class="a-btn" id="set-now">Now</button></span></div>
+  ${rows}
+  <div class="a-field"><label class="a-label" for="set-place">Place</label>
+    <select class="a-input" id="set-place"></select><span class="a-hint" id="set-place-hint"></span></div>`;
+  }
+
+  /**
+   * @param {{ root: Element, settings: object, place: Place, clock: object, sound: object }} parts
+   * root: an element whose innerHTML already holds SettingsForm.markup()
+   */
+  constructor({ root, settings, place, clock, sound }) {
+    this.root = root; this.settings = settings; this.place = place; this.clock = clock; this.sound = sound; this.dragging = false;
     this.#fillPlaces();
     this.#wire();
     sound.onChange(() => this.show());
     settings.onChange(() => this.show());
   }
 
-  #el(id) { return this.root.querySelector('#' + this.prefix + id); }
+  #el(id) { return this.root.querySelector('#set-' + id); }
 
   #fillPlaces() {
     const select = this.#el('place');
@@ -56,50 +73,54 @@ export class SettingsForm {
     [...Place.cities].sort((a, b) => a.city.localeCompare(b.city)).forEach(c => add(c.zone, c.city));
   }
 
-  #wire() {
+  /** What each row does when its button `value` (text) is pressed. */
+  pick(key, value) {
     const s = this.settings;
-    this.#el('sound').addEventListener('click', () => this.sound.toggle());
-    this.#el('place').addEventListener('change', e => s.set({ place: e.target.value || null }));
-    if (this.time) {
-      this.#el('time-mode').addEventListener('change', e => {
-        if (e.target.value === 'now') this.clock.setNow(); else this.clock.setStart(this.#el('time').value || this.#nowText());
-      });
-      this.#el('time').addEventListener('change', e => { if (e.target.value) this.clock.setStart(e.target.value); });
-    }
-    this.#el('weather').addEventListener('change', e => s.set({ weather: Number(e.target.value) / 100 }));
-    // a chosen wind lasts until the viewer picks Auto again (see Wind)
-    const chosen = strength => ({ mode: 'fixed', strength });
-    this.#el('wind-mode').addEventListener('change', e => s.set({ wind: e.target.value === 'auto' ? { mode: 'auto' } : chosen(Number(this.#el('wind').value) / 100) }));
-    this.#el('wind').addEventListener('change', e => s.set({ wind: chosen(Number(e.target.value) / 100) }));
-    this.#el('waves').addEventListener('change', e => s.set({ waves: e.target.value }));
-    this.#el('colours').addEventListener('change', e => s.set({ palette: e.target.value }));
+    if (key === 'weather') s.set({ weather: Number(value) });
+    else if (key === 'wind') s.set({ wind: value === 'auto' ? { mode: 'auto' } : { mode: 'fixed', strength: Number(value) } });   // a chosen wind lasts until Auto (see Wind)
+    else if (key === 'waves') s.set({ waves: value });
+    else if (key === 'colours') s.set({ palette: value });
+    else if (key === 'moon') s.set({ moon: value });
+    else if (key === 'sound') this.sound.set(value === 'on');
   }
 
-  /** The place's current time as HH:MM, a good first start time. */
-  #nowText() {
-    const l = this.place.local(this.clock.now()), two = n => String(n).padStart(2, '0');
-    return `${two(l.hours)}:${two(l.minutes)}`;
+  #wire() {
+    for (const { key } of SettingsForm.rows()) IconRow.onPick(this.#el(key), value => this.pick(key, value));
+    this.#el('place').addEventListener('change', e => this.settings.set({ place: e.target.value || null }));
+    const hour = this.#el('hour');
+    hour.addEventListener('input', () => { this.dragging = true; this.clock.setLocalMinutes(Number(hour.value)); this.#showHour(Number(hour.value)); });
+    hour.addEventListener('change', () => { this.dragging = false; this.clock.save(this.settings.get('time').mode === 'fixed'); this.show(); });   // saved when the drag ends
+    IconRow.onPick(this.#el('flow'), value => {
+      const fixed = this.settings.get('time').mode === 'fixed';
+      if (value === 'fixed' && !fixed) this.clock.setFixed(this.clock.shownText());
+      else if (value === 'flowing' && this.settings.get('time').mode !== 'start') this.clock.setStart(this.clock.shownText());
+    });
+    this.#el('now').addEventListener('click', () => { this.dragging = false; this.clock.setNow(); this.show(); });
+  }
+
+  #showHour(minutes) { this.#el('hour-text').textContent = SettingsForm.hourText(minutes); }
+
+  /** Moves the time bar to the time the island shows (not while it is being dragged). Call now and then as time flows. */
+  showTime() {
+    if (this.dragging) return;
+    const m = this.clock.minutes();
+    this.#el('hour').value = Math.round(m); this.#showHour(m);
   }
 
   /** Shows the current choices in the form. */
   show() {
-    const s = this.settings, sound = this.#el('sound');
-    this.#el('sound-text').textContent = this.sound.on ? 'On' : 'Off';
-    sound.classList.toggle('on', this.sound.on); sound.classList.toggle('a-btn--primary', this.sound.on);
-    sound.setAttribute('aria-pressed', this.sound.on ? 'true' : 'false');
+    const s = this.settings, show = (key, value) => IconRow.show(this.#el(key), value);
+    this.showTime();
+    show('flow', { fixed: 'fixed', start: 'flowing' }[s.get('time').mode] ?? null);   // on Now neither is chosen
+    show('weather', snap(s.get('weather'), WEATHER_LEVELS));
+    const wind = s.get('wind');
+    show('wind', wind.mode === 'fixed' ? snap(wind.strength, WIND_STRENGTHS) : 'auto');
+    show('waves', s.get('waves'));
+    show('colours', s.get('palette'));
+    show('moon', s.get('moon'));
+    show('sound', this.sound.on ? 'on' : 'off');
     const picked = s.get('place');
     this.#el('place').value = picked && Place.cities.some(c => c.zone === picked) ? picked : '';
     this.#el('place-hint').textContent = `${this.place.current.city} (${this.place.zone})`;
-    if (this.time) {
-      const t = s.get('time'), start = t.mode === 'start';
-      this.#el('time-mode').value = start ? 'start' : 'now';
-      const time = this.#el('time'); time.hidden = !start; if (start) time.value = t.start;
-    }
-    this.#el('weather').value = Math.round(s.get('weather') * 100);
-    const wind = Wind.chosen(s.get('wind')), auto = wind === null;
-    this.#el('wind-mode').value = auto ? 'auto' : 'set';
-    const slider = this.#el('wind'); slider.hidden = auto; this.#el('wind-ends').hidden = auto; if (!auto) slider.value = Math.round(wind * 100);
-    this.#el('waves').value = s.get('waves');
-    this.#el('colours').value = s.get('palette');
   }
 }

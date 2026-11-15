@@ -19,11 +19,11 @@ test('Settings: defaults when nothing is saved or no storage exists', () => {
 test('Settings: choices are saved and come back after a reload', () => {
   const storage = fakeStorage();
   const a = new Settings({ storage });
-  a.set({ place: 'Asia/Tokyo', weather: 0.8, wind: { mode: 'fixed', strength: 0.3 }, time: { mode: 'start', start: '22:00', setAt: 1000 } });
+  a.set({ place: 'Asia/Tokyo', weather: 0.67, wind: { mode: 'fixed', strength: 0.4 }, time: { mode: 'start', start: '22:00', setAt: 1000 } });
   const b = new Settings({ storage });
   assert.equal(b.get('place'), 'Asia/Tokyo');
-  assert.equal(b.get('weather'), 0.8);
-  assert.deepEqual(b.get('wind'), { mode: 'fixed', strength: 0.3 });
+  assert.equal(b.get('weather'), 0.67);
+  assert.deepEqual(b.get('wind'), { mode: 'fixed', strength: 0.4 });
   assert.deepEqual(b.get('time'), { mode: 'start', start: '22:00', setAt: 1000 });
 });
 

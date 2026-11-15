@@ -6,7 +6,7 @@ import { Weather } from '../public/js/sky/weather.js';
 import { Backdrop, WAVE_STYLES } from '../public/js/engine/backdrop.js';
 import { FRAGMENT_SHADER } from '../public/js/engine/shader-source.js';
 import { Settings, WAVES } from '../public/js/sky/settings.js';
-import { SettingsDialog } from '../public/js/ui/settings-dialog.js';
+import { SettingsForm } from '../public/js/ui/settings-form.js';
 import { World } from '../public/js/engine/world.js';
 import { quietly } from './helpers.mjs';
 
@@ -122,8 +122,9 @@ test('World: a chosen wind still drives the island after midnight', () => {
 test('Settings: old saves of the wind ("auto" or a bare number) and damaged ones become Auto; an old choice with a day keeps its strength', () => {
   const load = wind => new Settings({ storage: { getItem: () => JSON.stringify({ wind }), setItem() {} } }).get('wind');
   for (const old of ['auto', 0.7, 'gale', { mode: 'fixed', strength: 3, day: DAY }, { mode: 'fixed', strength: 'x' }]) assert.deepEqual(load(old), AUTO, JSON.stringify(old));
-  assert.deepEqual(load(fixed(0.5)), fixed(0.5));
-  assert.deepEqual(load({ mode: 'fixed', strength: 0.5, day: '2026-11-13' }), fixed(0.5), 'the day is dropped');
+  assert.deepEqual(load(fixed(0.4)), fixed(0.4));
+  assert.deepEqual(load(fixed(0.5)), fixed(0.4), 'an old strength snaps to the nearest of calm, windy, stormy');
+  assert.deepEqual(load({ mode: 'fixed', strength: 0.4, day: '2026-11-13' }), fixed(0.4), 'the day is dropped');
 });
 
 test('Shader: whitecap crests and trails, and the surf, are all scaled by the sea strength (so calm is today\'s sea)', () => {
@@ -155,12 +156,12 @@ test('Settings: the waves are Original for a new viewer; a choice lasts; an unkn
   assert.equal(s.get('waves'), 'original');
 });
 
-test('Dialog: a Waves select (UI kit classes) with Off, Original, Crescents, Dashes', () => {
-  const html = SettingsDialog.markup();
-  const select = html.match(/<select class="a-input" id="set-waves">(.*?)<\/select>/);
-  assert.ok(select, 'a kit select');
-  assert.match(html, /<label class="a-label" for="set-waves">Waves<\/label>/);
-  assert.deepEqual([...select[1].matchAll(/value="([^"]+)"/g)].map(m => m[1]), [...WAVES]);
+test('Panel: a Waves row of round buttons for Off, Original, Crescents, Dashes', () => {
+  const html = SettingsForm.markup();
+  const row = html.match(/<div class="icon-row" id="set-waves"[^>]*>(.*?)<\/div>/s);
+  assert.ok(row, 'a row');
+  assert.match(html, /<span class="a-label" id="set-lbl-waves">Waves<\/span>/);
+  assert.deepEqual([...row[1].matchAll(/data-value="([^"]+)"/g)].map(m => m[1]), [...WAVES]);
 });
 
 test('Shader: a waves uniform picks Off, Original, Crescents or Dashes', () => {

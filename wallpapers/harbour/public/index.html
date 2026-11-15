@@ -16,42 +16,46 @@
   body { touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   #stage { position: fixed; inset: 0; touch-action: none; }
   #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  .btn { position: fixed; right: max(12px, env(safe-area-inset-right)); width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; touch-action: manipulation;
+  .btn { position: fixed; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; touch-action: manipulation;
     background: rgba(255, 255, 255, 0.26); color: #fff; opacity: 0.8; transition: opacity 0.2s, background 0.2s, transform 0.2s; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   .btn:hover, .btn:focus-visible { opacity: 1; background: rgba(255, 255, 255, 0.38); outline: none; }
   .btn svg { width: 24px; height: 24px; display: block; margin: auto; }
-  #settings { top: max(12px, env(safe-area-inset-top)); }
-  #home { top: calc(max(12px, env(safe-area-inset-top)) + 54px); transform: scale(0.6); opacity: 0; pointer-events: none; }
+  /* the settings button: 10 px from the bottom-right corner. Reset zoom sits in the top-right corner, which the panel never reaches. */
+  #settings { right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); z-index: 6; }
+  #home { right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); transform: scale(0.6); opacity: 0; pointer-events: none; }
   body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
-  /* the settings dialog: the kit's card and form classes, only laid out here; colours come from the kit's tokens */
-  .settings-dialog { padding: 0; border: 0; background: transparent; color: var(--text); width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; touch-action: pan-y; user-select: none; }
-  .settings-dialog::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
-  .settings-dialog .a-card { box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 35%, transparent); }
-  .settings-dialog .a-card__head { margin: 0; }
-  .settings-dialog #set-sound svg, .debug-panel #dbg-sound svg { width: 20px; height: 20px; flex: none; }
-  .settings-dialog #set-sound .waves, .debug-panel #dbg-sound .waves { display: none; } .settings-dialog #set-sound.on .waves, .debug-panel #dbg-sound.on .waves { display: inline; } .settings-dialog #set-sound.on .cross, .debug-panel #dbg-sound.on .cross { display: none; }
-  .settings-dialog .slider, .debug-panel .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
-  .settings-dialog .slider-ends, .debug-panel .slider-ends { display: flex; justify-content: space-between; }
-  .settings-dialog .dialog-actions { display: flex; justify-content: flex-end; }
-  /* the debug side panel (?debug): fixed to the right edge, scrolls, semi-transparent; folds to its button on a phone */
-  .debug-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; box-sizing: border-box; overflow: auto; z-index: 5; border-radius: 0; touch-action: pan-y; user-select: none;
-    background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  .debug-panel .a-card__head { margin-bottom: 10px; }
-  .debug-panel .a-label output { float: right; font-variant-numeric: tabular-nums; }
-  .debug-panel .dbg-row { display: flex; gap: 6px; flex-wrap: wrap; }
-  .debug-panel .dbg-status { margin: 12px 0 0; font: 11px/1.35 Consolas, monospace; color: var(--muted); white-space: pre-wrap; }
-  .debug-panel.collapsed { width: auto; bottom: auto; padding: 8px; border-bottom-left-radius: 12px; }
-  .debug-panel.collapsed .a-card__title, .debug-panel.collapsed #dbg-body { display: none; }
-  .debug-panel.collapsed .a-card__head { margin: 0; }
-  body.debug #settings { display: none; }
-  /* Reset zoom stays clear of the panel: left of it when open, left of its button when folded */
-  body.debug #home { top: max(12px, env(safe-area-inset-top)); right: calc(280px + 12px); }
-  body.debug:has(.debug-panel.collapsed) #home { right: 68px; }
+  /* the settings panel: the kit's card and form classes, only laid out here; colours come from the kit's tokens.
+     Above the button, 10 px from the right edge, scrolls when taller than the space (the top 76 px stay free for Reset zoom). */
+  .settings-panel { position: fixed; z-index: 5; right: max(10px, env(safe-area-inset-right)); bottom: calc(max(10px, env(safe-area-inset-bottom)) + 54px);
+    width: 340px; max-width: calc(100vw - 20px); box-sizing: border-box; max-height: calc(100dvh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain;
+    touch-action: pan-y; user-select: none; background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 30%, transparent); }
+  .settings-panel[hidden] { display: none; }
+  .settings-panel .a-card__head { margin: 0 0 10px; }
+  .settings-panel .a-label output { float: right; font-variant-numeric: tabular-nums; }
+  .settings-panel .slider { width: 100%; accent-color: var(--accent); min-height: 28px; margin: 0; }
+  .settings-panel .slider-ends { display: flex; justify-content: space-between; }
+  .settings-panel .a-btn svg { width: 18px; height: 18px; display: block; }
+  .settings-panel .time-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .settings-panel .set-status { margin: 4px 0 0; font: 11px/1.35 Consolas, monospace; color: var(--muted); white-space: pre-wrap; user-select: text; }
+  /* a row of round buttons: about 44 px each, the chosen one filled with the accent */
+  .icon-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .icon-btn { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; display: grid; place-items: center; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .icon-btn svg { width: 24px; height: 24px; display: block; }
+  .icon-btn:hover { border-color: var(--accent); }
+  .icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .icon-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
+  .icon-btn--text { width: auto; min-width: 44px; padding: 0 14px; border-radius: 22px; font: inherit; font-size: 13px; font-weight: 600; }
+  /* a phone-width screen: a sheet across the bottom, over the corner button (the sheet has its own close button) */
+  @media (max-width: 639px) {
+    .settings-panel { z-index: 7; left: 0; right: 0; bottom: 0; width: auto; max-width: none; border-radius: 16px 16px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      max-height: min(75dvh, calc(100dvh - 76px - env(safe-area-inset-top))); }
+  }
 </style>
 </head>
 <body>
 <div id="stage"></div>
-<button id="settings" class="btn" type="button" aria-label="Settings" title="Settings" aria-haspopup="dialog">
+<button id="settings" class="btn" type="button" aria-label="Settings" title="Settings" aria-controls="settings-panel" aria-expanded="false">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>
   </svg>
