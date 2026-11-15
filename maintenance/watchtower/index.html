@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" data-look="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watchtower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="ui/app.css">
+<link rel="stylesheet" href="watchtower.css">
+<script src="ui/app.js"></script>
+</head>
+<body>
+<header class="a-topbar"><div class="a-topbar__inner">
+  <div style="display:flex;gap:12px;align-items:center"><div class="a-brand" aria-hidden="true">&gt;_</div>
+    <div><h1 class="a-header__title">Watchtower</h1><p class="a-header__sub">What needs attention on this server</p></div></div>
+  <div class="a-header__actions"><span id="overall" class="a-pill" hidden></span><button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div>
+</div></header>
+<main class="a-page">
+  <section class="a-waiting" id="login-card"><h2 class="a-waiting__title">Sign in to see alerts</h2>
+    <form id="login" class="a-form"><div class="a-field"><label class="a-label" for="token">Admin token</label><input class="a-input" id="token" type="password" placeholder="Admin token" autocomplete="current-password" required></div><button class="a-btn a-btn--primary">Sign in</button></form>
+  </section>
+  <p id="message" class="a-note a-note--critical" hidden></p>
+  <section id="app" class="a-stack" hidden>
+    <section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Active alerts</h2></div>
+      <div id="active-empty" class="a-empty" hidden>Nothing needs attention.</div>
+      <div class="a-table-wrap"><table class="a-table" id="active-table"><thead><tr><th>Alert</th><th>Since</th><th>Status</th><th></th></tr></thead><tbody id="active"></tbody></table></div>
+    </section>
+    <section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Watchers</h2></div>
+      <div id="watchers"></div>
+      <p class="a-card__foot">Each watcher runs on its own schedule. A condition alerts once, by email, while it holds.</p>
+    </section>
+    <section class="a-card"><div class="a-card__head"><h2 class="a-card__title">History</h2></div>
+      <div id="history-empty" class="a-empty" hidden>No alerts yet.</div>
+      <div class="a-table-wrap"><table class="a-table" id="history-table"><thead><tr><th>Alert</th><th>Started</th><th>Ended</th><th>Emailed</th></tr></thead><tbody id="history"></tbody></table></div>
+    </section>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const when = t => t ? new Date(t * 1000).toLocaleString() : '';
+function show(msg) { $('message').textContent = msg; $('message').hidden = !msg; }
+async function api(method, path, body) {
+  const response = await fetch('/api' + path, { method, headers: { Authorization: 'Bearer ' + sessionStorage.getItem('token'), 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  if (response.status === 401 || response.status === 503) { sessionStorage.removeItem('token'); $('app').hidden = true; $('login-card').hidden = false; }
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Request failed (' + response.status + ')');
+  return response.json();
+}
+function pill(text, kind) { const s = document.createElement('span'); s.textContent = text; s.className = 'a-pill' + (kind ? ' a-pill--' + kind : ''); return s; }
+function button(text, label, onclick) { const b = document.createElement('button'); b.type = 'button'; b.className = 'a-btn'; b.textContent = text; b.setAttribute('aria-label', label); b.onclick = onclick; return b; }
+async function act(fn) { try { show(''); render(await fn()); } catch (e) { show(e.message); } }
+function render(s) {
+  $('login-card').hidden = true; $('app').hidden = false; show('');
+  const live = s.alerts.filter(a => !a.resolved_at);
+  const overall = $('overall'); overall.hidden = false;
+  overall.textContent = live.length ? live.length + ' active' : 'All clear'; overall.className = 'a-pill ' + (live.length ? 'a-pill--critical' : 'a-pill--ok');
+  const rows = $('active'); rows.replaceChildren();
+  $('active-empty').hidden = live.length > 0; $('active-table').hidden = !live.length;
+  for (const a of live) {
+    const tr = rows.insertRow();
+    const c = tr.insertCell(); c.textContent = a.title; if (a.detail) { const d = document.createElement('div'); d.className = 'a-hint'; d.textContent = a.detail; c.append(d); }
+    tr.insertCell().textContent = when(a.first_seen);
+    tr.insertCell().append(a.muted ? pill('Muted until ' + when(a.muted_until), 'warning') : pill(a.severity === 'critical' ? 'Critical' : 'Warning', a.severity === 'critical' ? 'critical' : 'warning'));
+    tr.insertCell().append(a.muted ? button('Unmute', 'Unmute ' + a.title, () => act(() => api('DELETE', '/alerts/' + a.id + '/mute')))
+      : button('Mute 24h', 'Mute ' + a.title + ' for 24 hours', () => act(() => api('POST', '/alerts/' + a.id + '/mute', { hours: 24 }))));
+  }
+  const box = $('watchers'); box.replaceChildren();
+  for (const w of s.watchers) {
+    const row = document.createElement('div'); row.className = 'wt-row';
+    const name = document.createElement('div'); name.textContent = w.label; name.append(' ', pill(w.enabled ? 'On' : 'Off', w.enabled ? 'ok' : ''));
+    const hint = document.createElement('div'); hint.className = 'a-hint'; hint.textContent = 'Every ' + w.interval + ' s' + (w.last_run ? ', last ran ' + when(w.last_run) : ', not run yet'); name.append(hint);
+    const tools = document.createElement('div'); tools.className = 'wt-actions';
+    tools.append(button(w.enabled ? 'Turn off' : 'Turn on', (w.enabled ? 'Turn off ' : 'Turn on ') + w.label, () => act(() => api('PUT', '/rules/' + w.name, { enabled: !w.enabled }))));
+    if (w.name === 'dummy') tools.append(button(s.dummy ? 'Clear test condition' : 'Trigger test condition', 'Toggle the dummy watcher condition', () => act(() => api('POST', '/dummy', { on: !s.dummy }))));
+    row.append(name, tools); box.append(row);
+  }
+  const hist = $('history'); hist.replaceChildren();
+  $('history-empty').hidden = s.alerts.length > 0; $('history-table').hidden = !s.alerts.length;
+  for (const a of s.alerts) {
+    const tr = hist.insertRow(); tr.insertCell().textContent = a.title; tr.insertCell().textContent = when(a.first_seen);
+    tr.insertCell().textContent = a.resolved_at ? when(a.resolved_at) : 'still active'; tr.insertCell().textContent = a.notified_at ? when(a.notified_at) : 'no';
+  }
+}
+async function refresh() { try { render(await api('GET', '/state')); } catch (e) { show(e.message); } }
+$('login').onsubmit = e => { e.preventDefault(); sessionStorage.setItem('token', $('token').value); $('token').value = ''; refresh(); };
+AutomatonUI.bindThemeToggle();
+if (sessionStorage.getItem('token')) refresh();
+setInterval(() => sessionStorage.getItem('token') && refresh(), 15000);
+</script>
+</body>
+</html>
