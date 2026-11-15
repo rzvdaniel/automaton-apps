@@ -31,9 +31,10 @@ export class Renderer {
   setCursor(cursor) { this.canvas.style.cursor = cursor; }
 
   /** @param {{ viewport, camera, terrain, effects, scene, time: number, light?: object, darkness?: number }} frame everything a picture is made of */
-  render({ viewport, camera, terrain, effects, scene, time, light, darkness = 0, glitter, wind, waves }) {
+  render({ viewport, camera, terrain, effects, scene, time, light, darkness = 0, glitter, wind, waves, palette }) {
     const c = this.ctx, { canvas, backdrop } = this;
     if (light) this.lighting.apply(light);
+    if (palette) backdrop.setPalette(palette);
     if (glitter) backdrop.setGlitter(glitter);
     if (wind) backdrop.setWind(wind, viewport.quality, waves);
     backdrop.render({ viewport, camera, terrain, effects, time });

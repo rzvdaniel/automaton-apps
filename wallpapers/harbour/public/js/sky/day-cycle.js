@@ -8,7 +8,7 @@ import { Sky } from './sky.js';
  *   phase     'dawn', 'day', 'dusk' or 'night'
  *   darkness  0 in daylight, 1 in full night, in between at dawn and dusk
  *   night     0 by day, 1 at full night (the same curve as the light's grey): how much of the night palette shows
- *   light     the colour of the light over the whole island: { r, g, b, grey, offset }. r, g, b multiply the picture's colours
+ *   light     (also `phases`: the weights [day, sunrise, sunset, night], summing to 1, of the four ground palettes, see phasesAt) the colour of the light over the whole island: { r, g, b, grey, offset }. r, g, b multiply the picture's colours
  *             (1, 1, 1 is plain daylight; warm at dawn, golden in the evening, mild blue at night) and grey (0..1) is how much
  *             colour drains out of it (none by day, some at night, when eyes see less colour); offset is a colour [r, g, b] added after
  *             the multiply ([0, 0, 0] by day, none now; it can darken the darks without dimming the brights)
@@ -36,11 +36,11 @@ const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
 // The light's colour (red, green, blue multipliers) at sun heights in degrees, from high sun down to full night.
 // Morning and evening differ only near the horizon: a rosy, soft dawn and a golden evening; both turn blue at twilight.
 const DAY = [1, 1, 1];
-// The night light is mild: the backdrop has its own night colours for sand, grass and sea (see shader-source.js), which fade in
-// from 0 degrees down. The keys near the horizon can therefore be a real gold or rose; what must never rise as the sun goes
+// The light is mild at dawn, dusk and night: the backdrop has its own palettes for sand, grass and sea at each of them (see palettes.js and
+// DayCycle.phasesAt), so the light only adds a light warm tint near the horizon (and some blue at night); what must never rise as the sun goes
 // down is the brightness on screen (the light times the ground colour, blended into the night colour: see the day test).
-const MORNING = [[10, DAY], [6, [1, 0.93, 0.84]], [0, [0.88, 0.76, 0.76]], [-6, [0.74, 0.74, 0.9]]];
-const EVENING = [[10, DAY], [6, [1, 0.88, 0.64]], [0, [0.95, 0.72, 0.5]], [-6, [0.74, 0.72, 0.88]]];
+const MORNING = [[10, DAY], [6, [1, 0.96, 0.9]], [0, [0.95, 0.89, 0.86]], [-6, [0.8, 0.8, 0.92]]];
+const EVENING = [[10, DAY], [6, [1, 0.94, 0.84]], [0, [0.97, 0.88, 0.76]], [-6, [0.8, 0.79, 0.9]]];
 const NIGHT_DARK = [0.78, 0.82, 0.95];   // no moon: a mild blue
 const NIGHT_MOON = [0.88, 0.92, 1.0];    // a full moon high up: a little brighter
 const NIGHT_GREY = 0.1;                  // how much colour fades at full night
@@ -61,7 +61,7 @@ export class DayCycle {
     this.moon = { azimuth: 0, altitude: -30, fraction: 0, waxing: true };
     this.phase = 'day'; this.darkness = 0; this.night = 0; this.moonlight = 0;
     this.glitter = { x: 0, y: -1, strength: 0 };
-    this.light = { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 };
+    this.light = { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0, phases: [1, 0, 0, 0] };
     this.shadow = { x: 0, y: -1, length: 1, strength: 1 };   // a plain midday until the first update
   }
 
@@ -107,6 +107,16 @@ export class DayCycle {
   }
 
   /**
+   * How much each of the four ground palettes shows at a sun height (degrees), morning or evening, always summing to 1:
+   * day from 10 degrees up, the sunrise or sunset palette alone from 2 to -2 degrees, night from -8 down, smooth blends between.
+   * @returns {number[]} [day, sunrise, sunset, night]
+   */
+  static phasesAt(altitude, morning) {
+    const day = smooth(2, 10, altitude), night = 1 - smooth(-8, -2, altitude), twilight = 1 - day - night;
+    return [day, morning ? twilight : 0, morning ? 0 : twilight, night];
+  }
+
+  /**
    * The light's colour for a sun height (degrees), morning or evening, and how much the moon lights the night (0..1).
    * @returns {{ r: number, g: number, b: number, grey: number, offset: number[] }}
    */
@@ -121,7 +131,7 @@ export class DayCycle {
     }
     const [r, g, b] = colour;
     const night = 1 - smooth(DayCycle.TWILIGHT, 0, altitude);   // 0 by day, 1 at full night: grey and the offset fade together
-    return { r, g, b, grey: NIGHT_GREY * night, offset: NIGHT_OFFSET.map(v => v * night + 0), night, moon: moonlight };   // night and moon go to the backdrop's palette
+    return { r, g, b, grey: NIGHT_GREY * night, offset: NIGHT_OFFSET.map(v => v * night + 0), night, moon: moonlight, phases: DayCycle.phasesAt(altitude, morning) };   // night, moon and phases go to the backdrop's palettes
   }
 
   /**

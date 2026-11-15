@@ -20,22 +20,25 @@ export const VERTEX_SHADER = 'attribute vec2 a; void main(){ gl_Position = vec4(
 
 export const FRAGMENT_SHADER = [
   'precision highp float;',
-  'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAX_LAND + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAX_RIPPLES + ']; uniform mat3 u_light; uniform vec3 u_lightAdd; uniform vec4 u_wind; uniform vec2 u_isle; uniform vec2 u_waves; uniform vec2 u_night; uniform vec3 u_moon;',
-  'const vec3 c_dry = vec3(0.957, 0.922, 0.882); const vec3 c_wet = vec3(0.925, 0.863, 0.714); const vec3 c_glow = vec3(0.812, 0.933, 0.769);',
-  'const vec3 c_shallow = vec3(0.271, 0.827, 0.812); const vec3 c_mid = vec3(0.086, 0.682, 0.816); const vec3 c_deep = vec3(0.039, 0.416, 0.612);',
-  'const vec3 c_foam = vec3(1.0); const vec3 c_grass = vec3(0.663, 0.824, 0.467); const vec3 c_grass2 = vec3(0.455, 0.706, 0.361);',
+  'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAX_LAND + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAX_RIPPLES + ']; uniform mat3 u_light; uniform vec3 u_lightAdd; uniform vec4 u_wind; uniform vec2 u_isle; uniform vec2 u_waves; uniform vec2 u_night; uniform vec3 u_moon; uniform vec4 u_phase; uniform vec3 u_pal[18];',
   'float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
-  'const vec3 n_dry = vec3(0.62, 0.64, 0.74); const vec3 n_wet = vec3(0.50, 0.54, 0.68); const vec3 n_grass = vec3(0.30, 0.50, 0.47); const vec3 n_grass2 = vec3(0.22, 0.40, 0.42);',
-  'const vec3 n_shallow = vec3(0.16, 0.42, 0.62); const vec3 n_mid = vec3(0.07, 0.25, 0.48); const vec3 n_deep = vec3(0.03, 0.12, 0.30); const vec3 n_glow = vec3(0.45, 0.62, 0.72); const vec3 n_foam = vec3(0.85, 0.90, 1.0);',
   'float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);',
   '  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }',
   'float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + vec2(17.1, 9.2); a *= 0.5; } return s; }',
   'float smin(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }',
   'void main(){',
-  // the ground's night palette: the night colours are what should show on screen, and the light is multiplied over them at the end, so they are divided by it first
-  '  vec3 nsc = (1.0 + 0.15 * u_night.y) / max(u_light * vec3(1.0), vec3(0.2));',   // a full moon (u_night.y) brightens the ground a little
-  '  vec3 g_dry = mix(c_dry, n_dry * nsc, u_night.x), g_wet = mix(c_wet, n_wet * nsc, u_night.x), g_grass = mix(c_grass, n_grass * nsc, u_night.x), g_grass2 = mix(c_grass2, n_grass2 * nsc, u_night.x);',
-  '  vec3 g_shallow = mix(c_shallow, n_shallow * nsc, u_night.x), g_mid = mix(c_mid, n_mid * nsc, u_night.x), g_deep = mix(c_deep, n_deep * nsc, u_night.x), g_glow = mix(c_glow, n_glow * nsc, u_night.x), g_foam = mix(c_foam, n_foam * nsc, u_night.x);',
+  // the ground's palettes: u_pal holds nine colours (dry, wet, grass, grass2, shallow, mid, deep, glow, foam) for the day, then nine for the rest of the day's palettes already blended by weight on the CPU (and the moon's brightening: see blend() in palettes.js); u_phase.x is the day's weight.
+  // The day colours are multiplied by the light at the end, as they always were; the others are what should show on screen, so they are divided by it first.
+  '  vec3 nsc = 1.0 / max(u_light * vec3(1.0), vec3(0.2));',
+  '  vec3 g_dry = u_pal[0] * u_phase.x + u_pal[9] * nsc;',
+  '  vec3 g_wet = u_pal[1] * u_phase.x + u_pal[10] * nsc;',
+  '  vec3 g_grass = u_pal[2] * u_phase.x + u_pal[11] * nsc;',
+  '  vec3 g_grass2 = u_pal[3] * u_phase.x + u_pal[12] * nsc;',
+  '  vec3 g_shallow = u_pal[4] * u_phase.x + u_pal[13] * nsc;',
+  '  vec3 g_mid = u_pal[5] * u_phase.x + u_pal[14] * nsc;',
+  '  vec3 g_deep = u_pal[6] * u_phase.x + u_pal[15] * nsc;',
+  '  vec3 g_glow = u_pal[7] * u_phase.x + u_pal[16] * nsc;',
+  '  vec3 g_foam = u_pal[8] * u_phase.x + u_pal[17] * nsc;',
   '  float S = u_S;',
   '  vec2 fc = gl_FragCoord.xy;',
   '  vec2 ps = vec2(fc.x - 0.5 * u_res.x, 0.5 * u_res.y - fc.y) / S;',   // the screen, in units of the screen's height

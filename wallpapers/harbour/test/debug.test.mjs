@@ -91,7 +91,7 @@ test('DebugPanel markup: time slider first, then the moon, the settings controls
   assert.ok(at('id="dbg-hour"') < at('data-moon=""') && at('data-moon=""') < at('id="dbg-place"') && at('id="dbg-place"') < at('id="dbg-palette"') && at('id="dbg-palette"') < at('id="dbg-status"'));
   assert.match(html, /<input class="slider" id="dbg-hour" type="range" min="0" max="1440"/);
   assert.deepEqual([...html.matchAll(/data-moon="([^"]*)"/g)].map(m => m[1]), ['', 'full', 'new']);
-  for (const id of ['dbg-now', 'dbg-keep', 'dbg-weather', 'dbg-wind-mode', 'dbg-waves', 'dbg-sound']) at(`id="${id}"`);
+  for (const id of ['dbg-colours', 'dbg-now', 'dbg-keep', 'dbg-weather', 'dbg-wind-mode', 'dbg-waves', 'dbg-sound']) at(`id="${id}"`);
   assert.ok(!html.includes('dbg-time-mode'), 'the start-time field is the slider here');
   const ids = [...html.matchAll(/ id="([^"]+)"/g)].map(m => m[1]);
   assert.equal(new Set(ids).size, ids.length, 'no id twice');
