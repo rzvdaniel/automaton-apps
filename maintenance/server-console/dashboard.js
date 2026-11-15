@@ -16,7 +16,7 @@
   }
 
   function card(title, status, body, foot) {
-    return '<section class="a-card" id="' + esc(title.toLowerCase()) + '"><div class="a-card__head"><h2 class="a-card__title">' + esc(title) + "</h2>" + pill(status) + "</div>" +
+    return '<section class="a-card" id="' + esc(title.toLowerCase().replace(/\s+/g, "-")) + '"><div class="a-card__head"><h2 class="a-card__title">' + esc(title) + "</h2>" + (status ? pill(status) : "") + "</div>" +
       body + (foot ? '<p class="a-card__foot">' + foot + "</p>" : "") + "</section>";
   }
 
@@ -132,7 +132,7 @@
         .map(function (p) { return p[1] + " " + bytes(app[p[0]]); }).join(", ");
       return "<dt>" + esc(app.name) + (detail ? '<br><small class="a-hint">' + esc(detail) + "</small>" : "") + "</dt><dd><strong>" + esc(bytes(app.totalBytes)) + "</strong></dd>";
     }).join("");
-    return card("Disk by app", "unknown", '<dl class="a-kv" data-testid="disk-by-app">' + rows + "</dl>",
+    return card("Disk by app", "", '<dl class="a-kv" data-testid="disk-by-app">' + rows + "</dl>",
       "An image several apps share counts in full for each. Measured by the Runner every few minutes.");
   }
 
