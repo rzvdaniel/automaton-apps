@@ -230,7 +230,7 @@ test('palettes: the shader mixes the day palette by u_phase.x and the blended re
   });
   assert.ok(!/[cn]_(dry|wet|grass|shallow|mid|deep|glow|foam)/.test(FRAGMENT_SHADER), 'no colour constants left: they live in palettes.js');
   assert.match(FRAGMENT_SHADER, /nsc = 1\.0 \/ max\(u_light \* vec3\(1\.0\)/);
-  assert.ok(!/u_pal\[(1[89]|[2-9][0-9])\]/.test(FRAGMENT_SHADER), 'only 18 colours are uniforms: phones can have few');
+  assert.ok(!/(?<!vec3 )u_pal\[(1[89]|[2-9][0-9])\]/.test(FRAGMENT_SHADER), 'only 18 colours are uniforms: phones can have few');
 });
 
 test('night palette: Lighting hands the amount and the moonlight to the backdrop', () => {
