@@ -18,12 +18,12 @@ export class Whale extends Entity {
   hit(x, y) { return this.on && !this.dive && Math.hypot(this.x - x, this.y - y) < 0.08; }
   click() { const w = this.world; w.burst(this.x - Math.cos(this.a) * 0.07, this.y - Math.sin(this.a) * 0.07, 26, 0.16, '255,255,255', 0.006, 1.3); w.ripple(this.x, this.y, 1); }
   // Set off on a straight course from (x1, y1) to (x2, y2).
-  cross(x1, y1, x2, y2) { this.on = true; this.x = x1; this.y = y1; this.a = Math.atan2(y2 - y1, x2 - x1); this.alpha = 0; this.dive = false; this.calf = this.world.debug || Math.random() < 0.45; this.blow = 4 + Math.random() * 5; this.child = null; }   // some whales have a calf; in ?debug all do
+  cross(x1, y1, x2, y2) { this.on = true; this.x = x1; this.y = y1; this.a = Math.atan2(y2 - y1, x2 - x1); this.alpha = 0; this.dive = false; this.calf = this.world.everything || Math.random() < 0.45; this.blow = 4 + Math.random() * 5; this.child = null; }   // some whales have a calf; with Every animal all do
   update(dt) {
     const w = this.world, hw = w.hw, hh = w.hh;
     if (!this.on) {
       if (w.clock < this.at) return;
-      this.at = w.clock + (w.debug ? 12 : 35 + Math.random() * 75);   // random; every 12 s in ?debug
+      this.at = w.clock + (w.everything ? 12 : 35 + Math.random() * 75);   // random; every 12 s with Every animal
       for (let i = 0; i < 90 && !this.on; i++) {   // a course across the screen that keeps clear of land; she steers round anything close
         const dir = Math.random() < 0.5 ? 1 : -1, span = hh * (i < 60 ? 1.9 : 1.7), y1 = (Math.random() - 0.5) * span, y2 = (Math.random() - 0.5) * span, x1 = -dir * (hw + 0.15), x2 = dir * (hw + 0.15), need = i < 60 ? 0.1 : 0.05;
         let free = true; for (let k = 0; k <= 24 && free; k++) free = w.field(x1 + (x2 - x1) * k / 24, y1 + (y2 - y1) * k / 24) > need;

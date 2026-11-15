@@ -168,7 +168,7 @@ test('IconRow: the model has exactly one chosen option, and the markup says so w
 
 test('Settings panel markup: time bar first, then the rows, then the place and the Status row; status lines hidden until it is on', () => {
   const html = SettingsForm.markup(), at = s => { const i = html.indexOf(s); assert.ok(i >= 0, s); return i; };
-  const order = ['id="set-hour"', 'id="set-flow"', 'id="set-now"', 'id="set-weather"', 'id="set-wind"', 'id="set-waves"', 'id="set-colours"', 'id="set-moon"', 'id="set-sound"', 'id="set-place"', 'id="set-status-toggle"'].map(at);
+  const order = ['id="set-hour"', 'id="set-flow"', 'id="set-now"', 'id="set-weather"', 'id="set-wind"', 'id="set-waves"', 'id="set-colours"', 'id="set-moon"', 'id="set-sound"', 'id="set-place"', 'id="set-everything"', 'id="set-status-toggle"'].map(at);
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   const values = id => [...html.match(new RegExp(`id="set-${id}" role="group"[^>]*>(.*?)</div>`, 's'))[1].matchAll(/data-value="([^"]*)"/g)].map(m => m[1]);
   assert.deepEqual(values('weather'), ['0', '0.33', '0.67', '1']);
@@ -177,6 +177,7 @@ test('Settings panel markup: time bar first, then the rows, then the place and t
   assert.deepEqual(values('colours'), PALETTES.map(p => p.id));
   assert.deepEqual(values('moon'), ['real', 'full', 'new']);
   assert.deepEqual(values('sound'), ['on', 'off']);
+  assert.deepEqual(values('everything'), ['on', 'off']);
   assert.deepEqual(values('status-toggle'), ['on', 'off']);
   assert.deepEqual(values('flow'), ['flowing', 'fixed']);
   assert.match(html, /<svg viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="swatch-classic">/, 'a colour button is a swatch of its set');
@@ -227,6 +228,10 @@ test('SettingsForm: pressing a button writes the choice to Settings (and to Soun
   assert.equal(settings.get('moon'), 'new');
   press('sound', 'on');
   assert.equal(sound.on, true);
+  assert.equal(settings.get('everything'), false, 'Every animal starts off');
+  press('everything', 'on');
+  assert.equal(settings.get('everything'), true);
+  press('everything', 'off');
   assert.equal(settings.get('status'), false, 'Status starts off');
   press('status', 'on');
   assert.equal(settings.get('status'), true);

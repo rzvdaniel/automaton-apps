@@ -25,7 +25,7 @@ function recordingContext() {
 // Every island test runs on the same fixed day, never the real date, so who is out is the same on every run.
 const FIXED_DAY = Date.UTC(2026, 10, 14, 12);
 function islandAt(darkness, seed = 7) {
-  const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: true, sound: recordingSound() }); w.skyClock.realNow = () => FIXED_DAY; w.generate(seed); return w; });
+  const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: false, everything: true, sound: recordingSound() }); w.skyClock.realNow = () => FIXED_DAY; w.generate(seed); return w; });
   world.day.darkness = darkness; world.presence.update(world.scene.entities);
   return world;
 }

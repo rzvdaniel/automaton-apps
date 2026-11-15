@@ -41,12 +41,14 @@ const DAY_EVERY = 1;   // seconds between updates of the time of day
  */
 export class World {
   /**
-   * @param {{ stage?: HTMLElement, sound?: object, width?: number, height?: number, debug?: boolean }} options
+   * @param {{ stage?: HTMLElement, sound?: object, width?: number, height?: number, debug?: boolean, everything?: boolean }} options
    */
-  constructor({ stage = null, sound = SILENT, width, height, debug, settings } = {}) {
+  constructor({ stage = null, sound = SILENT, width, height, debug, everything, settings } = {}) {
     const headless = !stage;
     this.sound = sound;
-    this.debug = debug ?? (typeof location !== 'undefined' && /[?&](debug|all)\b/.test(location.search));   // ?debug shows every extra element and a status panel
+    const query = typeof location !== 'undefined' ? location.search : '';
+    this.debug = debug ?? /[?&]debug\b/.test(query);   // ?debug shows the status lines (like Status on, not saved)
+    this.allForVisit = everything ?? /[?&]all\b/.test(query);   // ?all turns on Every animal for this visit (not saved)
     this.clock = 0; this.seed = undefined; this.errors = [];
 
     this.viewport = headless ? new Viewport({ width, height }) : new Viewport({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio });
@@ -55,6 +57,7 @@ export class World {
     this.windField = new Wind();
     this.settings = settings ?? new Settings({ storage: headless ? null : undefined });   // headless worlds (tests) never touch the browser's storage
     this.place = new Place({ settings: this.settings });
+    this.settings.onChange((v, names) => { if (names.includes('everything') && this.seed !== undefined) this.generate(this.seed); });   // Every animal: the same seed is built again, as on a turned screen
     this.skyClock = new SkyClock({ settings: this.settings, place: this.place });
     this.weather = new Weather({ settings: this.settings });
     this.cloudBank = new CloudBank(this);
@@ -105,6 +108,9 @@ export class World {
   // ---------- building and running ----------
   /** Forgets the island so a new one can be built. */
   reset() { this.scene.clear(); this.terrain.reset(); this.effects.clear(); this.windField.setAngle(0); }
+
+  /** Every animal: all the extras placed, a calf with every whale and whales often. From the setting or ?all. */
+  get everything() { return this.allForVisit || this.settings.get('everything'); }
 
   /** Builds the island for a seed (the same seed always builds the same island) and brings the camera back to the whole view. */
   generate(seed) {

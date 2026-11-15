@@ -123,7 +123,7 @@ test('a sound that a class names exists (most things are silent for now)', () =>
 });
 
 test('every drawing pass an entity names is a real layer with a real method', () => {
-  const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: true }); w.generate(7); return w; });
+  const world = quietly(() => { const w = new World({ width: 1500, height: 1000, everything: true }); w.generate(7); return w; });
   for (const e of world.scene.entities) {
     for (const [layer, method] of Object.entries(e.constructor.passes)) {
       assert.ok(LAYERS.includes(layer) || layer === LIGHTS || layer === CLOUD_SHADE || layer === SKY_LIGHTS, `${e.constructor.name} draws in "${layer}", which is not a layer`);
