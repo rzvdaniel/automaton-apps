@@ -14,6 +14,7 @@ export class Camera {
     this.viewport = viewport;
     this.x = this.y = this.targetX = this.targetY = 0;
     this.zoom = this.targetZoom = 1;
+    this.offsetX = this.targetOffsetX = 0;   // screen shift of the view's centre, in pixels (a panel beside the island); never part of the viewer's pan
     this.listeners = new Set();
   }
 
@@ -22,15 +23,25 @@ export class Camera {
   onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   #changed() { this.listeners.forEach(fn => fn(this)); }
 
+  /** The world x at the middle of the screen: the pan, moved by the screen offset. Everything that draws or converts uses this. */
+  get centreX() { return this.x - this.offsetX / (this.viewport.scale * this.zoom); }
+  get centreY() { return this.y; }
+
+  /** Eases the island sideways on the screen by `px` pixels (negative: left); 0 puts it back. The viewer's zoom and pan stay as they are. */
+  setOffset(px, instant = false) {
+    this.targetOffsetX = px;
+    if (instant) this.offsetX = px;
+  }
+
   /** Screen pixels to world units, at the current view. */
   toWorld(px, py) {
     const v = this.viewport, k = v.scale * this.zoom;
-    return [this.x + (px - v.width / 2) / k, this.y + (py - v.height / 2) / k];
+    return [this.centreX + (px - v.width / 2) / k, this.centreY + (py - v.height / 2) / k];
   }
   /** Where a world x lies across the screen: -1 (left edge) to 1 (right edge). Used to pan sounds. */
   screenFraction(x) {
     const v = this.viewport;
-    return x === undefined ? 0 : clamp((x - this.x) * this.zoom * v.scale / (v.width / 2), -1, 1);
+    return x === undefined ? 0 : clamp((x - this.centreX) * this.zoom * v.scale / (v.width / 2), -1, 1);
   }
 
   /** Keeps the camera inside the original view, for the current and the target zoom. */
@@ -71,8 +82,9 @@ export class Camera {
   ease(dt) {
     const u = Math.min(1, dt * Camera.EASE_RATE);
     this.zoom += (this.targetZoom - this.zoom) * u; this.x += (this.targetX - this.x) * u; this.y += (this.targetY - this.y) * u;
-    const moving = Math.abs(this.targetZoom - this.zoom) >= 0.0005;
-    if (!moving) { this.zoom = this.targetZoom; this.x = this.targetX; this.y = this.targetY; }
+    this.offsetX += (this.targetOffsetX - this.offsetX) * u;
+    const moving = Math.abs(this.targetZoom - this.zoom) >= 0.0005 || Math.abs(this.targetOffsetX - this.offsetX) >= 0.05;
+    if (!moving) { this.zoom = this.targetZoom; this.x = this.targetX; this.y = this.targetY; this.offsetX = this.targetOffsetX; }
     this.clampToWorld();
     return moving;
   }
@@ -80,6 +92,6 @@ export class Camera {
   /** Sets a 2D context's transform so that drawing in world units lands in the right place on the canvas. */
   applyTo(ctx) {
     const v = this.viewport, k = v.dpr * v.scale * this.zoom;
-    ctx.setTransform(k, 0, 0, k, v.dpr * v.width / 2 - this.x * k, v.dpr * v.height / 2 - this.y * k);
+    ctx.setTransform(k, 0, 0, k, v.dpr * v.width / 2 - this.centreX * k, v.dpr * v.height / 2 - this.centreY * k);
   }
 }
