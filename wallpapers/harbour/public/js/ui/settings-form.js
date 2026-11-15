@@ -44,8 +44,8 @@ export class SettingsForm {
     const rows = SettingsForm.rows().map(r => `<div class="a-field"><span class="a-label" id="set-lbl-${r.key}">${r.label}</span>
     ${IconRow.markup({ id: 'set-' + r.key, labelId: 'set-lbl-' + r.key, options: r.options })}</div>`).join('\n  ');
     return `<div class="a-field"><label class="a-label" id="set-lbl-time" for="set-hour">Time <output id="set-hour-text"></output></label>
-    <input class="slider" id="set-hour" type="range" min="0" max="1440" step="1">
-    <span class="slider-ends a-hint"><span>00:00</span><span>24:00</span></span>
+    <input class="slider" id="set-hour" type="range" min="0" max="1439" step="1">
+    <span class="slider-ends a-hint"><span>00:00</span><span>23:59</span></span>
     <span class="time-row">${IconRow.markup({ id: 'set-flow', labelId: 'set-lbl-time', options: SettingsForm.FLOW })}<button type="button" class="a-btn" id="set-now">Now</button></span></div>
   ${rows}
   <div class="a-field"><label class="a-label" for="set-place">Place</label>
@@ -93,7 +93,7 @@ export class SettingsForm {
     IconRow.onPick(this.#el('flow'), value => {
       const fixed = this.settings.get('time').mode === 'fixed';
       if (value === 'fixed' && !fixed) this.clock.setFixed(this.clock.shownText());
-      else if (value === 'flowing' && fixed) this.clock.setStart(this.clock.shownText());
+      else if (value === 'flowing' && this.settings.get('time').mode !== 'start') this.clock.setStart(this.clock.shownText());
     });
     this.#el('now').addEventListener('click', () => { this.dragging = false; this.clock.setNow(); this.show(); });
   }
@@ -111,7 +111,7 @@ export class SettingsForm {
   show() {
     const s = this.settings, show = (key, value) => IconRow.show(this.#el(key), value);
     this.showTime();
-    show('flow', s.get('time').mode === 'fixed' ? 'fixed' : 'flowing');
+    show('flow', { fixed: 'fixed', start: 'flowing' }[s.get('time').mode] ?? null);   // on Now neither is chosen
     show('weather', snap(s.get('weather'), WEATHER_LEVELS));
     const wind = s.get('wind');
     show('wind', wind.mode === 'fixed' ? snap(wind.strength, WIND_STRENGTHS) : 'auto');

@@ -41,7 +41,7 @@ export class SettingsPanel {
     this.#keepToSelf();
     this.el.querySelector('#set-close').addEventListener('click', () => this.close());
     // Escape closes it from anywhere (the capture phase, so the panel keeping its keys to itself does not stop it)
-    window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.isOpen) { this.close(); this.button?.focus(); } }, true);
+    window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.isOpen) this.close(); }, true);
     this.at = performance.now(); this.frames = 0; this.shown = 0;
   }
 
@@ -60,6 +60,7 @@ export class SettingsPanel {
   }
 
   close() {
+    if (this.el.contains(this.el.ownerDocument.activeElement)) this.button?.focus();   // never leave focus in a hidden panel
     this.el.hidden = true;
     this.button?.setAttribute('aria-expanded', 'false');
   }

@@ -259,3 +259,48 @@ test('SettingsForm: the hour bar follows the clock unless it is being dragged', 
   els.hour.value = 100; form.showTime();
   assert.equal(els.hour.value, 100, 'left alone while dragging');
 });
+
+test('SettingsForm: the hour bar stops at 23:59, and on Now neither Flowing nor Fixed is chosen', () => {
+  assert.match(SettingsForm.markup(), /id="set-hour" type="range" min="0" max="1439"/);
+  const { els, press, settings, clock } = stubForm();
+  const flow = [];
+  els.flow.querySelectorAll = () => ['flowing', 'fixed'].map(v => ({ dataset: { value: v }, setAttribute: (k, val) => flow.push([v, val]) }));
+  settings.set({});   // Settings.onChange runs show()
+  assert.deepEqual(flow.filter(([, v]) => v === 'true'), [], 'Now: nothing pressed');
+  press('flow', 'flowing');
+  assert.equal(settings.get('time').mode, 'start', 'pressing Flowing on Now starts flowing');
+  assert.ok(clock);
+});
+
+test('SettingsPanel: toggle, aria-expanded, Escape, and focus in and out', () => {
+  const listeners = {}, doc = { activeElement: null, createElement: () => ({}) };
+  const make = () => {
+    const el = { hidden: false, listeners: {}, attrs: {}, children: {}, ownerDocument: doc, className: '', setAttribute(k, v) { this.attrs[k] = v; }, addEventListener(t, f) { this.listeners[t] = f; },
+      contains(x) { return x === this || Object.values(this.children).includes(x); },
+      querySelector(sel) { return this.children[sel] ??= { id: sel, value: '', ownerDocument: doc, listeners: {}, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, addEventListener(t, f) { this.listeners[t] = f; }, appendChild() {}, querySelectorAll: () => [], focus() { doc.activeElement = this; } }; } };
+    return el;
+  };
+  const el = make();
+  const document = { createElement: () => el, body: { appendChild() {} } };
+  globalThis.window = { addEventListener: (t, f) => { listeners[t] = f; } };
+  const { settings, place, clock } = setup();
+  const panel = new SettingsPanel(document, { settings, place, clock, sound: { on: false, onChange() {}, set() {} } });
+  const button = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, focus() { doc.activeElement = this; } };
+  panel.button = button;
+  assert.ok(!panel.isOpen);
+  panel.toggle();
+  assert.ok(panel.isOpen); assert.equal(button.attrs['aria-expanded'], 'true');
+  assert.equal(doc.activeElement.id, '#set-hour', 'focus moves into the panel');
+  panel.toggle();
+  assert.ok(!panel.isOpen); assert.equal(button.attrs['aria-expanded'], 'false');
+  assert.equal(doc.activeElement, button, 'closing returns focus to the button');
+  panel.open(); listeners.keydown({ key: 'Enter' });
+  assert.ok(panel.isOpen, 'other keys leave it open');
+  listeners.keydown({ key: 'Escape' });
+  assert.ok(!panel.isOpen); assert.equal(doc.activeElement, button, 'Escape returns focus too');
+  panel.open(); el.children['#set-close'].listeners.click();   // the close button, focused inside the panel
+  assert.ok(!panel.isOpen);
+  panel.open(); doc.activeElement = button; panel.close();
+  assert.equal(doc.activeElement, button, 'focus elsewhere is left alone');
+  delete globalThis.window;
+});
