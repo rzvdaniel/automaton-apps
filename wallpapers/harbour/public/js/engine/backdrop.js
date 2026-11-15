@@ -5,7 +5,7 @@ import { Wind } from './wind.js';
 /** The waves styles (see Settings) as the shader's numbers. */
 export const WAVE_STYLES = Object.freeze({ off: 0, original: 1, crescents: 2, dashes: 3 });
 
-const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light', 'u_lightAdd', 'u_wind', 'u_isle', 'u_waves'];
+const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light', 'u_lightAdd', 'u_night', 'u_wind', 'u_isle', 'u_waves'];
 
 /**
  * The backdrop: sea, shore, sand and meadow, painted by a WebGL fragment shader onto its own canvas.
@@ -22,6 +22,7 @@ export class Backdrop {
     this.rippleBuffer = new Float32Array(MAX_RIPPLES * 4);
     this.lightMatrix = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);   // the time of day's light (see Lighting); plain daylight
     this.wind = new Float32Array([1, 0, 0, 1]);   // u_wind: which way it blows (x, y), how hard for the sea (0 calm), and whether to draw whitecaps (1) or not (0)
+    this.night = new Float32Array(2);   // u_night: how much the night palette shows (0 by day .. 1) and the moonlight (0..1)
     this.lightAdd = new Float32Array(3);   // added after the multiply (u_lightAdd); none by day
     this.waves = new Float32Array([1, Wind.REFERENCE]);   // u_waves: the style (WAVE_STYLES) and the wind strength 0..1 (light-wind crests start before the sea strength does)
     this.isle = new Float32Array(2);              // u_isle: the middle of the land, so the shader knows which shore faces the wind
@@ -77,9 +78,9 @@ export class Backdrop {
     if (style.some((v, i) => Math.abs(v - this.waves[i]) > 0.002)) { this.waves.set(style); this.policy.invalidate(); }
   }
 
-  /** Uses a new light: a 3 x 3 colour matrix, row by row, from Lighting. The picture is repainted with it next frame. */
-  setLight(rows, add = [0, 0, 0]) {
-    this.lightAdd.set(add);
+  /** Uses a new light: a 3 x 3 colour matrix, row by row, from Lighting, with the offset, the night palette's amount and the moonlight. The picture is repainted with it next frame. */
+  setLight(rows, add = [0, 0, 0], night = 0, moon = 0) {
+    this.lightAdd.set(add); this.night.set([night, moon]);
     for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) this.lightMatrix[c * 3 + r] = rows[r * 3 + c];   // GLSL wants it column by column
     this.policy.invalidate();
   }
@@ -110,6 +111,7 @@ export class Backdrop {
     gl.uniform4fv(u.u_rip, this.rippleBuffer);
     gl.uniformMatrix3fv(u.u_light, false, this.lightMatrix);
     gl.uniform3fv(u.u_lightAdd, this.lightAdd);
+    gl.uniform2fv(u.u_night, this.night);
     gl.uniform4fv(u.u_wind, this.wind);
     gl.uniform2fv(u.u_isle, this.isle);
     gl.uniform2fv(u.u_waves, this.waves);

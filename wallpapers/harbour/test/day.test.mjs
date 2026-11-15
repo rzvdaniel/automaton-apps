@@ -107,20 +107,21 @@ test('Sky: reports the sun and the moon', () => {
 test('DayCycle: the light is warm at dawn, white at noon, golden in the evening and blue at midnight', () => {
   const day = new DayCycle(), light = date => ({ ...day.update(date, BUCHAREST).light });
   const dawn = light(at(7, 20)), noon = light(at(12)), evening = light(at(16, 30)), midnight = light(at(24));
-  assert.deepEqual({ ...noon, offset: [...noon.offset] }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] }, 'plain daylight at noon');
+  assert.deepEqual({ ...noon, offset: [...noon.offset], moon: 0 }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 }, 'plain daylight at noon');
   assert.ok(Lighting.isPlain(noon), 'no filter by day');
   assert.ok(dawn.r > dawn.g && dawn.g >= dawn.b * 0.95 && dawn.r < 1, `dawn warm and soft ${JSON.stringify(dawn)}`);
   assert.ok(evening.r > evening.g && evening.g > evening.b && evening.r - evening.b > 0.2, `evening golden ${JSON.stringify(evening)}`);
   assert.ok(midnight.b > midnight.g && midnight.g > midnight.r, `night blue ${JSON.stringify(midnight)}`);
-  assert.ok(midnight.r < 0.7 && midnight.b > 0.5, 'dark, but the land still readable');
-  assert.ok(midnight.offset.every(v => v < 0) && !Lighting.isPlain(midnight), 'a negative offset at night');
+  assert.ok(midnight.r > 0.7 && midnight.b <= 1, 'a mild light: the backdrop has its own night colours');
+  assert.deepEqual([...midnight.offset], [0, 0, 0], 'no offset');
+  assert.ok(!Lighting.isPlain(midnight) && midnight.night === 1 && noon.night === 0, 'the night palette is fully on at midnight, off at noon');
   assert.ok(midnight.grey > 0 && noon.grey === 0, 'colour fades at night');
 });
 
 test('DayCycle: the light is plain from 10 degrees up, and still golden at 6 degrees in the evening', () => {
   for (const alt of [12, 15]) for (const morning of [true, false]) {
     const l = DayCycle.lightAt(alt, morning, 0);
-    assert.deepEqual({ ...l, offset: [...l.offset] }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] }, `${alt} degrees, morning ${morning}`);
+    assert.deepEqual({ ...l, offset: [...l.offset] }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 }, `${alt} degrees, morning ${morning}`);
     assert.ok(Lighting.isPlain(l));
   }
   const evening = DayCycle.lightAt(6, false, 0);
@@ -134,25 +135,46 @@ test('DayCycle: a night with a full moon is brighter than one with a new moon', 
   const none = brightness(day.update(utc(9, 22), BUCHAREST).light);    // new moon
   assert.ok(day.moonlight < 0.02, `moonlight ${day.moonlight}`);
   assert.equal(day.phase, 'night');
-  assert.ok(full > none * 1.2, `full ${full} vs new ${none}`);
+  assert.ok(full > none * 1.05, `full ${full} vs new ${none}`);
 });
 
-test('DayCycle: the night is brighter than the old multiply-only night, and dawn and dusk blend into it without a jump', () => {
-  const dark = DayCycle.lightAt(-30, true, 0), moon = DayCycle.lightAt(-30, true, 1);
-  assert.ok(dark.r > 0.24 && dark.g > 0.29 && dark.b > 0.45, 'no moon brighter than before');
-  assert.ok(moon.r > 0.36 && moon.g > 0.44 && moon.b > 0.66, 'full moon brighter than before');
-  assert.ok(dark.grey < 0.4 && dark.offset.every(v => v < 0), 'less grey, a negative offset');
+const luma3 = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+const GROUND = [['sand', [0.957, 0.922, 0.882], [0.62, 0.64, 0.74]], ['grass', [0.663, 0.824, 0.467], [0.30, 0.50, 0.47]], ['sea', [0.086, 0.682, 0.816], [0.07, 0.25, 0.48]]];
+
+test('DayCycle: the night light is mild, dawn and dusk blend into it without a jump, and the ground never gets brighter on screen as the sun sets', () => {
+  const dark = DayCycle.lightAt(-30, true, 0), moon = DayCycle.lightAt(-30, true, 1), luma = l => 0.299 * l.r + 0.587 * l.g + 0.114 * l.b;
+  assert.deepEqual([dark.r, dark.g, dark.b, dark.grey], [0.78, 0.82, 0.95, 0.1]);
+  assert.deepEqual([moon.r, moon.g, moon.b].map(v => +v.toFixed(2)), [0.88, 0.92, 1]);
+  assert.deepEqual([dark.night, dark.moon, moon.moon], [1, 0, 1]);
   for (const morning of [true, false]) for (const moonlight of [0, 1]) {
     let prev = DayCycle.lightAt(15, morning, moonlight);
     for (let alt = 14.5; alt >= -20; alt -= 0.5) {
       const l = DayCycle.lightAt(alt, morning, moonlight);
-      for (const [a, b] of [[l.r, prev.r], [l.g, prev.g], [l.b, prev.b], [l.grey, prev.grey], ...l.offset.map((v, i) => [v, prev.offset[i]])]) {
+      for (const [a, b] of [[l.r, prev.r], [l.g, prev.g], [l.b, prev.b], [l.grey, prev.grey]]) {
         assert.ok(Math.abs(a - b) < 0.06, `jump at ${alt} degrees (morning ${morning}, moon ${moonlight}): ${a} vs ${b}`);
       }
       prev = l;
     }
+    // what reaches the eye (the light times the ground colour, blended into the night colour as the shader does) never gets brighter
+    for (const [name, c, n] of GROUND) {
+      let prevLuma = Infinity;
+      for (let alt = 10; alt >= -12; alt -= 0.5) {
+        const l = DayCycle.lightAt(alt, morning, moonlight), k = [l.r, l.g, l.b];
+        const y = luma3(c.map((v, i) => (1 - l.night) * k[i] * v + l.night * n[i] * (1 + 0.15 * moonlight)));
+        assert.ok(y <= prevLuma + 0.01, `${name} brighter at ${alt} degrees (morning ${morning}, moon ${moonlight}): ${y} vs ${prevLuma}`);
+        prevLuma = y;
+      }
+    }
   }
-  assert.deepEqual([...DayCycle.lightAt(-12, true, 0).offset], [-0.08, -0.06, -0.02]);
+  assert.deepEqual([...DayCycle.lightAt(-12, true, 0).offset], [0, 0, 0]);
+});
+
+test('DayCycle: night is 0 by day and 1 at night, on the same curve as the light grey', () => {
+  const day = new DayCycle();
+  assert.equal(day.update(at(12), BUCHAREST).night, 0);
+  assert.equal(day.update(at(24), BUCHAREST).night, 1);
+  assert.equal(day.light.night, 1);
+  for (const alt of [4, 0, -3, -6, -9, -12]) { const l = DayCycle.lightAt(alt, false, 0); assert.ok(Math.abs(l.grey - 0.1 * l.night) < 1e-12, `${alt}`); }
 });
 
 test('DayCycle: at night the moon casts faint shadows away from it; none when it is down', () => {

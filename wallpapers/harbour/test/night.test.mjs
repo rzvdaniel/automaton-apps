@@ -217,112 +217,31 @@ test('houses: a warm halo round each lit house that grows as more of its windows
   assert.equal(haloAlpha(0), 0, 'no halo by day');
 });
 
-// ----- the light map -----
-import { Renderer } from '../public/js/engine/renderer.js';
-import { Lighting } from '../public/js/engine/lighting.js';
+// ----- the night palette -----
+import { FRAGMENT_SHADER } from '../public/js/engine/shader-source.js';
 import { DayCycle } from '../public/js/sky/day-cycle.js';
-import { glow, halo, bulbMode, drawingBulbs, lightColour } from '../public/js/core/glow.js';
+import { Backdrop } from '../public/js/engine/backdrop.js';
 
-const clamp01 = v => Math.min(1, Math.max(0, v));
-const q = v => Math.round(clamp01(v) * 255) / 255;   // what an 8-bit canvas keeps between two steps
-
-test('light map: the night without lamps is the same picture as before (drain, add offset / k, then multiply by k)', () => {
-  const lights = [DayCycle.lightAt(-30, false, 0), DayCycle.lightAt(-30, false, 1), DayCycle.lightAt(-8, false, 0.5), DayCycle.lightAt(-3, true, 0.2)];
-  const colours = [[0.27, 0.62, 0.7], [0.04, 0.42, 0.61], [0.66, 0.82, 0.47], [0.84, 0.82, 0.6], [1, 1, 1], [0, 0, 0], [0.96, 0.92, 0.88]];
-  for (const light of lights) {
-    const old = Lighting.matrix(light), { matrix, add } = Lighting.split(light), k = [light.r, light.g, light.b];
-    for (const x of colours) {
-      const mul = (m, row) => m[row * 3] * x[0] + m[row * 3 + 1] * x[1] + m[row * 3 + 2] * x[2];
-      for (let row = 0; row < 3; row++) {
-        const before = clamp01(mul(old, row) + light.offset[row]);              // matrix with the multiply, then the offset (as it was)
-        const after = q(q(mul(matrix, row) + add[row]) * k[row]);               // drain and offset in the backdrop and filter, then the light map's multiply
-        assert.ok(Math.abs(before - after) <= 1.5 / 255, `light ${JSON.stringify(light)} colour ${x} channel ${row}: ${before} vs ${after}`);
-      }
-    }
+test('night palette: the shader mixes every ground colour to its night colour by u_night, divided by the light so it shows as chosen', () => {
+  assert.match(FRAGMENT_SHADER, /uniform vec2 u_night;/);
+  for (const n of ['dry', 'wet', 'grass', 'grass2', 'shallow', 'mid', 'deep', 'glow', 'foam']) {
+    assert.match(FRAGMENT_SHADER, new RegExp(`g_${n} = mix\\(c_${n}, n_${n} \\* nsc, u_night\\.x\\)`), n);
+    assert.ok(!new RegExp(`\\bc_${n}\\b`).test(FRAGMENT_SHADER.split('g_foam = mix(c_foam, n_foam * nsc, u_night.x);')[1]), `${n} is used through its mixed colour`);
   }
+  assert.match(FRAGMENT_SHADER, /nsc = \(1\.0 \+ 0\.15 \* u_night\.y\) \/ max\(u_light \* vec3\(1\.0\)/);
+  assert.match(FRAGMENT_SHADER, /n_deep = vec3\(0\.03, 0\.12, 0\.30\)/);
 });
 
-test('light map: at night the backdrop and the filter keep only the drain and the offset; by day nothing is applied', () => {
-  const set = [], saved = globalThis.document;
-  globalThis.document = { createElementNS: () => ({ setAttribute() {}, appendChild() {}, style: {} }), body: { appendChild() {} } };
-  try {
-    const canvas = { style: {} }, backdrop = { setLight: (m, add) => set.push([m, add]) }, lighting = new Lighting({ canvas, backdrop });
-    const night = DayCycle.lightAt(-30, false, 0);
-    lighting.apply(night, true);
-    const [m, add] = set.at(-1);
-    assert.deepEqual([...m], Lighting.matrix({ r: 1, g: 1, b: 1, grey: night.grey }), 'no multiply left in the matrix');
-    assert.ok(Math.abs(add[0] * night.r - night.offset[0]) < 1e-12, 'the offset is divided by the multiplier');
-    assert.equal(canvas.style.filter, 'url(#harbour-light)', 'the grey and the offset still need the filter');
-    lighting.apply({ r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] }, false);
-    assert.equal(canvas.style.filter, '', 'no filter by day');
-    assert.deepEqual([...set.at(-1)[0]], [1, 0, 0, 0, 1, 0, 0, 0, 1]);
-  } finally { globalThis.document = saved; }
+test('night palette: Lighting hands the amount and the moonlight to the backdrop', () => {
+  const backdrop = new Backdrop({ getContext: () => null });
+  backdrop.setLight([1, 0, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0], 0.7, 0.4);
+  assert.deepEqual([...backdrop.night].map(v => +v.toFixed(2)), [0.7, 0.4]);
 });
 
-/** A Renderer on stand-in canvases (no WebGL: the flat fallback). `filled` lists what the light map was filled with. */
-function stubRenderer() {
-  const saved = globalThis.document, filled = [];
-  const context = () => new Proxy({ globalCompositeOperation: 'source-over', globalAlpha: 1 }, {
-    get: (t, k) => k in t ? t[k] : k === 'fillRect' && t.isMap ? (...a) => filled.push([t.fillStyle, a]) : () => {},
-    set: (t, k, v) => { t[k] = v; return true; }
-  });
-  let n = 0;
-  globalThis.document = {
-    createElement: () => { const ctx = context(); ctx.isMap = n++ === 2; return { width: 100, height: 60, style: {}, getContext: type => (type === 'webgl' ? null : ctx) }; },
-    createElementNS: () => ({ setAttribute() {}, appendChild() {}, style: {} }), body: { appendChild() {} }
-  };
-  const renderer = new Renderer({ appendChild() {} });
-  globalThis.document = saved;
-  const camera = { x: 0, y: 0, zoom: 1, applyTo() {} }, scene = new Scene(), viewport = { width: 100, height: 60, scale: 100, glScale: 1, dpr: 1, quality: 1 };
-  const frame = (light, darkness) => renderer.render({ viewport, camera, terrain: { map: { land: [] } }, effects: { draw() {} }, scene, time: 0, light, darkness });
-  return { renderer, frame, filled };
-}
-
-const PLAIN = { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] };
-
-test('light map: by day nothing is applied, the light map is empty and has no blend mode', () => {
-  const { renderer, frame, filled } = stubRenderer();
-  frame(PLAIN, 0);
-  assert.equal(renderer.canvas.style.filter ?? '', '', 'no filter on the drawing');
-  assert.equal(renderer.lightsCanvas.style.mixBlendMode ?? '', '', 'no blend mode');
-  assert.equal(renderer.lightsShown, false);
-  assert.deepEqual(filled, [], 'nothing painted on the light map');
-});
-
-test('light map: at night it is filled with the night colour and multiplied; back by day it is cleared and the blend is gone', () => {
-  const { renderer, frame, filled } = stubRenderer(), night = { r: 0.4, g: 0.5, b: 0.78, grey: 0.15, offset: [-0.08, -0.06, -0.02] };
-  frame(night, 1);
-  assert.equal(renderer.lightsCanvas.style.mixBlendMode, 'multiply');
-  assert.deepEqual(filled, [['rgb(102,128,199)', [0, 0, 100, 60]]], 'the whole map is the night colour');
-  assert.equal(renderer.lightsShown, true);
-  assert.equal(renderer.canvas.style.filter, 'url(#harbour-light)', 'grey and offset stay on the drawing');
-  frame(PLAIN, 0);
-  assert.equal(renderer.lightsCanvas.style.mixBlendMode, '', 'no blend mode by day');
-  assert.equal(renderer.canvas.style.filter, '');
-  assert.equal(renderer.lightsShown, false);
-  assert.equal(filled.length, 1, 'nothing more is painted on the map by day');
-});
-
-test('bulbs: in bulb mode a lamp is a small dot and a halo is nothing; the mode is off again afterwards', () => {
-  const calls = [], c = { drawImage: (img, x, y, w) => calls.push(w), globalAlpha: 1 };
-  glow(c, 0, 0, 0.0075, 1); assert.equal(calls.length, 2, 'glow and core on the light map');
-  calls.length = 0; bulbMode(true);
-  try {
-    assert.equal(drawingBulbs(), true);
-    glow(c, 0, 0, 0.0075, 1); halo(c, 0, 0, 0.1, 1);
-    assert.equal(calls.length, 1, 'one dot, no halo'); assert.ok(calls[0] <= 0.0032 + 1e-9, 'small');
-    calls.length = 0; glow(c, 0, 0, 0.5, 1); assert.ok(calls[0] <= 0.0032 + 1e-9, 'never bigger than the cap');
-  } finally { bulbMode(false); }
-  assert.equal(drawingBulbs(), false);
-  assert.equal(lightColour({ r: 1, g: 1, b: 1 }), 'rgb(255,255,255)'); assert.equal(lightColour(undefined), 'rgb(255,255,255)');
-});
-
-test('bulbs: the lighthouse draws no beam in bulb mode, and windows draw dots', () => {
-  const world = islandAt(MIDNIGHT), tower = world.all(E.Lighthouse)[0];
-  bulbMode(true);
-  try {
-    const c = recordingContext(); tower.drawLights(c, 3);
-    assert.ok(!c.calls.includes('fill'), 'no beam'); assert.ok(c.calls.includes('drawImage'), 'the lantern dot');
-    const h = recordingContext(); world.all(E.House).forEach(x => x.drawLights(h)); assert.ok(h.calls.length > 0, 'window dots');
-  } finally { bulbMode(false); }
+test('night palette: dividing by the light and then applying it gives back the chosen colour (grey 0)', () => {
+  const l = DayCycle.lightAt(-30, false, 0), k = [l.r, l.g, l.b], n = [0.62, 0.64, 0.74];
+  const nsc = k.map(v => 1 / Math.max(v, 0.2));   // as the shader's nsc, moonlight 0
+  n.forEach((v, i) => assert.ok(Math.abs(k[i] * v * nsc[i] - v) < 1e-12));
+  const m = DayCycle.lightAt(-30, false, 1), km = [m.r, m.g, m.b];
+  n.forEach((v, i) => assert.ok(Math.abs(km[i] * v * (1.15 / km[i]) - v * 1.15) < 1e-12, 'a full moon: 15% brighter on screen'));
 });

@@ -133,14 +133,14 @@ test('Shader: whitecap crests and trails, and the surf, are all scaled by the se
   const end = lines.findIndex((l, i) => i > start && /^\s*}\s*$/.test(l));
   const block = lines.slice(start, end).join('\n');
   assert.match(block, /float foam = max\(crest[^;]*trail[^;]*\)/, 'foam is made of the crest and its trail');
-  assert.match(block, /mix\(col, c_foam, foam \* max\(smoothstep\(0\.0, 0\.2, ws\)[^;]*0\.48 \* wl\)/, 'the foam is multiplied by (a ramp of) the sea strength, or the light-wind ramp');
+  assert.match(block, /mix\(col, g_foam, foam \* max\(smoothstep\(0\.0, 0\.2, ws\)[^;]*0\.48 \* wl\)/, 'the foam is multiplied by (a ramp of) the sea strength, or the light-wind ramp');
   assert.equal((block.match(/noise\(/g) || []).length, 2, 'at most two noise calls for the caps');
   assert.match(FRAGMENT_SHADER, /float surf = ws \*/, 'the surf grows from the sea strength');
   assert.match(FRAGMENT_SHADER, /\* surf \* 0\.85\)/, 'the beach band is multiplied by it');
 });
 
 // The waves setting (#186): Off, Original (the default), Crescents, Dashes.
-const OLD_SPARKLE = "  col = mix(col, c_foam, step(0.9965, h2) * rs * step(0.04, sd) * (0.5 + 0.5 * sin(t * 1.5 + h2 * 40.0)) * 0.75);";
+const OLD_SPARKLE = "  col = mix(col, g_foam, step(0.9965, h2) * rs * step(0.04, sd) * (0.5 + 0.5 * sin(t * 1.5 + h2 * 40.0)) * 0.75);";
 
 test('Settings: the waves are Original for a new viewer; a choice lasts; an unknown one becomes Original', () => {
   assert.equal(new Settings({ storage: null }).get('waves'), 'original');
