@@ -91,7 +91,7 @@
       "summary": "Publish a blog and send a newsletter from your own server.",
       "category": "Publishing",
       "folder": "publishing/ghost",
-      "commit": "6f039b0136a65797d8b21eb11ec5556f83797772",
+      "commit": "7c5c373d2bc502248d009365063cae536acdd4c1",
       "minServerVersion": "0.2.130",
       "permissions": []
     },
