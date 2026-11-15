@@ -210,7 +210,7 @@ test('the balloon: a warm burner glow only when dark, brighter while the burner 
 
 test('houses: a warm halo round each lit house that grows as more of its windows come on', () => {
   const world = islandAt(MIDNIGHT), house = world.all(E.House).find(h => h.lightsAt < 1);
-  const haloAlpha = d => { world.day.darkness = d; const c = recordingContext(); const alphas = []; c.drawImage = () => alphas.push(c.globalAlpha); house.drawLights(c); return alphas.length ? alphas[alphas.length - 2] : 0; };
+  const haloAlpha = d => { world.day.darkness = d; const c = recordingContext(); let seen = 0; c.drawImage = (img, x, y, w) => { if (Math.abs(w - house.w * 3.6) < 1e-9) seen = c.globalAlpha; }; house.drawLights(c); return seen; };   // the halo is the one picture house.w * 1.8 wide on each side
   const steps = [house.lightsAt + 0.05, house.lightsAt + 0.11, house.lightsAt + 0.17, house.lightsAt + 0.3, 1].map(haloAlpha);
   for (let i = 1; i < steps.length; i++) assert.ok(steps[i] >= steps[i - 1], `the halo only grows: ${steps}`);
   assert.ok(steps[4] > steps[0] * 1.5, 'much brighter with every window lit');
