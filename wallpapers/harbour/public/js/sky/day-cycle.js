@@ -33,13 +33,13 @@ const mix = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
 // The light's colour (red, green, blue multipliers) at sun heights in degrees, from high sun down to full night.
 // Morning and evening differ only near the horizon: a rosy, soft dawn and a golden evening; both turn blue at twilight.
 const DAY = [1, 1, 1];
-const MORNING = [[20, DAY], [6, [1, 0.93, 0.84]], [0, [0.86, 0.74, 0.74]], [-6, [0.5, 0.5, 0.68]]];
-const EVENING = [[20, DAY], [6, [1, 0.86, 0.62]], [0, [0.92, 0.66, 0.5]], [-6, [0.5, 0.48, 0.66]]];
+const MORNING = [[10, DAY], [6, [1, 0.93, 0.84]], [0, [0.86, 0.74, 0.74]], [-6, [0.5, 0.5, 0.68]]];
+const EVENING = [[10, DAY], [6, [1, 0.86, 0.62]], [0, [0.92, 0.66, 0.5]], [-6, [0.5, 0.48, 0.66]]];
 const NIGHT_DARK = [0.24, 0.29, 0.45];   // no moon: dark blue, the land still readable
 const NIGHT_MOON = [0.36, 0.44, 0.66];   // a full moon high up: brighter, moonlit blue
 const NIGHT_GREY = 0.4;                  // how much colour fades at full night
-const CLOUD_DIM = 0.22;                  // how much darker daylight is under the heaviest cloud
-const CLOUD_GREY = 0.25;                 // and how much colour it loses
+const CLOUD_DIM = 0.10;                  // how much darker daylight is under the heaviest cloud
+const CLOUD_GREY = 0.10;                 // and how much colour it loses
 
 export class DayCycle {
   static MAX_LENGTH = 3;      // a sun just above the horizon still casts a shadow that stays on the screen

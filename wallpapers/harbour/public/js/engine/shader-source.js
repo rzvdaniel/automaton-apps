@@ -119,7 +119,7 @@ export const FRAGMENT_SHADER = [
   '  }',
   '  col = u_light * col;',                                              // the time of day's light (see Lighting)
   '  col *= 1.0 - 0.14 * dot(ps * 0.75, ps * 0.75);',
-  '  col += (hash(fc + 1.3) - 0.5) * 0.04;',
+  '  col += (hash(fc + 1.3) - 0.5) * 0.04 * dot(u_light * vec3(1.0), vec3(0.299, 0.587, 0.114));',  // grain dims with the light
   '  gl_FragColor = vec4(col, 1.0);',
   '}'
 ].join('\n');
