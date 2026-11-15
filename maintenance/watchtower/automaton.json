@@ -1,10 +1,10 @@
 {
   "name": "Watchtower",
   "summary": "Watches your Automaton server and emails you once when something needs attention, with a mute link.",
-  "description": "Watchtower runs watchers on a schedule and turns what they find into alerts: one email per problem while it lasts, a Mute 24h link in every email, and a page with active alerts and their history. Emails through the server (permission notify:email). Watches the server's nightly backup (permission backups:read): alerts when the newest backup is older than 26 hours or the last run failed.",
+  "description": "Watchtower runs watchers on a schedule and turns what they find into alerts: one email per problem while it lasts, a Mute 24h link in every email, and a page with active alerts and their history. Emails through the server (permission notify:email). Watches the server's nightly backup (permission backups:read): alerts when the newest backup is older than 26 hours or the last run failed. With permission apps:read-status it also watches the Off-site Backup app: alerts when its last run failed or is older than 26 hours.",
   "application": {
     "kind": "web",
-    "permissions": ["notify:email", "backups:read"],
+    "permissions": ["notify:email", "backups:read", "apps:read-status"],
     "description": "Watches your Automaton server and emails you once when something needs attention, with a mute link.",
     "pages": [{ "path": "/", "label": "Alerts" }],
     "build": {
