@@ -34,13 +34,14 @@
       "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "e61754d1ef59bd0270513465f80aa15386d8e354",
+      "commit": "194c2e8e7f856d90954b751778d074cffdc23fa8",
       "minServerVersion": "0.2.63",
       "permissions": [
         "server:read",
         "notify:email",
         "server:cleanup",
-        "runner:maintain"
+        "runner:maintain",
+        "backups:run"
       ]
     },
     {
@@ -115,7 +116,7 @@
       "summary": "A living harbour island for your desktop that reacts to clicks: the sea, the sheep, the boats and the church bell.",
       "category": "Wallpapers",
       "folder": "wallpapers/harbour",
-      "commit": "18c3cc833582f10aab9a8a9b6d985b726f744558",
+      "commit": "273d0fe7d19ca0ba06d339c1ace1758e4603b23d",
       "minServerVersion": "0.2.31",
       "permissions": []
     }
