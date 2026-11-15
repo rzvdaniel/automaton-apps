@@ -145,8 +145,8 @@ test('DayCycle: daylight is dimmer and greyer under heavy cover, unchanged under
   const noon = new Date(Date.UTC(2026, 10, 14, 10)), day = new DayCycle();
   const clear = { ...day.update(noon, BUCHAREST, 0).light }, cloudy = { ...day.update(noon, BUCHAREST, Weather.CAP).light };
   assert.deepEqual(clear, { r: 1, g: 1, b: 1, grey: 0 });
-  assert.ok(cloudy.r + cloudy.g + cloudy.b < 2.95, `cloudy light ${JSON.stringify(cloudy)}`);
-  assert.ok(cloudy.grey > 0);
+  assert.ok(Math.abs(cloudy.r + cloudy.g + cloudy.b - 2.7) < 1e-9, `cloudy light ${JSON.stringify(cloudy)}`);
+  assert.ok(Math.abs(cloudy.grey - 0.1) < 1e-9, `grey ${cloudy.grey}`);
 });
 
 test('World: owns the weather, and follows a clock fixed after it was built without easing from today', () => {
