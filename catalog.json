@@ -56,6 +56,18 @@
       ]
     },
     {
+      "id": "watchtower",
+      "name": "Watchtower",
+      "summary": "Watches your Automaton server and emails you once when something needs attention, with a mute link.",
+      "category": "Monitoring",
+      "folder": "maintenance/watchtower",
+      "commit": "5f93233b18c155f71bb22c8dd10a1121b1d817f0",
+      "minServerVersion": "0.2.31",
+      "permissions": [
+        "notify:email"
+      ]
+    },
+    {
       "id": "it-tools",
       "name": "IT-Tools",
       "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
