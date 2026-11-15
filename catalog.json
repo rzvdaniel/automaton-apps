@@ -34,7 +34,7 @@
       "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "194c2e8e7f856d90954b751778d074cffdc23fa8",
+      "commit": "c204bcd3936ef47f0821507cf32c3cf16d928492",
       "minServerVersion": "0.2.63",
       "permissions": [
         "server:read",
