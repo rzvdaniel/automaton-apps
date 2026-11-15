@@ -9,6 +9,7 @@ export class Cottage extends House {
     super(world, Object.assign({ wall: '#f6f1e6', roof: ['#dcbd7e', '#c4a161'] }, o));
     this.straw = []; for (let i = 0; i < 90; i++) this.straw.push([-49 + Math.random() * 98, -30 + Math.random() * 58, 4 + Math.random() * 7, Math.random() < 0.5]);
   }
+  paneSize() { const u = this.w / 100; return [10 * u, 8 * u]; }
   windowSpots() {
     const u = this.w / 100, front = Math.cos(this.a) >= 0 ? 1 : -1;
     return [-27, 27].map(x => [x * u, 37 * front * u]);

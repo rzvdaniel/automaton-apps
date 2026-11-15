@@ -136,12 +136,42 @@ test('lights: nothing is drawn by day; at night windows, lamps, lanterns and the
   assert.ok(n.calls.filter(k => k === 'drawImage').length > 40, `many lights at midnight (${n.calls.length})`);
 });
 
-test('lights: some house windows stay dark, the rest switch on one by one as dusk deepens', () => {
-  const world = islandAt(MIDNIGHT), houses = world.all(E.House);
-  assert.ok(houses.some(h => h.lightsAt < 1), 'some houses light up');
-  const lit = d => { world.day.darkness = d; return houses.filter(h => { const c = recordingContext(); h.drawLights(c); return c.calls.length > 0; }).length; };
-  assert.equal(lit(0), 0); assert.ok(lit(0.3) <= lit(0.5)); assert.ok(lit(0.5) <= lit(1));
-  assert.equal(lit(1), houses.filter(h => h.lightsAt < 1).length);
+/** The windows of the island lit (drawn) when it is dark and the clock says `hour`. */
+function litAt(world, hour, darkness = 1) {
+  world.day.darkness = darkness; world.skyClock.minutes = () => hour * 60;
+  let lit = 0, all = 0;
+  for (const h of world.all(E.House)) for (let n = 0; n < h.windows.length; n++, all++) if (h.windowLight(n) > 0.5) lit++;
+  return { lit, all };
+}
+
+test('lights: windows go out as the night goes on, by the clock: half at 21:00, a quarter at 23:00, one or two from 01:00 to 05:00', () => {
+  for (const seed of [3, 7, 11]) {
+    const world = islandAt(MIDNIGHT, seed), at = h => litAt(world, h);
+    const { all } = at(21);
+    assert.ok(all >= 20, `seed ${seed}: enough windows (${all})`);
+    const f = h => at(h).lit / all;
+    assert.ok(f(21) > 0.35 && f(21) < 0.65, `seed ${seed}: about half at 21:00 (${f(21)})`);
+    assert.ok(f(23) > 0.15 && f(23) < 0.35, `seed ${seed}: about a quarter at 23:00 (${f(23)})`);
+    assert.ok(f(21) > f(22) && f(22) > f(23) && f(23) > f(24), `seed ${seed}: fewer and fewer`);
+    for (const h of [1.5, 2, 3, 4, 4.5]) assert.ok(at(h).lit >= 1 && at(h).lit <= 2, `seed ${seed}: one or two lit at ${h}:00 (${at(h).lit})`);
+    assert.equal(at(12).lit, 0, `seed ${seed}: none at noon even in the dark`);
+    assert.ok(at(6).lit <= Math.ceil(all * 0.15), `seed ${seed}: a few again at 06:00 (${at(6).lit})`);
+    assert.equal(at(8).lit, 0, `seed ${seed}: none in the morning`);
+  }
+});
+
+test('lights: by day no window is drawn, whatever the clock says', () => {
+  const world = islandAt(NOON); world.skyClock.minutes = () => 22 * 60;
+  const c = recordingContext(); world.scene.drawLayer(LIGHTS, c, 0);
+  for (const h of world.all(E.House)) { const k = recordingContext(); h.drawLights(k); assert.deepEqual(k.calls, [], 'no pane by day'); }
+});
+
+test('lights: not every window of a house is lit at once, and the same island lights the same way twice', () => {
+  const a = islandAt(MIDNIGHT, 7), b = islandAt(MIDNIGHT, 7);
+  litAt(a, 22); litAt(b, 22);
+  const row = w => w.all(E.House).map(h => h.windows.map((_, n) => h.windowLight(n).toFixed(3)).join());
+  assert.deepEqual(row(a), row(b), 'seeded: stable across reloads');
+  assert.ok(a.all(E.House).some(h => new Set(h.windows.map((_, n) => h.windowLight(n) > 0.5)).size === 2), 'a house with some windows lit and some dark');
 });
 
 test('the lighthouse: lantern and beam on at night, off at noon, off when clicked off', () => {
@@ -186,13 +216,13 @@ test('the balloon: a warm burner glow only when dark, brighter while the burner 
   world.day.darkness = NOON; assert.equal(drawnCalls(balloon), 0, 'nothing by day');
 });
 
-test('houses: a warm halo round each lit house that grows as more of its windows come on', () => {
-  const world = islandAt(MIDNIGHT), house = world.all(E.House).find(h => h.lightsAt < 1);
-  const haloAlpha = d => { world.day.darkness = d; const c = recordingContext(); let seen = 0; c.drawImage = (img, x, y, w) => { if (Math.abs(w - house.w * 3.6) < 1e-9) seen = c.globalAlpha; }; house.drawLights(c); return seen; };   // the halo is the one picture house.w * 1.8 wide on each side
-  const steps = [house.lightsAt + 0.05, house.lightsAt + 0.11, house.lightsAt + 0.17, house.lightsAt + 0.3, 1].map(haloAlpha);
-  for (let i = 1; i < steps.length; i++) assert.ok(steps[i] >= steps[i - 1], `the halo only grows: ${steps}`);
-  assert.ok(steps[4] > steps[0] * 1.5, 'much brighter with every window lit');
-  assert.equal(haloAlpha(0), 0, 'no halo by day');
+test('houses: a lit window is a flat pane: no halo, no glow on the ground, not additive', () => {
+  const world = islandAt(MIDNIGHT); litAt(world, 21);
+  const house = world.all(E.House).find(h => h.windows.some((_, n) => h.windowLight(n) > 0.5));
+  const c = recordingContext(); const ops = []; c.fillRect = () => ops.push('fillRect'); c.drawImage = () => ops.push('drawImage');
+  house.drawLights(c);
+  assert.ok(ops.includes('fillRect'), 'a pane is filled'); assert.ok(!ops.includes('drawImage'), 'no halo or glow picture');
+  assert.equal(c.globalCompositeOperation, 'source-over', 'plain, not additive');
 });
 
 // ----- the night palette -----

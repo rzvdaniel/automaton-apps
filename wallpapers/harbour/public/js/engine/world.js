@@ -1,6 +1,7 @@
 import { rng } from '../core/math.js';
 import { Viewport } from './viewport.js';
 import { Camera } from './camera.js';
+import { WindowLights } from './window-lights.js';
 import { Terrain } from './terrain.js';
 import { Wind } from './wind.js';
 import { Settings } from '../sky/settings.js';
@@ -46,6 +47,7 @@ export class World {
   constructor({ stage = null, sound = SILENT, width, height, debug, everything, settings } = {}) {
     const headless = !stage;
     this.sound = sound;
+    this.windowLights = new WindowLights();   // which house windows are lit at which hour
     const query = typeof location !== 'undefined' ? location.search : '';
     this.debug = debug ?? /[?&]debug\b/.test(query);   // ?debug shows the status lines (like Status on, not saved)
     this.allForVisit = everything ?? /[?&]all\b/.test(query);   // ?all turns on Every animal for this visit (not saved)
@@ -108,7 +110,7 @@ export class World {
 
   // ---------- building and running ----------
   /** Forgets the island so a new one can be built. */
-  reset() { this.scene.clear(); this.terrain.reset(); this.effects.clear(); this.windField.setAngle(0); }
+  reset() { this.scene.clear(); this.windowLights.clear(); this.terrain.reset(); this.effects.clear(); this.windField.setAngle(0); }
 
   /** Every animal: all the extras placed, a calf with every whale and whales often. From the setting or ?all. */
   get everything() { return this.allForVisit || this.settings.get('everything'); }
