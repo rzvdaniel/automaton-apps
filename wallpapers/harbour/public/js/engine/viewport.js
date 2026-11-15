@@ -31,4 +31,12 @@ export class Viewport {
     this.quality *= 0.8; this.resize(this.width, this.height);
     return true;
   }
+
+  /** One step up in shader resolution, back to 1 at most. Returns false when already there. */
+  raiseQuality() {
+    if (this.quality >= 1) return false;
+    this.quality = Math.min(1, this.quality / 0.8); if (this.quality > 0.999) this.quality = 1;
+    this.resize(this.width, this.height);
+    return true;
+  }
 }
