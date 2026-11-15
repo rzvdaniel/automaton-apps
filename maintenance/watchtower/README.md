@@ -11,6 +11,10 @@ Watches your Automaton server and emails you when something needs attention. One
 
 The page lists active alerts, the watchers (turn each on or off) and the history. It is built from the Automaton app UI kit.
 
+## Backup watcher
+
+**Server backups** (every 10 minutes, permission `backups:read`) alerts when the newest server backup is older than 26 hours, when the server reports no backup, or when the last backup run failed. Each is one alert until the next good backup clears it. The off-site app's own run is not watched yet: the server gives an app with `backups:read` no way to read another app's runs.
+
 ## Install and set up
 
 Install from **Apps → Catalog**, fill in the secret and deploy.
@@ -22,7 +26,7 @@ Install from **Apps → Catalog**, fill in the secret and deploy.
 | `PUBLIC_URL` | setting | The address you open the app at, for the Mute link in emails. Empty: emails have no link. |
 | `CHECK_INTERVAL_SECONDS` | setting | How often due watchers are looked for. Default 10. |
 
-Redeploy after changing a setting. The app asks for `notify:email`; a system administrator approves it in Studio and the server needs SMTP (Admin > Settings). The server allows 10 emails an hour per app. Without the approval alerts still show on the page and in the log.
+Redeploy after changing a setting. The app asks for `notify:email` and `backups:read`; a system administrator approves it in Studio and the server needs SMTP (Admin > Settings). The server allows 10 emails an hour per app. Without the approval alerts still show on the page and in the log.
 
 ## Try it
 

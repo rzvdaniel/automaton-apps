@@ -15,6 +15,7 @@ import os
 import secrets
 import time
 import uuid
+from datetime import datetime
 
 MAX_ALERTS = 500
 MIN_INTERVAL = 10
@@ -42,8 +43,45 @@ def dummy_watcher(state: dict) -> list[dict]:
     return []
 
 
+BACKUP_MAX_AGE = 26 * 3600
+
+# Data sources the app plugs in (name -> callable returning the server's data); a source that raises keeps the alerts.
+SOURCES: dict = {}
+
+
+def parse_time(value) -> float | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def backup_watcher(state: dict) -> list[dict]:
+    """Server backups (GET /api/Install/backups, permission backups:read): too old, or the last run failed."""
+    source = SOURCES.get("backups")
+    data = source() if source else None
+    if not isinstance(data, dict) or not data.get("available"):
+        return []  # this server does not report backups; nothing to judge
+    now = time.time()
+    times = [parse_time(data.get("lastSuccessAt"))]
+    times += [parse_time(b.get("createdAt")) for b in data.get("backups") or [] if isinstance(b, dict)]
+    newest = max((t for t in times if t is not None), default=None)
+    found = []
+    if newest is None:
+        found.append(finding("server-backup-old", "No server backup exists", "The server reports no backup at all.", "critical"))
+    elif now - newest > BACKUP_MAX_AGE:
+        hours = int((now - newest) // 3600)
+        found.append(finding("server-backup-old", f"The newest server backup is {hours} hours old",
+                             "Nightly backups should be less than 26 hours apart. Check the server's backup timer.", "critical"))
+    if data.get("lastError"):
+        found.append(finding("server-backup-failed", "The last server backup failed", str(data["lastError"])[:300], "critical"))
+    return found
+
+
 # name -> (label, default interval in seconds, run(state) -> list of findings)
-WATCHERS = {"dummy": ("Dummy watcher", 30, dummy_watcher)}
+WATCHERS = {"dummy": ("Dummy watcher", 30, dummy_watcher), "backups": ("Server backups", 600, backup_watcher)}
 
 
 def new_state() -> dict:

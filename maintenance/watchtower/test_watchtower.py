@@ -20,6 +20,51 @@ class Clock:
         return self.t
 
 
+class BackupWatcher(unittest.TestCase):
+    def check(self, data):
+        import time
+        watchtower.SOURCES["backups"] = lambda: data
+        self.addCleanup(watchtower.SOURCES.pop, "backups", None)
+        return [f["key"] for f in watchtower.backup_watcher(watchtower.new_state())]
+
+    def iso(self, hours_ago):
+        import time
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - hours_ago * 3600))
+
+    def test_fresh_and_good_is_quiet(self):
+        self.assertEqual(self.check({"available": True, "lastSuccessAt": self.iso(2), "lastError": None, "backups": []}), [])
+
+    def test_old_backup(self):
+        self.assertEqual(self.check({"available": True, "lastSuccessAt": self.iso(30), "backups": []}), ["server-backup-old"])
+
+    def test_failed_run_and_old(self):
+        keys = self.check({"available": True, "lastSuccessAt": self.iso(30), "lastError": "disk full", "backups": []})
+        self.assertEqual(sorted(keys), ["server-backup-failed", "server-backup-old"])
+
+    def test_newest_listed_backup_counts(self):
+        self.assertEqual(self.check({"available": True, "lastSuccessAt": None, "backups": [{"createdAt": self.iso(3)}]}), [])
+
+    def test_no_backup_at_all(self):
+        self.assertEqual(self.check({"available": True, "backups": []}), ["server-backup-old"])
+
+    def test_unavailable_server_is_not_judged(self):
+        self.assertEqual(self.check({"available": False}), [])
+
+    def test_unreadable_source_keeps_alert(self):
+        state = watchtower.new_state()
+        calls = iter([{"available": True, "lastError": "x", "backups": [{"createdAt": self.iso(1)}]}, None])
+        def source():
+            value = next(calls)
+            if value is None:
+                raise OSError("down")
+            return value
+        watchtower.SOURCES["backups"] = source
+        self.addCleanup(watchtower.SOURCES.pop, "backups", None)
+        watchtower.run_watchers(state, 1000, only="backups")
+        watchtower.run_watchers(state, 9999, only="backups")
+        self.assertEqual(len(watchtower.active(state)), 1)
+
+
 class Engine(unittest.TestCase):
     def setUp(self):
         self.state = watchtower.new_state()
