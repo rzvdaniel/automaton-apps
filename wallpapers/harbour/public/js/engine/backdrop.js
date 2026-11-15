@@ -5,7 +5,7 @@ import { Wind } from './wind.js';
 /** The waves styles (see Settings) as the shader's numbers. */
 export const WAVE_STYLES = Object.freeze({ off: 0, original: 1, crescents: 2, dashes: 3 });
 
-const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light', 'u_lightAdd', 'u_night', 'u_wind', 'u_isle', 'u_waves'];
+const UNIFORMS = ['u_res', 'u_S', 'u_time', 'u_dpr', 'u_shift', 'u_zoom', 'u_cam', 'u_obj', 'u_bay', 'u_rip', 'u_light', 'u_lightAdd', 'u_night', 'u_moon', 'u_wind', 'u_isle', 'u_waves'];
 
 /**
  * The backdrop: sea, shore, sand and meadow, painted by a WebGL fragment shader onto its own canvas.
@@ -23,6 +23,7 @@ export class Backdrop {
     this.lightMatrix = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);   // the time of day's light (see Lighting); plain daylight
     this.wind = new Float32Array([1, 0, 0, 1]);   // u_wind: which way it blows (x, y), how hard for the sea (0 calm), and whether to draw whitecaps (1) or not (0)
     this.night = new Float32Array(2);   // u_night: how much the night palette shows (0 by day .. 1) and the moonlight (0..1)
+    this.moon = new Float32Array(3);   // u_moon: the moon's direction on the screen (x, y; east +x, north -y) and the strength of its glitter on the sea (0 by day, with no moon)
     this.lightAdd = new Float32Array(3);   // added after the multiply (u_lightAdd); none by day
     this.waves = new Float32Array([1, Wind.REFERENCE]);   // u_waves: the style (WAVE_STYLES) and the wind strength 0..1 (light-wind crests start before the sea strength does)
     this.isle = new Float32Array(2);              // u_isle: the middle of the land, so the shader knows which shore faces the wind
@@ -85,6 +86,12 @@ export class Backdrop {
     this.policy.invalidate();
   }
 
+  /** Uses the moon's glitter ({ x, y, strength }, see DayCycle.glitter); repaints only when it has changed enough to see. */
+  setGlitter({ x, y, strength }) {
+    const next = [x, y, strength];
+    if (next.some((v, i) => Math.abs(v - this.moon[i]) > 0.002)) { this.moon.set(next); this.policy.invalidate(); }
+  }
+
   /** Resizes the drawing surface to `width` x `height` pixels (which clears it, so it is repainted next). */
   resize(width, height) { this.canvas.width = width; this.canvas.height = height; this.policy.invalidate(); }
 
@@ -112,6 +119,7 @@ export class Backdrop {
     gl.uniformMatrix3fv(u.u_light, false, this.lightMatrix);
     gl.uniform3fv(u.u_lightAdd, this.lightAdd);
     gl.uniform2fv(u.u_night, this.night);
+    gl.uniform3fv(u.u_moon, this.moon);
     gl.uniform4fv(u.u_wind, this.wind);
     gl.uniform2fv(u.u_isle, this.isle);
     gl.uniform2fv(u.u_waves, this.waves);

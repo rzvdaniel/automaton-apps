@@ -20,7 +20,7 @@ export const VERTEX_SHADER = 'attribute vec2 a; void main(){ gl_Position = vec4(
 
 export const FRAGMENT_SHADER = [
   'precision highp float;',
-  'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAX_LAND + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAX_RIPPLES + ']; uniform mat3 u_light; uniform vec3 u_lightAdd; uniform vec4 u_wind; uniform vec2 u_isle; uniform vec2 u_waves; uniform vec2 u_night;',
+  'uniform vec2 u_res; uniform float u_S; uniform float u_time; uniform float u_dpr; uniform vec2 u_shift; uniform float u_zoom; uniform vec2 u_cam; uniform vec3 u_obj[' + MAX_LAND + ']; uniform vec3 u_bay; uniform vec4 u_rip[' + MAX_RIPPLES + ']; uniform mat3 u_light; uniform vec3 u_lightAdd; uniform vec4 u_wind; uniform vec2 u_isle; uniform vec2 u_waves; uniform vec2 u_night; uniform vec3 u_moon;',
   'const vec3 c_dry = vec3(0.957, 0.922, 0.882); const vec3 c_wet = vec3(0.925, 0.863, 0.714); const vec3 c_glow = vec3(0.812, 0.933, 0.769);',
   'const vec3 c_shallow = vec3(0.271, 0.827, 0.812); const vec3 c_mid = vec3(0.086, 0.682, 0.816); const vec3 c_deep = vec3(0.039, 0.416, 0.612);',
   'const vec3 c_foam = vec3(1.0); const vec3 c_grass = vec3(0.663, 0.824, 0.467); const vec3 c_grass2 = vec3(0.455, 0.706, 0.361);',
@@ -124,6 +124,15 @@ export const FRAGMENT_SHADER = [
   '  col = mix(col, g_foam, step(0.9965, h2) * rs * step(0.04, sd) * (0.5 + 0.5 * sin(t * 1.5 + h2 * 40.0)) * 0.75);',
   '  }',
   '  col = u_light * col + u_lightAdd;',                                              // the time of day's light (see Lighting)
+  '  if (u_moon.z > 0.001 && u_wind.w > 0.5 && sd > 0.04) {',                          // moon glitter: open sea, moonlit night, fast device; added after the light so the night does not dim it
+  '    vec2 mdir = u_moon.xy; float across = dot(ps, vec2(-mdir.y, mdir.x)), along = dot(ps, mdir);',
+  '    float band = exp(-across * across / 0.03) * (0.65 + 0.35 * smoothstep(-0.5, 0.5, along));',   // a band through the middle of the view towards the moon, fading to the sides
+  '    vec2 cm = fc / (4.0 * u_dpr);',
+  '    float hm = hash(floor(cm) + 5.3);',
+  '    float rm2 = 1.0 - smoothstep(0.2, 0.5, length(fract(cm) - 0.5));',
+  '    float glint = step(1.0 - 0.14 * band, hm) * rm2 * (0.5 + 0.5 * sin(u_time * 2.2 + hm * 90.0));',
+  '    col += vec3(0.82, 0.92, 1.0) * glint * u_moon.z * 0.85;',
+  '  }',                                              // the time of day's light (see Lighting)
   '  col *= 1.0 - 0.14 * dot(ps * 0.75, ps * 0.75);',
   '  col += (hash(fc + 1.3) - 0.5) * 0.04 * dot(u_light * vec3(1.0), vec3(0.299, 0.587, 0.114));',  // grain dims with the light
   '  gl_FragColor = vec4(col, 1.0);',
