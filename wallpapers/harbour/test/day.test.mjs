@@ -5,6 +5,8 @@ import { Sun } from '../public/js/sky/sun.js';
 import { Sky } from '../public/js/sky/sky.js';
 import { DayCycle } from '../public/js/sky/day-cycle.js';
 import { Entity } from '../public/js/core/entity.js';
+import { readFileSync } from 'node:fs';
+import { Backdrop } from '../public/js/engine/backdrop.js';
 
 // Bucharest on 14 November 2026 (winter time, UTC+2). Local 9:00 is 07:00 UTC.
 const BUCHAREST = { lat: 44.43, lon: 26.1 };
@@ -225,4 +227,43 @@ test('World: a change of time in the settings shows at once, without waiting for
   assert.ok(world.day.light.b > world.day.light.r);
   world.skyClock.setStart('12:00');
   assert.equal(world.day.phase, 'day');
+});
+
+test('DayCycle: the moon shadow is clear (0.6 at most)', () => {
+  assert.equal(DayCycle.MOON_SHADOW, 0.6);
+});
+
+test('DayCycle: the moon glitter is 0 by day and when the moon is down or new, and points at the moon at night', () => {
+  const day = new DayCycle();
+  assert.equal(day.update(at(12), BUCHAREST).glitter.strength, 0, 'by day');
+  assert.equal(day.update(at(23), BUCHAREST).glitter.strength, 0, 'moon down (young moon has set)');
+  day.update(utc(24, 22), BUCHAREST);   // full moon high in the south
+  const g = day.glitter;
+  assert.ok(g.strength > 0.5 && g.strength <= 1, `strength ${g.strength}`);
+  near(angleOf(g), day.moon.azimuth, 1, 'towards the moon');
+  assert.ok(g.y > 0, 'a moon in the south is down the screen');
+  assert.ok(Math.abs(Math.hypot(g.x, g.y) - 1) < 1e-9, 'a unit direction');
+  const sky = { at: () => ({ sun: { azimuth: 0, altitude: -40 }, moon: { azimuth: 90, altitude: 40, fraction: 0, waxing: true } }) };
+  assert.equal(new DayCycle({ sky }).update(at(24), BUCHAREST).glitter.strength, 0, 'new moon');
+});
+
+test('Backdrop: setGlitter keeps the moon uniform and repaints only on a visible change', () => {
+  const backdrop = Object.create(Backdrop.prototype);
+  Object.assign(backdrop, { moon: new Float32Array(3), policy: { n: 0, invalidate() { this.n++; } } });
+  backdrop.setGlitter({ x: 1, y: 0, strength: 0.5 });
+  backdrop.setGlitter({ x: 1, y: 0, strength: 0.5001 });
+  assert.deepEqual([...backdrop.moon], [1, 0, 0.5]); assert.equal(backdrop.policy.n, 1);
+});
+
+test('shader: the moon glitter is on open sea only, on a fast device only, and added after the light', () => {
+  const source = readFileSync(new URL('../public/js/engine/shader-source.js', import.meta.url), 'utf8');
+  assert.match(source, /uniform vec3 u_moon/);
+  const start = source.indexOf('u_moon.z > 0.001');
+  assert.ok(start > 0);
+  const guard = source.slice(start, start + 120);
+  assert.match(guard, /u_wind\.w > 0\.5/); assert.match(guard, /sd > 0\.04/);
+  assert.ok(start > source.indexOf('col = u_light * col + u_lightAdd'), 'after the light');
+  const block = source.slice(start, source.indexOf("'  }',", start));
+  assert.ok(!/noise\(|fbm\(/.test(block), 'no noise calls');
+  assert.match(block, /hash\(/); assert.match(block, /sin\(u_time/);
 });

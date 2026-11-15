@@ -12,6 +12,7 @@ import { Sky } from './sky.js';
  *             (1, 1, 1 is plain daylight; warm at dawn, golden in the evening, mild blue at night) and grey (0..1) is how much
  *             colour drains out of it (none by day, some at night, when eyes see less colour); offset is a colour [r, g, b] added after
  *             the multiply ([0, 0, 0] by day, none now; it can darken the darks without dimming the brights)
+ *   glitter   the moon's glitter on the sea: { x, y, strength }, the moon's direction on the screen (east +x, north -y) and moonlight times darkness (0 by day, and with the moon down or new)
  *   shadow    where shadows fall on the ground: { x, y, length, strength }
  *
  * The light follows the sun's height. At night the moon is the light: a full moon high up gives a brighter, bluer night
@@ -22,7 +23,7 @@ import { Sky } from './sky.js';
  * a balloon high in the air takes a big step, a cow a tiny one. Length 1 is the length the pictures were first drawn for
  * (the sun about 35 degrees up); a low sun makes longer shadows, up to MAX_LENGTH. The step points away from the sun, with
  * north at the top of the screen and east on the right, so at noon in the north the shadows point up. `strength` (0..1)
- * says how strong shadows are: 1 by day, fading to 0 as the sun sets. At night the moon, when it is up, casts faint
+ * says how strong shadows are: 1 by day, fading to 0 as the sun sets. At night the moon, when it is up, casts clear
  * shadows (at most MOON_SHADOW, less for a thin moon); with the moon down there are none.
  *
  * Entities never compute any of this; they read world.day. The world calls update() with the island's time and place.
@@ -50,7 +51,7 @@ const CLOUD_GREY = 0.10;                 // and how much colour it loses
 export class DayCycle {
   static MAX_LENGTH = 3;      // a sun just above the horizon still casts a shadow that stays on the screen
   static TWILIGHT = -12;      // the sun this far below the horizon (degrees): full night
-  static MOON_SHADOW = 0.3;   // the strength of a full moon's shadows, high in the sky
+  static MOON_SHADOW = 0.6;   // the strength of a full moon's shadows, high in the sky
 
   /** @param {{ sky?: Sky }} parts */
   constructor({ sky = new Sky() } = {}) {
@@ -58,6 +59,7 @@ export class DayCycle {
     this.sun = { azimuth: 180, altitude: 35 };
     this.moon = { azimuth: 0, altitude: -30, fraction: 0, waxing: true };
     this.phase = 'day'; this.darkness = 0; this.night = 0; this.moonlight = 0;
+    this.glitter = { x: 0, y: -1, strength: 0 };
     this.light = { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 };
     this.shadow = { x: 0, y: -1, length: 1, strength: 1 };   // a plain midday until the first update
   }
@@ -84,7 +86,10 @@ export class DayCycle {
     this.moonlight = moon.fraction * smooth(-1, 25, moon.altitude);
     this.light = DayCycle.underCloud(DayCycle.lightAt(altitude, morning, this.moonlight), cover, this.darkness);
 
-    // shadows: from the sun while it is up; at night from the moon, faint, and none when the moon is down
+    const toMoon = moon.azimuth * RAD;
+    this.glitter = { x: Math.sin(toMoon), y: -Math.cos(toMoon), strength: this.moonlight * this.darkness };
+
+    // shadows: from the sun while it is up; at night from the moon, and none when the moon is down
     const sunStrength = smooth(-0.5, 4, altitude);
     const moonStrength = DayCycle.MOON_SHADOW * moon.fraction * smooth(0, 10, moon.altitude) * this.darkness;
     this.shadow = moonStrength > sunStrength
