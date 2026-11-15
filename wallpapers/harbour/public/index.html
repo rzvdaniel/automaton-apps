@@ -20,14 +20,16 @@
     background: rgba(255, 255, 255, 0.26); color: #fff; opacity: 0.8; transition: opacity 0.2s, background 0.2s, transform 0.2s; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   .btn:hover, .btn:focus-visible { opacity: 1; background: rgba(255, 255, 255, 0.38); outline: none; }
   .btn svg { width: 24px; height: 24px; display: block; margin: auto; }
-  /* the settings button: 10 px from the bottom-right corner. Reset zoom sits in the top-right corner, which the panel never reaches. */
-  #settings { right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); z-index: 6; }
+  /* the settings button: 10 px from the right edge and 72 px up, above a desktop taskbar (as a wallpaper the page runs behind
+     it; a Windows taskbar is 48 px). Reset zoom sits in the top-right corner, which the panel never reaches. */
+  :root { --settings-bottom: max(72px, env(safe-area-inset-bottom)); }
+  #settings { right: max(10px, env(safe-area-inset-right)); bottom: var(--settings-bottom); z-index: 6; }
   #home { right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); transform: scale(0.6); opacity: 0; pointer-events: none; }
   body.zoomed #home { transform: none; opacity: 0.8; pointer-events: auto; }
   /* the settings panel: the kit's card and form classes, only laid out here; colours come from the kit's tokens.
      Above the button, 10 px from the right edge, scrolls when taller than the space (the top 76 px stay free for Reset zoom). */
-  .settings-panel { position: fixed; z-index: 5; right: max(10px, env(safe-area-inset-right)); bottom: calc(max(10px, env(safe-area-inset-bottom)) + 54px);
-    width: 340px; max-width: calc(100vw - 20px); box-sizing: border-box; max-height: calc(100dvh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain;
+  .settings-panel { position: fixed; z-index: 5; right: max(10px, env(safe-area-inset-right)); bottom: calc(var(--settings-bottom) + 54px);
+    width: 340px; max-width: calc(100vw - 20px); box-sizing: border-box; max-height: calc(100dvh - 192px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain;
     touch-action: pan-y; user-select: none; background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 30%, transparent); }
   .settings-panel[hidden] { display: none; }
