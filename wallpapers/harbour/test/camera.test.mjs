@@ -80,3 +80,65 @@ test('applyTo sets the canvas transform for the zoom and the pan', () => {
   near(args[0], 2000); near(args[3], 2000);   // 1000 pixels per world unit, doubled
   near(args[4], 750); near(args[5], 500);     // centred
 });
+
+import { SettingsPanel } from '../public/js/ui/settings-panel.js';
+
+test('the screen offset eases in and out, and settles exactly', () => {
+  const { camera } = make();
+  camera.setOffset(-175);
+  camera.ease(0.016); assert.ok(camera.offsetX < 0 && camera.offsetX > -175, 'part of the way');
+  let n = 0; while (camera.ease(0.016) && n++ < 1000);
+  assert.equal(camera.offsetX, -175);
+  camera.setOffset(0); while (camera.ease(0.016) && n++ < 2000);
+  assert.equal(camera.offsetX, 0);
+});
+
+test('the offset moves the island on screen without touching the viewer pan and zoom', () => {
+  const { camera } = make();
+  camera.zoomAt(2, 300, 200, true);
+  const [x, y, z] = [camera.x, camera.y, camera.zoom], before = camera.toWorld(750, 500);
+  camera.setOffset(-200, true);
+  assert.deepEqual([camera.x, camera.y, camera.zoom], [x, y, z]);
+  // the world point that was at screen x 750 is now 200 px to the left
+  const moved = camera.toWorld(550, 500); near(moved[0], before[0]); near(moved[1], before[1]);
+  camera.setOffset(0, true);
+  const back = camera.toWorld(750, 500); near(back[0], before[0]);
+});
+
+test('closing the panel returns to the viewer own zoom and pan', () => {
+  const { camera } = make();
+  camera.zoomAt(3, 400, 300, true); camera.panBy(40, -30);
+  const view = [camera.x, camera.y, camera.zoom];
+  camera.setOffset(SettingsPanel.shiftFor(true, 340, 1500));
+  for (let i = 0; i < 400; i++) camera.ease(0.016);
+  camera.setOffset(SettingsPanel.shiftFor(false, 340, 1500));
+  for (let i = 0; i < 400; i++) camera.ease(0.016);
+  assert.deepEqual([camera.x, camera.y, camera.zoom], view); assert.equal(camera.offsetX, 0);
+});
+
+test('screen to world and sound panning include the offset; applyTo and the shader centre agree', () => {
+  const { camera, viewport } = make();
+  camera.setOffset(-175, true);
+  const [wx] = camera.toWorld(750 - 175, 500); near(wx, 0);          // the island centre is now 175 px left
+  near(camera.screenFraction(0), -175 / 750);
+  let args = null; camera.applyTo({ setTransform: (...a) => { args = a; } });
+  near(args[4], 750 - 175);                                           // the 2D canvas is shifted the same
+  near(camera.centreX, 175 / viewport.scale);                         // what the backdrop shader gets as u_cam
+});
+
+test('the island slides only beside the panel: not closed, not at phone width', () => {
+  assert.equal(SettingsPanel.shiftFor(true, 340, 1500), -175);
+  assert.equal(SettingsPanel.shiftFor(false, 340, 1500), 0);
+  assert.equal(SettingsPanel.shiftFor(true, 340, 390), 0);
+  assert.equal(SettingsPanel.shiftFor(true, 340, 639), 0);
+  assert.equal(SettingsPanel.shiftFor(true, 340, 640), -175);
+});
+
+test('zooming about a point keeps the world point under it where it was, with the offset', () => {
+  const { camera } = make();
+  camera.setOffset(-200, true);
+  const before = camera.toWorld(400, 300);
+  camera.zoomAt(2, 400, 300, true);
+  const after = camera.toWorld(400, 300);
+  near(after[0], before[0]); near(after[1], before[1]);
+});

@@ -73,6 +73,7 @@ export class World {
       this.input = new Input(window, this.#gestureHandler()).start();
       this.panel = new SettingsPanel(document, { settings: this.settings, place: this.place, clock: this.skyClock, sound, debug: this.debug });
       this.camera.onChange(() => this.#updateCursor(false));
+      this.panel.onToggle(() => this.#slideForPanel());
       window.addEventListener('resize', () => this.resize(innerWidth, innerHeight, devicePixelRatio));
       this.renderer.resize(this.viewport);
     }
@@ -142,6 +143,7 @@ export class World {
     const turned = this.viewport.resize(width, height, dpr);
     this.renderer?.resize(this.viewport);
     this.camera.clampToWorld();
+    this.#slideForPanel();
     if (turned && this.seed !== undefined) this.generate(this.seed);
   }
 
@@ -171,6 +173,13 @@ export class World {
     console.error(`Harbour: ${line} failed; it was removed from the scene.`);
   }
 
+  /** Slides the island clear of the settings panel while it is open beside it (not on a phone, where it is a sheet). */
+  #slideForPanel() {
+    if (!this.panel) return;
+    this.camera.setOffset(SettingsPanel.shiftFor(this.panel.isOpen, this.panel.el.offsetWidth, this.viewport.width));
+    this.loop?.keepBusy(200);
+  }
+
   #updateCursor(dragging) { this.renderer?.setCursor(this.camera.zoomed ? (dragging ? 'grabbing' : 'grab') : ''); }
 
   /** What the gesture recogniser tells the world to do. */
@@ -187,8 +196,8 @@ export class World {
       zoomLevel: () => camera.targetZoom,
       key: key => {
         if (key === 'n' || key === 'N') this.generate(Math.floor(Math.random() * 1e9));
-        else if (key === '+' || key === '=') camera.zoomAt(1.4, this.viewport.width / 2, this.viewport.height / 2);
-        else if (key === '-' || key === '_') camera.zoomAt(1 / 1.4, this.viewport.width / 2, this.viewport.height / 2);
+        else if (key === '+' || key === '=') camera.zoomAt(1.4, this.viewport.width / 2 + camera.targetOffsetX, this.viewport.height / 2);
+        else if (key === '-' || key === '_') camera.zoomAt(1 / 1.4, this.viewport.width / 2 + camera.targetOffsetX, this.viewport.height / 2);
         else if (key === '0') camera.reset();
       }
     };

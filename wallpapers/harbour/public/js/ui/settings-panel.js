@@ -13,6 +13,14 @@ export class SettingsPanel {
     return `${fps} fps   ${entities} entities   zoom ${zoom.toFixed(2)}\nsound ${soundOn ? 'on' : 'off'}   wind ${wind.toFixed(2)}   clock ${clock}\n${errors.length ? 'ERRORS\n' + errors.slice(-3).join('\n') : 'no errors'}`;
   }
 
+  static MARGIN = 10;      // px between the card and the screen edge (CSS)
+  static SHEET_BELOW = 640; // under this width the panel is a bottom sheet (CSS), not beside the island
+
+  /** How far the island slides on the screen (px, negative is left): to the middle of the space left of the card; none for a bottom sheet (phone) or a closed panel. */
+  static shiftFor(open, panelWidth, screenWidth) {
+    return open && screenWidth >= SettingsPanel.SHEET_BELOW ? -(panelWidth + SettingsPanel.MARGIN) / 2 : 0;
+  }
+
   /** The panel's markup; the status lines only with `debug`. */
   static markup({ debug = false } = {}) {
     return `<div class="a-card__head"><h2 class="a-card__title" id="settings-title">Settings</h2>
@@ -27,7 +35,7 @@ export class SettingsPanel {
    * @param {{ settings: object, place: object, clock: import('../sky/sky-clock.js').SkyClock, sound: object, debug?: boolean }} parts
    */
   constructor(document, { settings, place, clock, sound, debug = false }) {
-    this.debug = debug; this.button = null;
+    this.debug = debug; this.button = null; this.listeners = new Set();
     this.el = document.createElement('aside');
     this.el.className = 'settings-panel a-card';
     this.el.id = 'settings-panel';
@@ -50,6 +58,8 @@ export class SettingsPanel {
       .forEach(type => this.el.addEventListener(type, e => e.stopPropagation()));
   }
 
+  /** Runs `fn(open)` whenever the panel opens or closes. */
+  onToggle(fn) { this.listeners.add(fn); }
   get isOpen() { return !this.el.hidden; }
 
   open() {
@@ -57,12 +67,14 @@ export class SettingsPanel {
     this.el.hidden = false;
     this.button?.setAttribute('aria-expanded', 'true');
     this.el.querySelector('#set-hour').focus();
+    this.listeners.forEach(fn => fn(true));
   }
 
   close() {
     if (this.el.contains(this.el.ownerDocument.activeElement)) this.button?.focus();   // never leave focus in a hidden panel
     this.el.hidden = true;
     this.button?.setAttribute('aria-expanded', 'false');
+    this.listeners.forEach(fn => fn(false));
   }
 
   toggle() { if (this.isOpen) this.close(); else this.open(); }

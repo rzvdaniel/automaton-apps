@@ -115,7 +115,7 @@ export class Backdrop {
   render({ viewport, camera, terrain, effects, time }) {
     const gl = this.gl, u = this.uniforms, { map } = terrain;
     if (!gl) return;
-    if (!this.policy.shouldPaint({ x: camera.x, y: camera.y, zoom: camera.zoom, time })) return;
+    if (!this.policy.shouldPaint({ x: camera.centreX, y: camera.centreY, zoom: camera.zoom, time })) return;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.rippleBuffer.fill(0);
     effects.ripples.forEach((r, j) => {
@@ -128,7 +128,7 @@ export class Backdrop {
     gl.uniform1f(u.u_dpr, viewport.glScale);
     gl.uniform2f(u.u_shift, map.shift[0], map.shift[1]);
     gl.uniform1f(u.u_zoom, camera.zoom);
-    gl.uniform2f(u.u_cam, camera.x, camera.y);
+    gl.uniform2f(u.u_cam, camera.centreX, camera.centreY);
     gl.uniform3fv(u.u_obj, this.landBuffer);
     gl.uniform3f(u.u_bay, ...(map.bay ?? [0, 0, 0]));
     gl.uniform4fv(u.u_rip, this.rippleBuffer);
