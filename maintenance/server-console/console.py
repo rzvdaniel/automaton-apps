@@ -432,7 +432,27 @@ def reclaimable(host: dict) -> dict:
                                                    ("volumes", "dockerVolumesBytes"), ("containers", "dockerContainersBytes"))}
     known = [value for value in parts.values() if isinstance(value, (int, float))]
     freeable = [parts[key] for key in ("images", "buildCache") if isinstance(parts[key], (int, float))]
-    return dict(parts, total=sum(known) if known else None, freeable=sum(freeable) if freeable else None)
+    unused = host.get("dockerUnusedImagesBytes")
+    return dict(parts, total=sum(known) if known else None, freeable=sum(freeable) if freeable else None,
+                unused=unused if isinstance(unused, (int, float)) else None)
+
+
+DISK_PARTS = ("imageBytes", "containerBytes", "dataBytes", "logsBytes", "filesBytes")
+
+
+def app_disk(runner: dict | None, limit: int = 50) -> list[dict]:
+    """The apps of one online machine by disk use, largest first, from the server's per-Runner list (older servers
+    send none). Only the figures the page shows are kept."""
+    if not runner or not is_online(runner):
+        return []
+    rows = []
+    for item in runner.get("apps") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("totalBytes"), (int, float)):
+            continue
+        row = {"appId": item.get("appId"), "name": str(item.get("appName") or "(unknown app)"), "totalBytes": item["totalBytes"]}
+        row.update({key: item.get(key) if isinstance(item.get(key), (int, float)) else None for key in DISK_PARTS})
+        rows.append(row)
+    return sorted(rows, key=lambda row: -row["totalBytes"])[:limit]
 
 
 def attention(health: dict | None, status: dict, settings: Settings, now: float) -> list[dict]:
@@ -567,6 +587,6 @@ def snapshot(state: dict, settings: Settings, now: float, machine: str | None = 
             "now": int(now), "health": health, "assessment": assess(health, local, settings, now),
             "attention": items,
             "machines": machine_list(health) if health else [], "machine": chosen,
-            "reclaim": reclaimable((health or {}).get("host") or {}),
+            "reclaim": reclaimable((health or {}).get("host") or {}), "appDisk": app_disk(runner),
             "history": local.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
             "settings": settings.public()}

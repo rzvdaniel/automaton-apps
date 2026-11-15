@@ -271,6 +271,24 @@ class AttentionTests(unittest.TestCase):
         self.assertEqual(shot["reclaim"]["freeable"], GB)
 
 
+    def test_disk_by_app_lists_the_chosen_online_machine_largest_first(self):
+        data = two_machines()
+        data["runners"][0]["apps"] = [
+            {"appId": "a", "appName": "small", "totalBytes": 10, "imageBytes": 4, "dataBytes": 6, "secret": "x"},
+            {"appId": "b", "appName": "big", "totalBytes": 5 * GB, "imageBytes": GB, "dataBytes": 4 * GB, "logsBytes": None},
+            "junk", {"appName": "no total"}]
+        rows = console.app_disk(data["runners"][0])
+        self.assertEqual([row["name"] for row in rows], ["big", "small"])
+        self.assertNotIn("secret", rows[1])
+        self.assertIsNone(rows[0]["logsBytes"])
+        self.assertEqual(console.app_disk(None), [])
+        self.assertEqual(console.app_disk({"name": "x", "status": "offline", "apps": data["runners"][0]["apps"]}), [])
+
+    def test_unused_images_are_reported_next_to_the_reclaimable_space(self):
+        self.assertEqual(console.reclaimable({"dockerUnusedImagesBytes": 7})["unused"], 7)
+        self.assertIsNone(console.reclaimable({})["unused"])
+
+
 def two_machines(**second):
     data = health()
     busy = dict(data["host"], diskAvailableBytes=10 * GB, cpuPercent=50.0, **second)

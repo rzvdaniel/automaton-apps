@@ -108,7 +108,8 @@
     var cores = host.cpuCount ? " \u00b7 " + plural(host.cpuCount, "core") : "";
     var diskName = "Disk" + (typeof host.diskAvailableBytes === "number" && typeof host.diskTotalBytes === "number" ? " \u00b7 " + bytes(host.diskAvailableBytes) + " free of " + bytes(host.diskTotalBytes) : "");
     var docker = rc.total ? '<dl class="a-kv" style="margin-top:10px"><dt>Docker images</dt><dd>' + esc(bytes(rc.images)) + "</dd><dt>Docker build cache</dt><dd>" + esc(bytes(rc.buildCache)) +
-      "</dd><dt>Docker volumes</dt><dd>" + esc(bytes(rc.volumes)) + "</dd><dt>Can be freed</dt><dd><strong>up to " + esc(bytes(rc.freeable)) + "</strong> images and cache</dd></dl>" +
+      "</dd><dt>Docker volumes</dt><dd>" + esc(bytes(rc.volumes)) + "</dd>" +
+      (typeof rc.unused === "number" ? "<dt>Unused images</dt><dd>" + esc(bytes(rc.unused)) + "</dd>" : "") + "<dt>Can be freed</dt><dd><strong>up to " + esc(bytes(rc.freeable)) + "</strong> images and cache</dd></dl>" +
       '<div class="a-note">Automaton frees unused images every night. To free them now: <code class="a-mono">docker image prune -a</code></div>' : "";
     var body = metric("CPU" + cores, host.cpuPercent, a.cpu, history, "cpu") +
       '<div class="a-hint" style="margin:-6px 0 8px">Load ' + esc(load) + " (1, 5, 15 min)</div>" +
@@ -119,6 +120,20 @@
     var measured = ago(h.hostAgeSeconds);
     var foot = (measured ? "Measured by the Runner " + measured + ". " : "") + "History: the last 24 hours.";
     return card("Resources", a.resources, body + stale, foot);
+  }
+
+  // Disk by app: what each app on this machine uses, largest first (the server's per-Runner list; older servers send none).
+  function diskByAppCard(data) {
+    var apps = data.appDisk || [];
+    if (!apps.length) return "";
+    var parts = [["imageBytes", "image"], ["containerBytes", "container"], ["dataBytes", "data"], ["logsBytes", "logs"], ["filesBytes", "files"]];
+    var rows = apps.map(function (app) {
+      var detail = parts.filter(function (p) { return typeof app[p[0]] === "number" && app[p[0]] > 0; })
+        .map(function (p) { return p[1] + " " + bytes(app[p[0]]); }).join(", ");
+      return "<dt>" + esc(app.name) + (detail ? '<br><small class="a-hint">' + esc(detail) + "</small>" : "") + "</dt><dd><strong>" + esc(bytes(app.totalBytes)) + "</strong></dd>";
+    }).join("");
+    return card("Disk by app", "unknown", '<dl class="a-kv" data-testid="disk-by-app">' + rows + "</dl>",
+      "An image several apps share counts in full for each. Measured by the Runner every few minutes.");
   }
 
   function backupsCard(h, a) {
@@ -219,7 +234,7 @@
     var machine = (data.machines || []).filter(function (item) { return item.name === data.machine; })[0];
     var offline = machine && !machine.online;
     paintPicker(data);
-    view.innerHTML = banner(data) + summary(h, a, data) + '<div class="cards">' + "<div class=\"col\">" + (offline ? offlineCard(data) : resourcesCard(h, a, history, data)) + "</div><div class=\"col\">" + (offline ? "" : updatesCard(h, a, data)) + serverCard(h, a) +
+    view.innerHTML = banner(data) + summary(h, a, data) + '<div class="cards">' + "<div class=\"col\">" + (offline ? offlineCard(data) : resourcesCard(h, a, history, data) + diskByAppCard(data)) + "</div><div class=\"col\">" + (offline ? "" : updatesCard(h, a, data)) + serverCard(h, a) +
       "</div><div class=\"col\">" + certificatesCard(h, a) + runnersCard(h, a, data.now) + backupsCard(h, a) + "</div></div>";
     overall.hidden = false;
     var count = (data.attention || []).length;
