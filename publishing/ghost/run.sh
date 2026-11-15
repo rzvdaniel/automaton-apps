@@ -12,6 +12,9 @@ if [ -n "${SMTP_HOST:-}" ]; then
 	export mail__transport=SMTP mail__options__host="$SMTP_HOST" mail__options__port="${SMTP_PORT:-587}"
 	if [ "${SMTP_PORT:-587}" = 465 ]; then export mail__options__secure=true; fi
 	if [ -n "${SMTP_USER:-}" ]; then export mail__options__auth__user="$SMTP_USER" mail__options__auth__pass="${SMTP_PASSWORD:-}"; fi
+else
+	# Ghost 6 emails a code when staff sign in from a new device; with no mail server that sign-in fails (EmailError).
+	export security__staffDeviceVerification=false
 fi
 # Newsletters need Mailgun's API; without it Ghost shows newsletters as not configured.
 if [ -n "${MAILGUN_API_KEY:-}" ] && [ -n "${MAILGUN_DOMAIN:-}" ]; then
