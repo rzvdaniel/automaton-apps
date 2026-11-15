@@ -4,6 +4,7 @@
  * Normally that is simply the real time. If the viewer picks a start time such as 22:00, the clock shows 22:00 (at the chosen
  * place, the 22:00 nearest to that moment, so 01:00 picked at 23:30 is 1.5 hours ahead) at that moment and then keeps running forward at normal speed. To survive a reload it saves the start time and the
  * real moment it was set; the time now is the start plus however long has passed since. Ask it with now(), which gives a Date.
+ * Or the viewer fixes the time ("fixed", 22:00): the island shows 22:00 on the real date at the place and holds it.
  * For tests, the way of reading the real time can be handed in.
  */
 export class SkyClock {
@@ -17,8 +18,7 @@ export class SkyClock {
   }
 
   /**
-   * A time for this page only, never saved (the debug panel's slider): null follows the setting, 'real' shows the real time
-   * whatever the setting says, a number is a frozen moment in milliseconds. Listeners hear of every change.
+   * A time for this page only, never saved (the debug panel's slider): null follows the setting, a number is a frozen moment in milliseconds. Listeners hear of every change.
    */
   setOverride(value) { this.override = value; this.listeners.forEach(fn => fn(this)); }
   /** Calls fn(clock) whenever the override changes. Returns a function that stops it. */
@@ -31,23 +31,26 @@ export class SkyClock {
     this.setOverride(this.place.instantOf({ year: day.getUTCFullYear(), month: day.getUTCMonth() + 1, day: day.getUTCDate(), hours: Math.floor(r / 60), minutes: r % 60 }).getTime());
   }
 
-  /** The real time again (the setting is untouched): what "Now" does on the debug panel. */
-  showReal() { this.setOverride(this.isNow ? null : 'real'); }
-
   /** The time shown, as minutes past midnight at the place (0..1440). */
   minutes() { const l = this.place.local(this.now()); return l.hours * 60 + l.minutes + l.seconds / 60; }
 
-  /** Saves the time shown as the start time setting (the debug panel's "Keep") and drops the override. */
-  keep() {
+  /** The time shown as "HH:MM" at the place (to the minute). */
+  shownText() {
     const l = this.place.local(this.now()), two = n => String(n).padStart(2, '0');
-    this.setStart(`${two(l.hours)}:${two(l.minutes)}`);
+    return `${two(l.hours)}:${two(l.minutes)}`;
   }
+
+  /** Saves the time shown (the slider's) as a fixed time, or as a start time that runs on, and drops the override. */
+  save(fixed) { const at = this.shownText(); if (fixed) this.setFixed(at); else this.setStart(at); }
 
   /** The time the island shows, as a Date. */
   now() {
     const real = this.realNow(), t = this.settings.get('time');
-    if (this.override === 'real') return new Date(real);
     if (typeof this.override === 'number') return new Date(this.override);
+    if (t?.mode === 'fixed') {   // the real date at the place, at the chosen time
+      const [h, m] = t.at.split(':').map(Number), l = this.place.local(new Date(real));
+      return this.place.instantOf({ year: l.year, month: l.month, day: l.day, hours: h, minutes: m });
+    }
     if (t?.mode !== 'start') return new Date(real);
     const [hours, minutes] = t.start.split(':').map(Number);
     // the occurrence of HH:MM at the place nearest to the moment it was set: yesterday's, today's or tomorrow's
@@ -58,7 +61,7 @@ export class SkyClock {
   }
 
   /** Is the clock showing the real time? */
-  get isNow() { return this.override === null ? this.settings.get('time')?.mode !== 'start' : this.override === 'real'; }
+  get isNow() { return this.override === null && !['start', 'fixed'].includes(this.settings.get('time')?.mode); }
 
   /** The island shows the real time. */
   setNow() { this.#drop(); this.settings.set({ time: { mode: 'now' } }); }
@@ -67,6 +70,12 @@ export class SkyClock {
   setStart(hhmm) {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) return;
     this.#drop(); this.settings.set({ time: { mode: 'start', start: hhmm, setAt: this.realNow() } });
+  }
+
+  /** The island shows `hhmm` ("22:00") on the real date and holds it. */
+  setFixed(hhmm) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) return;
+    this.#drop(); this.settings.set({ time: { mode: 'fixed', at: hhmm } });
   }
 
   #drop() { if (this.override !== null) { this.override = null; this.listeners.forEach(fn => fn(this)); } }

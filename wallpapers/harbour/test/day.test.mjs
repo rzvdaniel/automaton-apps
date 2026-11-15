@@ -344,7 +344,7 @@ test('palettes: the backdrop sends the colours once per set, and the form offers
   backdrop.palDirty = false; backdrop.setLight([1, 0, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0], 0, 0, [0, 0, 1, 0]); assert.equal(backdrop.palDirty, false, 'same light: nothing to send');
   const { SettingsForm } = await import('../public/js/ui/settings-form.js');
   const html = SettingsForm.markup();
-  for (const p of PALETTES) assert.ok(html.includes(`<option value="${p.id}">${p.name}</option>`), p.id);
+  for (const p of PALETTES) assert.ok(html.includes(`data-value="${p.id}" title="${p.name}"`) && html.includes(`clipPath id="swatch-${p.id}"`), p.id);
 });
 
 test('palettes: the blend is the day palette plus the weighted rest, the moon brightening only the night part', () => {
