@@ -7,11 +7,12 @@ import { SettingsDialog } from './settings-dialog.js';
  */
 export class Controls {
   /**
-   * @param {{ sound: import('../audio/sound.js').Sound, camera: import('../engine/camera.js').Camera, settings: object, place: object, clock: object, document?: Document }} parts
+   * @param {{ sound: import('../audio/sound.js').Sound, camera: import('../engine/camera.js').Camera, settings: object, place: object, clock: object, debug?: boolean, document?: Document }} parts
    */
-  constructor({ sound, camera, settings, place, clock, document = window.document }) {
-    this.dialog = new SettingsDialog({ settings, place, clock, sound, document });
-    this.#bindSettings(document.getElementById('settings'));
+  constructor({ sound, camera, settings, place, clock, debug = false, document = window.document }) {
+    // in debug mode the side panel shows every setting, so the settings button and its dialog are not needed
+    if (debug) document.body.classList.add('debug');
+    else { this.dialog = new SettingsDialog({ settings, place, clock, sound, document }); this.#bindSettings(document.getElementById('settings')); }
     this.#bindHome(document.getElementById('home'), camera, document.body);
     // sound remembered as on needs one tap or key press before the browser lets it play
     if (sound.on) ['pointerdown', 'keydown'].forEach(type => window.addEventListener(type, () => sound.resume(), { once: true }));

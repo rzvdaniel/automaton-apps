@@ -56,6 +56,7 @@ export class DayCycle {
   /** @param {{ sky?: Sky }} parts */
   constructor({ sky = new Sky() } = {}) {
     this.sky = sky;
+    this.moonOverride = null;   // for this page only (the debug panel): null the real moon, 'full' or 'new'
     this.sun = { azimuth: 180, altitude: 35 };
     this.moon = { azimuth: 0, altitude: -30, fraction: 0, waxing: true };
     this.phase = 'day'; this.darkness = 0; this.night = 0; this.moonlight = 0;
@@ -72,7 +73,7 @@ export class DayCycle {
    * @returns {this}
    */
   update(date, place, cover = 0) {
-    const { sun, moon } = this.sky.at(date, place);
+    const { sun, moon } = DayCycle.withMoon(this.sky.at(date, place), this.moonOverride);
     const { azimuth, altitude } = sun;
     this.sun = sun; this.moon = moon;
     this.darkness = 1 - smooth(DayCycle.TWILIGHT, 2, altitude);
@@ -96,6 +97,13 @@ export class DayCycle {
       ? DayCycle.#shadowFrom(moon.azimuth, moon.altitude, moonStrength)
       : DayCycle.#shadowFrom(azimuth, altitude, sunStrength);
     return this;
+  }
+
+  /** The sky with the moon forced: 'full' is full and 50 degrees up, 'new' is new (its height stays); null leaves it alone. */
+  static withMoon({ sun, moon }, override) {
+    if (override === 'full') return { sun, moon: { ...moon, fraction: 1, altitude: 50 } };
+    if (override === 'new') return { sun, moon: { ...moon, fraction: 0 } };
+    return { sun, moon };
   }
 
   /**
