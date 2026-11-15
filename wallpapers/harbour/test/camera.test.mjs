@@ -133,3 +133,12 @@ test('the island slides only beside the panel: not closed, not at phone width', 
   assert.equal(SettingsPanel.shiftFor(true, 340, 639), 0);
   assert.equal(SettingsPanel.shiftFor(true, 340, 640), -175);
 });
+
+test('zooming about a point keeps the world point under it where it was, with the offset', () => {
+  const { camera } = make();
+  camera.setOffset(-200, true);
+  const before = camera.toWorld(400, 300);
+  camera.zoomAt(2, 400, 300, true);
+  const after = camera.toWorld(400, 300);
+  near(after[0], before[0]); near(after[1], before[1]);
+});
