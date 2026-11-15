@@ -8,8 +8,9 @@
 // Drawing: the building is painted once onto a small canvas of its own (a sprite) and only copied to the screen each
 // frame; it is painted again when it is shown clearly bigger (zoomed in), up to MAX_SPRITE pixels. Only the shadow (it
 // turns with the sun), the bell and the lit panes are drawn live: a handful of fills.
-import { TAU, shade, disc, switchOn, Entity } from '../core/index.js';
+import { TAU, shade, disc, Entity } from '../core/index.js';
 import { Gull } from './gulls.js';
+import { WindowLights } from '../engine/window-lights.js';
 
 // All sizes in world units, in the church's own frame: x along the nave (the tower at the -x end), y up the screen
 // (negative is up), 0 at the foot of the south wall.
@@ -130,19 +131,28 @@ export class Church extends Entity {
     this.bell = [this.x + this.side * BELFRY.x, this.y + BASE + BELFRY.foot - BELFRY.h / 2];
     /** The middles of the windows that light up, in world units (the nave's, then the round one). */
     this.windows = [...WINDOWS.map(x => [this.x + this.side * x, this.y + BASE + WIN.foot - WIN.h / 2]), [this.x + this.side * ROSE.x, this.y + BASE + ROSE.y]];
+    // each window has its own evening and night, like the houses' (see WindowLights)
+    this.lights = this.windows.map((p, n) => (world.windowLights ??= new WindowLights()).add(p[0], p[1], n));
   }
 
-  /** How bright the windows are now, 0..1: lit for evensong once it is dusk, like the houses' panes. */
-  windowLight() { return switchOn(DUSK, this.darkness); }
+  /** How bright window `n` is now (0..1): its own times by the clock, and only once it is dusk, like the houses' panes. */
+  windowLight(n) {
+    const clock = this.world?.skyClock, hour = clock ? clock.minutes() / 60 : 0;
+    return this.world.windowLights.level(this.lights[n], hour) * Math.min(1, this.darkness / DUSK);
+  }
 
   /** The lit windows as flat warm panes in the windows' own shapes (no halo), on the lights canvas. */
   drawLights(c) {
-    const a = this.windowLight();
-    if (a <= 0.01) return;
+    if (this.darkness <= 0) return;
     c.globalCompositeOperation = 'source-over'; c.translate(this.x, this.y + BASE); c.scale(this.side, 1);
-    c.globalAlpha = a; c.fillStyle = PANE;
-    for (let i = 0; i < WINDOWS.length; i++) { arch(c, WINDOWS[i], WIN.foot, WIN.w, WIN.h); c.fill(); }
-    c.beginPath(); c.arc(ROSE.x, ROSE.y, ROSE.r, 0, TAU); c.fill();
+    c.fillStyle = PANE;
+    for (let i = 0; i <= WINDOWS.length; i++) {
+      const a = this.windowLight(i);
+      if (a <= 0.01) continue;
+      c.globalAlpha = a;
+      if (i < WINDOWS.length) { arch(c, WINDOWS[i], WIN.foot, WIN.w, WIN.h); c.fill(); }
+      else { c.beginPath(); c.arc(ROSE.x, ROSE.y, ROSE.r, 0, TAU); c.fill(); }
+    }
   }
 
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
