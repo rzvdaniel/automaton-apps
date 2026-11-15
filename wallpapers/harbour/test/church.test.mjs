@@ -40,10 +40,10 @@ test('church: hit() covers the building (tower, nave, spire) and not the sky or 
 
 test('church: windows are lit at night and none by day', () => {
   const { world, church } = make();
-  const count = hour => { world.skyClock = { minutes: () => hour * 60 }; let n = 0; for (let i = 0; i < church.windows.length; i++) if (church.windowLight(i) > 0.5) n++; return n; };
+  const count = hour => { world.hour = hour; let n = 0; for (let i = 0; i < church.windows.length; i++) if (church.windowLight(i) > 0.5) n++; return n; };
   world.day.darkness = 1;
   assert.ok(count(20) > 0, 'some lit in the evening');
-  const lit = (h) => { const calls = []; const c = new Proxy(fakeContext(), { get: (t, k) => k === 'fill' ? () => calls.push(k) : t[k], set: (t, k, v) => { t[k] = v; return true; } }); world.skyClock = { minutes: () => h * 60 }; church.drawLights(c); return calls.length; };
+  const lit = (h) => { const calls = []; const c = new Proxy(fakeContext(), { get: (t, k) => k === 'fill' ? () => calls.push(k) : t[k], set: (t, k, v) => { t[k] = v; return true; } }); world.hour = h; church.drawLights(c); return calls.length; };
   assert.ok(lit(20) > 0, 'panes drawn at night');
   world.day.darkness = 0;
   assert.equal(count(20), 0, 'none lit by day');
@@ -55,7 +55,7 @@ test('church: windows register with the shared window lights and go out through 
   assert.equal(church.lights.length, church.windows.length);
   assert.equal(world.windowLights.list.length, church.windows.length);
   world.day.darkness = 1;
-  const lit = h => { world.skyClock = { minutes: () => h * 60 }; return church.windows.filter((_, i) => church.windowLight(i) > 0.5).length; };
+  const lit = h => { world.hour = h; return church.windows.filter((_, i) => church.windowLight(i) > 0.5).length; };
   assert.ok(lit(19.5) >= lit(23) && lit(23) >= lit(3), 'never more lit later in the night');
   assert.ok(lit(3) < church.windows.length, 'not all lit at 03:00');
 });

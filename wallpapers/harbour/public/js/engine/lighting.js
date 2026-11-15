@@ -56,7 +56,7 @@ export class Lighting {
     if (key === this.key) return;
     this.key = key;
     this.backdrop.setLight(m, add, night, moon, phases);   // the backdrop paints its ground with the four palettes by `phases`, the night one a little brighter by `moon`
-    if (Lighting.isPlain(light)) { this.canvas.style.filter = ''; return; }
+    if (this.disabled || Lighting.isPlain(light)) { this.canvas.style.filter = ''; return; }
     // feColorMatrix is 4 x 5 (red, green, blue, alpha; the fifth column adds a constant: the offset): alpha stays as it is
     this.colorMatrix.setAttribute('values', `${m.slice(0, 3).join(' ')} 0 ${add[0]} ${m.slice(3, 6).join(' ')} 0 ${add[1]} ${m.slice(6).join(' ')} 0 ${add[2]} 0 0 0 1 0`);
     this.canvas.style.filter = `url(#${FILTER_ID})`;

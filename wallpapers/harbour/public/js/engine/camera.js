@@ -91,8 +91,8 @@ export class Camera {
   }
 
   /** Sets a 2D context's transform so that drawing in world units lands in the right place on the canvas. */
-  applyTo(ctx) {
+  applyTo(ctx, ratio = 1) {   // ratio: a canvas smaller (or bigger) than the drawing canvas, each way
     const v = this.viewport, k = v.dpr * v.scale * this.zoom;
-    ctx.setTransform(k, 0, 0, k, v.dpr * v.width / 2 - this.centreX * k, v.dpr * v.height / 2 - this.centreY * k);
+    ctx.setTransform(k * ratio, 0, 0, k * ratio, (v.dpr * v.width / 2 - this.centreX * k) * ratio, (v.dpr * v.height / 2 - this.centreY * k) * ratio);
   }
 }
