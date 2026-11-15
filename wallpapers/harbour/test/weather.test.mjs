@@ -109,8 +109,9 @@ test('Cloud: by day white, grey under heavy cover', () => {
 });
 
 // What the eye sees at night: the cloud's tones AFTER the night tint Lighting puts over the whole 2D canvas.
-const tinted = (rgb, light) => { const m = Lighting.matrix(light); return [0, 1, 2].map(row => m[row * 3] * rgb[0] + m[row * 3 + 1] * rgb[1] + m[row * 3 + 2] * rgb[2]); };
-const NIGHT_SEA = [16, 46, 80];   // the sea at night with no moon, as measured on the page (after its own tint)
+const tinted = (rgb, light) => { const m = Lighting.matrix(light); return [0, 1, 2].map(row => m[row * 3] * rgb[0] + m[row * 3 + 1] * rgb[1] + m[row * 3 + 2] * rgb[2] + 255 * light.offset[row]); };
+// the sea's own colours (about [67, 159, 178], measured under the old night tint as [16, 46, 80]) under the moonless night light
+const NIGHT_SEA = tinted([67, 159, 178], DayCycle.lightAt(-30, false, 0));
 
 test('Cloud: at night, after the tint, a dark blue-grey a little lighter than the night sea, with three clear tones', () => {
   for (const cover of [0, Weather.CAP]) {
@@ -144,7 +145,7 @@ test('Cloud: a light under it is mostly hidden, one in a gap is not', () => {
 test('DayCycle: daylight is dimmer and greyer under heavy cover, unchanged under a clear sky', () => {
   const noon = new Date(Date.UTC(2026, 10, 14, 10)), day = new DayCycle();
   const clear = { ...day.update(noon, BUCHAREST, 0).light }, cloudy = { ...day.update(noon, BUCHAREST, Weather.CAP).light };
-  assert.deepEqual(clear, { r: 1, g: 1, b: 1, grey: 0 });
+  assert.deepEqual({ ...clear, offset: [...clear.offset] }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0] });
   assert.ok(Math.abs(cloudy.r + cloudy.g + cloudy.b - 2.7) < 1e-9, `cloudy light ${JSON.stringify(cloudy)}`);
   assert.ok(Math.abs(cloudy.grey - 0.1) < 1e-9, `grey ${cloudy.grey}`);
 });
