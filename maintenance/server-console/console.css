@@ -30,3 +30,4 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 .disk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .disk-row:last-child { border-bottom: 0; }
 .disk-size { white-space: nowrap; }
+.disk-row > span { min-width: 0; overflow-wrap: anywhere; }
