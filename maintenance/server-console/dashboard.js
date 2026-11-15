@@ -665,12 +665,13 @@
 
   function upgradeOne(item) {
     var query = "?runner=" + encodeURIComponent(item.runnerId);
-    var tries = 0;
+    var tries = 0, unknown = 0;
     function poll() {
       fetch("api/tasks/upgrade" + query, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
         var state = data.data && data.data.state;
         if (state === "Reconnected") { item.state = "done"; item.text = "upgraded and reconnected."; return finish(); }
         if (state === "RolledBack") { item.state = "failed"; item.text = (data.data.message || "the upgrade was rolled back."); return finish(); }
+        if (state === "Unknown" && ++unknown > 6) { item.state = "failed"; item.text = "the upgrade did not start."; return finish(); }
         if (++tries > 60) { item.state = "failed"; item.text = "still not back after 5 minutes. Check the machine."; return finish(); }
         item.text = (data.data && data.data.message) || "upgrading..."; paintTasks(); setTimeout(poll, 5000);
       }).catch(function () { if (++tries > 60) { item.state = "failed"; item.text = "could not read the result."; return finish(); } setTimeout(poll, 5000); });
@@ -679,7 +680,9 @@
     post("api/tasks/upgrade?runner=" + encodeURIComponent(item.runnerId)).then(function (data) {
       if (data.status !== "ok") { item.state = "failed"; item.text = refused(data, "could not be started."); return finish(); }
       item.text = "upgrading..."; paintTasks(); setTimeout(poll, 5000);
-    }).catch(function () { item.state = "failed"; item.text = "the app could not be reached."; finish(); });
+    }).catch(function () { // The Runner restarts itself, which can drop this answer although the upgrade started: look at its state instead.
+      item.text = "the connection dropped while the Runner restarted; checking..."; paintTasks(); setTimeout(poll, 5000);
+    });
   }
 
   function runUpgradeNow() {
