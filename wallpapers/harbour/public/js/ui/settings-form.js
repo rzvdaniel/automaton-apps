@@ -1,8 +1,9 @@
 import { Place } from '../sky/place.js';
 import { Wind } from '../engine/wind.js';
+import { PALETTES } from '../sky/palettes.js';
 
 /**
- * The settings controls (sound, place, time, weather, wind, waves) without a window around them: the settings dialog and the
+ * The settings controls (sound, place, time, weather, wind, waves, colours) without a window around them: the settings dialog and the
  * debug panel both show them. It builds the fields' markup, writes every change straight to Settings (and to Sound, which keeps
  * its own switch) and shows the current choices on show(). It does no thinking of its own.
  * `time: false` leaves out the start-time field (the debug panel has a slider instead). Ids start with `prefix`, so two forms never clash.
@@ -29,7 +30,9 @@ export class SettingsForm {
     <input class="slider" id="${p}wind" type="range" min="0" max="100" step="1" aria-label="Wind strength">
     <span class="slider-ends a-hint" id="${p}wind-ends"><span>Calm</span><span>Stormy</span></span></div>
   <div class="a-field"><label class="a-label" for="${p}waves">Waves</label>
-    <select class="a-input" id="${p}waves"><option value="off">Off</option><option value="original">Original</option><option value="crescents">Crescents</option><option value="dashes">Dashes</option></select></div>`;
+    <select class="a-input" id="${p}waves"><option value="off">Off</option><option value="original">Original</option><option value="crescents">Crescents</option><option value="dashes">Dashes</option></select></div>
+  <div class="a-field"><label class="a-label" for="${p}colours">Colours</label>
+    <select class="a-input" id="${p}colours">${PALETTES.map(x => `<option value="${x.id}">${x.name}</option>`).join('')}</select></div>`;
   }
 
   /**
@@ -69,6 +72,7 @@ export class SettingsForm {
     this.#el('wind-mode').addEventListener('change', e => s.set({ wind: e.target.value === 'auto' ? { mode: 'auto' } : chosen(Number(this.#el('wind').value) / 100) }));
     this.#el('wind').addEventListener('change', e => s.set({ wind: chosen(Number(e.target.value) / 100) }));
     this.#el('waves').addEventListener('change', e => s.set({ waves: e.target.value }));
+    this.#el('colours').addEventListener('change', e => s.set({ palette: e.target.value }));
   }
 
   /** The place's current time as HH:MM, a good first start time. */
@@ -96,5 +100,6 @@ export class SettingsForm {
     this.#el('wind-mode').value = auto ? 'auto' : 'set';
     const slider = this.#el('wind'); slider.hidden = auto; this.#el('wind-ends').hidden = auto; if (!auto) slider.value = Math.round(wind * 100);
     this.#el('waves').value = s.get('waves');
+    this.#el('colours').value = s.get('palette');
   }
 }

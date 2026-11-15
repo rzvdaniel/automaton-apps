@@ -145,7 +145,7 @@ test('Cloud: a light under it is mostly hidden, one in a gap is not', () => {
 test('DayCycle: daylight is dimmer and greyer under heavy cover, unchanged under a clear sky', () => {
   const noon = new Date(Date.UTC(2026, 10, 14, 10)), day = new DayCycle();
   const clear = { ...day.update(noon, BUCHAREST, 0).light }, cloudy = { ...day.update(noon, BUCHAREST, Weather.CAP).light };
-  assert.deepEqual({ ...clear, offset: [...clear.offset], moon: 0 }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0 });
+  assert.deepEqual({ ...clear, offset: [...clear.offset], moon: 0 }, { r: 1, g: 1, b: 1, grey: 0, offset: [0, 0, 0], night: 0, moon: 0, phases: [1, 0, 0, 0] });
   assert.ok(Math.abs(cloudy.r + cloudy.g + cloudy.b - 2.7) < 1e-9, `cloudy light ${JSON.stringify(cloudy)}`);
   assert.ok(Math.abs(cloudy.grey - 0.1) < 1e-9, `grey ${cloudy.grey}`);
 });

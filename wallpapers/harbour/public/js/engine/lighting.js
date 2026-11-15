@@ -14,6 +14,7 @@
 const SVG = 'http://www.w3.org/2000/svg';
 const FILTER_ID = 'harbour-light';
 const ZERO = [0, 0, 0];
+const PLAIN = [1, 0, 0, 0];   // the palette weights of plain day
 const LUMA = [0.299, 0.587, 0.114];   // how bright red, green and blue look to the eye
 
 export class Lighting {
@@ -32,7 +33,7 @@ export class Lighting {
   }
 
   /**
-   * @param {{ canvas: HTMLCanvasElement, backdrop: { setLight(m: number[], add: number[], night?: number, moon?: number): void } }} parts the 2D canvas and the backdrop
+   * @param {{ canvas: HTMLCanvasElement, backdrop: { setLight(m: number[], add: number[], night?: number, moon?: number, phases?: number[]): void } }} parts the 2D canvas and the backdrop
    */
   constructor({ canvas, backdrop }) {
     this.canvas = canvas; this.backdrop = backdrop; this.key = '';
@@ -51,10 +52,10 @@ export class Lighting {
   apply(light) {
     if (light === this.last) return;   // world.day makes a new light only when it changes (about once a second)
     this.last = light;
-    const m = Lighting.matrix(light), add = light.offset ?? ZERO, night = light.night ?? 0, moon = light.moon ?? 0, key = [...m, ...add, night, moon].map(v => v.toFixed(3)).join(' ');
+    const m = Lighting.matrix(light), add = light.offset ?? ZERO, night = light.night ?? 0, moon = light.moon ?? 0, phases = light.phases ?? PLAIN, key = [...m, ...add, night, moon, ...phases].map(v => v.toFixed(3)).join(' ');
     if (key === this.key) return;
     this.key = key;
-    this.backdrop.setLight(m, add, night, moon);   // the backdrop also paints its ground in night colours, by `night`, a little brighter by `moon`
+    this.backdrop.setLight(m, add, night, moon, phases);   // the backdrop paints its ground with the four palettes by `phases`, the night one a little brighter by `moon`
     if (Lighting.isPlain(light)) { this.canvas.style.filter = ''; return; }
     // feColorMatrix is 4 x 5 (red, green, blue, alpha; the fifth column adds a constant: the offset): alpha stays as it is
     this.colorMatrix.setAttribute('values', `${m.slice(0, 3).join(' ')} 0 ${add[0]} ${m.slice(3, 6).join(' ')} 0 ${add[1]} ${m.slice(6).join(' ')} 0 ${add[2]} 0 0 0 1 0`);
