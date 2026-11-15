@@ -44,7 +44,7 @@ export class Camera {
     return x === undefined ? 0 : clamp((x - this.centreX) * this.zoom * v.scale / (v.width / 2), -1, 1);
   }
 
-  /** Keeps the camera inside the original view, for the current and the target zoom. */
+  /** Keeps the camera inside the original view, for the current and the target zoom. The screen offset is outside this clamp: it only moves the picture on the screen. */
   clampToWorld() {
     const v = this.viewport, mx = zoom => v.hw * (1 - 1 / zoom), my = zoom => v.hh * (1 - 1 / zoom);
     this.targetX = clamp(this.targetX, -mx(this.targetZoom), mx(this.targetZoom));
@@ -56,10 +56,11 @@ export class Camera {
   /** Zooms by a factor, keeping the world point under screen position (px, py) where it is. `instant` skips the easing. */
   zoomAt(factor, px, py, instant = false) {
     const v = this.viewport, k0 = v.scale * this.targetZoom;
-    const wx = this.targetX + (px - v.width / 2) / k0, wy = this.targetY + (py - v.height / 2) / k0;
+    const ox = px - this.targetOffsetX;   // the screen offset moves the view's centre, so the pivot is measured from it
+    const wx = this.targetX + (ox - v.width / 2) / k0, wy = this.targetY + (py - v.height / 2) / k0;
     this.targetZoom = clamp(this.targetZoom * factor, 1, Camera.MAX_ZOOM);
     const k1 = v.scale * this.targetZoom;
-    this.targetX = wx - (px - v.width / 2) / k1; this.targetY = wy - (py - v.height / 2) / k1;
+    this.targetX = wx - (ox - v.width / 2) / k1; this.targetY = wy - (py - v.height / 2) / k1;
     this.clampToWorld();
     if (instant) { this.zoom = this.targetZoom; this.x = this.targetX; this.y = this.targetY; }
     this.#changed();

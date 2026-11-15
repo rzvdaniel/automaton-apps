@@ -196,8 +196,8 @@ export class World {
       zoomLevel: () => camera.targetZoom,
       key: key => {
         if (key === 'n' || key === 'N') this.generate(Math.floor(Math.random() * 1e9));
-        else if (key === '+' || key === '=') camera.zoomAt(1.4, this.viewport.width / 2, this.viewport.height / 2);
-        else if (key === '-' || key === '_') camera.zoomAt(1 / 1.4, this.viewport.width / 2, this.viewport.height / 2);
+        else if (key === '+' || key === '=') camera.zoomAt(1.4, this.viewport.width / 2 + camera.targetOffsetX, this.viewport.height / 2);
+        else if (key === '-' || key === '_') camera.zoomAt(1 / 1.4, this.viewport.width / 2 + camera.targetOffsetX, this.viewport.height / 2);
         else if (key === '0') camera.reset();
       }
     };
