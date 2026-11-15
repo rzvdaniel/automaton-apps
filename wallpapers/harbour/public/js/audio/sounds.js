@@ -1,10 +1,18 @@
 // The named sounds. Each is a function (engine, t, dst, o): the AudioEngine (with tone, noise, say), t the start time, dst where to play,
 // o the options. A class can name one with `static sound = 'name'` (played when it is clicked) or give itself a soundFor(x, y) method.
-// For now the only sounds are the seagulls (and the sea, which is in ambience.js); everything else is silent until we find
+// For now the only sounds are the seagulls and the church bell (and the sea, which is in ambience.js); everything else is silent until we find
 // recordings that sound natural. To add one: add a function here, then name it in a class.
 const m = (lo, hi) => lo + Math.random() * (hi - lo);
 
 export const SOUNDS = {
+  // One stroke of the church bell: inharmonic partials of a low bell, each dying away at its own pace over about 2.5 s, struck softly.
+  bell(s, t, d, o) {
+    const hum = 520;
+    [[1, 0.5, 1], [2, 0.32, 0.7], [2.4, 0.2, 0.55], [3, 0.14, 0.4], [4.2, 0.08, 0.25]].forEach(([k, gain, life]) => {
+      s.tone(d, t, { type: 'sine', f: hum * k * (1 + (Math.random() - 0.5) * 0.004), dur: 2.5 * life, gain: gain * 0.35, a: 0.006 });
+    });
+  },
+
   // A seagull's call: a few falling cries, each a bright tone that rises quickly and tails off.
   gull(s, t, d, o) {
     const c = s.ctx, g = c.createGain(), voice = c.createBiquadFilter(), far = c.createBiquadFilter();

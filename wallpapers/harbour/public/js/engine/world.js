@@ -102,7 +102,8 @@ export class World {
   count(Type) { return this.scene.count(Type); }
   ripple(x, y, strength) { this.effects.ripple(x, y, strength); }
   burst(x, y, n, speed, color, size, life) { this.effects.burst(x, y, n, speed, color, size, life); }
-  ring(x, y, delay) { this.effects.ring(x, y, delay); }
+  /** A bell ring spreading from (x, y) after `delay` seconds, with a stroke of the bell sounding at the same moment, panned to where it is. */
+  ring(x, y, delay) { this.effects.ring(x, y, delay); this.sound.play('bell', { pan: this.camera.screenFraction(x), delay }); }
   scare(x, y, reach, water) { this.scene.scare(x, y, reach, water); }
 
   // ---------- building and running ----------

@@ -15,7 +15,7 @@ globalThis.document ??= { createElement: () => ({ width: 0, height: 0, getContex
 
 /** A sound that records what was played instead of making noise. */
 export function recordingSound() {
-  return { live: true, on: true, played: [], play(name, options) { this.played.push(name); } };
+  return { live: true, on: true, played: [], calls: [], play(name, options) { this.played.push(name); this.calls.push({ name, ...options }); } };
 }
 
 /** Runs `fn` with console.log silenced (the world announces each seed). */
