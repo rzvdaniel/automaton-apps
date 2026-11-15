@@ -1,19 +1,19 @@
 // A house: a pitched roof from above and a strip of painted front wall. Click it to light or put out the fire.
-import { shade, glow, halo, switchOn, Entity } from '../core/index.js';
+import { shade, Entity } from '../core/index.js';
+import { WindowLights } from '../engine/window-lights.js';
 import { Smoke } from './smoke.js';
 
-const WINDOW_STEP = 0.06;      // how much more darkness each next window of a house waits before it comes on
-const HALO = 0.2, SPILL = 0.15;   // how bright the pool of light round a fully lit house is, and the light on the ground in front
+const PANE = 'rgb(255, 222, 140)';   // a lit window: a flat warm pane, lighter than the wall, no halo
+const DUSK = 0.3;                    // the darkness at which the lit windows are fully on: none by day, however late the clock
 
 export class House extends Entity {
   static passes = { upright: 'draw', lights: 'drawLights' };
   static clicks = 'one';
   constructor(world, o) {   // o: x, y, a, wall, roof, w, smoke
     super(world); Object.assign(this, o); this.pop = 0;
-    // at night its windows light up, one house after another; about one in four stays dark
-    this.lightsAt = Math.random() < 0.25 ? 2 : 0.15 + Math.random() * 0.45;
+    // at night its windows light up one by one, each on its own times of the evening (see WindowLights)
     this.windows = this.windowSpots().map(([lx, ly]) => [this.x + Math.cos(this.a) * lx - Math.sin(this.a) * ly, this.y + Math.sin(this.a) * lx + Math.cos(this.a) * ly]);
-    this.spillY = this.y + (Math.cos(this.a) >= 0 ? 1 : -1) * this.w * 0.75;   // where its light falls on the ground, in front
+    this.lights = this.windows.map((p, n) => (world.windowLights ??= new WindowLights()).add(p[0], p[1], n));
     this.plume = world.add(new Smoke(world, this.x + this.w * 0.3 * Math.cos(this.a), this.y + this.w * 0.3 * Math.sin(this.a) - 0.0025, o.smoke));
   }
   /** Where its windows are, in its own turned frame (x along the house, y across it). */
@@ -21,19 +21,26 @@ export class House extends Entity {
     const d = this.w * 0.68, y = Math.cos(this.a) >= 0 ? d / 2 + 0.0026 : -d / 2 - 0.0022;
     return [-0.3, 0, 0.3].map(k => [k * this.w, y]);
   }
-  /** How bright window `n` is now (0..1): the windows of a lit house come on one after another, a little apart. */
-  windowLight(n) { return switchOn(this.lightsAt + n * WINDOW_STEP, this.darkness); }
-  /**
-   * Warm light after dark: each lit window, and round the house a soft warm halo with a little light spilling on the ground
-   * in front. The halo is as bright as its windows together, so a house with all its windows on glows most.
-   */
+  /** The size of a lit pane, along the house and across it. */
+  paneSize() { return [0.0026, 0.0026]; }
+  /** How bright window `n` is now (0..1): its own times by the clock, and only once it is dusk. */
+  windowLight(n) {
+    const clock = this.world?.skyClock, hour = clock ? clock.minutes() / 60 : 0;
+    return this.world.windowLights.level(this.lights[n], hour) * Math.min(1, this.darkness / DUSK);
+  }
+  /** Each lit window as a flat warm pane (no halo, no glow on the ground), with a faint soft edge about 1 px wide. */
   drawLights(c) {
-    if (switchOn(this.lightsAt, this.darkness) <= 0) return;
-    let lit = 0;
-    for (let n = 0; n < this.windows.length; n++) { const a = this.windowLight(n), w = this.windows[n]; lit += a; glow(c, w[0], w[1], 0.006, a * 0.85); }
-    const share = lit / this.windows.length;
-    halo(c, this.x, this.y, this.w * 1.8, share * HALO);
-    halo(c, this.x, this.spillY, this.w * 1.3, share * SPILL, undefined, 0.5);
+    if (this.darkness <= 0) return;
+    const [pw, ph] = this.paneSize();
+    for (let n = 0; n < this.windows.length; n++) {
+      const a = this.windowLight(n), p = this.windows[n];
+      if (a <= 0.01) continue;
+      c.save(); c.globalCompositeOperation = 'source-over'; c.translate(p[0], p[1]); c.rotate(this.a); c.globalAlpha = a;
+      c.fillStyle = PANE; c.strokeStyle = PANE; c.lineWidth = 0.0004;
+      c.fillRect(-pw / 2, -ph / 2, pw, ph);
+      c.globalAlpha = a * 0.35; c.strokeRect(-pw / 2 - 0.0002, -ph / 2 - 0.0002, pw + 0.0004, ph + 0.0004);
+      c.restore();
+    }
   }
   update(dt) { this.pop = Math.max(0, this.pop - dt * 1.5); }
   hit(x, y) { return Math.hypot(this.x - x, this.y - y) < 0.02; }
