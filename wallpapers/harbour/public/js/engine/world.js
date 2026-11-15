@@ -91,6 +91,8 @@ export class World {
   // ---------- what entities may use ----------
   get hw() { return this.viewport.hw; }
   get hh() { return this.viewport.hh; }
+  /** The hour at the island (0..24, with the fraction), as of the last #updateDay (at most a second old). */
+  get hourNow() { return this.hour ?? 0; }
   get map() { return this.terrain.map; }
   get wind() { return this.windField.vector; }
   /** How strong the wind is, 0 calm .. 1 stormy (see Wind). */
@@ -176,6 +178,7 @@ export class World {
   #updateDay() {
     const seconds = this.clock - (this.dayAt ?? this.clock), now = this.skyClock.now();
     this.dayAt = this.clock;
+    const local = this.place.local(now); this.hour = local.hours + local.minutes / 60 + local.seconds / 3600;   // read once here: the windows ask for it every frame, and working it out (an Intl formatter per call) cost milliseconds a frame at night
     this.weather.update(now, seconds);
     this.windField.update({ setting: this.settings.get('wind'), cover: this.weather.cover, date: now, day: Wind.dayAt(this.place, now), seconds });
     const moon = this.settings.get('moon');

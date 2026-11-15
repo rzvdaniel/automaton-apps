@@ -138,7 +138,7 @@ test('lights: nothing is drawn by day; at night windows, lamps, lanterns and the
 
 /** The windows of the island lit (drawn) when it is dark and the clock says `hour`. */
 function litAt(world, hour, darkness = 1) {
-  world.day.darkness = darkness; world.skyClock.minutes = () => hour * 60;
+  world.day.darkness = darkness; world.hour = hour;
   let lit = 0, all = 0;
   for (const h of world.all(E.House)) for (let n = 0; n < h.windows.length; n++, all++) if (h.windowLight(n) > 0.5) lit++;
   return { lit, all };

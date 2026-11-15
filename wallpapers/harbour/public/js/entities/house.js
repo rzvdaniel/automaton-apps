@@ -25,7 +25,7 @@ export class House extends Entity {
   paneSize() { return [0.0026, 0.0026]; }
   /** How bright window `n` is now (0..1): its own times by the clock, and only once it is dusk. */
   windowLight(n) {
-    const clock = this.world?.skyClock, hour = clock ? clock.minutes() / 60 : 0;
+    const hour = this.world?.hourNow ?? 0;   // cached by the world: not worked out per window per frame
     return this.world.windowLights.level(this.lights[n], hour) * Math.min(1, this.darkness / DUSK);
   }
   /** Each lit window as a flat warm pane (no halo, no glow on the ground), with a faint soft edge about 1 px wide. */

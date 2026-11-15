@@ -137,7 +137,7 @@ export class Church extends Entity {
 
   /** How bright window `n` is now (0..1): its own times by the clock, and only once it is dusk, like the houses' panes. */
   windowLight(n) {
-    const clock = this.world?.skyClock, hour = clock ? clock.minutes() / 60 : 0;
+    const hour = this.world?.hourNow ?? 0;   // cached by the world: not worked out per window per frame
     return this.world.windowLights.level(this.lights[n], hour) * Math.min(1, this.darkness / DUSK);
   }
 

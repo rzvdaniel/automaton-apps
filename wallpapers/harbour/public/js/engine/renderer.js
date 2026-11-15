@@ -2,6 +2,9 @@ import { disc } from '../core/draw.js';
 import { Backdrop } from './backdrop.js';
 import { LAYERS, LIGHTS, CLOUD_SHADE, SKY_LIGHTS } from './scene.js';
 import { Lighting } from './lighting.js';
+import { Profiler } from './profiler.js';
+
+const LIGHTS_SCALE = 0.5;   // the lights canvas is this much of the drawing canvas, each way
 
 /**
  * Puts the island on the screen: owns the three canvases (the shader's backdrop at the bottom, the 2D drawing above it, and
@@ -20,24 +23,30 @@ export class Renderer {
     this.lightsCanvas = make(); this.lightsCanvas.style.pointerEvents = 'none';   // clicks go through to the island
     this.lights = this.lightsCanvas.getContext('2d'); this.lightsShown = false;
     this.lighting = new Lighting({ canvas: this.canvas, backdrop: this.backdrop });
+    this.profiler = new Profiler({ query: typeof location !== 'undefined' ? location.search : '' });
+    this.lighting.disabled = this.profiler.noFilter;
   }
 
   /** Sizes both canvases for the viewport. */
   resize(viewport) {
     this.backdrop.resize(Math.round(viewport.width * viewport.glScale), Math.round(viewport.height * viewport.glScale));
-    this.canvas.width = this.lightsCanvas.width = Math.round(viewport.width * viewport.dpr);
-    this.canvas.height = this.lightsCanvas.height = Math.round(viewport.height * viewport.dpr);
+    this.canvas.width = Math.round(viewport.width * viewport.dpr);
+    this.canvas.height = Math.round(viewport.height * viewport.dpr);
+    // the lights are soft glows and flat panes: a canvas a quarter the size, stretched over the screen, looks the same and is a quarter of the work
+    this.lightsCanvas.width = Math.max(1, Math.round(this.canvas.width * LIGHTS_SCALE));
+    this.lightsCanvas.height = Math.max(1, Math.round(this.canvas.height * LIGHTS_SCALE));
   }
   setCursor(cursor) { this.canvas.style.cursor = cursor; }
 
   /** @param {{ viewport, camera, terrain, effects, swirls?: object, scene, time: number, light?: object, darkness?: number }} frame everything a picture is made of */
   render({ viewport, camera, terrain, effects, swirls, scene, time, light, darkness = 0, glitter, wind, waves, palette }) {
     const c = this.ctx, { canvas, backdrop } = this;
-    if (light) this.lighting.apply(light);
+    const P = this.profiler, T = (name, fn) => P.time(name, fn);
+    if (light) T('light', () => this.lighting.apply(light));
     if (palette) backdrop.setPalette(palette);
     if (glitter) backdrop.setGlitter(glitter);
     if (wind) backdrop.setWind(wind, viewport.quality, waves);
-    backdrop.render({ viewport, camera, terrain, effects, time });
+    T('backdrop', () => backdrop.render({ viewport, camera, terrain, effects, time }));
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
     if (!backdrop.gl) { c.fillStyle = '#16aed0'; c.fillRect(0, 0, canvas.width, canvas.height); }   // no WebGL: a flat sea and plain land
     camera.applyTo(c);
@@ -46,26 +55,30 @@ export class Renderer {
     const k = viewport.scale * camera.zoom, halfW = viewport.width / (2 * k), halfH = viewport.height / (2 * k);
     const view = { minX: camera.centreX - halfW, maxX: camera.centreX + halfW, minY: camera.centreY - halfH, maxY: camera.centreY + halfH };   // what is on screen, in world units
     for (const layer of LAYERS) {
-      if (layer === 'effects') { effects.draw(c); swirls?.draw(c, camera.zoom, k, darkness, view); }   // the wind's swirls: above land, sea and everything standing on them, below the clouds and their shadows
-      scene.drawLayer(layer, c, time, () => camera.applyTo(c), view);
+      T(layer === 'clouds' ? 'clouds' : layer === 'effects' ? 'effects+swirls' : 'entities', () => {
+        if (layer === 'effects') { effects.draw(c); swirls?.draw(c, camera.zoom, k, darkness, view); }   // the wind's swirls: above land, sea and everything standing on them, below the clouds and their shadows
+        scene.drawLayer(layer, c, time, () => camera.applyTo(c), view);
+      });
     }
     this.#drawLights({ camera, scene, time, view, darkness });
+    P.endFrame();
   }
 
   /** The night lights, added on top (by day the canvas is just left empty). */
   #drawLights({ camera, scene, time, view, darkness }) {
-    const l = this.lights, { lightsCanvas } = this;
-    if (darkness <= 0) {
+    const l = this.lights, { lightsCanvas } = this, T = (name, fn) => this.profiler.time(name, fn);
+    if (darkness <= 0 || this.profiler.noLights) {
       if (this.lightsShown) { l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(0, 0, lightsCanvas.width, lightsCanvas.height); this.lightsShown = false; }
       return;
     }
+    const place = () => camera.applyTo(l, LIGHTS_SCALE);
     l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(0, 0, lightsCanvas.width, lightsCanvas.height);
-    camera.applyTo(l); l.globalCompositeOperation = 'lighter';   // light adds to light
-    scene.drawLayer(LIGHTS, l, time, () => camera.applyTo(l), view);
+    place(); l.globalCompositeOperation = 'lighter';   // light adds to light
+    T('lights', () => scene.drawLayer(LIGHTS, l, time, place, view));
     l.globalCompositeOperation = 'source-over';
-    scene.drawLayer(CLOUD_SHADE, l, time, () => camera.applyTo(l), view);   // clouds hide the lights under them
+    T('cloudShade', () => scene.drawLayer(CLOUD_SHADE, l, time, place, view));   // clouds hide the lights under them
     l.globalCompositeOperation = 'lighter';
-    scene.drawLayer(SKY_LIGHTS, l, time, () => camera.applyTo(l), view);    // but not the plane's and the balloon's, up among them
+    T('skyLights', () => scene.drawLayer(SKY_LIGHTS, l, time, place, view));    // but not the plane's and the balloon's, up among them
     l.globalCompositeOperation = 'source-over';
     this.lightsShown = true;
   }
