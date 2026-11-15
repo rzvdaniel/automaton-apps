@@ -25,6 +25,8 @@ import { buildIsland } from '../island/builder.js';
 /** A sound that does nothing: for a world with no audio (tests, the gallery). */
 const SILENT = { play() {}, live: false, on: false };
 const DAY_EVERY = 1;   // seconds between updates of the time of day
+const HURRY_EVERY = 0.1;   // ... and while the sky and wind answer the viewer's choice
+const HURRY_FOR = 2.5;     // seconds that answer takes
 
 /**
  * The world is where everything meets. It owns the parts, each with one job, and hands entities the few things they need:
@@ -66,7 +68,11 @@ export class World {
     this.weather = new Weather({ settings: this.settings });
     this.cloudBank = new CloudBank(this);
     this.day = new DayCycle(); this.#updateDay();
-    this.settings.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // a new time or place shows at once, not at the next tick
+    this.hurryUntil = -1; this.hurry = false;   // true for a moment after the viewer picks a weather or a wind: they show within a second or two
+    this.settings.onChange((v, names) => {
+      if (this.dayAt !== undefined && (names.includes('weather') || names.includes('wind'))) { this.hurryUntil = this.clock + HURRY_FOR; this.dayAt = this.clock; }   // easing starts from now
+      this.#updateDay(); this.loop?.keepBusy(200);
+    });   // a new time or place shows at once, not at the next tick
     this.skyClock.onChange(() => { this.#updateDay(); this.loop?.keepBusy(200); });   // the panel's time slider while dragged
     this.effects = new Effects();
     this.swirls = new WindSwirls();
@@ -135,7 +141,8 @@ export class World {
   /** Advances the island by dt seconds. */
   update(dt) {
     this.clock += dt;
-    if (Math.abs(this.clock - this.dayAt) >= DAY_EVERY) this.#updateDay();
+    if (Math.abs(this.clock - this.dayAt) >= (this.clock < this.hurryUntil ? HURRY_EVERY : DAY_EVERY)) this.#updateDay();
+    if (this.hurry) this.loop?.keepBusy(200);
     if (this.camera.ease(dt)) this.loop?.keepBusy(200);   // still zooming: stay at full speed
     this.effects.update(dt);
     this.swirls.update(dt, this.windField, this.hw, this.hh);
@@ -179,8 +186,9 @@ export class World {
     const seconds = this.clock - (this.dayAt ?? this.clock), now = this.skyClock.now();
     this.dayAt = this.clock;
     const local = this.place.local(now); this.hour = local.hours + local.minutes / 60 + local.seconds / 3600;   // read once here: the windows ask for it every frame, and working it out (an Intl formatter per call) cost milliseconds a frame at night
-    this.weather.update(now, seconds);
-    this.windField.update({ setting: this.settings.get('wind'), cover: this.weather.cover, date: now, day: Wind.dayAt(this.place, now), seconds });
+    this.hurry = this.clock < this.hurryUntil;
+    this.weather.update(now, seconds, this.hurry);
+    this.windField.update({ setting: this.settings.get('wind'), cover: this.weather.cover, date: now, day: Wind.dayAt(this.place, now), seconds, quick: this.hurry });
     const moon = this.settings.get('moon');
     this.day.moonOverride = moon === 'full' || moon === 'new' ? moon : null;   // the viewer's moon setting
     this.day.update(now, this.place.current, this.weather.cover, this.weather.storm);

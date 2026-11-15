@@ -350,3 +350,19 @@ test('Renderer: the swirls are drawn with the effects: above land, sea and what 
   assert.equal(ctx, c); assert.equal(zoom, 2); assert.equal(pixels, 2000); assert.equal(darkness, 0);
   assert.deepEqual(seen, { minX: -0.375, maxX: 0.375, minY: -0.25, maxY: 0.25 });
 });
+
+test('Wind: quick (the viewer just chose) reaches the new strength within about two seconds, smoothly', () => {
+  const wind = fresh(fixed(0)); wind.update({ setting: fixed(0), cover: 0, date: at(0), day: DAY, seconds: 1 });
+  let last = wind.strength;
+  for (let i = 0; i < 20; i++) { wind.update({ setting: fixed(1), cover: 0, date: at(0), day: DAY, seconds: 0.1, quick: true }); assert.ok(wind.strength >= last && wind.strength - last < 0.3); last = wind.strength; }
+  assert.ok(Math.abs(wind.strength - 0.9) < 0.05, `after two seconds ${wind.strength}`);
+});
+
+test('World: picking a wind in the panel shows within about two seconds', async () => {
+  const { World } = await import('../public/js/engine/world.js');
+  const w = quietly(() => { const x = new World({ width: 1500, height: 1000 }); x.generate(7); x.settings.set({ wind: { mode: 'fixed', strength: 0 } }); for (let i = 0; i < 400; i++) x.update(0.05); return x; });
+  assert.ok(w.windStrength < 0.1);
+  w.settings.set({ wind: { mode: 'fixed', strength: 1 } });
+  for (let i = 0; i < 40; i++) w.update(0.05);
+  assert.ok(w.windStrength > 0.8, `after two seconds ${w.windStrength}`);
+});

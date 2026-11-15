@@ -17,11 +17,15 @@ import { Cloud } from '../entities/cloud.js';
  * New fair clouds drifting in also keep out of a clear lane: a band across the wind, a quarter of the screen wide, that
  * wanders slowly. Storm clouds do not: a storm is crowded, and its gaps are where they happen to fall.
  *
+ * When the viewer has just picked a weather (world.hurry), none of that waits: the excess clouds all leave and the missing ones
+ * form across the view at once, and both fade in about a second and a half.
+ *
  * The world calls update() about once a second, after the weather. The island's own random source is never used here:
  * clouds come and go with the weather, and the island's layout stays the same for its seed.
  */
 const SPACING = 6;   // seconds at least between two new clouds drifting in
 const FAR_SHORT = 2; // more than this many short: the sky fills up where it is
+const HURRY_FORM = 8; // after the viewer's choice: at most this many form per update (there are ten updates a second), so the sky fills in a third of a second
 
 export class CloudBank {
   static MAX = 34;   // the most clouds of one kind, whatever the screen
@@ -53,8 +57,11 @@ export class CloudBank {
   }
 
   #keep(storm, want) {
-    const here = this.staying(storm), short = want - here.length;
-    if (short < 0) {
+    const here = this.staying(storm), short = want - here.length, hurry = this.world.hurry;
+    if (hurry && short !== 0) {   // the viewer just chose a weather: the sky gets there within a second or two
+      if (short < 0) here.slice(0, -short).forEach(c => c.leave(true));
+      else for (let n = Math.min(short, HURRY_FORM); n > 0; n--) here.push(this.#form(storm, here, true));
+    } else if (short < 0) {
       for (let i = 0, n = Math.ceil(-short / 8); i < n; i++) here[i].leave();   // the oldest go first
     } else if (short > FAR_SHORT) {
       for (let n = Math.ceil(short / 5); n > 0; n--) here.push(this.#form(storm, here));
@@ -66,7 +73,7 @@ export class CloudBank {
   }
 
   /** A new cloud somewhere in the view: of a few places tried, the one farthest from the others of its kind. */
-  #form(storm, others) {
+  #form(storm, others, quick = false) {
     const { hw, hh } = this.world;
     let bx = 0, by = 0, best = -1;
     for (let tries = 0; tries < 6; tries++) {
@@ -76,7 +83,7 @@ export class CloudBank {
       if (near > best) { best = near; bx = x; by = y; }
     }
     const cloud = this.world.add(new Cloud(this.world, Math.random, 0, 0, storm));
-    cloud.form(bx, by);
+    cloud.form(bx, by, quick);
     return cloud;
   }
 }

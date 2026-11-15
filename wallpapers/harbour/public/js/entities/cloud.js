@@ -166,17 +166,17 @@ export class Cloud extends Entity {
     this.alpha = 0;
   }
   /** Puts the cloud at (x, y) in the sky, faded out, to fade in where it is: how a sky fills up when the weather turns. */
-  form(x, y) { this.x = x; this.y = y; this.alpha = 0; }
+  form(x, y, quick = false) { this.x = x; this.y = y; this.alpha = 0; this.quick = quick; }
   /** The weather wants fewer clouds: this one fades as it drifts on, and does not come back. */
-  leave() { this.leaving = true; }
+  leave(quick = false) { this.leaving = true; this.quick = quick; }   // quick: the viewer chose the weather, so it fades in about a second and a half (not eight)
 
   update(dt) {
     const w = this.world, wind = w.wind, push = w.windPush ?? 1;
     // faster when cloudier, and when it blows harder; a storm cloud goes with the wind more than a fair one
     const speed = this.speed * this.weather.speed * (this.storm ? 0.3 + 0.7 * push : 0.5 + 0.5 * push);
     this.x += wind[0] * speed * dt; this.y += wind[1] * speed * dt;
-    if (this.leaving) this.alpha = Math.max(0, this.alpha - dt / 8);   // eight seconds to fade away
-    else this.alpha += ((this.fade ? 0 : 1) - this.alpha) * Math.min(1, dt * (this.fade ? 2.5 : this.storm ? 0.45 : 0.3));   // blown away quickly, fades in slowly (a storm cloud sooner: it is a solid mass)
+    if (this.leaving) this.alpha = Math.max(0, this.alpha - dt / (this.quick ? 1.5 : 8));   // eight seconds to fade away (a second and a half after the viewer's choice)
+    else this.alpha += ((this.fade ? 0 : 1) - this.alpha) * Math.min(1, dt * (this.fade || this.quick ? 2.5 : this.storm ? 0.45 : 0.3));   // blown away quickly, fades in slowly (a storm cloud sooner: it is a solid mass)
     const out = this.outside(this.x, this.y);
     if (this.leaving && (out || this.alpha < 0.02)) { this.dead = true; if (this.canvas) { Cloud.#spare.push(this.canvas); this.canvas = null; } return; }
     if (out || (this.fade && this.alpha < 0.02)) { this.shape(Math.random); this.enter(this.storm ? null : w.cloudBank?.lane()); }   // a new one drifts in on the upwind side

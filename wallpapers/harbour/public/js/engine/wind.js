@@ -13,10 +13,11 @@
  *     is cloudy (Weather.cover).
  *   - A choice: { mode: 'fixed', strength 0 calm .. 1 stormy }. It lasts, whatever the date, until the viewer
  *     switches back to Auto (like the Weather setting).
- * Either way the shown strength eases towards where it is going over about ten real seconds, so it never snaps.
+ * Either way the shown strength eases towards where it is going over about ten real seconds, so it never snaps (but within about two seconds when the viewer has just chosen: see `quick`).
  *
  * Nothing here uses Math.random or the island's seed: the island's layout must not change because of the wind.
  */
+const QUICK = 3;              // when the viewer has just chosen: the time constant per real second (there in about a second and a half)
 const EASE = 1 / 10;          // how much of the way (per real second) the strength moves towards its target
 const CALM = 0.05, STORMY = 0.9;
 const SEA_CALM = 0.12;        // below this the sea looks as it does on a calm day: no whitecaps, no extra surf
@@ -81,11 +82,11 @@ export class Wind {
   /**
    * Moves the strength on. `seconds` is how much real time passed since the last call; until real time has passed the
    * strength is put straight where it should be (as the island is being built, or in a test that sets a clock).
-   * @param {{ setting: object, cover: number, date: Date, day: string, seconds?: number }} now
+   * @param {{ setting: object, cover: number, date: Date, day: string, seconds?: number, quick?: boolean }} now   quick: the viewer just changed the setting, so ease over about a second and a half
    * @returns {this}
    */
-  update({ setting, cover, date, day, seconds = 0 }) {
-    const k = this.started ? Math.min(1, seconds * EASE) : 1;
+  update({ setting, cover, date, day, seconds = 0, quick = false }) {
+    const k = this.started ? (quick ? 1 - Math.exp(-QUICK * seconds) : Math.min(1, seconds * EASE)) : 1;
     this.strength += (Wind.targetFor(setting, cover, date, day) - this.strength) * k;
     if (seconds > 0) this.started = true;
     return this;
