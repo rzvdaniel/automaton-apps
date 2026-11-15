@@ -23,7 +23,6 @@ function recordingContext() {
 
 /** A built island at a darkness (headless; the time of day is set by hand, not from the clock). */
 // Every island test runs on the same fixed day, never the real date, so who is out is the same on every run.
-// On this day the fox is not one of its rare daytime walks (see Presence).
 const FIXED_DAY = Date.UTC(2026, 10, 14, 12);
 function islandAt(darkness, seed = 7) {
   const world = quietly(() => { const w = new World({ width: 1500, height: 1000, debug: true, sound: recordingSound() }); w.skyClock.realNow = () => FIXED_DAY; w.generate(seed); return w; });
@@ -49,9 +48,8 @@ test('Presence: every class declares its share by day and by night, as the issue
   expect(E.Person, 1, 0.1, 1); expect(E.Walker, 1, 0.1, 1);
   expect(E.Biplane, 1, 0.5); expect(E.Balloon, 1, 0.3); expect(E.Gull, 1, 0.15); expect(E.GullFlock, 1, 0.15);
   for (const Type of [E.Kite, E.Parasol, E.Puffin]) expect(Type, 1, 0);
-  expect(E.Fox, 0.05, 1);
   assert.equal(Entity.presence.day, 1); assert.equal(Entity.presence.night, 1);
-  for (const Type of [E.House, E.Person, E.Fox]) assert.equal(Type.active, undefined, 'the old statics are gone');
+  for (const Type of [E.House, E.Person]) assert.equal(Type.active, undefined, 'the old statics are gone');
 });
 
 test('Presence: at night about one person in ten is out, and at least one', () => {
@@ -89,16 +87,12 @@ test('Presence: nothing changes within one night', () => {
   at(0.95); assert.deepEqual(all.map(e => e.visible), first);
 });
 
-test('Presence: day-only things are out at noon and gone at midnight; the fox the other way round, and rarely by day', () => {
+test('Presence: day-only things are out at noon and gone at midnight', () => {
   for (const order of [0, 0.5, 0.99]) {
     assert.equal(Presence.visibility(order, true, false, NOON), 1); assert.equal(Presence.visibility(order, true, false, MIDNIGHT), 0);
     assert.equal(Presence.visibility(order, false, true, NOON), 0); assert.equal(Presence.visibility(order, false, true, MIDNIGHT), 1);
     assert.equal(Presence.visibility(order, true, true, MIDNIGHT), 1);
   }
-  const days = Array.from({ length: 400 }, (_, i) => `d${i}`).filter(date => {
-    const { scene, at, on } = sceneOn(); on(date); const fox = scene.add(new (class Fox extends Thing { static presence = E.Fox.presence; })()); at(NOON); return fox.visible > 0;
-  }).length;
-  assert.ok(days >= 4 && days <= 45, `the fox is about by day on ${days} of 400 days`);
 });
 
 test('Presence: over dusk they leave one by one, and none comes back while it gets darker', () => {
@@ -169,22 +163,6 @@ test('the lighthouse beam shines only out to sea: none towards the island, full 
     const c = recordingContext(); house.drawLights(c, ((inland % (2 * Math.PI)) + 2 * Math.PI) / 0.35);
     assert.ok(!c.calls.includes('fill'), `seed ${seed}: no beam drawn over the village`);
   }
-});
-
-// ----- the fox -----
-test('the fox: on every island, out at night; a click makes it jump and yip', () => {
-  const day = islandAt(NOON), fox = day.all(E.Fox)[0];
-  assert.ok(fox, 'there is a fox'); assert.equal(fox.visible, 0, 'gone by day');
-  assert.ok(day.field(fox.x, fox.y) < 0, 'it lives on the land');
-
-  const night = islandAt(MIDNIGHT), f = night.all(E.Fox)[0], sound = night.sound;
-  assert.equal(f.visible, 1);
-  night.scene.clear(); night.add(f);   // nothing else to catch the tap (a cloud or a gull overhead would)
-  const k = night.viewport.scale;
-  night.interaction.tap(750 + f.x * k, 500 + f.y * k);
-  assert.ok(f.jump > 0, 'it jumps'); assert.ok(sound.played.includes('yip'), 'and yips');
-  for (let i = 0; i < 100; i++) f.update(0.05);
-  f.draw(fakeContext(), 1);   // draws, with its moon shadow, without throwing
 });
 
 // ----- lights of things that fly at night -----

@@ -34,7 +34,7 @@ const DAY_EVERY = 1;   // seconds between updates of the time of day
  *   renderer     the canvases and the picture    loop         one step per frame
  *   settings     the viewer's choices (saved)    place        where the island is (city, latitude, longitude)
  *   skyClock     the time the island shows       day          dawn, day, dusk or night, the light, where shadows fall
- *   presence     who is out at this hour (balloons by day, the fox by night)
+ *   presence     who is out at this hour (balloons by day, lanterns by night)
  *   weather      how cloudy it is (changing slowly over hours)   cloudBank    keeps the number of clouds in step with it
  *
  * Without a `stage` it runs headless (no page, no drawing): that is how the tests build islands.

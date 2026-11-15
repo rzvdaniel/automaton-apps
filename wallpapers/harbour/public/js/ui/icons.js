@@ -29,6 +29,8 @@ export const ICONS = Object.freeze({
   moonNew: svg('<circle cx="12" cy="12" r="7" stroke-dasharray="2 3"/>'),
   // sound
   soundOn: svg('<path d="M4 9.5h3l4.5-4v13l-4.5-4H4z" fill="currentColor"/><path d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.6a7.6 7.6 0 0 1 0 10.8"/>'),
+  statusOn: svg('<path d="M4 18h3V13H4zM10.5 18h3V6h-3zM17 18h3v-8h-3z" fill="currentColor"/>'),
+  statusOff: svg('<path d="M4 18h3V13H4zM10.5 18h3V6h-3zM17 18h3v-8h-3z"/><path d="M4 4l16 16"/>'),
   soundOff: svg('<path d="M4 9.5h3l4.5-4v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>'),
   // the panel's own buttons
   close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),

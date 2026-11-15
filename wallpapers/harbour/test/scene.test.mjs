@@ -59,7 +59,7 @@ function island() {
   return { world, sound };
 }
 
-test('tapping an entity reacts and plays its sound; tapping water ripples and stays quiet', () => {
+test('tapping an entity reacts and plays its sound; tapping water makes no rings and stays quiet', () => {
   const { world, sound } = island();
   class Voiced extends Thing { static sound = 'sheep'; }
   const thing = world.add(new Voiced(world, 0, 0));
@@ -67,7 +67,7 @@ test('tapping an entity reacts and plays its sound; tapping water ripples and st
   assert.equal(thing.clicked, 1); assert.equal(sound.played[0], 'sheep', 'its own sound first');
   sound.played.length = 0; world.effects.clear();
   world.interaction.tap(...pixel(world, 0.3, 0.3));
-  assert.equal(world.effects.ripples.length, 1); assert.deepEqual(sound.played, [], 'a click on the sea is silent');
+  assert.equal(world.effects.ripples.length, 0, 'no rings on the sea'); assert.deepEqual(sound.played, [], 'a click on the sea is silent');
 });
 
 test("a soundFor() method chooses the sound for this click", () => {
@@ -130,4 +130,14 @@ test('every drawing pass an entity names is a real layer with a real method', ()
       assert.equal(typeof e[method], 'function', `${e.constructor.name}.${method} is missing`);
     }
   }
+});
+
+test('a click on the sea frightens the fish but an entity still ripples its own water', () => {
+  const { world } = island();
+  let scared = 0; world.scene.scare = () => { scared++; };
+  world.effects.clear(); world.interaction.tap(...pixel(world, 0.3, 0.3));
+  assert.equal(scared, 1); assert.equal(world.effects.ripples.length, 0);
+  class Boat extends Thing { click() { this.world.ripple(this.x, this.y, 0.6); } }
+  world.add(new Boat(world, 0, 0)); world.interaction.tap(...pixel(world, 0, 0));
+  assert.equal(world.effects.ripples.length, 1, 'the clicked entity keeps its small ripple');
 });

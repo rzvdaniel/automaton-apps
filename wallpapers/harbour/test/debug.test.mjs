@@ -166,9 +166,9 @@ test('IconRow: the model has exactly one chosen option, and the markup says so w
   assert.deepEqual(buttons.map(b => b.attrs['aria-pressed']), ['false', 'true', 'false']);
 });
 
-test('Settings panel markup: time bar first, then the rows, then the place; status lines only in debug', () => {
+test('Settings panel markup: time bar first, then the rows, then the place and the Status row; status lines hidden until it is on', () => {
   const html = SettingsForm.markup(), at = s => { const i = html.indexOf(s); assert.ok(i >= 0, s); return i; };
-  const order = ['id="set-hour"', 'id="set-flow"', 'id="set-now"', 'id="set-weather"', 'id="set-wind"', 'id="set-waves"', 'id="set-colours"', 'id="set-moon"', 'id="set-sound"', 'id="set-place"'].map(at);
+  const order = ['id="set-hour"', 'id="set-flow"', 'id="set-now"', 'id="set-weather"', 'id="set-wind"', 'id="set-waves"', 'id="set-colours"', 'id="set-moon"', 'id="set-sound"', 'id="set-place"', 'id="set-status-toggle"'].map(at);
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   const values = id => [...html.match(new RegExp(`id="set-${id}" role="group"[^>]*>(.*?)</div>`, 's'))[1].matchAll(/data-value="([^"]*)"/g)].map(m => m[1]);
   assert.deepEqual(values('weather'), ['0', '0.33', '0.67', '1']);
@@ -177,13 +177,14 @@ test('Settings panel markup: time bar first, then the rows, then the place; stat
   assert.deepEqual(values('colours'), PALETTES.map(p => p.id));
   assert.deepEqual(values('moon'), ['real', 'full', 'new']);
   assert.deepEqual(values('sound'), ['on', 'off']);
+  assert.deepEqual(values('status-toggle'), ['on', 'off']);
   assert.deepEqual(values('flow'), ['flowing', 'fixed']);
   assert.match(html, /<svg viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="swatch-classic">/, 'a colour button is a swatch of its set');
   assert.ok(!/start time|Keep/i.test(html), 'the start-time field and Keep are gone');
   const ids = [...html.matchAll(/ id="([^"]+)"/g)].map(m => m[1]);
   assert.equal(new Set(ids).size, ids.length, 'no id twice');
-  assert.ok(!SettingsPanel.markup().includes('set-status'));
-  assert.ok(SettingsPanel.markup({ debug: true }).includes('id="set-status"'));
+  assert.match(SettingsPanel.markup(), /id="set-status" hidden/, 'the status lines start hidden');
+  assert.ok(SettingsPanel.markup().indexOf('id="set-status"') > SettingsPanel.markup().indexOf('id="set-status-toggle"'), 'the status lines follow the Status row');
   assert.ok(SettingsPanel.markup().includes('id="set-close"'), 'the sheet has its own close button');
 });
 
@@ -206,7 +207,7 @@ function stubForm(parts = setup()) {
   const root = { querySelector: sel => el(sel.slice(5)) };   // '#set-x' -> 'x'
   const sound = { on: false, onChange() {}, set(on) { this.on = on; shown.push(on); } };
   const form = new SettingsForm({ root, ...parts, sound });
-  const press = (row, value) => els[row].listeners.click({ target: { closest: () => ({ dataset: { value } }) } });
+  const press = (row, value) => els[row === 'status' ? 'status-toggle' : row].listeners.click({ target: { closest: () => ({ dataset: { value } }) } });
   return { ...parts, els, form, sound, press };
 }
 
@@ -226,6 +227,11 @@ test('SettingsForm: pressing a button writes the choice to Settings (and to Soun
   assert.equal(settings.get('moon'), 'new');
   press('sound', 'on');
   assert.equal(sound.on, true);
+  assert.equal(settings.get('status'), false, 'Status starts off');
+  press('status', 'on');
+  assert.equal(settings.get('status'), true);
+  press('status', 'off');
+  assert.equal(settings.get('status'), false);
 });
 
 test('SettingsForm: the time bar is live while dragged, saved when the drag ends, Flowing or Fixed, and Now', () => {

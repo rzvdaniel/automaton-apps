@@ -3,7 +3,7 @@ import { ICONS } from './icons.js';
 
 /**
  * The settings panel: a floating card in the bottom-right corner, above the round settings button, opened and closed by that
- * button (Escape closes it too), built from the UI kit. It holds the settings controls (SettingsForm); with `?debug` it also
+ * button (Escape closes it too), built from the UI kit. It holds the settings controls (SettingsForm); with Status on (or `?debug`) it also
  * shows the status lines (frame rate, entities, zoom, wind, clock, errors). On a phone-width screen it is a sheet across the
  * bottom (CSS). Its taps, keys and wheel never reach the island.
  */
@@ -21,12 +21,13 @@ export class SettingsPanel {
     return open && screenWidth >= SettingsPanel.SHEET_BELOW ? -(panelWidth + SettingsPanel.MARGIN) / 2 : 0;
   }
 
-  /** The panel's markup; the status lines only with `debug`. */
+  /** The panel's markup; the status lines are there but hidden until Status is on (or `debug`). */
   static markup({ debug = false } = {}) {
     return `<div class="a-card__head"><h2 class="a-card__title" id="settings-title">Settings</h2>
     <button type="button" class="a-btn a-btn--icon" id="set-close" aria-label="Close settings" title="Close">${ICONS.close}</button></div>
   <div class="a-form">
-    ${SettingsForm.markup()}${debug ? '\n    <pre class="set-status" id="set-status"></pre>' : ''}
+    ${SettingsForm.markup()}
+    <pre class="set-status" id="set-status" hidden></pre>
   </div>`;
   }
 
@@ -35,7 +36,7 @@ export class SettingsPanel {
    * @param {{ settings: object, place: object, clock: import('../sky/sky-clock.js').SkyClock, sound: object, debug?: boolean }} parts
    */
   constructor(document, { settings, place, clock, sound, debug = false }) {
-    this.debug = debug; this.button = null; this.listeners = new Set();
+    this.debug = debug; this.settings = settings; this.button = null; this.listeners = new Set();
     this.el = document.createElement('aside');
     this.el.className = 'settings-panel a-card';
     this.el.id = 'settings-panel';
@@ -46,12 +47,17 @@ export class SettingsPanel {
     this.form = new SettingsForm({ root: this.el, settings, place, clock, sound });
     this.form.show();
     this.status = this.el.querySelector('#set-status');
+    this.#showStatus();
+    settings.onChange(() => this.#showStatus());
     this.#keepToSelf();
     this.el.querySelector('#set-close').addEventListener('click', () => this.close());
     // Escape closes it from anywhere (the capture phase, so the panel keeping its keys to itself does not stop it)
     window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.isOpen) this.close(); }, true);
     this.at = performance.now(); this.frames = 0; this.shown = 0;
   }
+
+  /** The status lines show when Status is on, or always with `?debug` (which turns on only these lines here, nothing else). */
+  #showStatus() { this.status.hidden = !(this.debug || this.settings.get('status')); }
 
   #keepToSelf() {
     ['pointerdown', 'pointerup', 'pointermove', 'pointercancel', 'wheel', 'keydown', 'keyup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'click', 'dblclick']
@@ -85,7 +91,7 @@ export class SettingsPanel {
     if (now - this.at < 500) return;
     const fps = Math.round((this.frames - this.shown) * 1000 / (now - this.at));
     this.at = now; this.shown = this.frames;
-    if (this.status) this.status.textContent = SettingsPanel.statusText(fps, facts);
+    if (!this.status.hidden) this.status.textContent = SettingsPanel.statusText(fps, facts);
     if (this.isOpen) this.form.showTime();
   }
 }
