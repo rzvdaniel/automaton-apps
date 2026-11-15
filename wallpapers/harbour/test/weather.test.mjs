@@ -155,7 +155,7 @@ test('CloudBank: a bigger screen holds more clouds in proportion, up to its cap'
   assert.ok(bank({ width: 5000, height: 1000 }).wanted(Weather.MAX_STORM_CLOUDS) <= CloudBank.MAX);
 });
 
-test('Cloud: a storm cloud is another shape: wide, low and flat along its base', () => {
+test('Cloud: a storm cloud is another shape: wide, low, with nothing hanging below its floor', () => {
   const world = { hw: 0.75, hh: 0.5, wind: [1, 0], weather: { cover: 0.8, darkness: 1, speed: 4, size: 1.9 } };
   for (let seed = 1; seed <= 20; seed++) {
     let n = seed * 7919; const rnd = () => (n = (n * 16807) % 2147483647) / 2147483647;
@@ -166,11 +166,10 @@ test('Cloud: a storm cloud is another shape: wide, low and flat along its base',
     const s = storm.size;
     for (let x = b.x0; x <= b.x1; x += 0.1) assert.equal(storm.hit(x * s, 0.02 * s), false, 'nothing hangs below the base');
     assert.ok(storm.hit(0, -0.2 * s), 'the middle is cloud');
-    // the outline is cut off on that line too: every lump that reaches the base is an arc closed along it
-    const starts = []; let closed = 0;
-    storm.outline({ beginPath() {}, moveTo(x, y) { starts.push(y); }, arc() {}, closePath() { closed++; } }, 0, 0, 1);
-    assert.ok(closed >= 5, `the base is flat under every big lump (${closed})`);
-    assert.ok(starts.every(y => y <= 1e-9), 'no part of the outline starts below the base');
+    let closed = 0; const arcs = [];
+    storm.outline({ beginPath() {}, moveTo() {}, arc(...a) { arcs.push(a); }, closePath() { closed++; } }, 0, 0, 1);
+    assert.equal(closed, 0, 'no lump is cut off along the floor: every one is a whole circle');
+    assert.ok(storm.puffs.every(p => p.y + p.r <= 0), 'every lump sits wholly above the floor');
     assert.equal(storm.size, storm.r, 'a storm cloud keeps its own size');
     assert.ok(Math.abs(fair.size - fair.r * 1.9) < 1e-12, 'a fair cloud grows with the weather');
   }
@@ -295,4 +294,38 @@ test('World: owns the weather, and follows a clock fixed after it was built with
   world.skyClock.realNow = () => fixed;
   world.update(1);
   assert.ok(Math.abs(world.weather.cover - Weather.coverAt(new Date(fixed), world.settings.get('weather'))) < 1e-9);
+});
+
+const stormCloud = seed => {
+  let n = seed * 7919; const rnd = () => (n = (n * 16807) % 2147483647) / 2147483647;
+  return new Cloud({ hw: 0.75, hh: 0.5, wind: [1, 0], weather: { cover: 0.8, darkness: 1, speed: 4, size: 1.9 } }, rnd, 0, 0, true);
+};
+
+test('Cloud: a storm cloud has a ragged underside and one connected body', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const c = stormCloud(seed), ps = c.puffs;
+    const bottoms = ps.map(p => p.y + p.r);
+    assert.ok(Math.max(...bottoms) - Math.min(...bottoms) > 0.03, 'the lowest points of the lumps vary along x');
+    const seen = new Set([0]), todo = [0];
+    while (todo.length) { const i = todo.pop(); ps.forEach((q, j) => { if (!seen.has(j) && Math.hypot(ps[i].x - q.x, ps[i].y - q.y) < ps[i].r + q.r) { seen.add(j); todo.push(j); } }); }
+    assert.equal(seen.size, ps.length, `the lumps join into one body (seed ${seed})`);
+  }
+});
+
+test('Cloud: a lump forced across the floor is traced as a clockwise arc closed along it', () => {
+  const c = stormCloud(3); c.puffs = [{ x: 0, y: -0.1, r: 0.3 }];
+  const calls = [];
+  c.outline({ beginPath() {}, moveTo() {}, arc(...a) { calls.push(['arc', a]); }, closePath() { calls.push(['close']); } }, 0, 0, 1);
+  const arc = calls.find(k => k[0] === 'arc')[1];
+  assert.ok(arc[5] !== true, 'not anticlockwise');
+  assert.ok(calls.some(k => k[0] === 'close'), 'closed along the floor');
+});
+
+test('Cloud: a storm cloud paints its body fully opaque', () => {
+  const c = stormCloud(5), fills = [];
+  const ctx = new Proxy({ globalAlpha: 1 }, { get: (t, k) => (k in t ? t[k] : k === 'fill' ? () => fills.push(t.globalAlpha) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+  const real = globalThis.document;
+  globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) };
+  try { c.paint(['#111', '#222', '#333', '#444'], 100, 0); } finally { globalThis.document = real; }
+  assert.equal(fills[0], 1, 'the body is filled at alpha 1');
 });
