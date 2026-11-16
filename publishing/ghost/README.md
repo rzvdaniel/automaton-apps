@@ -12,7 +12,7 @@ Ghost recommends MySQL for production, but an Automaton app is one container, so
 
 ## Configuration
 
-- `GHOST_URL` (setting, required): the app's full address, for example `https://blog.example.com`. The platform does not tell an app its own address, so set it after install (the address exists only then) and restart. Ghost builds every link from it.
+- `GHOST_URL` (setting, required): the app's full address, for example `https://blog.example.com`. It defaults to the app's own address (`{{app.address}}`), so `/ghost/` opens right after install. Change it only when the blog moves to its own domain; saving a setting restarts the app. Ghost builds every link from it.
 - Admin: open `<address>/ghost/` and create the administrator right after install: whoever opens it first becomes the owner.
 - Email from Ghost itself (sign-in, notifications): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` settings, `SMTP_PASSWORD` secret and `MAIL_FROM`. All optional.
 - Newsletters need Mailgun's API, not SMTP: `MAILGUN_API_KEY` (secret), `MAILGUN_DOMAIN` and `MAILGUN_REGION` (`EU` or `US`) settings. Until the key and domain are set, newsletters are off and the start-up log says so.
