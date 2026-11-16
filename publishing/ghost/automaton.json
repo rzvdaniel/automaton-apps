@@ -28,7 +28,7 @@
       { "name": "SMTP_PASSWORD", "optional": true, "description": "Optional. Password for the SMTP server below" }
     ],
     "settings": [
-      { "name": "GHOST_URL", "description": "This app's full address, for example https://blog.example.com (no trailing slash). Ghost builds every link from it. Filled in with the app's own address; change it only after moving the blog to its own domain.", "default": "{{app.address}}", "required": true },
+      { "name": "GHOST_URL", "description": "This app's full address (no trailing slash). Filled in for you; change it only if the blog moves to its own domain. Ghost builds every link from it.", "default": "{{app.address}}", "required": true },
       { "name": "MAILGUN_DOMAIN", "description": "Optional. Mailgun sending domain, for example mg.example.com", "default": "" },
       { "name": "MAILGUN_REGION", "description": "Optional. Mailgun region: EU or US", "default": "EU" },
       { "name": "MAIL_FROM", "description": "Optional. Sender address for Ghost's own emails (sign-in, notifications)", "default": "" },
