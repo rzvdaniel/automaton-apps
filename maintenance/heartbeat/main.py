@@ -3,12 +3,11 @@
 
 Runs as an Automaton app (web page, API, check-in endpoint and a background loop that finds overdue checks).
   GET|POST|HEAD /ping/<token>     a job checks in
-  /api/checks                     manage checks (needs the ADMIN_TOKEN as a Bearer token)
+  /api/checks                     manage checks (needs Studio's sign-in: the viewer headers the platform proxy sets)
 """
 
 from __future__ import annotations
 
-import hmac
 import json
 import os
 import sys
@@ -23,7 +22,6 @@ from urllib.request import Request, urlopen
 import heartbeat
 
 USER_AGENT = "automaton-heartbeat"
-MIN_ADMIN_TOKEN = 16
 MAX_BODY = 4096
 
 
@@ -87,7 +85,6 @@ class App:
         env = os.environ if env is None else env
         self.now, self.post = now, post
         self.email = email or send_email
-        self.admin_token = env.get("ADMIN_TOKEN", "").strip()
         self.webhook = env.get("WEBHOOK_URL", "").strip()
         self.api_url = env.get("AUTOMATON_API_URL", "").strip()
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
@@ -141,12 +138,6 @@ class App:
             heartbeat.save_checks(self.path, self.checks)
             return True
 
-    def authorized(self, header: str) -> bool:
-        if len(self.admin_token) < MIN_ADMIN_TOKEN:
-            return False
-        given = header[7:] if header.startswith("Bearer ") else ""
-        return hmac.compare_digest(given.encode(), self.admin_token.encode())
-
     def list_checks(self) -> list[dict]:
         with self.lock:
             now = self.now()
@@ -187,13 +178,16 @@ def make_handler(app: App, page: bytes):
             self.reply(code, json.dumps(value).encode())
 
         def guard(self) -> bool:
-            """True when the admin API may be used; otherwise the answer has been sent."""
-            if len(app.admin_token) < MIN_ADMIN_TOKEN:
-                self.json(503, {"error": f"Set the ADMIN_TOKEN secret (at least {MIN_ADMIN_TOKEN} characters) to manage checks"})
+            """True when the management API may be used; otherwise the answer has been sent.
+
+            The platform proxy signs a visitor in through Studio and sets the viewer headers, replacing whatever the
+            browser sent. Without them (an app its owner published, or a request that skipped the proxy) nothing is
+            managed. A page of this app sets X-Heartbeat on changes; a form on another site cannot."""
+            if not self.headers.get("X-Automaton-Viewer-Role") or not self.headers.get("X-Automaton-Viewer-Token"):
+                self.json(401, {"error": "Sign in through Automaton Studio to manage checks"})
                 return False
-            if not app.authorized(self.headers.get("Authorization", "")):
-                time.sleep(0.5)  # slows guessing
-                self.json(401, {"error": "Wrong or missing admin token"})
+            if self.command != "GET" and self.headers.get("X-Heartbeat") != "1":
+                self.json(403, {"error": "missing X-Heartbeat header"})
                 return False
             return True
 
@@ -257,8 +251,6 @@ def main() -> int:
     except heartbeat.CorruptState as error:
         log(f"cannot start: {error}")
         return 1
-    if len(app.admin_token) < MIN_ADMIN_TOKEN:
-        log(f"ADMIN_TOKEN is not set (or shorter than {MIN_ADMIN_TOKEN} characters): checks cannot be managed, existing check-ins still work")
     page = (Path(__file__).parent / "index.html").read_bytes()
     threading.Thread(target=app.loop, daemon=True).start()
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))

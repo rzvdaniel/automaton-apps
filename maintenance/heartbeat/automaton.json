@@ -31,7 +31,6 @@
       { "name": "EMAIL_TO", "description": "Who gets alert emails (needs the notify:email permission approved): administrators, owner, project or an address an administrator allowed; separate several with commas", "default": "administrators" }
     ],
     "secrets": [
-      { "name": "ADMIN_TOKEN", "description": "Password for the check list at the app's address: at least 16 random characters. Without it checks cannot be created or listed (existing check-in URLs keep working)" },
       { "name": "WEBHOOK_URL", "optional": true, "description": "Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log" }
     ]
   }

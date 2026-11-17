@@ -148,8 +148,8 @@ class Server(unittest.TestCase):
         self.sent = []
         self.start()
 
-    def start(self, token=TOKEN):
-        env = {"ADMIN_TOKEN": token, "WEBHOOK_URL": "http://hooks.example/SECRETHOOK", "AUTOMATON_APP_DATA_DIR": self.folder.name}
+    def start(self):
+        env = {"ADMIN_TOKEN": TOKEN, "WEBHOOK_URL": "http://hooks.example/SECRETHOOK", "AUTOMATON_APP_DATA_DIR": self.folder.name}
         self.app = main.App(env, now=lambda: self.clock[0], post=lambda url, payload: self.sent.append((url, payload)) or True)
         self.httpd = main.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app, b"<html>page</html>"))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -158,9 +158,11 @@ class Server(unittest.TestCase):
     def stop(self):
         self.httpd.shutdown(); self.httpd.server_close()
 
-    def request(self, method, path, body=None, token=TOKEN):
+    def request(self, method, path, body=None, token=TOKEN, extra=None):
         connection = http.client.HTTPConnection("127.0.0.1", self.httpd.server_port, timeout=5)
-        headers = {"Authorization": "Bearer " + token} if token is not None else {}
+        # token=TOKEN stands for a visitor signed in through Studio: the platform proxy sets the viewer headers.
+        headers = {"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed", "X-Heartbeat": "1"} if token == TOKEN else {}
+        headers.update(extra or {})
         connection.request(method, path, body=json.dumps(body) if body is not None else None, headers=headers)
         response = connection.getresponse()
         data = response.read()
@@ -232,17 +234,28 @@ class Server(unittest.TestCase):
         for path in ("/ping/nope", "/ping/", "/ping/a/b"):
             self.assertEqual(self.request("GET", path, token=None)[0], 404, path)
 
-    def test_admin_api_needs_the_token(self):
+    def test_management_needs_studio_sign_in(self):
         self.assertEqual(self.request("GET", "/api/checks", token=None)[0], 401)
-        self.assertEqual(self.request("GET", "/api/checks", token="wrong")[0], 401)
+        self.assertEqual(self.request("DELETE", "/api/checks/x", token=None)[0], 401)
+        self.assertEqual(self.request("POST", "/api/checks", {"name": "x", "period": "1h"}, token=None)[0], 401)
+        self.assertEqual(self.request("GET", "/api/checks", token=None, extra={"X-Automaton-Viewer-Role": "user"})[0], 401)
         self.assertEqual(self.request("GET", "/api/checks")[0], 200)
-        self.assertEqual(self.request("DELETE", "/api/checks/x", token="wrong")[0], 401)
 
-    def test_api_disabled_without_a_long_admin_token(self):
-        self.stop(); self.start(token="short")
-        self.assertEqual(self.request("GET", "/api/checks", token="short")[0], 503)
-        self.assertEqual(self.request("GET", "/api/checks", token="")[0], 503)
-        self.assertEqual(self.request("GET", "/health", token=None)[0], 200)
+    def test_an_old_admin_token_does_not_log_anyone_in(self):
+        self.assertEqual(self.request("GET", "/api/checks", token=None, extra={"Authorization": "Bearer " + TOKEN})[0], 401)
+
+    def test_changes_need_the_page_header(self):
+        body = {"name": "x", "period": "1h"}
+        no_header = {"X-Heartbeat": ""}
+        self.assertEqual(self.request("POST", "/api/checks", body, extra=no_header)[0], 403)
+        self.assertEqual(self.request("DELETE", "/api/checks/x", extra=no_header)[0], 403)
+        self.assertEqual(self.request("GET", "/api/checks", extra=no_header)[0], 200)
+
+    def test_existing_checks_survive_the_upgrade(self):
+        check = self.create()
+        self.stop(); self.start()  # the same data folder, no ADMIN_TOKEN needed any more
+        self.assertEqual([c["id"] for c in self.request("GET", "/api/checks")[1]], [check["id"]])
+        self.assertEqual(self.request("GET", "/ping/" + check["token"], token=None)[0], 200)
 
     def test_create_validation_and_delete(self):
         self.assertEqual(self.request("POST", "/api/checks", {"name": "x", "period": "10s"})[0], 400)
@@ -272,7 +285,7 @@ class Server(unittest.TestCase):
 
     def test_negative_content_length_is_refused(self):
         connection = http.client.HTTPConnection("127.0.0.1", self.httpd.server_port, timeout=5)
-        connection.request("POST", "/api/checks", body=b"", headers={"Authorization": "Bearer " + TOKEN, "Content-Length": "-5"})
+        connection.request("POST", "/api/checks", body=b"", headers={"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed", "X-Heartbeat": "1", "Content-Length": "-5"})
         self.assertIn(connection.getresponse().status, (400, 413))
         connection.close()
 
@@ -306,6 +319,12 @@ class Page(unittest.TestCase):
         page = (Path(__file__).parent / "index.html").read_text()
         self.assertIn("textContent = c.name", page)
         self.assertNotIn("innerHTML", page)
+        self.assertNotIn("Authorization", page)
+
+    def test_contract_has_no_admin_token_and_keeps_ping_open(self):
+        contract = json.loads((Path(__file__).parent / "automaton.json").read_text())["application"]
+        self.assertNotIn("ADMIN_TOKEN", [s["name"] for s in contract["secrets"]])
+        self.assertEqual(contract["openPaths"], ["/ping/*"])
 
 
 if __name__ == "__main__":
