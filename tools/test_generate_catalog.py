@@ -15,6 +15,16 @@ class CatalogTests(unittest.TestCase):
         app = next(a for a in g.build()["apps"] if a["id"] == "offsite-backup")
         self.assertEqual(app["permissions"], ["backups:read", "backups:run", "notify:email"])
 
+    def test_only_flagged_apps_are_recommended(self):
+        apps = {a["id"]: a for a in g.build()["apps"]}
+        self.assertTrue(apps["server-console"]["recommended"])
+        self.assertNotIn("recommended", apps["heartbeat"])
+        self.assertNotIn("recommendedOrder", apps["heartbeat"])
+
+    def test_recommended_apps_carry_their_order(self):
+        apps = {a["id"]: a for a in g.build()["apps"]}
+        self.assertEqual(apps["server-console"]["recommendedOrder"], 1)
+
     def test_problems_report_bad_entries(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}
         self.assertEqual(len(g.problems(bad)), 3)

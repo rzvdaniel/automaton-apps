@@ -32,7 +32,7 @@ def build() -> dict:
     for item in config["apps"]:
         folder = item["folder"]
         manifest = json.loads((ROOT / folder / "automaton.json").read_text(encoding="utf-8"))
-        apps.append({
+        entry = {
             "id": folder.rsplit("/", 1)[-1],
             "name": manifest["name"],
             "summary": manifest["summary"],
@@ -41,7 +41,12 @@ def build() -> dict:
             "commit": pinned_commit(folder),
             "minServerVersion": item["minServerVersion"],
             "permissions": manifest.get("application", {}).get("permissions", []),
-        })
+        }
+        if item.get("recommended") is True:  # Studio Home suggests these to administrators until installed
+            entry["recommended"] = True
+            if isinstance(item.get("recommendedOrder"), int):  # lower comes first; apps without one come last
+                entry["recommendedOrder"] = item["recommendedOrder"]
+        apps.append(entry)
     return {"schemaVersion": SCHEMA_VERSION, "repo": REPO, "apps": apps}
 
 
