@@ -391,16 +391,28 @@ class Http(unittest.TestCase):
         return response.status, response.getheader("Location")
 
     def test_add_through_the_page_and_redirect_with_error(self):
-        self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example&status=&keyword="), (303, "./"))
+        self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example&status=&keyword="), (303, "../"))
         self.assertEqual(self.app.snapshot()["sites"][0]["site"], "https://a.example")
         status, location = self.post("/sites/add", "url=nope")
         self.assertEqual(status, 303)
         self.assertIn("error=", location)
+        from urllib.parse import urljoin
+        import urllib.request
+        target = urljoin(f"http://{self.host}/sites/add", location)  # what the browser does after the redirect
+        self.assertTrue(target.startswith(f"http://{self.host}/?error="))
+        self.assertIn("must start with http", urllib.request.urlopen(target).read().decode())
 
     def test_cross_site_or_originless_posts_are_refused(self):
         for origin in ("http://evil.example", None):
             self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example", origin)[0], 403)
         self.assertEqual(self.app.snapshot()["sites"], [])
+
+    def test_corrupt_sites_file_is_kept_until_fixed_by_hand(self):
+        path = os.path.join(self.folder.name, "sites.json")
+        open(path, "w").write("{broken")
+        app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name})
+        self.assertEqual(app.snapshot()["sites"], [])
+        self.assertEqual(open(path).read(), "{broken")
 
     def test_unknown_path_and_oversized_body(self):
         self.assertEqual(self.post("/sites/other", "")[0], 404)

@@ -116,6 +116,7 @@ class Monitor:
         self.sites_path = data_path(env, "sites.json")
         self.sites = monitor.load_sites(self.sites_path, env.get("SITES", ""))  # SITES: the old setting, imported once
         self.wake = threading.Event()
+        self.sites_lock = threading.Lock()
         self.interval = settings.interval if settings else 300
         self.lock = threading.Lock()
         self.state = monitor.load_state(self.path)
@@ -159,7 +160,7 @@ class Monitor:
             self.wake.clear()
 
     def snapshot(self) -> dict:
-        with self.lock:
+        with self.lock, self.sites_lock:
             sites = []
             for record in self.sites:
                 s = self.state.get(record["url"], {})
@@ -170,7 +171,7 @@ class Monitor:
 
     def edit(self, action: str, fields: dict[str, str]) -> str | None:
         """Adds, edits or removes a site. Returns an error text, or None when done."""
-        with self.lock:
+        with self.sites_lock:
             sites = list(self.sites)
             index = next((i for i, s in enumerate(sites) if s["id"] == fields.get("id")), None)
             if action == "remove":
@@ -290,7 +291,7 @@ def make_handler(app: Monitor):
                 form = {k: v[0] for k, v in parse_qs(self.rfile.read(length).decode("utf-8", "replace"), keep_blank_values=True).items()}
                 error = app.edit(action, form)
                 self.send_response(303)
-                self.send_header("Location", "./?" + urlencode({"error": error}) if error else "./")
+                self.send_header("Location", "../?" + urlencode({"error": error}) if error else "../")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
 

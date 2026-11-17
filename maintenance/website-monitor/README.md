@@ -51,6 +51,8 @@ Create a free check at an outside service such as healthchecks.io, set its URL a
 
 ## Status page
 
+**Upgrading an app you published:** the page can now add and remove sites, and the app fetches the addresses you give it, so anyone with the link could do the same. Republish it with `automaton publish --private` (Automaton sign-in required) before upgrading.
+
 Keep the app private (the default): the page asks for your Automaton sign-in, and that sign-in is what protects adding and removing sites. Forms are only accepted from the page itself. If you publish the app, anyone with the link can change the list, so don't. The public-safe parts are what `/status.json` returns: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. If the last run failed, the page says why. `/health` answers `ok`.
 
 State (the last result per site, and what you were already told) is stored in the app's data directory, so a restart does not repeat alerts. Logs contain the alert texts and errors, never the webhook or heartbeat URLs.

@@ -102,7 +102,8 @@ def load_sites(path: str, legacy: str = "") -> list[dict]:
         return [s for s in data if isinstance(s, dict) and s.get("id") and s.get("url")] if isinstance(data, list) else []
     except FileNotFoundError:
         pass
-    except (OSError, ValueError):
+    except (OSError, ValueError) as error:
+        print(f"sites.json is unreadable ({type(error).__name__}); keeping it and starting with no sites", flush=True)
         return []
     imported = [site_record(site) for site in parse_legacy_sites(legacy)]
     save_state(path, imported)
