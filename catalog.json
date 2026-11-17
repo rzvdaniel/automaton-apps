@@ -47,6 +47,18 @@
       "recommendedOrder": 1
     },
     {
+      "id": "victorialogs",
+      "name": "VictoriaLogs",
+      "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
+      "category": "Monitoring",
+      "folder": "maintenance/victorialogs",
+      "commit": "4116cbc184902877763b70ce282f8ca9e24f5358",
+      "minServerVersion": "0.2.31",
+      "permissions": [],
+      "recommended": true,
+      "recommendedOrder": 2
+    },
+    {
       "id": "heartbeat",
       "name": "Heartbeat",
       "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
