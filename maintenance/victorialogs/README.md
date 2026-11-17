@@ -22,3 +22,5 @@ Not included yet: collecting Docker container output (Traefik, Postgres, apps). 
 ## Home card
 
 `actions/home-card` counts errors and warnings of the last hour and returns `{ status, facts, alerts }`. It reads the `LOGS_URL` setting (the address of this app reachable from the Action) and stays off while it is empty. The platform schedules it once the Home card feature (automaton#1232) ships.
+
+VictoriaLogs has no sign-in of its own: anything that can reach its port on the server's internal network can read and write logs. Automaton's sign-in protects only the browser address. Use `http` for an endpoint on the same server or Docker network; a remote Runner should reach it through `https`.

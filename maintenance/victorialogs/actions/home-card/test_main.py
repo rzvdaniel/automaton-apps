@@ -30,6 +30,14 @@ class HomeCardTests(unittest.TestCase):
             with self.assertRaises(main.CardError):
                 main.query("http://logs:9428", "q")
 
+    def test_non_json_answer_is_a_card_error(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = b"<html>bad gateway</html>"
+        opener = mock.Mock(open=mock.Mock(return_value=response))
+        with mock.patch.object(main, "build_opener", return_value=opener):
+            with self.assertRaises(main.CardError):
+                main.query("http://logs:9428", "q")
+
     def test_main_reports_missing_setting(self):
         with mock.patch.dict("os.environ", {"LOGS_URL": ""}):
             self.assertEqual(main.main(), 1)

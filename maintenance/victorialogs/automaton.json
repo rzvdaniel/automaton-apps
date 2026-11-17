@@ -38,7 +38,7 @@
       {
         "name": "LOGS_URL",
         "description": "Address the Home card Action uses to ask this app for recent errors, for example http://<this app's internal address>:9428. Empty: the Home card stays off.",
-        "default": "http://localhost:9428"
+        "default": ""
       }
     ],
     "runtime": {

@@ -48,7 +48,10 @@ def query(base: str, logsql: str) -> list[dict]:
     rows = []
     for line in lines:
         if line.strip():
-            rows.append(json.loads(line))
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                raise CardError("VictoriaLogs sent an answer the Home card cannot read.") from None
     return rows
 
 

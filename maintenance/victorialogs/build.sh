@@ -17,10 +17,11 @@ URL="https://github.com/VictoriaMetrics/VictoriaLogs/releases/download/${VERSION
 work="$(mktemp -d)"
 python3 -I -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$URL" "$work/vl.tar.gz"
 echo "$SHA256  $work/vl.tar.gz" | sha256sum -c -
-python3 -I -c 'import sys, tarfile; tarfile.open(sys.argv[1]).extract("victoria-logs-prod", sys.argv[2])' "$work/vl.tar.gz" "$work"
+python3 -I -c 'import sys, tarfile; tarfile.open(sys.argv[1]).extract("victoria-logs-prod", sys.argv[2], filter="data")' "$work/vl.tar.gz" "$work"
 
 rm -rf dist
 mkdir dist
 cp "$work/victoria-logs-prod" dist/victoria-logs-prod
 chmod 755 dist/victoria-logs-prod
 cp run.sh LICENSE.upstream.txt dist/
+rm -rf "$work"
