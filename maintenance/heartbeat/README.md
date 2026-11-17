@@ -50,7 +50,7 @@ If every channel fails (for example the webhook is unreachable and email is unav
 - Check-in URLs hold a random 192-bit token. Anyone who has a URL can check in for that job, so keep them like passwords; delete the check to invalidate its URL. An unknown token gets 404.
 - The list, create and delete need Studio's sign-in: the platform proxy checks it and tells the app who is using it (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`, replaced on every request). The app refuses management requests without those headers. Changes also need the `X-Heartbeat: 1` header that the page sets, so another site cannot make your browser change checks.
 - **If you publish the app**, the proxy no longer signs visitors in and does not overwrite those headers, and the app cannot verify the token itself. The headers are then only a guard against accidents, not a lock: keep the app private (the default) unless you accept that.
-- Logs, and the request log, never contain check-in tokens, the admin token, the webhook URL or the platform key. The alert text names the check, not its URL.
+- Logs, and the request log, never contain check-in tokens, the webhook URL or the platform key. The alert text names the check, not its URL.
 - Checks and their tokens are stored in the app's data directory (`checks.json`, owner-only), so a restart does not repeat alerts. If that file is damaged the app refuses to start (the log says why) instead of overwriting it.
 
 ## API

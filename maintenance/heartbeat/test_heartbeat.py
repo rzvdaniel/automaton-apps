@@ -149,7 +149,7 @@ class Server(unittest.TestCase):
         self.start()
 
     def start(self):
-        env = {"ADMIN_TOKEN": TOKEN, "WEBHOOK_URL": "http://hooks.example/SECRETHOOK", "AUTOMATON_APP_DATA_DIR": self.folder.name}
+        env = {"WEBHOOK_URL": "http://hooks.example/SECRETHOOK", "AUTOMATON_APP_DATA_DIR": self.folder.name}
         self.app = main.App(env, now=lambda: self.clock[0], post=lambda url, payload: self.sent.append((url, payload)) or True)
         self.httpd = main.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app, b"<html>page</html>"))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -179,7 +179,7 @@ class Server(unittest.TestCase):
         def email(url, key, to, subject, text):
             emails.append((url, key, to, subject, text))
             return True
-        env = {"ADMIN_TOKEN": TOKEN, "AUTOMATON_APP_DATA_DIR": self.folder.name, "AUTOMATON_API_URL": "http://api.example",
+        env = {"AUTOMATON_APP_DATA_DIR": self.folder.name, "AUTOMATON_API_URL": "http://api.example",
                "APP_AUTOMATON_API_KEY": "KEY", "EMAIL_TO": "owner, a@example.test"}
         app = main.App(env, now=lambda: self.clock[0], post=lambda *a: True, email=email)
         app.checks.append(heartbeat.new_check("db-dump", "1h", "0", self.clock[0], app.checks))
