@@ -20,6 +20,6 @@ Agent workflow skills in `.agents/skills/`: `apps-write-issue`, `apps-write-pr`,
 
 ## CI
 
-`Catalog` runs the tool tests, `python tools/validate_apps.py` (the server's own `automaton validate` contract check on changed apps; needs the CLI), `python tools/check_vendored_ui.py` (a copy of the kit that differs from `design/automaton-app-ui/` fails) and `python tools/generate_catalog.py --validate`. Each app has its own tests workflow. Run the same commands locally before opening a pull request.
+`Catalog` runs the tool tests, `python tools/validate_apps.py` (the server's own `automaton validate` contract check on changed apps; needs the CLI), `python tools/check_vendored_ui.py` (a copy of the kit that differs from `design/automaton-app-ui/` fails) and `python tools/generate_catalog.py --validate` (warns when a declared setting or secret has no description). Each app has its own tests workflow. Run the same commands locally before opening a pull request.
 
 Documentation: <https://automaton.monster/docs/apps-repository>

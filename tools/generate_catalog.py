@@ -68,6 +68,20 @@ def problems(catalog: dict) -> list:
     return found
 
 
+def missing_descriptions() -> list:
+    """Settings and secrets without a description; Studio shows it under the name, so a bare name is a warning."""
+    config = json.loads((ROOT / "catalog-apps.json").read_text(encoding="utf-8"))
+    found = []
+    for item in config["apps"]:
+        path = f"{item['folder']}/automaton.json"
+        application = json.loads((ROOT / path).read_text(encoding="utf-8")).get("application", {})
+        for kind in ("settings", "secrets"):
+            for declared in application.get(kind, []):
+                if not str(declared.get("description") or "").strip():
+                    found.append((path, f"{kind[:-1]} {declared.get('name')} has no description; Studio shows it under the name"))
+    return found
+
+
 def render(catalog: dict) -> str:
     return json.dumps(catalog, indent=2) + "\n"
 
@@ -79,6 +93,8 @@ def main() -> int:
         print("\n".join(bad), file=sys.stderr)
         return 1
     if "--validate" in sys.argv:
+        for path, text in missing_descriptions():
+            print(f"::warning file={path}::{text}")  # a warning in the pull request checks, never a failure
         return 0
     text = render(catalog)
     if "--check" in sys.argv:
