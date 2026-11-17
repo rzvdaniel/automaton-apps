@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Off-site Backup page: shows the newest server backup and lets an administrator start one now.
+"""Backup Warden page: shows the newest server backup and lets an administrator start one now.
 The upload itself is the `upload` Action, which runs every 15 minutes and sends any new copy to your bucket."""
 
 from __future__ import annotations

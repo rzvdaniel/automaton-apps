@@ -1,4 +1,4 @@
-"""Server calls for the Off-site Backup page: read the server's backups and ask it to make a new one."""
+"""Server calls for the Backup Warden page: read the server's backups and ask it to make a new one."""
 
 from __future__ import annotations
 

@@ -6,10 +6,6 @@
     { "folder": "maintenance/victorialogs", "category": "Monitoring", "minServerVersion": "0.2.31", "recommended": true, "recommendedOrder": 2 },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/watchtower", "category": "Monitoring", "minServerVersion": "0.2.31" },
-    { "folder": "utilities/it-tools", "category": "Utilities", "minServerVersion": "0.2.31" },
-    { "folder": "analytics/goatcounter", "category": "Analytics", "minServerVersion": "0.2.55" },
-    { "folder": "productivity/linkding", "category": "Productivity", "minServerVersion": "0.2.55" },
-    { "folder": "publishing/ghost", "category": "Publishing", "minServerVersion": "0.2.149" },
-    { "folder": "wallpapers/harbour", "category": "Wallpapers", "minServerVersion": "0.2.31" }
+    { "folder": "publishing/ghost", "category": "Publishing", "minServerVersion": "0.2.149" }
   ]
 }

@@ -25,6 +25,13 @@ class CatalogTests(unittest.TestCase):
         apps = {a["id"]: a for a in g.build()["apps"]}
         self.assertEqual(apps["server-console"]["recommendedOrder"], 1)
 
+    def test_moved_from_is_passed_through_and_must_name_an_official_folder(self):
+        entry = {"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "a/b", "commit": "a" * 40, "minServerVersion": "1.2.3"}
+        good = {"apps": [dict(entry, movedFrom={"repo": g.OFFICIAL_REPO, "folder": "analytics/x"})]}
+        other = {"apps": [dict(entry, movedFrom={"repo": "someone/else", "folder": "analytics/x"})]}
+        self.assertEqual(g.problems(good), [])
+        self.assertEqual(len(g.problems(other)), 1)
+
     def test_problems_report_bad_entries(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}
         self.assertEqual(len(g.problems(bad)), 3)

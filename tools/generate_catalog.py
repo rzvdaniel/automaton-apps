@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = "rzvdaniel/automaton-apps"
+OFFICIAL_REPO = "rzvdaniel/automaton-apps"
 SCHEMA_VERSION = 1
 ROOT = Path(__file__).resolve().parent.parent
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -28,6 +28,7 @@ def pinned_commit(folder: str) -> str:
 
 def build() -> dict:
     config = json.loads((ROOT / "catalog-apps.json").read_text(encoding="utf-8"))
+    repo = config.get("repo", OFFICIAL_REPO)
     apps = []
     for item in config["apps"]:
         folder = item["folder"]
@@ -46,8 +47,10 @@ def build() -> dict:
             entry["recommended"] = True
             if isinstance(item.get("recommendedOrder"), int):  # lower comes first; apps without one come last
                 entry["recommendedOrder"] = item["recommendedOrder"]
+        if item.get("movedFrom"):  # the app used to be in the official catalog: servers that installed it there follow it here
+            entry["movedFrom"] = item["movedFrom"]
         apps.append(entry)
-    return {"schemaVersion": SCHEMA_VERSION, "repo": REPO, "apps": apps}
+    return {"schemaVersion": SCHEMA_VERSION, "repo": repo, "apps": apps}
 
 
 def problems(catalog: dict) -> list:
@@ -62,6 +65,9 @@ def problems(catalog: dict) -> list:
             found.append(f"{app['id']}: folder name is not allowed")
         if not VERSION.match(app["minServerVersion"]):
             found.append(f"{app['id']}: minServerVersion must look like 1.2.3")
+        moved = app.get("movedFrom")
+        if moved is not None and (moved.get("repo") != OFFICIAL_REPO or not FOLDER.fullmatch(moved.get("folder", ""))):
+            found.append(f"{app['id']}: movedFrom must name a folder of {OFFICIAL_REPO}")
         for field in ("name", "summary", "category"):
             if not app[field].strip():
                 found.append(f"{app['id']}: {field} is empty")

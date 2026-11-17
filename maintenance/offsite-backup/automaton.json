@@ -1,6 +1,6 @@
 {
-  "name": "Off-site Backup",
-  "summary": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
+  "name": "Backup Warden",
+  "summary": "Copies your server's backups to another place, every night.",
   "description": "Uploads each new encrypted backup to your own bucket (checks every 15 minutes; an upload that already exists is skipped). The page shows the newest backup and lets a system administrator press Back up now and send off-site. It asks for backups:read, backups:run (start a backup; it cannot read the backup key) and notify:email.",
   "application": {
     "kind": "web",
@@ -8,7 +8,7 @@
     "pages": [
       {
         "path": "/",
-        "label": "Off-site backup"
+        "label": "Backup Warden"
       }
     ],
     "permissions": [
