@@ -42,7 +42,9 @@
         "server:cleanup",
         "runner:maintain",
         "backups:run"
-      ]
+      ],
+      "recommended": true,
+      "recommendedOrder": 1
     },
     {
       "id": "heartbeat",
