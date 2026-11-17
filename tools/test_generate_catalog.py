@@ -19,6 +19,11 @@ class CatalogTests(unittest.TestCase):
         apps = {a["id"]: a for a in g.build()["apps"]}
         self.assertTrue(apps["server-console"]["recommended"])
         self.assertNotIn("recommended", apps["heartbeat"])
+        self.assertNotIn("recommendedOrder", apps["heartbeat"])
+
+    def test_recommended_apps_carry_their_order(self):
+        apps = {a["id"]: a for a in g.build()["apps"]}
+        self.assertEqual(apps["server-console"]["recommendedOrder"], 1)
 
     def test_problems_report_bad_entries(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}

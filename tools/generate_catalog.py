@@ -44,6 +44,8 @@ def build() -> dict:
         }
         if item.get("recommended") is True:  # Studio Home suggests these to administrators until installed
             entry["recommended"] = True
+            if isinstance(item.get("recommendedOrder"), int):  # lower comes first; apps without one come last
+                entry["recommendedOrder"] = item["recommendedOrder"]
         apps.append(entry)
     return {"schemaVersion": SCHEMA_VERSION, "repo": REPO, "apps": apps}
 
