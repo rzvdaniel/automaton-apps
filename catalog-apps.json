@@ -3,6 +3,7 @@
     { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.126" },
     { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/server-console", "category": "Monitoring", "minServerVersion": "0.2.63", "recommended": true, "recommendedOrder": 1 },
+    { "folder": "maintenance/victorialogs", "category": "Monitoring", "minServerVersion": "0.2.31", "recommended": true, "recommendedOrder": 2 },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/watchtower", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "utilities/it-tools", "category": "Utilities", "minServerVersion": "0.2.31" },

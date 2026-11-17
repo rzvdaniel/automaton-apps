@@ -1,0 +1,65 @@
+{
+  "name": "VictoriaLogs",
+  "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
+  "description": "The Apache-2.0 VictoriaLogs log database from VictoriaMetrics, packaged from a pinned upstream release with its web UI (open /select/vmui/). The Automaton API, Worker and Runners send their logs to it over OpenTelemetry when Logging__Otlp__Endpoint points at this app. It keeps 14 days and at most 5 GiB of logs by default.",
+  "category": "Monitoring",
+  "application": {
+    "kind": "web",
+    "description": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
+    "pages": [
+      {
+        "path": "/select/vmui/",
+        "label": "Logs"
+      }
+    ],
+    "build": {
+      "image": "python:3.12-slim-bookworm",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "build.sh"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "settings": [
+      {
+        "name": "RETENTION_PERIOD",
+        "description": "How long logs are kept, for example 14d, 4w or 1d. Older days are dropped.",
+        "default": "14d"
+      },
+      {
+        "name": "MAX_DISK_SPACE_BYTES",
+        "description": "At most this much disk for logs, for example 5GiB or 500MiB; the oldest days are dropped first. 0 turns the cap off.",
+        "default": "5GiB"
+      },
+      {
+        "name": "LOGS_URL",
+        "description": "Address the Home card Action uses to ask this app for recent errors, for example http://<this app's internal address>:9428. Empty: the Home card stays off.",
+        "default": ""
+      }
+    ],
+    "runtime": {
+      "image": "debian:12.13-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "run.sh"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 9428
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    }
+  }
+}
