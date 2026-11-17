@@ -1,0 +1,23 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Home card
+  key: home-card
+  description: Count errors and warnings of the last hour for the Home card.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 60
+  schedulable: true
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  output:
+    type: object
+    properties:
+      status:
+        type: string
+      facts:
+        type: array
+      alerts:
+        type: array
