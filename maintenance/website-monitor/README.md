@@ -15,11 +15,12 @@ A failed check is retried once after 3 seconds before it counts, so one dropped 
 
 ## Install and set up
 
-Install it from **Apps → Catalog** on your Automaton server, fill in the settings and secrets, and deploy.
+Install it from **Apps → Catalog** on your Automaton server and deploy. It needs no settings: it starts empty, and you add your sites on the app's own page (**Add a site**: address, optional expected status, optional keyword; each row has Edit and Remove). The list is stored in the app's data directory and a new site is checked right away.
+
+**Upgrading from a version with a `SITES` setting:** the first start after the upgrade imports the old `SITES` value into the list once (invalid or duplicate lines are skipped). After that, the page is the only place sites are managed and the old value is ignored.
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
-| `SITES` | setting, required | One site per line (or separated by `;`): `https://example.com`, `https://example.com/health\|200`, `https://example.com\|200\|Welcome`. Lines starting with `#` are ignored; at most 50 sites. |
 | `CHECK_INTERVAL_SECONDS` | setting | Default 300, minimum 60. |
 | `CERT_WARN_DAYS` | setting | Default 14. |
 | `TIMEOUT_SECONDS` | setting | Default 10. |
@@ -27,7 +28,7 @@ Install it from **Apps → Catalog** on your Automaton server, fill in the setti
 | `EMAIL_TO` | setting | Who gets alert emails: `administrators` (default), `owner`, `project` or an address an administrator put on the server's allowed list; separate several with commas. |
 | `HEARTBEAT_URL` | secret, optional | Pinged with GET after every successful run (below). Leave empty to skip. |
 
-Settings and secrets reach the app as environment variables when it starts, so after changing one in Studio, redeploy (restart) the app.
+At most 50 sites. Settings and secrets reach the app as environment variables when it starts, so after changing one in Studio, redeploy (restart) the app.
 
 ### Email alerts
 
@@ -46,21 +47,25 @@ If every channel fails (for example the webhook is unreachable and email is unav
 
 ### Heartbeat: also notice when this server is down
 
-Create a free check at an outside service such as healthchecks.io, set its URL as `HEARTBEAT_URL`, and give the check a period of a few intervals. The app pings it after every run that completed (all sites checked, state saved) and does not ping after a run that failed, for example because `SITES` is invalid. When the pings stop, the outside service alerts you, which also covers the whole Automaton server being down.
+Create a free check at an outside service such as healthchecks.io, set its URL as `HEARTBEAT_URL`, and give the check a period of a few intervals. The app pings it after every run that completed (all sites checked, state saved) and does not ping after a run that failed, for example because a setting such as `CHECK_INTERVAL_SECONDS` is invalid. When the pings stop, the outside service alerts you, which also covers the whole Automaton server being down.
 
 ## Status page
 
-The app's address is public (anyone with the link can open it), so it shows only what is safe to share: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. `/status.json` returns the same as JSON. If the last run failed, the page says why. `/health` answers `ok`.
+Keep the app private (the default): the page asks for your Automaton sign-in, and that sign-in is what protects adding and removing sites. Forms are only accepted from the page itself. If you publish the app, anyone with the link can change the list, so don't. The public-safe parts are what `/status.json` returns: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. If the last run failed, the page says why. `/health` answers `ok`.
 
 State (the last result per site, and what you were already told) is stored in the app's data directory, so a restart does not repeat alerts. Logs contain the alert texts and errors, never the webhook or heartbeat URLs.
+
+## Watching your Automaton server itself
+
+This app cannot report its own server going down. To watch an Automaton server, install Website Monitor on a *second, separate* Automaton server (not a Runner of the same one), add the first server's address, and preferably set a `WEBHOOK_URL` so the alert does not depend on the server that is down.
 
 ## Run it without Automaton
 
 ```sh
-SITES="https://example.com|200" WEBHOOK_URL="" python3 main.py --once
+AUTOMATON_APP_DATA_DIR=./data SITES="https://example.com|200" python3 main.py --once
 ```
 
-Prints one line per site and exits with 1 if a site is down. Without `--once`, `python3 main.py` runs the status page and the check loop (port from `AUTOMATON_PORT`, state under `AUTOMATON_APP_DATA_DIR`, default `data`).
+`SITES` (one `url|status|keyword` per line) is read only to seed an empty `data/sites.json`. Prints one line per site and exits with 1 if a site is down. Without `--once`, `python3 main.py` runs the status page and the check loop (port from `AUTOMATON_PORT`, state under `AUTOMATON_APP_DATA_DIR`, default `data`).
 
 ## Why it is an app and not an Action
 

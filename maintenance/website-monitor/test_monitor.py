@@ -17,18 +17,21 @@ from monitor import ConfigError, Result, Site
 
 class ParseSites(unittest.TestCase):
     def test_parses_urls_status_and_keyword(self):
-        sites = monitor.parse_sites("https://a.example\nhttps://b.example/x|301;# comment\nhttps://c.example|200|Hello world\n\n")
+        sites = monitor.parse_legacy_sites("https://a.example\nhttps://b.example/x|301;# comment\nhttps://c.example|200|Hello world\n\n")
         self.assertEqual(sites, [Site("https://a.example"), Site("https://b.example/x", 301),
                                  Site("https://c.example", 200, "Hello world")])
 
-    def test_rejects_bad_entries(self):
-        for text in ["", "  \n", "ftp://a.example", "a.example", "https://a.example|abc", "https://a.example|99"]:
-            with self.assertRaises(ConfigError, msg=text):
-                monitor.parse_sites(text)
+    def test_make_site_rejects_bad_entries(self):
+        for url, status in [("", ""), ("ftp://a.example", ""), ("a.example", ""), ("https://a.example", "abc"), ("https://a.example", "99")]:
+            with self.assertRaises(ConfigError, msg=url + status):
+                monitor.make_site(url, status)
+        self.assertEqual(monitor.make_site(" https://a.example ", "", " "), Site("https://a.example"))
 
-    def test_limits_site_count(self):
-        with self.assertRaises(ConfigError):
-            monitor.parse_sites("\n".join(f"https://s{i}.example" for i in range(monitor.MAX_SITES + 1)))
+    def test_legacy_import_skips_invalid_duplicates_and_extras(self):
+        text = "bad\nhttps://a.example|200\nhttps://a.example\n" + "\n".join(f"https://s{i}.example" for i in range(60))
+        sites = monitor.parse_legacy_sites(text)
+        self.assertEqual(sites[0], Site("https://a.example", 200))
+        self.assertEqual(len(sites), monitor.MAX_SITES)
 
     def test_display_url_hides_credentials_and_query(self):
         self.assertEqual(monitor.display_url("https://user:pw@a.example:8443/p?token=abc#x"), "https://a.example:8443/p")
@@ -207,7 +210,7 @@ class RunCycle(unittest.TestCase):
         self.assertFalse(main.deliver([False, None]))
 
     def test_email_and_optional_heartbeat_settings(self):
-        settings = main.Settings({"SITES": "https://a.example"})
+        settings = main.Settings({})
         self.assertEqual((settings.heartbeat, settings.api_key, settings.email_to), ("", "", ["administrators"]))
 
     def test_removed_sites_leave_the_state(self):
@@ -263,11 +266,11 @@ class AppRun(unittest.TestCase):
             self.assertTrue(app.run_once())
         self.assertEqual([m for m, _ in Receiver.hits].count("GET"), 2)  # the site check and the heartbeat
         Receiver.hits.clear()
-        with mock.patch.dict(os.environ, self.env(SITES=""), clear=True):
+        with mock.patch.dict(os.environ, self.env(CHECK_INTERVAL_SECONDS="5"), clear=True):
             app = main.Monitor()
             self.assertFalse(app.run_once())
         self.assertEqual(Receiver.hits, [])
-        self.assertIn("SITES is empty", app.last_error)
+        self.assertIn("CHECK_INTERVAL_SECONDS", app.last_error)
 
     def test_webhook_gets_text_and_content_and_secret_stays_out_of_output(self):
         import contextlib, io, json
@@ -288,13 +291,13 @@ class AppRun(unittest.TestCase):
     def test_settings_validation(self):
         for bad in ({"CHECK_INTERVAL_SECONDS": "5"}, {"CERT_WARN_DAYS": "x"}, {"TIMEOUT_SECONDS": "0"}):
             with self.assertRaises(ConfigError):
-                main.Settings({"SITES": "https://a.example", **bad})
-        settings = main.Settings({"SITES": "https://a.example"})
+                main.Settings(bad)
+        settings = main.Settings({})
         self.assertEqual((settings.interval, settings.warn_days, settings.timeout), (300, 14, 10))
 
     def test_status_page_escapes_and_hides_query(self):
         snapshot = {"lastRun": 0, "lastError": "<b>x</b>", "sites": [
-            {"site": "https://a.example/<i>", "up": False, "status": 500, "ms": 3, "error": "<script>", "cert_days": 4, "since": 0, "checked": 0}]}
+            {"id": "a1", "expected": None, "keyword": '"><script>', "pending": False, "site": "https://a.example/<i>", "up": False, "status": 500, "ms": 3, "error": "<script>", "cert_days": 4, "since": 0, "checked": 0}]}
         page = main.render(snapshot)
         self.assertNotIn("<script>", page)
         self.assertNotIn("<b>x", page)
@@ -302,8 +305,113 @@ class AppRun(unittest.TestCase):
 
     def test_status_page_has_the_topbar_above_the_page(self):
         page = main.render({"lastRun": 0, "lastError": None, "sites": []})
+        self.assertIn("Add your first site", page)
+        self.assertNotIn("SITES", page)
         self.assertLess(page.index('class="a-topbar"'), page.index('class="a-page"'))
         self.assertEqual(page.count("</header>"), 1)
+
+
+class ManageSites(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.env = {"AUTOMATON_APP_DATA_DIR": self.folder.name}
+
+    def test_starts_empty_with_no_sites_setting(self):
+        app = main.Monitor(env=self.env)
+        self.assertEqual(app.snapshot()["sites"], [])
+        self.assertTrue(app.run_once())  # an empty list is a completed run, not an error
+
+    def test_add_edit_remove_persist_across_restart(self):
+        app = main.Monitor(env=self.env)
+        self.assertIsNone(app.edit("add", {"url": "https://a.example", "status": "200", "keyword": "Hi"}))
+        site = app.snapshot()["sites"][0]
+        self.assertEqual((site["site"], site["expected"], site["keyword"], site["pending"]), ("https://a.example", 200, "Hi", True))
+        self.assertIsNone(app.edit("edit", {"id": site["id"], "url": "https://b.example", "status": "", "keyword": ""}))
+        again = main.Monitor(env=self.env).snapshot()["sites"]
+        self.assertEqual([(s["id"], s["site"], s["expected"]) for s in again], [(site["id"], "https://b.example", None)])
+        self.assertIsNone(app.edit("remove", {"id": site["id"]}))
+        self.assertEqual(main.Monitor(env=self.env).snapshot()["sites"], [])
+
+    def test_rejects_invalid_duplicate_unknown_and_too_many(self):
+        app = main.Monitor(env=self.env)
+        self.assertIn("http", app.edit("add", {"url": "nope"}))
+        self.assertIn("100 to 599", app.edit("add", {"url": "https://a.example", "status": "9"}))
+        self.assertIsNone(app.edit("add", {"url": "https://a.example"}))
+        self.assertIn("already", app.edit("add", {"url": "https://a.example"}))
+        self.assertIn("no longer", app.edit("edit", {"id": "zz", "url": "https://c.example"}))
+        self.assertIn("no longer", app.edit("remove", {"id": "zz"}))
+        for i in range(monitor.MAX_SITES - 1):
+            self.assertIsNone(app.edit("add", {"url": f"https://s{i}.example"}))
+        self.assertIn("At most", app.edit("add", {"url": "https://last.example"}))
+
+    def test_old_sites_setting_is_imported_once(self):
+        env = {**self.env, "SITES": "https://a.example|200|Hi\nhttps://b.example;broken"}
+        sites = main.Monitor(env=env).snapshot()["sites"]
+        self.assertEqual([(s["site"], s["expected"], s["keyword"]) for s in sites], [("https://a.example", 200, "Hi"), ("https://b.example", None, None)])
+        app = main.Monitor(env=env)
+        app.edit("remove", {"id": sites[0]["id"]})
+        again = main.Monitor(env=env).snapshot()["sites"]  # the setting is still there, but only the stored list counts now
+        self.assertEqual([s["site"] for s in again], ["https://b.example"])
+
+    def test_emptied_list_is_not_reimported(self):
+        env = {**self.env, "SITES": "https://a.example"}
+        app = main.Monitor(env=env)
+        app.edit("remove", {"id": app.snapshot()["sites"][0]["id"]})
+        self.assertEqual(main.Monitor(env=env).snapshot()["sites"], [])
+
+    def test_manifest_has_no_sites_setting_and_no_required_one(self):
+        import json
+        manifest = json.load(open(os.path.join(os.path.dirname(__file__), "automaton.json")))["application"]
+        names = [s["name"] for s in manifest["settings"]] + [s["name"] for s in manifest["secrets"]]
+        self.assertNotIn("SITES", names)
+        self.assertFalse([s for s in manifest["settings"] if s.get("required")])
+        self.assertEqual(names, ["CHECK_INTERVAL_SECONDS", "CERT_WARN_DAYS", "TIMEOUT_SECONDS", "EMAIL_TO", "WEBHOOK_URL", "HEARTBEAT_URL"])
+
+
+class Http(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name})
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close()))
+        self.host = f"127.0.0.1:{self.server.server_port}"
+
+    def post(self, path, body, origin="same"):
+        import http.client
+        connection = http.client.HTTPConnection(self.host)
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        if origin:
+            headers["Origin"] = "http://" + self.host if origin == "same" else origin
+        connection.request("POST", path, body, headers)
+        response = connection.getresponse()
+        response.read()
+        return response.status, response.getheader("Location")
+
+    def test_add_through_the_page_and_redirect_with_error(self):
+        self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example&status=&keyword="), (303, "./"))
+        self.assertEqual(self.app.snapshot()["sites"][0]["site"], "https://a.example")
+        status, location = self.post("/sites/add", "url=nope")
+        self.assertEqual(status, 303)
+        self.assertIn("error=", location)
+
+    def test_cross_site_or_originless_posts_are_refused(self):
+        for origin in ("http://evil.example", None):
+            self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example", origin)[0], 403)
+        self.assertEqual(self.app.snapshot()["sites"], [])
+
+    def test_unknown_path_and_oversized_body(self):
+        self.assertEqual(self.post("/sites/other", "")[0], 404)
+        self.assertEqual(self.post("/sites/add", "x" * 9000)[0], 413)
+
+    def test_status_json_does_not_expose_ids_or_keywords(self):
+        import json, urllib.request
+        self.app.edit("add", {"url": "https://a.example", "keyword": "secret-word"})
+        body = urllib.request.urlopen(f"http://{self.host}/status.json").read().decode()
+        self.assertNotIn("secret-word", body)
+        self.assertEqual(json.loads(body)["sites"][0]["site"], "https://a.example")
 
 
 if __name__ == "__main__":

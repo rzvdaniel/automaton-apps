@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import os
+import secrets
 import socket
 import ssl
 import time
@@ -54,29 +55,67 @@ def display_url(url: str) -> str:
     return urlunsplit((parts.scheme, host, parts.path, "", ""))
 
 
-def parse_sites(text: str) -> list[Site]:
-    """Entries are separated by new lines or ';'. Each is `url`, `url|status` or `url|status|keyword`."""
+def make_site(url: str, status: str | int | None = None, keyword: str | None = None) -> Site:
+    """Validates one site as typed on the page or written in the old SITES setting."""
+    url = (url or "").strip()
+    parsed = urlsplit(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise ConfigError(f"Site '{display_url(url) if parsed.hostname else url[:60]}' must start with http:// or https://")
+    status = str(status).strip() if status is not None else ""
+    expected = None
+    if status:
+        if not status.isdigit() or not 100 <= int(status) <= 599:
+            raise ConfigError(f"Expected status for {display_url(url)} must be a number from 100 to 599")
+        expected = int(status)
+    keyword = (keyword or "").strip()
+    return Site(url, expected, keyword or None)
+
+
+def parse_legacy_sites(text: str) -> list[Site]:
+    """The old SITES setting: entries separated by new lines or ';', each `url`, `url|status` or `url|status|keyword`.
+    Invalid entries are skipped, duplicates and anything beyond MAX_SITES dropped."""
     sites: list[Site] = []
     for raw in text.replace(";", "\n").splitlines():
         entry = raw.strip()
-        if not entry or entry.startswith("#"):
+        if not entry or entry.startswith("#") or len(sites) >= MAX_SITES:
             continue
-        parts = [part.strip() for part in entry.split("|", 2)]
-        url = parts[0]
-        parsed = urlsplit(url)
-        if parsed.scheme not in ("http", "https") or not parsed.hostname:
-            raise ConfigError(f"Site '{display_url(url) if parsed.hostname else url[:60]}' must start with http:// or https://")
-        status = None
-        if len(parts) > 1 and parts[1]:
-            if not parts[1].isdigit() or not 100 <= int(parts[1]) <= 599:
-                raise ConfigError(f"Expected status for {display_url(url)} must be a number from 100 to 599")
-            status = int(parts[1])
-        keyword = parts[2] if len(parts) > 2 and parts[2] else None
-        sites.append(Site(url, status, keyword))
-    if not sites:
-        raise ConfigError("SITES is empty: list at least one http(s) URL")
-    if len(sites) > MAX_SITES:
-        raise ConfigError(f"At most {MAX_SITES} sites are supported")
+        parts = [part.strip() for part in entry.split("|", 2)] + ["", ""]
+        try:
+            site = make_site(parts[0], parts[1], parts[2])
+        except ConfigError:
+            continue
+        if all(site.url != known.url for known in sites):
+            sites.append(site)
+    return sites
+
+
+def site_record(site: Site) -> dict:
+    return {"id": secrets.token_hex(4), "url": site.url, "status": site.expected_status, "keyword": site.keyword}
+
+
+def load_sites(path: str, legacy: str = "") -> list[dict]:
+    """The stored sites: [{id, url, status, keyword}]. While the file does not exist, the old SITES setting is
+    imported once and written, so nothing is lost on upgrade and later edits win."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        return [s for s in data if isinstance(s, dict) and s.get("id") and s.get("url")] if isinstance(data, list) else []
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError):
+        return []
+    imported = [site_record(site) for site in parse_legacy_sites(legacy)]
+    save_state(path, imported)
+    return imported
+
+
+def to_sites(records: list[dict]) -> list[Site]:
+    sites = []
+    for record in records:
+        try:
+            sites.append(make_site(record["url"], record.get("status"), record.get("keyword")))
+        except ConfigError:
+            continue
     return sites
 
 
@@ -260,7 +299,7 @@ def run_cycle(sites: list[Site], state: dict, warn_days: int, timeout: float, se
     `send(event, text, site_url)` returns True when the alert was delivered.
     """
     now = time.time() if now is None else now
-    with ThreadPoolExecutor(max_workers=min(8, len(sites))) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(8, len(sites)))) as pool:
         results = list(pool.map(lambda site: check(site, timeout), sites))
     new_state: dict = {}
     for site, result in zip(sites, results):
