@@ -17,9 +17,15 @@ class HomeCardTests(unittest.TestCase):
         card = main.build_card({"sites": [site("https://a", True, 100), site("https://b", True, 200)], "history": history}, NOW)
         self.assertEqual(card["status"], "All 2 sites up")
         self.assertEqual([b["type"] for b in card["blocks"]], ["counters", "chart", "buttons"])
-        self.assertEqual([i["value"] for i in card["blocks"][0]["items"]], ["2", "0", "150"])
+        self.assertEqual([i["value"] for i in card["blocks"][0]["items"]], [2, 0, 150])
         self.assertLessEqual(len(card["blocks"][1]["series"][0]["values"]), 24)
         self.assertEqual(card["blocks"][2]["items"][0]["path"], "/")
+
+    def test_counters_are_numbers_and_no_average_drops_that_counter(self):
+        card = main.build_card({"sites": [site("https://b", False, None, "timeout")], "history": []}, NOW)
+        items = card["blocks"][1]["items"]
+        self.assertEqual([(i["label"], i["value"]) for i in items], [("Up", 0), ("Down", 1)])
+        self.assertTrue(all(isinstance(i["value"], int) for i in items))
 
     def test_down_sites_are_listed_with_an_alert(self):
         card = main.build_card({"sites": [site("https://a", True, 100), site("https://b", False, None, "timeout")], "history": []}, NOW)

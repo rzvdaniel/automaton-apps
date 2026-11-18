@@ -14,7 +14,11 @@ case "$(uname -m)" in
 esac
 URL="https://github.com/VictoriaMetrics/VictoriaLogs/releases/download/${VERSION}/victoria-logs-linux-${ARCH}-${VERSION}.tar.gz"
 
-work="$(mktemp -d)"
+# The build container's /tmp is a small tmpfs; the extracted binary does not fit, so work in the build folder.
+work="$PWD/.work"
+rm -rf "$work"
+mkdir "$work"
+trap 'rm -rf "$work"' EXIT
 python3 -I -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$URL" "$work/vl.tar.gz"
 echo "$SHA256  $work/vl.tar.gz" | sha256sum -c -
 python3 -I -c 'import sys, tarfile; tarfile.open(sys.argv[1]).extract("victoria-logs-prod", sys.argv[2], filter="data")' "$work/vl.tar.gz" "$work"
