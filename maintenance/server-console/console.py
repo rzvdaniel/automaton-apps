@@ -1,4 +1,4 @@
-"""Server Console logic: read the server health, keep 24 hours of history, judge it and warn once per condition.
+"""Server Keeper logic: read the server health, keep 24 hours of history, judge it and warn once per condition.
 
 Everything here is a plain function of its inputs so it can be tested without a server.
 """
@@ -14,16 +14,21 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-USER_AGENT = "Automaton-Server-Console/1.0"
+USER_AGENT = "Automaton-Server-Keeper/1.0"
 HISTORY_SECONDS = 24 * 3600
 STALE_HOST_SECONDS = 15 * 60
 DAY = 86400
-CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue")
+BACKUP_MAX_AGE = 26 * 3600  # a nightly backup is never more than 26 hours apart
+CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue", "backup_old", "backup_failed", "offsite_old", "offsite_failed")
 # What to do about each warning, shown on the page and in the email.
 ADVICE = {
     "disk_low": "Free some space: run `docker image prune -a` on the server (Automaton also frees unused images every night) or remove old backups and logs.",
     "security_overdue": "Install the updates on the server: `sudo apt update && sudo apt upgrade`.",
     "reboot_overdue": "Restart the server at a quiet time: `sudo reboot`.",
+    "backup_old": "Check the server's backup timer, then press Run now under Maintenance (needs a system administrator).",
+    "backup_failed": "Read the reason in Studio under Admin, Backups, fix it and run a backup now.",
+    "offsite_old": "Open the Off-site Backup app and check that it is deployed, not paused, and has a schedule.",
+    "offsite_failed": "Open the Off-site Backup app and read why its last run failed.",
 }
 EMAIL_TARGETS = ("administrators", "owner", "project")
 
@@ -95,6 +100,32 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
         return "error", None, f"The server answered HTTP {error.code}."
     except (URLError, OSError, ValueError) as error:
         return "error", None, f"The server could not be reached: {type(error).__name__}."
+
+
+def _get_json(settings: Settings, path: str, timeout: float, opener=None):
+    """GET one JSON document of the platform API with the app's key. None when it cannot be read (not approved,
+    not offered by this server, unreachable): the caller then judges nothing, so a passing error never clears a warning."""
+    if not settings.api_base_url or not settings.api_key:
+        return None
+    request = Request(settings.api_base_url + path, headers={"Authorization": "Bearer " + settings.api_key,
+                                                             "Accept": "application/json", "User-Agent": USER_AGENT})
+    try:
+        with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
+            return json.loads(response.read(2_000_000).decode("utf-8"))
+    except (HTTPError, URLError, OSError, ValueError):
+        return None
+
+
+def fetch_backups(settings: Settings, timeout: float = 20, opener=None) -> dict | None:
+    """The server's backup status (permission backups:read)."""
+    data = _get_json(settings, "/api/Install/backups", timeout, opener)
+    return data if isinstance(data, dict) else None
+
+
+def fetch_apps(settings: Settings, timeout: float = 20, opener=None) -> list | None:
+    """Every app's status (permission apps:read-status)."""
+    data = _get_json(settings, "/api/apps/status", timeout, opener)
+    return data if isinstance(data, list) else None
 
 
 def studio_server_url(settings: Settings, from_server: str | None = None) -> str | None:
@@ -542,7 +573,47 @@ def attention(health: dict | None, status: dict, settings: Settings, now: float)
 
 # --- Warnings -------------------------------------------------------------------------------------------------------
 
-def conditions(health: dict, state: dict, settings: Settings, now: float) -> dict[str, tuple[bool, str]]:
+def parse_time(value) -> float | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)).timestamp()
+
+
+def backup_conditions(backups: dict | None, apps: list | None, now: float) -> dict[str, tuple[bool, str]]:
+    """The two backup watchers Watchtower had. Server backup: the newest one is older than 26 hours (or none exists), or
+    the last run failed. Off-site Backup app: its last run failed or is older than 26 hours. A source that could not be
+    read, or a server without the app, contributes nothing."""
+    result: dict[str, tuple[bool, str]] = {}
+    if isinstance(backups, dict) and backups.get("available"):
+        times = [parse_time(backups.get("lastSuccessAt"))]
+        times += [parse_time(b.get("createdAt")) for b in backups.get("backups") or [] if isinstance(b, dict)]
+        newest = max((t for t in times if t is not None), default=None)
+        if newest is None:
+            result["backup_old"] = (True, "no server backup exists")
+        else:
+            hours = int((now - newest) // 3600)
+            result["backup_old"] = (now - newest > BACKUP_MAX_AGE, f"the newest server backup is {hours} hours old (warning after 26)")
+        error = backups.get("lastError")
+        result["backup_failed"] = (bool(error), "the last server backup failed" + (f": {str(error)[:200]}" if error else ""))
+    if isinstance(apps, list):
+        app = next((a for a in apps if isinstance(a, dict) and "off-site" in str(a.get("name", "")).lower()), None)
+        if app is not None:
+            run = app.get("lastActionRun") if isinstance(app.get("lastActionRun"), dict) else None
+            when = parse_time(run.get("createdAtUtc")) if run else None
+            failed = bool(run) and str(run.get("status", "")).lower() in ("failed", "timedout", "cancelled")
+            result["offsite_failed"] = (failed, "the last Off-site Backup run failed")
+            if when is None:
+                result["offsite_old"] = (True, "the Off-site Backup app has not run")
+            else:
+                result["offsite_old"] = (now - when > BACKUP_MAX_AGE, f"the last Off-site Backup run is {int((now - when) // 3600)} hours old (warning after 26)")
+    return result
+
+
+def conditions(health: dict, state: dict, settings: Settings, now: float, backups: dict | None = None, apps: list | None = None) -> dict[str, tuple[bool, str]]:
     """Each warning condition: (is it true now, the message that describes it)."""
     host = health.get("host") or {}
     result: dict[str, tuple[bool, str]] = {}
@@ -562,6 +633,7 @@ def conditions(health: dict, state: dict, settings: Settings, now: float) -> dic
         days = 0 if age is None else age / DAY
         result["reboot_overdue"] = (reboot and days > settings.reboot_days,
                                     f"a restart has been required for {days:.0f} days (warning after {settings.reboot_days})")
+    result.update(backup_conditions(backups, apps, now))
     return result
 
 
@@ -585,17 +657,17 @@ def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliv
             continue
         active, message = found[name]
         if active and name not in alerts:
-            if not deliver or send("warning", name, "Server Console warning: " + message + "."):
+            if not deliver or send("warning", name, "Server Keeper warning: " + message + "."):
                 alerts[name] = {"since": int(now), "message": message}
                 sent.append(f"warning:{name}")
         elif not active and name in alerts:
-            if not deliver or send("recovered", name, f"Server Console: recovered, {message}."):
+            if not deliver or send("recovered", name, f"Server Keeper: recovered, {message}."):
                 del alerts[name]
                 sent.append(f"recovered:{name}")
     return sent
 
 
-def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health) -> dict:
+def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health, fetch_backup=None, fetch_app=None) -> dict:
     """One poll: fetch, record, judge, warn. Returns the updated state."""
     status, health, message = fetch(settings)
     state["status"], state["message"] = status, message
@@ -603,7 +675,13 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
         state["health"], state["fetchedAt"] = health, int(now)
         record(state, health, now)
         record_machines(state, health, now)
-        evaluate_alerts(state, conditions(health, state, settings, now), send, True, now)
+        backups, apps = (fetch_backup or fetch_backups)(settings), (fetch_app or fetch_apps)(settings)
+        found = conditions(health, state, settings, now, backups, apps)
+        # What is true right now (also while a warning waits to be delivered), for the Home card.
+        state["found"] = {name: bool(active) for name, (active, _text) in found.items()}
+        state["failingApps"] = None if apps is None else sum(
+            1 for a in apps if isinstance(a, dict) and not a.get("isPaused") and str(a.get("liveStatus", "")).lower() == "failed")
+        evaluate_alerts(state, found, send, True, now)
     return state
 
 

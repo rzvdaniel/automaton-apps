@@ -1,4 +1,4 @@
-/* Server Console: page-specific styles. Colours come from the UI kit's custom properties only. */
+/* Server Keeper: page-specific styles. Colours come from the UI kit's custom properties only. */
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .tile { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-decoration: none; font-weight: 600; }
 .tile:hover { border-color: var(--orange); }

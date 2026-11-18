@@ -1,16 +1,16 @@
-name: Server Console tests
+name: Server Keeper tests
 
 on:
   pull_request:
     paths:
       - 'maintenance/server-console/**'
       - 'design/automaton-app-ui/**'
-      - '.github/workflows/server-console-tests.yml'
+      - '.github/workflows/server-keeper-tests.yml'
   push:
     paths:
       - 'maintenance/server-console/**'
       - 'design/automaton-app-ui/**'
-      - '.github/workflows/server-console-tests.yml'
+      - '.github/workflows/server-keeper-tests.yml'
 
 jobs:
   tests:
@@ -23,5 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -m pip install jsonschema
       - run: python -m unittest discover -p 'test_*.py'
       - run: python ../../tools/check_vendored_ui.py
+      - run: python -m unittest discover -p 'test_*.py'
+        working-directory: maintenance/server-console/actions/home-card

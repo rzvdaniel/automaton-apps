@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Server Console: a dashboard for the health of your Automaton server, with 24 hours of history and webhook warnings.
+"""Server Keeper: a dashboard for the health of your Automaton server, with 24 hours of history and webhook warnings.
 
 Runs as an Automaton app (a page plus a background check every few minutes), or from a terminal:
   python3 main.py --once      run one check, print the result as JSON and exit
@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import Request, build_opener, urlopen
 
 import console
+import homecard
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Only these files are served; the page itself holds no data.
@@ -52,7 +53,9 @@ def post_webhook(url: str, payload: dict, timeout: float = 15) -> bool:
     return False
 
 
-EMAIL_SUBJECTS = {"disk_low": "Disk space is low", "security_overdue": "Security updates are overdue", "reboot_overdue": "A restart is overdue"}
+EMAIL_SUBJECTS = {"disk_low": "Disk space is low", "security_overdue": "Security updates are overdue", "reboot_overdue": "A restart is overdue",
+                 "backup_old": "The server backup is too old", "backup_failed": "The last server backup failed",
+                 "offsite_old": "The off-site backup has not run", "offsite_failed": "The last off-site backup failed"}
 
 
 def send_email(settings: console.Settings, condition: str, text: str, timeout: float = 20) -> bool | None:
@@ -138,7 +141,7 @@ CLEANUP_STATUS = {"ok": 200, "not_approved": 403, "unavailable": 404, "no_key": 
 
 def make_handler(app: Console):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "ServerConsole"
+        server_version = "ServerKeeper"
 
         def log_message(self, format, *args):  # request lines carry nothing worth logging
             pass
@@ -245,6 +248,9 @@ def make_handler(app: Console):
             if path == "/api/state":
                 query = parse_qs(urlsplit(self.path).query)
                 return self.json(200, app.view((query.get("machine") or [None])[0]))
+            if path == "/api/home-card":  # no host, path or Runner name in it: the Home card is for everyone who may see the app
+                with app.lock:
+                    return self.json(200, homecard.build_card(app.state, time.time()))
             if path == "/api/cleanup":
                 return self.cleanup()
             if path == "/api/tasks":  # the proxy's role header is for display only; the server checks every change
@@ -282,7 +288,7 @@ def main(argv: list[str]) -> int:
         return 0 if app.state["status"] == "ok" else 1
     threading.Thread(target=app.loop, daemon=True).start()
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))
-    log(f"Server Console listening on port {port}")
+    log(f"Server Keeper listening on port {port}")
     ThreadingHTTPServer(("0.0.0.0", port), make_handler(app)).serve_forever()
     return 0
 
