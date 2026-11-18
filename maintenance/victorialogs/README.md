@@ -2,7 +2,7 @@
 
 This package runs [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs), the log database by VictoriaMetrics, licensed [Apache-2.0](LICENSE.upstream.txt). The build downloads the official, unmodified v1.54.0 release binary for the Runner's CPU (amd64 or arm64) and checks its SHA-256 (`build.sh`). The upstream container image has no shell and the contract does not allow an absolute executable, so the image itself cannot be used as the runtime.
 
-Open the app and go to **Logs** (`/select/vmui/`): search, filter and live tail. Logs live in `AUTOMATON_APP_DATA_DIR/victoria-logs-data`. Install it as private, so only people who may open the app can read the logs: logs can contain addresses and user names. Do not make it public.
+Open the app (Open app goes to **Logs**, `/select/vmui/`): search, filter and live tail. Logs live in `AUTOMATON_APP_DATA_DIR/victoria-logs-data`. Install it as private, so only people who may open the app can read the logs: logs can contain addresses and user names. Do not make it public.
 
 ## Retention
 
@@ -21,6 +21,6 @@ Not included yet: collecting Docker container output (Traefik, Postgres, apps). 
 
 ## Home card
 
-`actions/home-card` draws the Home card: counters for logs, errors and warnings of the last hour, a small chart of log volume over 24 hours and a storage meter (used and free disk from the server's own `/metrics`; left out when it does not report them). It reads the `LOGS_URL` setting (the address of this app reachable from the Action) and stays off while it is empty. Detailed searching stays in the app.
+`actions/home-card` draws the Home card: counters for logs, errors and warnings of the last hour, a small chart of log volume over 24 hours and a storage meter (used and free disk from the server's own `/metrics`; left out when it does not report them). It asks this app at `AUTOMATON_APP_INTERNAL_URL`, so it works right after install; set `LOGS_URL` only to point it at another VictoriaLogs. When it cannot show data it shows one line with the reason and a Set up link, and when the API, Worker and Runners send no logs it says to set `Logging__Otlp__Endpoint`, with the address. Detailed searching stays in the app.
 
 VictoriaLogs has no sign-in of its own: anything that can reach its port on the server's internal network can read and write logs. Automaton's sign-in protects only the browser address. Use `http` for an endpoint on the same server or Docker network; a remote Runner should reach it through `https`.

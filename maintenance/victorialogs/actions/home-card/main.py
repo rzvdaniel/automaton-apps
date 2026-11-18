@@ -15,6 +15,7 @@ from urllib.parse import quote, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 COUNT_QUERY = '_time:1h | stats by (severity_text) count() c'
+AUTOMATON_QUERY = '_time:1h service.name:in("automaton-api", "automaton-worker", "automaton-runner") | stats count() c'
 VOLUME_QUERY = '_time:24h | stats by (_time:1h) count() c | sort by (_time)'
 
 
@@ -27,11 +28,12 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def base_url(raw: str) -> str:
-    raw = raw.strip().rstrip("/")
+def base_url(raw: str, own: str = "") -> str:
+    """LOGS_URL, or this app's own internal address when the setting is empty."""
+    raw = (raw.strip() or own.strip()).rstrip("/")
     parsed = urlparse(raw)
     if not raw:
-        raise CardError("Set the LOGS_URL setting to turn the Home card on.")
+        raise CardError("Set LOGS_URL to turn the card on.")
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.path not in ("", "/"):
         raise CardError("LOGS_URL must be a plain http(s) address without a path or credentials.")
     return raw
@@ -83,7 +85,8 @@ def gigabytes(value: float) -> float:
     return round(value / 1e9, 2)
 
 
-def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float] | None = None) -> dict:
+def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float] | None = None,
+               own_logs: int | None = None, endpoint: str = "") -> dict:
     total = errors = warnings = 0
     for row in counts:
         level = str(row.get("severity_text", "")).lower()
@@ -94,12 +97,16 @@ def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float]
         elif level in ("warn", "warning"):
             warnings += value
     blocks: list[dict] = []
+    if own_logs == 0:
+        where = endpoint or "this app's address"
+        blocks.append({"type": "alert", "severity": "info", "text":
+                       f"Automaton's own logs are not arriving. Set Logging__Otlp__Endpoint to {where} on the API, Worker and Runners."})
     if errors:
         blocks.append({"type": "alert", "severity": "warning", "text": f"{errors} errors in the last hour"})
     blocks.append({"type": "counters", "items": [
-        {"label": "Logs (1h)", "value": str(total)},
-        {"label": "Errors", "value": str(errors), "tone": "critical" if errors else "ok"},
-        {"label": "Warnings", "value": str(warnings), "tone": "warning" if warnings else "ok"},
+        {"label": "Logs (1h)", "value": total},
+        {"label": "Errors", "value": errors, "tone": "critical" if errors else "ok"},
+        {"label": "Warnings", "value": warnings, "tone": "warning" if warnings else "ok"},
     ]})
     points = [(str(r.get("_time", ""))[11:16], int(r.get("c", 0))) for r in volume][-24:]
     if len(points) >= 2:
@@ -113,13 +120,22 @@ def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float]
     return {"status": status, "tone": "warning" if errors else "ok", "blocks": blocks}
 
 
+def own_log_count(base: str) -> int | None:
+    rows = query(base, AUTOMATON_QUERY)
+    return int(rows[0].get("c", 0)) if rows else 0
+
+
+def no_data_card(reason: str) -> dict:
+    """A card with only its reason: Studio shows one line and a link to the app's settings."""
+    return {"status": "No log data", "detail": reason, "tone": "warning", "blocks": []}
+
+
 def main() -> int:
     try:
-        base = base_url(os.environ.get("LOGS_URL", ""))
-        card = build_card(query(base, COUNT_QUERY), query(base, VOLUME_QUERY), storage(base))
+        base = base_url(os.environ.get("LOGS_URL", ""), os.environ.get("AUTOMATON_APP_INTERNAL_URL", ""))
+        card = build_card(query(base, COUNT_QUERY), query(base, VOLUME_QUERY), storage(base), own_log_count(base), base)
     except CardError as error:
-        print(str(error), file=sys.stderr)
-        return 1
+        card = no_data_card(str(error))
     print(json.dumps(card))
     return 0
 
