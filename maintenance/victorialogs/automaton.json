@@ -44,6 +44,7 @@
     "runtime": {
       "image": "debian:12.13-slim",
       "user": "1000:1000",
+      "update": "stop-first",
       "command": {
         "executable": "sh",
         "arguments": [
