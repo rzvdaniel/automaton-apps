@@ -13,6 +13,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import socket
 import sys
 import threading
 import time
@@ -257,7 +258,10 @@ def blocked_target(url: str) -> bool:
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return False
+        try:
+            ip = ipaddress.ip_address(socket.inet_ntoa(socket.inet_aton(host)))  # numeric forms such as 127.1, 2130706433, 0x7f000001
+        except OSError:
+            return False
     ip = ip.ipv4_mapped or ip if isinstance(ip, ipaddress.IPv6Address) else ip
     return ip.is_loopback or ip.is_link_local or ip.is_unspecified
 

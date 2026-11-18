@@ -423,7 +423,7 @@ class Http(unittest.TestCase):
         self.assertEqual([s["site"] for s in self.app.snapshot()["sites"]], ["https://b.example"])
 
     def test_loopback_and_link_local_targets_are_refused(self):
-        for url in ("http://localhost/", "http://127.0.0.1:8080/", "http://[::1]/", "http://169.254.169.254/latest", "http://0.0.0.0/", "http://[::ffff:127.0.0.1]/", "http://x.localhost/"):
+        for url in ("http://localhost/", "http://127.0.0.1:8080/", "http://[::1]/", "http://169.254.169.254/latest", "http://0.0.0.0/", "http://[::ffff:127.0.0.1]/", "http://x.localhost/", "http://2130706433/", "http://127.1/", "http://0x7f000001/", "http://0177.0.0.1/"):
             self.assertIn("this server itself", self.app.edit("add", {"url": url}), url)
         self.assertEqual(self.app.snapshot()["sites"], [])
         self.assertIsNone(self.app.edit("add", {"url": "https://example.com/"}))
