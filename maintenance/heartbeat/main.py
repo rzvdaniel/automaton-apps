@@ -8,6 +8,7 @@ Runs as an Automaton app (web page, API, check-in endpoint and a background loop
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import sys
@@ -90,10 +91,27 @@ class App:
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.email_to = email_recipients(env.get("EMAIL_TO", ""))
         interval = env.get("CHECK_INTERVAL_SECONDS", "").strip()
+        # The platform sets AUTOMATON_APP_ID for every app it runs; only then are its viewer headers to be trusted.
+        self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())
+        self.admin_token = env.get("ADMIN_TOKEN", "").strip()
         self.interval = int(interval) if interval.isdigit() and 5 <= int(interval) <= 3600 else 30
         self.path = os.path.join(env.get("AUTOMATON_APP_DATA_DIR", "data"), "checks.json")
         self.lock = threading.Lock()
         self.checks = heartbeat.load_checks(self.path)
+
+    def may_manage(self, headers) -> str | None:
+        """None when the request may manage checks, else why not: "signin" (managed) or "token" (standalone).
+
+        Managed by Automaton: the proxy signs the visitor in and sets the viewer headers. Standalone, anyone could
+        send those headers, so they are ignored and the ADMIN_TOKEN is required; without one nothing is managed."""
+        if self.managed:
+            ok = headers.get("X-Automaton-Viewer-Role") and headers.get("X-Automaton-Viewer-Token")
+            return None if ok else "signin"
+        supplied = headers.get("Authorization", "")
+        supplied = supplied[7:] if supplied.lower().startswith("bearer ") else ""
+        if self.admin_token and hmac.compare_digest(supplied.encode(), self.admin_token.encode()):
+            return None
+        return "token"
 
     # --- alerts -------------------------------------------------------------------------------------------------
     def send(self, event: str, text: str, name: str) -> bool:
@@ -180,11 +198,17 @@ def make_handler(app: App, page: bytes):
         def guard(self) -> bool:
             """True when the management API may be used; otherwise the answer has been sent.
 
-            The platform proxy signs a visitor in through Studio and sets the viewer headers, replacing whatever the
-            browser sent. Without them (an app its owner published, or a request that skipped the proxy) nothing is
-            managed. A page of this app sets X-Heartbeat on changes; a form on another site cannot."""
-            if not self.headers.get("X-Automaton-Viewer-Role") or not self.headers.get("X-Automaton-Viewer-Token"):
+            Run by Automaton, the platform proxy signs a visitor in through Studio and sets the viewer headers,
+            replacing whatever the browser sent. Run anywhere else, those headers are ignored (anyone could forge
+            them) and management needs the ADMIN_TOKEN. A page of this app sets X-Heartbeat on changes; a form on
+            another site cannot."""
+            refused = app.may_manage(self.headers)
+            if refused == "signin":
                 self.json(401, {"error": "Sign in through Automaton Studio to manage checks"})
+                return False
+            if refused == "token":
+                message = "Send the ADMIN_TOKEN as a Bearer token to manage checks" if app.admin_token else "Set ADMIN_TOKEN to manage checks outside Automaton"
+                self.json(401, {"error": message, "mode": "token" if app.admin_token else "none"})
                 return False
             if self.command != "GET" and self.headers.get("X-Heartbeat") != "1":
                 self.json(403, {"error": "missing X-Heartbeat header"})

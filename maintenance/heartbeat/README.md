@@ -48,7 +48,7 @@ If every channel fails (for example the webhook is unreachable and email is unav
 ## Security
 
 - Check-in URLs hold a random 192-bit token. Anyone who has a URL can check in for that job, so keep them like passwords; delete the check to invalidate its URL. An unknown token gets 404.
-- The list, create and delete need Studio's sign-in: the platform proxy checks it and tells the app who is using it (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`, the proxy removes any copy a visitor sends, on every route). The app refuses management requests without those headers. Changes also need the `X-Heartbeat: 1` header that the page sets, so another site cannot make your browser change checks.
+- The list, create and delete need Studio's sign-in: the platform proxy checks it and tells the app who is using it (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`, the proxy removes any copy a visitor sends, on every route). The app refuses management requests without those headers, and trusts them only when Automaton runs it (`AUTOMATON_APP_ID` is set); see *Run it without Automaton*. Changes also need the `X-Heartbeat: 1` header that the page sets, so another site cannot make your browser change checks.
 - **A published Heartbeat cannot be managed.** On a published address (and on `/ping/*`) the proxy strips those headers and does not sign anyone in, so the check list, create and delete answer 401 for everyone. Check-ins still work. To manage checks, keep the app private (the default), or unpublish it first. This needs an Automaton server that includes automaton#1307.
 - Logs, and the request log, never contain check-in tokens, the webhook URL or the platform key. The alert text names the check, not its URL.
 - Checks and their tokens are stored in the app's data directory (`checks.json`, owner-only), so a restart does not repeat alerts. If that file is damaged the app refuses to start (the log says why) instead of overwriting it.
@@ -59,11 +59,13 @@ From the page's address while signed in to Studio (the platform adds the viewer 
 
 ## Run it without Automaton
 
+The app trusts the viewer headers only when Automaton runs it (the platform sets `AUTOMATON_APP_ID` for every app). Anywhere else anyone could forge those headers, so they are ignored and management needs an admin token:
+
 ```sh
-AUTOMATON_PORT=8080 AUTOMATON_APP_DATA_DIR=./data python3 main.py
+ADMIN_TOKEN=<a long random value> AUTOMATON_PORT=8080 AUTOMATON_APP_DATA_DIR=./data python3 main.py
 ```
 
-Outside Automaton nothing sets the viewer headers, so the page cannot manage checks; run it behind your own sign-in that sets them.
+The page asks for the token once per browser tab; the API takes `Authorization: Bearer <ADMIN_TOKEN>`. Without `ADMIN_TOKEN` the app still receives check-ins and sends alerts but refuses to list, create or delete checks (401). Do not set `AUTOMATON_APP_ID` yourself: it switches the trust in viewer headers back on. Put it behind HTTPS, since the token travels in a header.
 
 ## Why it is an app and not an Action
 

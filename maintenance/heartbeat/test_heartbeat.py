@@ -142,6 +142,8 @@ class Storage(unittest.TestCase):
 
 
 class Server(unittest.TestCase):
+    env = {"AUTOMATON_APP_ID": "11111111-1111-1111-1111-111111111111"}  # run by Automaton
+
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.clock = [1000.0]
@@ -149,7 +151,7 @@ class Server(unittest.TestCase):
         self.start()
 
     def start(self):
-        env = {"WEBHOOK_URL": "http://hooks.example/SECRETHOOK", "AUTOMATON_APP_DATA_DIR": self.folder.name}
+        env = {"WEBHOOK_URL": "http://hooks.example/SECRETHOOK", "AUTOMATON_APP_DATA_DIR": self.folder.name, **self.env}
         self.app = main.App(env, now=lambda: self.clock[0], post=lambda url, payload: self.sent.append((url, payload)) or True)
         self.httpd = main.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app, b"<html>page</html>"))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -285,7 +287,7 @@ class Server(unittest.TestCase):
 
     def test_negative_content_length_is_refused(self):
         connection = http.client.HTTPConnection("127.0.0.1", self.httpd.server_port, timeout=5)
-        connection.request("POST", "/api/checks", body=b"", headers={"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed", "X-Heartbeat": "1", "Content-Length": "-5"})
+        connection.request("POST", "/api/checks", body=b"", headers={"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed", "Authorization": "Bearer s3cret-admin", "X-Heartbeat": "1", "Content-Length": "-5"})
         self.assertIn(connection.getresponse().status, (400, 413))
         connection.close()
 
@@ -314,12 +316,53 @@ class Server(unittest.TestCase):
             self.assertNotIn(secret, text)
 
 
+class Standalone(Server):
+    """Not run by Automaton (no AUTOMATON_APP_ID): viewer headers are forgeable, so only the ADMIN_TOKEN counts."""
+    env = {"ADMIN_TOKEN": "s3cret-admin"}
+    forged = {"X-Automaton-Viewer-Role": "admin", "X-Automaton-Viewer-Token": "forged", "X-Heartbeat": "1"}
+    bearer = {"Authorization": "Bearer s3cret-admin", "X-Heartbeat": "1"}
+
+    def test_management_needs_studio_sign_in(self):
+        self.assertEqual(self.request("GET", "/api/checks", token=None)[0], 401)
+
+    def test_an_old_admin_token_does_not_log_anyone_in(self):
+        self.assertEqual(self.request("GET", "/api/checks", token=None, extra={"Authorization": "Bearer wrong"})[0], 401)
+
+    def request(self, method, path, body=None, token=TOKEN, extra=None):
+        # token=TOKEN stands for the admin: it sends the bearer token, and nothing else.
+        extra = {**self.bearer, **(extra or {})} if token == TOKEN else extra
+        return super().request(method, path, body, token=None, extra=extra)
+
+    def test_forged_viewer_headers_do_nothing(self):
+        for method in ("GET", "POST", "DELETE"):
+            self.assertEqual(super().request(method, "/api/checks/x" if method == "DELETE" else "/api/checks",
+                                             {"name": "x", "period": "1h"} if method == "POST" else None, token=None, extra=self.forged)[0], 401, method)
+
+    def test_wrong_or_missing_token_is_refused_and_right_one_works(self):
+        for auth in ({}, {"Authorization": "Bearer nope"}, {"Authorization": "Basic s3cret-admin"}, {"Authorization": "Bearer "}):
+            self.assertEqual(super().request("GET", "/api/checks", token=None, extra=auth)[0], 401, auth)
+        self.assertEqual(super().request("GET", "/api/checks", token=None, extra=self.bearer)[0], 200)
+
+    def test_no_admin_token_set_refuses_management_entirely(self):
+        self.stop(); Standalone.env = {}
+        try:
+            self.start()
+            self.assertEqual(super().request("GET", "/api/checks", token=None, extra={"Authorization": "Bearer "})[0], 401)
+            self.assertEqual(super().request("GET", "/api/checks", token=None, extra=self.forged)[0], 401)
+        finally:
+            Standalone.env = {"ADMIN_TOKEN": "s3cret-admin"}
+
+    def test_check_ins_stay_open(self):
+        check = self.create()
+        self.assertEqual(super().request("GET", "/ping/" + check["token"], token=None)[0], 200)
+
+
 class Page(unittest.TestCase):
     def test_page_ships_and_uses_text_not_html_for_names(self):
         page = (Path(__file__).parent / "index.html").read_text()
         self.assertIn("textContent = c.name", page)
         self.assertNotIn("innerHTML", page)
-        self.assertNotIn("Authorization", page)
+        self.assertNotIn("Authorization: ", page)
 
     def test_contract_has_no_admin_token_and_keeps_ping_open(self):
         contract = json.loads((Path(__file__).parent / "automaton.json").read_text())["application"]
