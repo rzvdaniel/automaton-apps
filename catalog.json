@@ -4,11 +4,11 @@
   "apps": [
     {
       "id": "offsite-backup",
-      "name": "Off-site Backup",
-      "summary": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
+      "name": "Backup Warden",
+      "summary": "Copies your server's backups to another place, every night.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "4a04ba17ce647c7a737cd77eed680f936dd03fa9",
+      "commit": "dbf81d16b7e3a16247294f701aae8e9cbd522834",
       "minServerVersion": "0.2.126",
       "permissions": [
         "backups:read",
@@ -85,36 +85,6 @@
       ]
     },
     {
-      "id": "it-tools",
-      "name": "IT-Tools",
-      "summary": "Handy online tools for developers: converters, encoders, generators and formatters. Runs entirely in the browser.",
-      "category": "Utilities",
-      "folder": "utilities/it-tools",
-      "commit": "8a214b1e7a84adc60ac11bdc0ea803b544a28957",
-      "minServerVersion": "0.2.31",
-      "permissions": []
-    },
-    {
-      "id": "goatcounter",
-      "name": "GoatCounter",
-      "summary": "Privacy-friendly web analytics: easy to use, no cookies, no tracking of visitors.",
-      "category": "Analytics",
-      "folder": "analytics/goatcounter",
-      "commit": "f5642cbcaecdcbe723269c6c1ff867a84e7d3c92",
-      "minServerVersion": "0.2.55",
-      "permissions": []
-    },
-    {
-      "id": "linkding",
-      "name": "linkding",
-      "summary": "Save, tag and search bookmarks on your own server.",
-      "category": "Productivity",
-      "folder": "productivity/linkding",
-      "commit": "ce2b2abd9019a1e1980c3e804ba91465f940c8ea",
-      "minServerVersion": "0.2.55",
-      "permissions": []
-    },
-    {
       "id": "ghost",
       "name": "Ghost",
       "summary": "Publish a blog and send a newsletter from your own server.",
@@ -122,16 +92,6 @@
       "folder": "publishing/ghost",
       "commit": "ef6eb773bbd6fca68cb0eabcb93321c2c5926d55",
       "minServerVersion": "0.2.149",
-      "permissions": []
-    },
-    {
-      "id": "harbour",
-      "name": "Harbour Wallpaper",
-      "summary": "A living harbour island for your desktop that reacts to clicks: the sea, the sheep, the boats and the church bell.",
-      "category": "Wallpapers",
-      "folder": "wallpapers/harbour",
-      "commit": "372169034321bd5ad26509b2c2bf911091fab179",
-      "minServerVersion": "0.2.31",
       "permissions": []
     }
   ]
