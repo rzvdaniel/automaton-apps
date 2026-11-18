@@ -17,18 +17,21 @@ from monitor import ConfigError, Result, Site
 
 class ParseSites(unittest.TestCase):
     def test_parses_urls_status_and_keyword(self):
-        sites = monitor.parse_sites("https://a.example\nhttps://b.example/x|301;# comment\nhttps://c.example|200|Hello world\n\n")
+        sites = monitor.parse_legacy_sites("https://a.example\nhttps://b.example/x|301;# comment\nhttps://c.example|200|Hello world\n\n")
         self.assertEqual(sites, [Site("https://a.example"), Site("https://b.example/x", 301),
                                  Site("https://c.example", 200, "Hello world")])
 
-    def test_rejects_bad_entries(self):
-        for text in ["", "  \n", "ftp://a.example", "a.example", "https://a.example|abc", "https://a.example|99"]:
-            with self.assertRaises(ConfigError, msg=text):
-                monitor.parse_sites(text)
+    def test_make_site_rejects_bad_entries(self):
+        for url, status in [("", ""), ("ftp://a.example", ""), ("a.example", ""), ("https://a.example", "abc"), ("https://a.example", "99")]:
+            with self.assertRaises(ConfigError, msg=url + status):
+                monitor.make_site(url, status)
+        self.assertEqual(monitor.make_site(" https://a.example ", "", " "), Site("https://a.example"))
 
-    def test_limits_site_count(self):
-        with self.assertRaises(ConfigError):
-            monitor.parse_sites("\n".join(f"https://s{i}.example" for i in range(monitor.MAX_SITES + 1)))
+    def test_legacy_import_skips_invalid_duplicates_and_extras(self):
+        text = "bad\nhttps://a.example|200\nhttps://a.example\n" + "\n".join(f"https://s{i}.example" for i in range(60))
+        sites = monitor.parse_legacy_sites(text)
+        self.assertEqual(sites[0], Site("https://a.example", 200))
+        self.assertEqual(len(sites), monitor.MAX_SITES)
 
     def test_display_url_hides_credentials_and_query(self):
         self.assertEqual(monitor.display_url("https://user:pw@a.example:8443/p?token=abc#x"), "https://a.example:8443/p")
@@ -207,7 +210,7 @@ class RunCycle(unittest.TestCase):
         self.assertFalse(main.deliver([False, None]))
 
     def test_email_and_optional_heartbeat_settings(self):
-        settings = main.Settings({"SITES": "https://a.example"})
+        settings = main.Settings({})
         self.assertEqual((settings.heartbeat, settings.api_key, settings.email_to), ("", "", ["administrators"]))
 
     def test_removed_sites_leave_the_state(self):
@@ -263,11 +266,11 @@ class AppRun(unittest.TestCase):
             self.assertTrue(app.run_once())
         self.assertEqual([m for m, _ in Receiver.hits].count("GET"), 2)  # the site check and the heartbeat
         Receiver.hits.clear()
-        with mock.patch.dict(os.environ, self.env(SITES=""), clear=True):
+        with mock.patch.dict(os.environ, self.env(CHECK_INTERVAL_SECONDS="5"), clear=True):
             app = main.Monitor()
             self.assertFalse(app.run_once())
         self.assertEqual(Receiver.hits, [])
-        self.assertIn("SITES is empty", app.last_error)
+        self.assertIn("CHECK_INTERVAL_SECONDS", app.last_error)
 
     def test_webhook_gets_text_and_content_and_secret_stays_out_of_output(self):
         import contextlib, io, json
@@ -288,13 +291,13 @@ class AppRun(unittest.TestCase):
     def test_settings_validation(self):
         for bad in ({"CHECK_INTERVAL_SECONDS": "5"}, {"CERT_WARN_DAYS": "x"}, {"TIMEOUT_SECONDS": "0"}):
             with self.assertRaises(ConfigError):
-                main.Settings({"SITES": "https://a.example", **bad})
-        settings = main.Settings({"SITES": "https://a.example"})
+                main.Settings(bad)
+        settings = main.Settings({})
         self.assertEqual((settings.interval, settings.warn_days, settings.timeout), (300, 14, 10))
 
     def test_status_page_escapes_and_hides_query(self):
         snapshot = {"lastRun": 0, "lastError": "<b>x</b>", "sites": [
-            {"site": "https://a.example/<i>", "up": False, "status": 500, "ms": 3, "error": "<script>", "cert_days": 4, "since": 0, "checked": 0}]}
+            {"id": "a1", "expected": None, "keyword": '"><script>', "pending": False, "site": "https://a.example/<i>", "up": False, "status": 500, "ms": 3, "error": "<script>", "cert_days": 4, "since": 0, "checked": 0}]}
         page = main.render(snapshot)
         self.assertNotIn("<script>", page)
         self.assertNotIn("<b>x", page)
@@ -302,9 +305,229 @@ class AppRun(unittest.TestCase):
 
     def test_status_page_has_the_topbar_above_the_page(self):
         page = main.render({"lastRun": 0, "lastError": None, "sites": []})
+        self.assertIn("Add your first site", page)
+        self.assertNotIn("SITES", page)
         self.assertLess(page.index('class="a-topbar"'), page.index('class="a-page"'))
         self.assertEqual(page.count("</header>"), 1)
 
 
+class ManageSites(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.env = {"AUTOMATON_APP_DATA_DIR": self.folder.name}
+
+    def test_starts_empty_with_no_sites_setting(self):
+        app = main.Monitor(env=self.env)
+        self.assertEqual(app.snapshot()["sites"], [])
+        self.assertTrue(app.run_once())  # an empty list is a completed run, not an error
+
+    def test_add_edit_remove_persist_across_restart(self):
+        app = main.Monitor(env=self.env)
+        self.assertIsNone(app.edit("add", {"url": "https://a.example", "status": "200", "keyword": "Hi"}))
+        site = app.snapshot()["sites"][0]
+        self.assertEqual((site["site"], site["expected"], site["keyword"], site["pending"]), ("https://a.example", 200, "Hi", True))
+        self.assertIsNone(app.edit("edit", {"id": site["id"], "url": "https://b.example", "status": "", "keyword": ""}))
+        again = main.Monitor(env=self.env).snapshot()["sites"]
+        self.assertEqual([(s["id"], s["site"], s["expected"]) for s in again], [(site["id"], "https://b.example", None)])
+        self.assertIsNone(app.edit("remove", {"id": site["id"]}))
+        self.assertEqual(main.Monitor(env=self.env).snapshot()["sites"], [])
+
+    def test_rejects_invalid_duplicate_unknown_and_too_many(self):
+        app = main.Monitor(env=self.env)
+        self.assertIn("http", app.edit("add", {"url": "nope"}))
+        self.assertIn("100 to 599", app.edit("add", {"url": "https://a.example", "status": "9"}))
+        self.assertIsNone(app.edit("add", {"url": "https://a.example"}))
+        self.assertIn("already", app.edit("add", {"url": "https://a.example"}))
+        self.assertIn("no longer", app.edit("edit", {"id": "zz", "url": "https://c.example"}))
+        self.assertIn("no longer", app.edit("remove", {"id": "zz"}))
+        for i in range(monitor.MAX_SITES - 1):
+            self.assertIsNone(app.edit("add", {"url": f"https://s{i}.example"}))
+        self.assertIn("At most", app.edit("add", {"url": "https://last.example"}))
+
+    def test_old_sites_setting_is_imported_once(self):
+        env = {**self.env, "SITES": "https://a.example|200|Hi\nhttps://b.example;broken"}
+        sites = main.Monitor(env=env).snapshot()["sites"]
+        self.assertEqual([(s["site"], s["expected"], s["keyword"]) for s in sites], [("https://a.example", 200, "Hi"), ("https://b.example", None, None)])
+        app = main.Monitor(env=env)
+        app.edit("remove", {"id": sites[0]["id"]})
+        again = main.Monitor(env=env).snapshot()["sites"]  # the setting is still there, but only the stored list counts now
+        self.assertEqual([s["site"] for s in again], ["https://b.example"])
+
+    def test_emptied_list_is_not_reimported(self):
+        env = {**self.env, "SITES": "https://a.example"}
+        app = main.Monitor(env=env)
+        app.edit("remove", {"id": app.snapshot()["sites"][0]["id"]})
+        self.assertEqual(main.Monitor(env=env).snapshot()["sites"], [])
+
+    def test_manifest_has_no_sites_setting_and_no_required_one(self):
+        import json
+        manifest = json.load(open(os.path.join(os.path.dirname(__file__), "automaton.json")))["application"]
+        names = [s["name"] for s in manifest["settings"]] + [s["name"] for s in manifest["secrets"]]
+        self.assertNotIn("SITES", names)
+        self.assertFalse([s for s in manifest["settings"] if s.get("required")])
+        self.assertEqual(names, ["CHECK_INTERVAL_SECONDS", "CERT_WARN_DAYS", "TIMEOUT_SECONDS", "EMAIL_TO", "WEBHOOK_URL", "HEARTBEAT_URL"])
+
+
+class Http(unittest.TestCase):
+    env = {"AUTOMATON_APP_ID": "11111111-1111-1111-1111-111111111111"}  # run by Automaton
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name, **self.env})
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close()))
+        self.host = f"127.0.0.1:{self.server.server_port}"
+
+    def post(self, path, body, origin="same", signed=True):
+        import http.client
+        connection = http.client.HTTPConnection(self.host)
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        if signed:
+            headers.update({"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed"})
+        if origin:
+            headers["Origin"] = "http://" + self.host if origin == "same" else origin
+        connection.request("POST", path, body, headers)
+        response = connection.getresponse()
+        response.read()
+        return response.status, response.getheader("Location")
+
+    def test_add_through_the_page_and_redirect_with_error(self):
+        self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example&status=&keyword="), (303, "../"))
+        self.assertEqual(self.app.snapshot()["sites"][0]["site"], "https://a.example")
+        status, location = self.post("/sites/add", "url=nope")
+        self.assertEqual(status, 303)
+        self.assertIn("error=", location)
+        from urllib.parse import urljoin
+        import urllib.request
+        target = urljoin(f"http://{self.host}/sites/add", location)  # what the browser does after the redirect
+        self.assertTrue(target.startswith(f"http://{self.host}/?error="))
+        self.assertIn("must start with http", urllib.request.urlopen(target).read().decode())
+
+    def test_cross_site_or_originless_posts_are_refused(self):
+        for origin in ("http://evil.example", None):
+            self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example", origin)[0], 403)
+        self.assertEqual(self.app.snapshot()["sites"], [])
+
+    def test_posts_without_the_viewer_headers_are_401_and_change_nothing(self):
+        import http.client
+        self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example", signed=False)[0], 401)
+        for name in ("X-Automaton-Viewer-Role", "X-Automaton-Viewer-Token"):  # one header alone is not enough
+            connection = http.client.HTTPConnection(self.host)
+            connection.request("POST", "/sites/add", "url=https%3A%2F%2Fa.example", {"Origin": "http://" + self.host, name: "x"})
+            self.assertEqual(connection.getresponse().status, 401)
+        self.app.edit("add", {"url": "https://b.example"})
+        site_id = self.app.snapshot()["sites"][0]["id"]
+        for action in ("edit", "remove"):
+            self.assertEqual(self.post(f"/sites/{action}", f"id={site_id}&url=https%3A%2F%2Fc.example", signed=False)[0], 401)
+        self.assertEqual([s["site"] for s in self.app.snapshot()["sites"]], ["https://b.example"])
+
+    def test_loopback_and_link_local_targets_are_refused(self):
+        for url in ("http://localhost/", "http://127.0.0.1:8080/", "http://[::1]/", "http://169.254.169.254/latest", "http://0.0.0.0/", "http://[::ffff:127.0.0.1]/", "http://x.localhost/", "http://2130706433/", "http://127.1/", "http://0x7f000001/", "http://0177.0.0.1/"):
+            self.assertIn("this server itself", self.app.edit("add", {"url": url}), url)
+        self.assertEqual(self.app.snapshot()["sites"], [])
+        self.assertIsNone(self.app.edit("add", {"url": "https://example.com/"}))
+        site_id = self.app.snapshot()["sites"][0]["id"]
+        self.assertIn("this server itself", self.app.edit("edit", {"id": site_id, "url": "http://169.254.169.254/"}))
+
+    def test_corrupt_sites_file_is_kept_until_fixed_by_hand(self):
+        path = os.path.join(self.folder.name, "sites.json")
+        open(path, "w").write("{broken")
+        app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name})
+        self.assertEqual(app.snapshot()["sites"], [])
+        self.assertEqual(open(path).read(), "{broken")
+
+    def test_unknown_path_and_oversized_body(self):
+        self.assertEqual(self.post("/sites/other", "")[0], 404)
+        self.assertEqual(self.post("/sites/add", "x" * 9000)[0], 413)
+
+    def test_status_json_does_not_expose_ids_or_keywords(self):
+        import json, urllib.request
+        self.app.edit("add", {"url": "https://a.example", "keyword": "secret-word"})
+        body = urllib.request.urlopen(f"http://{self.host}/status.json").read().decode()
+        self.assertNotIn("secret-word", body)
+        self.assertEqual(json.loads(body)["sites"][0]["site"], "https://a.example")
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class HttpStandalone(unittest.TestCase):
+    """Not run by Automaton (no AUTOMATON_APP_ID): viewer headers are forgeable, so only the ADMIN_TOKEN counts."""
+    token = "s3cret-admin-0123456"
+    env = {"ADMIN_TOKEN": token}
+    forged = {"X-Automaton-Viewer-Role": "admin", "X-Automaton-Viewer-Token": "forged"}
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name, **self.env})
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close()))
+        self.host = f"127.0.0.1:{self.server.server_port}"
+
+    def post(self, body, headers=None, path="/sites/add"):
+        import http.client
+        connection = http.client.HTTPConnection(self.host)
+        connection.request("POST", path, body, {"Content-Type": "application/x-www-form-urlencoded", "Origin": "http://" + self.host, **(headers or {})})
+        response = connection.getresponse()
+        self.body = response.read().decode()
+        return response.status
+
+    def sites(self):
+        return [s["site"] for s in self.app.snapshot()["sites"]]
+
+    def test_forged_viewer_headers_do_nothing(self):
+        self.assertEqual(self.post("url=https%3A%2F%2Fa.example", self.forged), 401)
+        self.assertEqual(self.sites(), [])
+
+    def test_form_token_or_bearer_token_manages(self):
+        self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={self.token}"), 303)
+        self.assertEqual(self.post("url=https%3A%2F%2Fb.example", {"Authorization": "Bearer " + self.token}), 303)
+        self.assertEqual(self.sites(), ["https://a.example", "https://b.example"])
+
+    def test_wrong_or_missing_token_is_refused_for_every_action(self):
+        self.app.edit("add", {"url": "https://a.example"})
+        site_id = self.app.snapshot()["sites"][0]["id"]
+        for token in ("", "&admin_token=", "&admin_token=nope", "&admin_token=" + self.token[:-1]):
+            for action in ("add", "edit", "remove"):
+                self.assertEqual(self.post(f"id={site_id}&url=https%3A%2F%2Fc.example{token}", path=f"/sites/{action}"), 401, (action, token))
+        self.assertEqual(self.post(f"id={site_id}", {"Authorization": "Bearer nope"}, "/sites/remove"), 401)
+        self.assertEqual(self.sites(), ["https://a.example"])
+
+    def test_short_admin_token_is_not_accepted(self):
+        short = "short-token-15c"
+        self.app.admin_token = short
+        self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={short}"), 401)
+        self.assertEqual(self.post("url=https%3A%2F%2Fa.example", {"Authorization": "Bearer " + short}), 401)
+        self.assertEqual(self.sites(), [])
+
+    def test_wrong_token_is_delayed_and_the_page_asks_again(self):
+        import time
+        start = time.monotonic()
+        self.assertEqual(self.post("url=https%3A%2F%2Fa.example&admin_token=nope"), 401)
+        self.assertGreaterEqual(time.monotonic() - start, 0.4)
+        self.assertIn("Wrong admin token", self.body)
+        self.assertIn('name="admin_token"', self.body)
+        self.assertNotIn("nope", self.body)
+
+    def test_token_still_needs_the_same_origin(self):
+        self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={self.token}", {"Origin": "http://evil.example"}), 403)
+        self.assertEqual(self.sites(), [])
+
+    def test_without_an_admin_token_nothing_is_managed(self):
+        self.app.admin_token = ""
+        for body, headers in (("url=https%3A%2F%2Fa.example&admin_token=", None), ("url=https%3A%2F%2Fa.example", self.forged),
+                              ("url=https%3A%2F%2Fa.example", {"Authorization": "Bearer "})):
+            self.assertEqual(self.post(body, headers), 401)
+        self.assertEqual(self.sites(), [])
+
+    def test_page_asks_for_the_token_only_when_standalone(self):
+        snapshot = {"lastRun": 0, "lastError": None, "sites": []}
+        self.assertIn('name="admin_token"', main.render(snapshot, "", True))
+        self.assertNotIn("admin_token", main.render(snapshot, "", False))
+        self.assertNotIn(self.token, main.render(snapshot, "", True))

@@ -9,19 +9,23 @@ from __future__ import annotations
 
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import ipaddress
+import hmac
 import json
 import os
 from pathlib import Path
+import socket
 import sys
 import threading
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 import monitor
 
 MIN_INTERVAL = 60
+MIN_ADMIN_TOKEN = 16
 
 
 def env_int(env, name: str, default: int, minimum: int, maximum: int) -> int:
@@ -33,14 +37,13 @@ def env_int(env, name: str, default: int, minimum: int, maximum: int) -> int:
     return int(raw)
 
 
-def state_path(env) -> str:
-    return os.path.join(env.get("AUTOMATON_APP_DATA_DIR", "data"), "state.json")
+def data_path(env, name: str) -> str:
+    return os.path.join(env.get("AUTOMATON_APP_DATA_DIR", "data"), name)
 
 
 class Settings:
     def __init__(self, env=None):
         env = os.environ if env is None else env
-        self.sites = monitor.parse_sites(env.get("SITES", ""))
         self.interval = env_int(env, "CHECK_INTERVAL_SECONDS", 300, MIN_INTERVAL, 86400)
         self.warn_days = env_int(env, "CERT_WARN_DAYS", 14, 1, 365)
         self.timeout = env_int(env, "TIMEOUT_SECONDS", 10, 1, 60)
@@ -112,7 +115,15 @@ def deliver(results: list[bool | None]) -> bool:
 class Monitor:
     def __init__(self, settings: Settings | None = None, env=None):
         self.settings = settings
-        self.path = state_path(os.environ if env is None else env)
+        env = os.environ if env is None else env
+        self.path = data_path(env, "state.json")
+        self.sites_path = data_path(env, "sites.json")
+        self.sites = monitor.load_sites(self.sites_path, env.get("SITES", ""))  # SITES: the old setting, imported once
+        self.wake = threading.Event()
+        self.sites_lock = threading.Lock()
+        # The platform sets AUTOMATON_APP_ID for every app it runs; only then are its viewer headers to be trusted.
+        self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())
+        self.admin_token = env.get("ADMIN_TOKEN", "").strip()
         self.interval = settings.interval if settings else 300
         self.lock = threading.Lock()
         self.state = monitor.load_state(self.path)
@@ -137,7 +148,7 @@ class Monitor:
             settings = self.settings = Settings()
             self.interval = settings.interval
             with self.lock:
-                state = monitor.run_cycle(settings.sites, self.state, settings.warn_days, settings.timeout, self.send)
+                state = monitor.run_cycle(monitor.to_sites(self.sites), self.state, settings.warn_days, settings.timeout, self.send)
                 monitor.save_state(self.path, state)
                 self.state = state
                 self.last_run, self.last_error = time.time(), None
@@ -152,33 +163,91 @@ class Monitor:
     def loop(self) -> None:
         while True:
             self.run_once()
-            time.sleep(self.interval)
+            self.wake.wait(self.interval)
+            self.wake.clear()
 
     def snapshot(self) -> dict:
-        with self.lock:
-            sites = [{"site": monitor.display_url(url), **{k: s.get(k) for k in ("up", "status", "ms", "error", "cert_days", "since", "checked")}}
-                     for url, s in self.state.items()]
+        with self.lock, self.sites_lock:
+            sites = []
+            for record in self.sites:
+                s = self.state.get(record["url"], {})
+                sites.append({"id": record["id"], "site": monitor.display_url(record["url"]), "expected": record.get("status"),
+                              "keyword": record.get("keyword"), "up": s.get("up"), "pending": not s,
+                              **{k: s.get(k) for k in ("status", "ms", "error", "cert_days", "since", "checked")}})
         return {"lastRun": self.last_run, "lastError": self.last_error, "sites": sites}
 
+    def edit(self, action: str, fields: dict[str, str]) -> str | None:
+        """Adds, edits or removes a site. Returns an error text, or None when done."""
+        with self.sites_lock:
+            sites = list(self.sites)
+            index = next((i for i, s in enumerate(sites) if s["id"] == fields.get("id")), None)
+            if action == "remove":
+                if index is None:
+                    return "That site no longer exists."
+                del sites[index]
+            else:
+                try:
+                    site = monitor.make_site(fields.get("url", ""), fields.get("status"), fields.get("keyword"))
+                except monitor.ConfigError as error:
+                    return str(error)
+                if blocked_target(site.url):
+                    return "That address points at this server itself, so it can't be monitored."
+                if action == "edit" and index is None:
+                    return "That site no longer exists."
+                if any(s["url"] == site.url and i != index for i, s in enumerate(sites)):
+                    return "That site is already listed."
+                if action == "add":
+                    if len(sites) >= monitor.MAX_SITES:
+                        return f"At most {monitor.MAX_SITES} sites are supported."
+                    sites.append(monitor.site_record(site))
+                else:
+                    sites[index] = {**sites[index], "url": site.url, "status": site.expected_status, "keyword": site.keyword}
+            monitor.save_state(self.sites_path, sites)
+            self.sites = sites
+        self.wake.set()  # check the change now instead of at the next interval
+        return None
 
-def render(snapshot: dict) -> str:
-    rows = []
-    for site in snapshot["sites"]:
-        state = "UP" if site["up"] else "DOWN"
-        cert = "" if site["cert_days"] is None else f'{site["cert_days"]} days'
-        detail = escape(site["error"] or "")
-        pill = "ok" if site["up"] else "critical"
-        rows.append(f'<tr><td class="a-mono">{escape(site["site"])}</td><td><span class="a-pill a-pill--{pill}">{state}</span></td>'
-                    f'<td class="a-num">{site["ms"] if site["ms"] is not None else ""}</td><td>{cert}</td><td>{detail}</td></tr>')
+
+def site_row(site: dict, token_field: str = "") -> str:
+    pill = "" if site["pending"] else ("ok" if site["up"] else "critical")
+    state = "Checking…" if site["pending"] else "UP" if site["up"] else "DOWN"
+    cert = "" if site["cert_days"] is None else f'{site["cert_days"]} days'
+    ms = "" if site["ms"] is None else site["ms"]
+    sid = escape(site["id"], quote=True)
+    edit = (f'<details><summary class="a-btn">Edit</summary><form class="a-form" method="post" action="sites/edit">'
+            f'<input type="hidden" name="id" value="{sid}">{site_fields(site["site"], site["expected"], site["keyword"])}{token_field}'
+            f'<button class="a-btn a-btn--primary" type="submit">Save</button></form></details>')
+    remove = f'<form method="post" action="sites/remove"><input type="hidden" name="id" value="{sid}">{token_field}<button class="a-btn" type="submit">Remove</button></form>'
+    return (f'<tr><td class="a-mono">{escape(site["site"])}</td><td><span class="a-pill a-pill--{pill}">{state}</span></td>'
+            f'<td class="a-num">{ms}</td><td>{cert}</td><td>{escape(site["error"] or "")}</td>'
+            f'<td><div style="display:flex;gap:8px;align-items:flex-start">{edit}{remove}</div></td></tr>')
+
+
+def site_fields(url: str = "", expected=None, keyword=None) -> str:
+    return (f'<label class="a-field">Address<input class="a-input" name="url" type="url" required maxlength="2000" placeholder="https://example.com" value="{escape(url, quote=True)}"></label>'
+            f'<label class="a-field">Expected status (optional)<input class="a-input" name="status" inputmode="numeric" maxlength="3" placeholder="any below 400" value="{"" if expected is None else expected}"></label>'
+            f'<label class="a-field">Keyword the page must contain (optional)<input class="a-input" name="keyword" maxlength="200" value="{escape(keyword or "", quote=True)}"></label>')
+
+
+TOKEN_FIELD = '<label class="a-field">Admin token<input class="a-input" name="admin_token" type="password" autocomplete="off" required></label>'
+
+
+def render(snapshot: dict, error: str = "", standalone: bool = False) -> str:
+    token_field = TOKEN_FIELD if standalone else ""
+    rows = [site_row(site, token_field) for site in snapshot["sites"]]
     failure = f'<p class="a-note a-note--critical">Last run failed: {escape(snapshot["lastError"])}</p>' if snapshot["lastError"] else ""
+    problem = f'<p class="a-note a-note--critical" role="alert">{escape(error)}</p>' if error else ""
     last = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(snapshot["lastRun"])) if snapshot["lastRun"] else "not yet"
-    up = sum(bool(site["up"]) for site in snapshot["sites"])
+    checked = [site for site in snapshot["sites"] if not site["pending"]]
+    up = sum(bool(site["up"]) for site in checked)
     total = len(snapshot["sites"])
-    overall = "critical" if snapshot["lastError"] or up < total else "ok" if total else ""
-    label = "Needs attention" if overall == "critical" else "All good" if overall == "ok" else "No sites yet"
-    table = f'<div class="a-table-wrap"><table class="a-table"><thead><tr><th>Site</th><th>Status</th><th class="a-num">ms</th><th>Certificate</th><th>Detail</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows else '<div class="a-empty"><div class="a-empty__title">No sites yet</div>Add sites in the SITES setting.</div>'
+    overall = "critical" if snapshot["lastError"] or up < len(checked) else "ok" if checked else ""
+    label = "Needs attention" if overall == "critical" else "All good" if overall == "ok" else "No sites yet" if not total else "Checking…"
+    table = f'<div class="a-table-wrap"><table class="a-table"><thead><tr><th>Site</th><th>Status</th><th class="a-num">ms</th><th>Certificate</th><th>Detail</th><th></th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows else '<div class="a-empty"><div class="a-empty__title">Add your first site</div>Enter its address below. It is checked right away.</div>'
+    add = (f'<section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Add a site</h2></div>{problem}'
+           f'<form class="a-form" method="post" action="sites/add">{site_fields()}{token_field}<div><button class="a-btn a-btn--primary" type="submit">Add site</button></div></form></section>')
     return f"""<!doctype html><html lang="en" data-look="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="refresh" content="60"><title>Website Monitor</title>
+<title>Website Monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="ui/app.css"><script src="ui/app.js"></script></head>
@@ -187,24 +256,105 @@ def render(snapshot: dict) -> str:
 <div class="a-header__actions"><span class="a-pill a-pill--large {f'a-pill--{overall}' if overall else ''}">{label}</span>
 <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div></div></header>
 <main class="a-page">{failure}<section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Sites</h2><span class="a-pill">{up} of {total} up</span></div>{table}</section>
-<p class="a-footer">Refreshes every minute.</p></main><script src="ui/theme.js"></script></body></html>"""
+{add}<p class="a-footer">Refreshes every minute.</p></main><script src="ui/theme.js"></script><script src="ui/page.js"></script></body></html>"""
+
+
+def blocked_target(url: str) -> bool:
+    """True for an address that points at the server itself: localhost, loopback, link-local or unspecified IPs (cloud metadata sits at 169.254.169.254)."""
+    host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        try:
+            ip = ipaddress.ip_address(socket.inet_ntoa(socket.inet_aton(host)))  # numeric forms such as 127.1, 2130706433, 0x7f000001
+        except OSError:
+            return False
+    ip = ip.ipv4_mapped or ip if isinstance(ip, ipaddress.IPv6Address) else ip
+    return ip.is_loopback or ip.is_link_local or ip.is_unspecified
+
+
+def signed_in(headers) -> bool:
+    """The platform proxy sets both viewer headers for a signed-in user and replaces any the client sent."""
+    return bool(headers.get("X-Automaton-Viewer-Role")) and bool(headers.get("X-Automaton-Viewer-Token"))
+
+
+def may_manage(app: Monitor, headers, form: dict) -> bool:
+    """Run by Automaton, the proxy's sign-in decides. Run anywhere else, anyone could forge the viewer headers, so
+    they are ignored and management needs the ADMIN_TOKEN (sent as a Bearer token or by the page's form); without
+    an ADMIN_TOKEN nothing is managed."""
+    if app.managed:
+        return signed_in(headers)
+    supplied = form.get("admin_token", "")
+    auth = headers.get("Authorization", "")
+    if auth.lower().startswith("bearer "):
+        supplied = auth[7:]
+    if len(app.admin_token) < MIN_ADMIN_TOKEN:
+        return False
+    if hmac.compare_digest(supplied.encode(), app.admin_token.encode()):
+        return True
+    time.sleep(0.5)  # slows guessing
+    return False
+
+
+def same_origin(headers) -> bool:
+    """A form post must come from this app's own page: its Origin names the host it was sent to."""
+    origin = headers.get("Origin", "")
+    hosts = {headers.get("Host", ""), headers.get("X-Forwarded-Host", "")} - {""}
+    return bool(origin) and urlsplit(origin).netloc in hosts
 
 
 def make_handler(app: Monitor):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            path = urlsplit(self.path).path
+            parts = urlsplit(self.path)
+            path = parts.path
             if path == "/health":
                 self.reply(200, "text/plain", b"ok")
             elif path == "/status.json":
-                self.reply(200, "application/json", json.dumps(app.snapshot()).encode())
+                snapshot = app.snapshot()
+                snapshot["sites"] = [{k: v for k, v in site.items() if k not in ("id", "expected", "keyword", "pending")} for site in snapshot["sites"]]
+                self.reply(200, "application/json", json.dumps(snapshot).encode())
             elif path == "/":
-                self.reply(200, "text/html; charset=utf-8", render(app.snapshot()).encode())
-            elif path in ("/ui/app.css", "/ui/app.js", "/ui/theme.js"):
+                error = parse_qs(parts.query).get("error", [""])[0][:200]
+                self.reply(200, "text/html; charset=utf-8", render(app.snapshot(), error, not app.managed).encode())
+            elif path in ("/ui/app.css", "/ui/app.js", "/ui/theme.js", "/ui/page.js"):
                 asset = Path(__file__).parent / path.lstrip("/")
                 self.reply(200, "text/css" if path.endswith(".css") else "text/javascript", asset.read_bytes())
             else:
                 self.reply(404, "text/plain", b"not found")
+
+        def do_POST(self):
+            path = urlsplit(self.path).path
+            action = path.removeprefix("/sites/")
+            if action not in ("add", "edit", "remove") or not path.startswith("/sites/"):
+                self.reply(404, "text/plain", b"not found")
+            elif app.managed and not signed_in(self.headers):
+                self.reply(401, "text/plain", b"sign in required")
+            elif not same_origin(self.headers):
+                self.reply(403, "text/plain", b"forbidden")
+            else:
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    length = -1
+                if not 0 <= length <= 8192:
+                    self.reply(413, "text/plain", b"too large")
+                    return
+                form = {k: v[0] for k, v in parse_qs(self.rfile.read(length).decode("utf-8", "replace"), keep_blank_values=True).items()}
+                if not may_manage(app, self.headers, form):
+                    if app.managed:
+                        self.reply(401, "text/plain", b"sign in required")
+                    else:  # the page again, with its token field empty: nothing typed is kept, so it asks again
+                        problem = "Wrong admin token" if len(app.admin_token) >= MIN_ADMIN_TOKEN else f"Set ADMIN_TOKEN (at least {MIN_ADMIN_TOKEN} characters) to manage sites outside Automaton"
+                        self.reply(401, "text/html; charset=utf-8", render(app.snapshot(), problem, True).encode())
+                    return
+                error = app.edit(action, form)
+                self.send_response(303)
+                self.send_header("Location", "../?" + urlencode({"error": error}) if error else "../")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
 
         def reply(self, code: int, kind: str, body: bytes):
             self.send_response(code)
