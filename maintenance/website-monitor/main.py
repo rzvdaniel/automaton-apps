@@ -118,6 +118,7 @@ class Monitor:
         env = os.environ if env is None else env
         self.path = data_path(env, "state.json")
         self.sites_path = data_path(env, "sites.json")
+        self.history_path = data_path(env, "history.json")
         self.sites = monitor.load_sites(self.sites_path, env.get("SITES", ""))  # SITES: the old setting, imported once
         self.wake = threading.Event()
         self.sites_lock = threading.Lock()
@@ -127,6 +128,7 @@ class Monitor:
         self.interval = settings.interval if settings else 300
         self.lock = threading.Lock()
         self.state = monitor.load_state(self.path)
+        self.history = monitor.load_history(self.history_path)
         self.last_run: float | None = None
         self.last_error: str | None = None
 
@@ -151,6 +153,8 @@ class Monitor:
                 state = monitor.run_cycle(monitor.to_sites(self.sites), self.state, settings.warn_days, settings.timeout, self.send)
                 monitor.save_state(self.path, state)
                 self.state = state
+                self.history = monitor.add_history(self.history, state, time.time())
+                monitor.save_state(self.history_path, {"points": self.history})
                 self.last_run, self.last_error = time.time(), None
         except Exception as error:  # a crashed run must not ping the heartbeat
             self.last_error = f"{type(error).__name__}: {error}"
@@ -174,7 +178,7 @@ class Monitor:
                 sites.append({"id": record["id"], "site": monitor.display_url(record["url"]), "expected": record.get("status"),
                               "keyword": record.get("keyword"), "up": s.get("up"), "pending": not s,
                               **{k: s.get(k) for k in ("status", "ms", "error", "cert_days", "since", "checked")}})
-        return {"lastRun": self.last_run, "lastError": self.last_error, "sites": sites}
+        return {"lastRun": self.last_run, "lastError": self.last_error, "sites": sites, "history": self.history}
 
     def edit(self, action: str, fields: dict[str, str]) -> str | None:
         """Adds, edits or removes a site. Returns an error text, or None when done."""

@@ -3,7 +3,7 @@ kind: Action
 metadata:
   name: Home card
   key: home-card
-  description: Count errors and warnings of the last hour for the Home card.
+  description: Log counters, 24 hour volume chart and storage meter for the Home card.
 spec:
   runtime: python
   entrypoint: main.py
@@ -17,7 +17,7 @@ spec:
     properties:
       status:
         type: string
-      facts:
-        type: array
-      alerts:
+      tone:
+        type: string
+      blocks:
         type: array

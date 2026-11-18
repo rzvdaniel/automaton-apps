@@ -2,6 +2,8 @@
 
 Copies your server's backups to another place, every night. An Automaton app (an Action plus a small page) that copies the newest encrypted server backup to S3-compatible storage. It requests `backups:read`, `backups:run` (start a server backup) and `notify:email`; it cannot read the server's private backup key or unencrypted backup folders.
 
+**Needs an Automaton server.** Backup Warden manages this server's backups through the Automaton API and its `backups:*` permissions, so it only works as an app installed on Automaton; it does not run on its own.
+
 ## Install
 
 Install the app from the store page in Studio (**Install on your server**). The install page asks for:

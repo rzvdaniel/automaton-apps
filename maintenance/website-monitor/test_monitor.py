@@ -232,6 +232,20 @@ class StateFile(unittest.TestCase):
             self.assertEqual(monitor.load_state(path), {})
 
 
+class History(unittest.TestCase):
+    def test_keeps_24_hours_and_averages_sites_that_answered(self):
+        state = {"a": {"up": True, "ms": 100}, "b": {"up": True, "ms": 300}, "c": {"up": False, "ms": None}}
+        old = [[1000, 5, 1, 0], [1000 + 90000, 6, 1, 0]]
+        history = monitor.add_history(old, state, 1000 + 90000 + 60)
+        self.assertEqual(history, [[1000 + 90000, 6, 1, 0], [1000 + 90060, 200, 2, 1]])
+
+    def test_bad_history_file_is_ignored(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "h.json")
+            monitor.save_state(path, {"points": [[1, 2, 3, 4], "x", [1, "a", 1, 1]]})
+            self.assertEqual(monitor.load_history(path), [[1, 2, 3, 4]])
+
+
 class Receiver(http.server.BaseHTTPRequestHandler):
     hits = []
     def do_POST(self):
