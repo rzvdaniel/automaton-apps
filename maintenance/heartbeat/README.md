@@ -57,15 +57,41 @@ If every channel fails (for example the webhook is unreachable and email is unav
 
 From the page's address while signed in to Studio (the platform adds the viewer headers), with `Content-Type: application/json` on POST and `X-Heartbeat: 1` on POST and DELETE: `GET /api/checks`, `POST /api/checks` with `{"name": "db-dump", "period": "24h", "grace": "1h"}`, `DELETE /api/checks/<id>`. There is no token for scripts; create checks in the page.
 
-## Run it without Automaton
+## Run it on its own
 
-The app trusts the viewer headers only when Automaton runs it (the platform sets `AUTOMATON_APP_ID` for every app). Anywhere else anyone could forge those headers, so they are ignored and management needs an admin token:
+The app trusts the viewer headers only when Automaton runs it (the platform sets `AUTOMATON_APP_ID` for every app). Anywhere else anyone could forge those headers, so they are ignored and management needs an `ADMIN_TOKEN` of at least 16 characters. Run this from a copy of this folder (it needs `main.py`, `heartbeat.py`, `index.html`, `heartbeat.css` and `ui/`):
 
-```sh
-ADMIN_TOKEN=<a long random value> AUTOMATON_PORT=8080 AUTOMATON_APP_DATA_DIR=./data python3 main.py
+```yaml
+services:
+  heartbeat:
+    image: python:3.12-slim
+    user: "1000:1000"
+    working_dir: /app
+    command: python main.py
+    ports: ["8080:8080"]
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN}            # required to manage checks, 16+ characters
+      AUTOMATON_APP_DATA_DIR: /data
+      CHECK_INTERVAL_SECONDS: "30"
+      EMAIL_TO: administrators
+      # WEBHOOK_URL: https://hooks.example/...
+    volumes:
+      - ./:/app:ro
+      - ./data:/data                          # the checks; make the folder writable for uid 1000
 ```
 
-The page asks for the token once per browser tab; the API takes `Authorization: Bearer <ADMIN_TOKEN>`. Without `ADMIN_TOKEN` the app still receives check-ins and sends alerts but refuses to list, create or delete checks (401). Do not set `AUTOMATON_APP_ID` yourself: it switches the trust in viewer headers back on. Put it behind HTTPS, since the token travels in a header.
+Environment variables:
+
+| Variable | What it does |
+| --- | --- |
+| `ADMIN_TOKEN` | Secret. Signs you in on the page and the API (`Authorization: Bearer <ADMIN_TOKEN>`); at least 16 characters, otherwise management is refused. A wrong token is delayed by half a second. |
+| `CHECK_INTERVAL_SECONDS` | How often overdue checks are looked for (5 to 3600 seconds, default 30). |
+| `EMAIL_TO` | Who gets alert emails. Only works with Automaton's notify:email permission; on its own use `WEBHOOK_URL`. |
+| `WEBHOOK_URL` | Secret, optional. Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log. |
+| `AUTOMATON_APP_DATA_DIR` | Folder for `checks.json` (default `data`). Mount a volume here so checks survive a restart. |
+| `AUTOMATON_PORT` | Port to listen on (default 8080). |
+
+The page asks for the token and forgets it when it is wrong, so you are asked again. Without a valid `ADMIN_TOKEN` the app still receives check-ins and sends alerts but refuses to list, create or delete checks (401). Do not set `AUTOMATON_APP_ID` yourself: it switches the trust in viewer headers back on. Put it behind HTTPS, since the token travels in a header.
 
 ## Why it is an app and not an Action
 

@@ -23,6 +23,7 @@ from urllib.request import Request, urlopen
 import heartbeat
 
 USER_AGENT = "automaton-heartbeat"
+MIN_ADMIN_TOKEN = 16
 MAX_BODY = 4096
 
 
@@ -109,7 +110,7 @@ class App:
             return None if ok else "signin"
         supplied = headers.get("Authorization", "")
         supplied = supplied[7:] if supplied.lower().startswith("bearer ") else ""
-        if self.admin_token and hmac.compare_digest(supplied.encode(), self.admin_token.encode()):
+        if len(self.admin_token) >= MIN_ADMIN_TOKEN and hmac.compare_digest(supplied.encode(), self.admin_token.encode()):
             return None
         return "token"
 
@@ -207,8 +208,12 @@ def make_handler(app: App, page: bytes):
                 self.json(401, {"error": "Sign in through Automaton Studio to manage checks"})
                 return False
             if refused == "token":
-                message = "Send the ADMIN_TOKEN as a Bearer token to manage checks" if app.admin_token else "Set ADMIN_TOKEN to manage checks outside Automaton"
-                self.json(401, {"error": message, "mode": "token" if app.admin_token else "none"})
+                usable = len(app.admin_token) >= MIN_ADMIN_TOKEN
+                if usable and self.headers.get("Authorization"):
+                    time.sleep(0.5)  # slows guessing
+                message = ("Wrong or missing admin token: send the ADMIN_TOKEN as a Bearer token" if usable
+                           else f"Set ADMIN_TOKEN (at least {MIN_ADMIN_TOKEN} characters) to manage checks outside Automaton")
+                self.json(401, {"error": message, "mode": "token" if usable else "none"})
                 return False
             if self.command != "GET" and self.headers.get("X-Heartbeat") != "1":
                 self.json(403, {"error": "missing X-Heartbeat header"})

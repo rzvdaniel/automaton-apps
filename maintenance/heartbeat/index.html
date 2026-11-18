@@ -41,6 +41,7 @@ async function api(method, path, body, retry = true) {
   const headers = { 'X-Heartbeat': '1', 'Content-Type': 'application/json' };
   const saved = sessionStorage.getItem('heartbeat-admin'); if (saved) headers.Authorization = 'Bearer ' + saved;
   const response = await fetch('/api/checks' + path, { method, headers, body: body && JSON.stringify(body) });
+  if (response.status === 401 && saved) sessionStorage.removeItem('heartbeat-admin'); // a wrong token must not stay saved
   if (response.status === 401 && retry && (await response.clone().json().catch(() => ({}))).mode === 'token') {
     const entered = prompt('Admin token (the ADMIN_TOKEN this app was started with)');
     if (entered) { sessionStorage.setItem('heartbeat-admin', entered.trim()); return api(method, path, body, false); }

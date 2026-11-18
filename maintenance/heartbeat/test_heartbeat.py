@@ -1,5 +1,6 @@
 import http.client
 import json
+import time
 import os
 import tempfile
 import threading
@@ -287,7 +288,7 @@ class Server(unittest.TestCase):
 
     def test_negative_content_length_is_refused(self):
         connection = http.client.HTTPConnection("127.0.0.1", self.httpd.server_port, timeout=5)
-        connection.request("POST", "/api/checks", body=b"", headers={"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed", "Authorization": "Bearer s3cret-admin", "X-Heartbeat": "1", "Content-Length": "-5"})
+        connection.request("POST", "/api/checks", body=b"", headers={"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed", "Authorization": "Bearer s3cret-admin-0123456", "X-Heartbeat": "1", "Content-Length": "-5"})
         self.assertIn(connection.getresponse().status, (400, 413))
         connection.close()
 
@@ -318,9 +319,9 @@ class Server(unittest.TestCase):
 
 class Standalone(Server):
     """Not run by Automaton (no AUTOMATON_APP_ID): viewer headers are forgeable, so only the ADMIN_TOKEN counts."""
-    env = {"ADMIN_TOKEN": "s3cret-admin"}
+    env = {"ADMIN_TOKEN": "s3cret-admin-0123456"}
     forged = {"X-Automaton-Viewer-Role": "admin", "X-Automaton-Viewer-Token": "forged", "X-Heartbeat": "1"}
-    bearer = {"Authorization": "Bearer s3cret-admin", "X-Heartbeat": "1"}
+    bearer = {"Authorization": "Bearer s3cret-admin-0123456", "X-Heartbeat": "1"}
 
     def test_management_needs_studio_sign_in(self):
         self.assertEqual(self.request("GET", "/api/checks", token=None)[0], 401)
@@ -339,7 +340,7 @@ class Standalone(Server):
                                              {"name": "x", "period": "1h"} if method == "POST" else None, token=None, extra=self.forged)[0], 401, method)
 
     def test_wrong_or_missing_token_is_refused_and_right_one_works(self):
-        for auth in ({}, {"Authorization": "Bearer nope"}, {"Authorization": "Basic s3cret-admin"}, {"Authorization": "Bearer "}):
+        for auth in ({}, {"Authorization": "Bearer nope"}, {"Authorization": "Basic s3cret-admin-0123456"}, {"Authorization": "Bearer "}):
             self.assertEqual(super().request("GET", "/api/checks", token=None, extra=auth)[0], 401, auth)
         self.assertEqual(super().request("GET", "/api/checks", token=None, extra=self.bearer)[0], 200)
 
@@ -350,7 +351,23 @@ class Standalone(Server):
             self.assertEqual(super().request("GET", "/api/checks", token=None, extra={"Authorization": "Bearer "})[0], 401)
             self.assertEqual(super().request("GET", "/api/checks", token=None, extra=self.forged)[0], 401)
         finally:
-            Standalone.env = {"ADMIN_TOKEN": "s3cret-admin"}
+            Standalone.env = {"ADMIN_TOKEN": "s3cret-admin-0123456"}
+
+    def test_short_admin_token_is_not_accepted(self):
+        short = "short-token-15c"
+        self.assertEqual(len(short), 15)
+        self.stop(); Standalone.env = {"ADMIN_TOKEN": short}
+        try:
+            self.start()
+            status, body = super().request("GET", "/api/checks", token=None, extra={"Authorization": "Bearer " + short})
+            self.assertEqual((status, body["mode"]), (401, "none"))
+        finally:
+            Standalone.env = {"ADMIN_TOKEN": "s3cret-admin-0123456"}
+
+    def test_wrong_token_is_delayed(self):
+        start = time.monotonic()
+        self.assertEqual(super().request("GET", "/api/checks", token=None, extra={"Authorization": "Bearer nope"})[0], 401)
+        self.assertGreaterEqual(time.monotonic() - start, 0.4)
 
     def test_check_ins_stay_open(self):
         check = self.create()
@@ -358,6 +375,10 @@ class Standalone(Server):
 
 
 class Page(unittest.TestCase):
+    def test_a_rejected_saved_token_is_forgotten(self):
+        page = (Path(__file__).parent / "index.html").read_text()
+        self.assertIn("if (response.status === 401 && saved) sessionStorage.removeItem('heartbeat-admin')", page)
+
     def test_page_ships_and_uses_text_not_html_for_names(self):
         page = (Path(__file__).parent / "index.html").read_text()
         self.assertIn("textContent = c.name", page)
