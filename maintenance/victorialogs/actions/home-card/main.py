@@ -86,7 +86,7 @@ def gigabytes(value: float) -> float:
 
 
 def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float] | None = None,
-               own_logs: int | None = None, endpoint: str = "") -> dict:
+               own_logs: int | None = None) -> dict:
     total = errors = warnings = 0
     for row in counts:
         level = str(row.get("severity_text", "")).lower()
@@ -98,9 +98,9 @@ def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float]
             warnings += value
     blocks: list[dict] = []
     if own_logs == 0:
-        where = endpoint or "this app's address"
         blocks.append({"type": "alert", "severity": "info", "text":
-                       f"Automaton's own logs are not arriving. Set Logging__Otlp__Endpoint to {where} on the API, Worker and Runners."})
+                       "Automaton's own logs have not arrived yet. An administrator approves logs:receive for this app "
+                       "(App, Admin); they arrive within a minute. Logging__Otlp__Endpoint set on the server takes over."})
     if errors:
         blocks.append({"type": "alert", "severity": "warning", "text": f"{errors} errors in the last hour"})
     blocks.append({"type": "counters", "items": [
@@ -133,7 +133,7 @@ def no_data_card(reason: str) -> dict:
 def main() -> int:
     try:
         base = base_url(os.environ.get("LOGS_URL", ""), os.environ.get("AUTOMATON_APP_INTERNAL_URL", ""))
-        card = build_card(query(base, COUNT_QUERY), query(base, VOLUME_QUERY), storage(base), own_log_count(base), base)
+        card = build_card(query(base, COUNT_QUERY), query(base, VOLUME_QUERY), storage(base), own_log_count(base))
     except CardError as error:
         card = no_data_card(str(error))
     print(json.dumps(card))

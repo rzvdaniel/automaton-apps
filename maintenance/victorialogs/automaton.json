@@ -1,10 +1,13 @@
 {
   "name": "VictoriaLogs",
   "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
-  "description": "The Apache-2.0 VictoriaLogs log database from VictoriaMetrics, packaged from a pinned upstream release with its web UI (open /select/vmui/). The Automaton API, Worker and Runners send their logs to it over OpenTelemetry when Logging__Otlp__Endpoint points at this app. It keeps 14 days and at most 5 GiB of logs by default.",
+  "description": "The Apache-2.0 VictoriaLogs log database from VictoriaMetrics, packaged from a pinned upstream release with its web UI (open /select/vmui/). Once an administrator approves its logs:receive permission, the Automaton API, Worker and the Runner that hosts it send their logs to it over OpenTelemetry, with no setting. It keeps 14 days and at most 5 GiB of logs by default.",
   "category": "Monitoring",
   "application": {
     "kind": "web",
+    "permissions": [
+      "logs:receive"
+    ],
     "description": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
     "pages": [
       {
