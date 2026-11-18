@@ -56,11 +56,13 @@ def build_card(snapshot: dict, now: float) -> dict:
         return {"status": "No sites yet", "tone": "info",
                 "blocks": [{"type": "buttons", "items": [{"label": "See sites", "path": "/"}]}]}
     status = f"{len(down)} of {len(sites)} sites down" if down else f"All {len(sites)} sites up"
-    blocks: list[dict] = [{"type": "counters", "items": [
-        {"label": "Up", "value": str(len(sites) - len(down)), "tone": "ok"},
-        {"label": "Down", "value": str(len(down)), "tone": "critical" if down else "ok"},
-        {"label": "Avg ms", "value": "-" if average is None else str(average)},
-    ]}]
+    counters = [
+        {"label": "Up", "value": len(sites) - len(down), "tone": "ok"},
+        {"label": "Down", "value": len(down), "tone": "critical" if down else "ok"},
+    ]
+    if average is not None:  # the card language needs a number for every counter, so no average means no counter
+        counters.append({"label": "Avg ms", "value": average})
+    blocks: list[dict] = [{"type": "counters", "items": counters}]
     labels, values = hourly(snapshot.get("history", []), now)
     if len(values) >= 2:
         blocks.append({"type": "chart", "kind": "area", "title": "Response time, 24 h", "labels": labels,
