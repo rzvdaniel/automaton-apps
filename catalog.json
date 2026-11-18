@@ -64,7 +64,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "e6f88a8f600e032cf2e21d192b8a9b63eaeba67b",
+      "commit": "e1b3e15ac8956642571e919858bcdc910b4c5227",
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
