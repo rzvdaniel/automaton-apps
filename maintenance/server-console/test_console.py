@@ -930,6 +930,12 @@ class BackupWarningTests(unittest.TestCase):
         self.assertEqual(self.conditions(backups_data(100, available=False)), {})
         self.assertEqual(self.conditions(None, None), {})
 
+    def test_catalog_app_name_backup_warden_is_found(self):
+        found = self.conditions(None, [offsite_app("Failed", 30, name="Backup Warden")])
+        self.assertTrue(found["offsite_failed"][0])
+        self.assertTrue(found["offsite_old"][0])
+        self.assertFalse(self.conditions(None, [offsite_app("Succeeded", 3, name="backup warden")])["offsite_old"][0])
+
     def test_offsite_failed_old_and_never_run(self):
         self.assertTrue(self.conditions(None, [offsite_app("Failed", 1)])["offsite_failed"][0])
         self.assertTrue(self.conditions(None, [offsite_app("TimedOut", 1)])["offsite_failed"][0])

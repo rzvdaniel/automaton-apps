@@ -19,6 +19,8 @@ HISTORY_SECONDS = 24 * 3600
 STALE_HOST_SECONDS = 15 * 60
 DAY = 86400
 BACKUP_MAX_AGE = 26 * 3600  # a nightly backup is never more than 26 hours apart
+# /api/apps/status exposes no catalog slug, so the app is found by its name: the catalog name or the old one.
+OFFSITE_NAMES = ("backup warden", "off-site")
 CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue", "backup_old", "backup_failed", "offsite_old", "offsite_failed")
 # What to do about each warning, shown on the page and in the email.
 ADVICE = {
@@ -600,7 +602,7 @@ def backup_conditions(backups: dict | None, apps: list | None, now: float) -> di
         error = backups.get("lastError")
         result["backup_failed"] = (bool(error), "the last server backup failed" + (f": {str(error)[:200]}" if error else ""))
     if isinstance(apps, list):
-        app = next((a for a in apps if isinstance(a, dict) and "off-site" in str(a.get("name", "")).lower()), None)
+        app = next((a for a in apps if isinstance(a, dict) and any(m in str(a.get("name", "")).lower() for m in OFFSITE_NAMES)), None)
         if app is not None:
             run = app.get("lastActionRun") if isinstance(app.get("lastActionRun"), dict) else None
             when = parse_time(run.get("createdAtUtc")) if run else None
