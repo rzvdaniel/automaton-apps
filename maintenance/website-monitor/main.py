@@ -10,6 +10,7 @@ from __future__ import annotations
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
+import hmac
 import json
 import os
 from pathlib import Path
@@ -119,6 +120,9 @@ class Monitor:
         self.sites = monitor.load_sites(self.sites_path, env.get("SITES", ""))  # SITES: the old setting, imported once
         self.wake = threading.Event()
         self.sites_lock = threading.Lock()
+        # The platform sets AUTOMATON_APP_ID for every app it runs; only then are its viewer headers to be trusted.
+        self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())
+        self.admin_token = env.get("ADMIN_TOKEN", "").strip()
         self.interval = settings.interval if settings else 300
         self.lock = threading.Lock()
         self.state = monitor.load_state(self.path)
@@ -203,16 +207,16 @@ class Monitor:
         return None
 
 
-def site_row(site: dict) -> str:
+def site_row(site: dict, token_field: str = "") -> str:
     pill = "" if site["pending"] else ("ok" if site["up"] else "critical")
     state = "Checking…" if site["pending"] else "UP" if site["up"] else "DOWN"
     cert = "" if site["cert_days"] is None else f'{site["cert_days"]} days'
     ms = "" if site["ms"] is None else site["ms"]
     sid = escape(site["id"], quote=True)
     edit = (f'<details><summary class="a-btn">Edit</summary><form class="a-form" method="post" action="sites/edit">'
-            f'<input type="hidden" name="id" value="{sid}">{site_fields(site["site"], site["expected"], site["keyword"])}'
+            f'<input type="hidden" name="id" value="{sid}">{site_fields(site["site"], site["expected"], site["keyword"])}{token_field}'
             f'<button class="a-btn a-btn--primary" type="submit">Save</button></form></details>')
-    remove = f'<form method="post" action="sites/remove"><input type="hidden" name="id" value="{sid}"><button class="a-btn" type="submit">Remove</button></form>'
+    remove = f'<form method="post" action="sites/remove"><input type="hidden" name="id" value="{sid}">{token_field}<button class="a-btn" type="submit">Remove</button></form>'
     return (f'<tr><td class="a-mono">{escape(site["site"])}</td><td><span class="a-pill a-pill--{pill}">{state}</span></td>'
             f'<td class="a-num">{ms}</td><td>{cert}</td><td>{escape(site["error"] or "")}</td>'
             f'<td><div style="display:flex;gap:8px;align-items:flex-start">{edit}{remove}</div></td></tr>')
@@ -224,8 +228,12 @@ def site_fields(url: str = "", expected=None, keyword=None) -> str:
             f'<label class="a-field">Keyword the page must contain (optional)<input class="a-input" name="keyword" maxlength="200" value="{escape(keyword or "", quote=True)}"></label>')
 
 
-def render(snapshot: dict, error: str = "") -> str:
-    rows = [site_row(site) for site in snapshot["sites"]]
+TOKEN_FIELD = '<label class="a-field">Admin token<input class="a-input" name="admin_token" type="password" autocomplete="off" required></label>'
+
+
+def render(snapshot: dict, error: str = "", standalone: bool = False) -> str:
+    token_field = TOKEN_FIELD if standalone else ""
+    rows = [site_row(site, token_field) for site in snapshot["sites"]]
     failure = f'<p class="a-note a-note--critical">Last run failed: {escape(snapshot["lastError"])}</p>' if snapshot["lastError"] else ""
     problem = f'<p class="a-note a-note--critical" role="alert">{escape(error)}</p>' if error else ""
     last = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(snapshot["lastRun"])) if snapshot["lastRun"] else "not yet"
@@ -236,7 +244,7 @@ def render(snapshot: dict, error: str = "") -> str:
     label = "Needs attention" if overall == "critical" else "All good" if overall == "ok" else "No sites yet" if not total else "Checking…"
     table = f'<div class="a-table-wrap"><table class="a-table"><thead><tr><th>Site</th><th>Status</th><th class="a-num">ms</th><th>Certificate</th><th>Detail</th><th></th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows else '<div class="a-empty"><div class="a-empty__title">Add your first site</div>Enter its address below. It is checked right away.</div>'
     add = (f'<section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Add a site</h2></div>{problem}'
-           f'<form class="a-form" method="post" action="sites/add">{site_fields()}<div><button class="a-btn a-btn--primary" type="submit">Add site</button></div></form></section>')
+           f'<form class="a-form" method="post" action="sites/add">{site_fields()}{token_field}<div><button class="a-btn a-btn--primary" type="submit">Add site</button></div></form></section>')
     return f"""<!doctype html><html lang="en" data-look="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Website Monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -271,6 +279,19 @@ def signed_in(headers) -> bool:
     return bool(headers.get("X-Automaton-Viewer-Role")) and bool(headers.get("X-Automaton-Viewer-Token"))
 
 
+def may_manage(app: Monitor, headers, form: dict) -> bool:
+    """Run by Automaton, the proxy's sign-in decides. Run anywhere else, anyone could forge the viewer headers, so
+    they are ignored and management needs the ADMIN_TOKEN (sent as a Bearer token or by the page's form); without
+    an ADMIN_TOKEN nothing is managed."""
+    if app.managed:
+        return signed_in(headers)
+    supplied = form.get("admin_token", "")
+    auth = headers.get("Authorization", "")
+    if auth.lower().startswith("bearer "):
+        supplied = auth[7:]
+    return bool(app.admin_token) and hmac.compare_digest(supplied.encode(), app.admin_token.encode())
+
+
 def same_origin(headers) -> bool:
     """A form post must come from this app's own page: its Origin names the host it was sent to."""
     origin = headers.get("Origin", "")
@@ -291,7 +312,7 @@ def make_handler(app: Monitor):
                 self.reply(200, "application/json", json.dumps(snapshot).encode())
             elif path == "/":
                 error = parse_qs(parts.query).get("error", [""])[0][:200]
-                self.reply(200, "text/html; charset=utf-8", render(app.snapshot(), error).encode())
+                self.reply(200, "text/html; charset=utf-8", render(app.snapshot(), error, not app.managed).encode())
             elif path in ("/ui/app.css", "/ui/app.js", "/ui/theme.js", "/ui/page.js"):
                 asset = Path(__file__).parent / path.lstrip("/")
                 self.reply(200, "text/css" if path.endswith(".css") else "text/javascript", asset.read_bytes())
@@ -303,7 +324,7 @@ def make_handler(app: Monitor):
             action = path.removeprefix("/sites/")
             if action not in ("add", "edit", "remove") or not path.startswith("/sites/"):
                 self.reply(404, "text/plain", b"not found")
-            elif not signed_in(self.headers):
+            elif app.managed and not signed_in(self.headers):
                 self.reply(401, "text/plain", b"sign in required")
             elif not same_origin(self.headers):
                 self.reply(403, "text/plain", b"forbidden")
@@ -316,6 +337,9 @@ def make_handler(app: Monitor):
                     self.reply(413, "text/plain", b"too large")
                     return
                 form = {k: v[0] for k, v in parse_qs(self.rfile.read(length).decode("utf-8", "replace"), keep_blank_values=True).items()}
+                if not may_manage(app, self.headers, form):
+                    self.reply(401, "text/plain", b"sign in required" if app.managed else b"admin token required")
+                    return
                 error = app.edit(action, form)
                 self.send_response(303)
                 self.send_header("Location", "../?" + urlencode({"error": error}) if error else "../")

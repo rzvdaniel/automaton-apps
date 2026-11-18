@@ -53,7 +53,7 @@ Create a free check at an outside service such as healthchecks.io, set its URL a
 
 **Upgrading an app you published:** the page can now add and remove sites, and the app fetches the addresses you give it, so anyone with the link could do the same. Republish it with `automaton publish --private` (Automaton sign-in required) before upgrading.
 
-Keep the app private (the default): the page asks for your Automaton sign-in, and that sign-in is what protects adding and removing sites. Changes need the sign-in the platform proxy vouches for (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`; a request without them gets 401) and are only accepted from the page itself (same-origin check, which also stops another site from making your browser post a form). Addresses that point at the server itself (`localhost`, loopback and link-local IPs such as `169.254.169.254`) are refused; private network ranges (10.x, 192.168.x) are allowed on purpose, and a hostname that resolves to a private address, or a site that redirects to one, is not checked. If you publish the app, anyone with the link can change the list, so don't. The public-safe parts are what `/status.json` returns: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. If the last run failed, the page says why. `/health` answers `ok`.
+Keep the app private (the default): the page asks for your Automaton sign-in, and that sign-in is what protects adding and removing sites. Changes need the sign-in the platform proxy vouches for (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`; a request without them gets 401), and those headers are trusted only when Automaton runs the app (see *Run it without Automaton*) and are only accepted from the page itself (same-origin check, which also stops another site from making your browser post a form). Addresses that point at the server itself (`localhost`, loopback and link-local IPs such as `169.254.169.254`) are refused; private network ranges (10.x, 192.168.x) are allowed on purpose, and a hostname that resolves to a private address, or a site that redirects to one, is not checked. If you publish the app, anyone with the link can change the list, so don't. The public-safe parts are what `/status.json` returns: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. If the last run failed, the page says why. `/health` answers `ok`.
 
 State (the last result per site, and what you were already told) is stored in the app's data directory, so a restart does not repeat alerts. Logs contain the alert texts and errors, never the webhook or heartbeat URLs.
 
@@ -62,6 +62,16 @@ State (the last result per site, and what you were already told) is stored in th
 This app cannot report its own server going down. To watch an Automaton server, install Website Monitor on a *second, separate* Automaton server (not a Runner of the same one), add the first server's address, and preferably set a `WEBHOOK_URL` so the alert does not depend on the server that is down.
 
 ## Run it without Automaton
+
+The app trusts the viewer headers only when Automaton runs it (the platform sets `AUTOMATON_APP_ID` for every app). Anywhere else anyone could forge them, so they are ignored and adding, editing and removing sites needs an admin token:
+
+```sh
+ADMIN_TOKEN=<a long random value> AUTOMATON_APP_DATA_DIR=./data python3 main.py
+```
+
+The page shows an "Admin token" field in each form; scripts can post with `Authorization: Bearer <ADMIN_TOKEN>`. Posts still have to come from the page's own origin. Without `ADMIN_TOKEN` the status page and checks run, but every change is refused (401). Do not set `AUTOMATON_APP_ID` yourself: it switches the trust in viewer headers back on. Put it behind HTTPS, since the token is sent with each change.
+
+For a one-off check without the page:
 
 ```sh
 AUTOMATON_APP_DATA_DIR=./data SITES="https://example.com|200" python3 main.py --once

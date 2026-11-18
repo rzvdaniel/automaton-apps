@@ -370,10 +370,12 @@ class ManageSites(unittest.TestCase):
 
 
 class Http(unittest.TestCase):
+    env = {"AUTOMATON_APP_ID": "11111111-1111-1111-1111-111111111111"}  # run by Automaton
+
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
-        self.app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name})
+        self.app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name, **self.env})
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close()))
@@ -451,3 +453,65 @@ class Http(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HttpStandalone(unittest.TestCase):
+    """Not run by Automaton (no AUTOMATON_APP_ID): viewer headers are forgeable, so only the ADMIN_TOKEN counts."""
+    token = "s3cret-admin"
+    env = {"ADMIN_TOKEN": token}
+    forged = {"X-Automaton-Viewer-Role": "admin", "X-Automaton-Viewer-Token": "forged"}
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.app = main.Monitor(env={"AUTOMATON_APP_DATA_DIR": self.folder.name, **self.env})
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close()))
+        self.host = f"127.0.0.1:{self.server.server_port}"
+
+    def post(self, body, headers=None, path="/sites/add"):
+        import http.client
+        connection = http.client.HTTPConnection(self.host)
+        connection.request("POST", path, body, {"Content-Type": "application/x-www-form-urlencoded", "Origin": "http://" + self.host, **(headers or {})})
+        response = connection.getresponse()
+        response.read()
+        return response.status
+
+    def sites(self):
+        return [s["site"] for s in self.app.snapshot()["sites"]]
+
+    def test_forged_viewer_headers_do_nothing(self):
+        self.assertEqual(self.post("url=https%3A%2F%2Fa.example", self.forged), 401)
+        self.assertEqual(self.sites(), [])
+
+    def test_form_token_or_bearer_token_manages(self):
+        self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={self.token}"), 303)
+        self.assertEqual(self.post("url=https%3A%2F%2Fb.example", {"Authorization": "Bearer " + self.token}), 303)
+        self.assertEqual(self.sites(), ["https://a.example", "https://b.example"])
+
+    def test_wrong_or_missing_token_is_refused_for_every_action(self):
+        self.app.edit("add", {"url": "https://a.example"})
+        site_id = self.app.snapshot()["sites"][0]["id"]
+        for token in ("", "&admin_token=", "&admin_token=nope", "&admin_token=" + self.token[:-1]):
+            for action in ("add", "edit", "remove"):
+                self.assertEqual(self.post(f"id={site_id}&url=https%3A%2F%2Fc.example{token}", path=f"/sites/{action}"), 401, (action, token))
+        self.assertEqual(self.post(f"id={site_id}", {"Authorization": "Bearer nope"}, "/sites/remove"), 401)
+        self.assertEqual(self.sites(), ["https://a.example"])
+
+    def test_token_still_needs_the_same_origin(self):
+        self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={self.token}", {"Origin": "http://evil.example"}), 403)
+        self.assertEqual(self.sites(), [])
+
+    def test_without_an_admin_token_nothing_is_managed(self):
+        self.app.admin_token = ""
+        for body, headers in (("url=https%3A%2F%2Fa.example&admin_token=", None), ("url=https%3A%2F%2Fa.example", self.forged),
+                              ("url=https%3A%2F%2Fa.example", {"Authorization": "Bearer "})):
+            self.assertEqual(self.post(body, headers), 401)
+        self.assertEqual(self.sites(), [])
+
+    def test_page_asks_for_the_token_only_when_standalone(self):
+        snapshot = {"lastRun": 0, "lastError": None, "sites": []}
+        self.assertIn('name="admin_token"', main.render(snapshot, "", True))
+        self.assertNotIn("admin_token", main.render(snapshot, "", False))
+        self.assertNotIn(self.token, main.render(snapshot, "", True))
