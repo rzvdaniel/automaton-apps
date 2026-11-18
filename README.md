@@ -1,25 +1,22 @@
 # Automaton Apps
 
-Example apps built for [Automaton](https://automaton.monster), a platform for building, deploying, publishing, and running web apps on your own server.
+The official app catalog for [Automaton](https://automaton.monster), a platform for building, deploying, publishing, and running web apps on your own server: the essential, maintained tools every server may want.
 
-[Automaton source](https://github.com/rzvdaniel/automaton) · [App documentation](https://automaton.monster/docs/) · [Automaton App Store](https://store.automaton.monster/)
+[Automaton source](https://github.com/rzvdaniel/automaton) · [App documentation](https://automaton.monster/docs/) · [Automaton App Store](https://store.automaton.monster/)  · Showcase apps, games and experiments live in the [automaton-monster store](https://github.com/rzvdaniel/automaton-monster) (an optional catalog source)
 
 ## Apps
 
 | App | Source |
 | --- | --- |
-| Untranslatable — a multiplayer word-bluffing game | [games/untranslatable](games/untranslatable/) |
-| Harbour Wallpaper — a living harbour island for your desktop that reacts to clicks | [wallpapers/harbour](wallpapers/harbour/) |
-| Off-site Backup — encrypted server backup copy for S3-compatible storage, with Back up now | [maintenance/offsite-backup](maintenance/offsite-backup/) |
+| Backup Warden — copies your server's backups to another place, every night (S3-compatible storage), with Back up now | [maintenance/offsite-backup](maintenance/offsite-backup/) |
+| Server Console — a dashboard for your server: CPU, memory, disk, OS updates, certificates and backups | [maintenance/server-console](maintenance/server-console/) |
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
 | Watchtower — watches your server and emails you once when something needs attention, with a mute link | [maintenance/watchtower](maintenance/watchtower/) |
-| IT-Tools — handy online tools for developers, packaged from the upstream project (GPL-3.0) | [utilities/it-tools](utilities/it-tools/) |
-| GoatCounter — privacy-friendly web analytics, built from a pinned upstream release (EUPL-1.2) | [analytics/goatcounter](analytics/goatcounter/) |
 | Ghost — a blog with newsletters, packaged from the upstream image (MIT) | [publishing/ghost](publishing/ghost/) |
 | VictoriaLogs — search server and app logs in the browser, packaged from the upstream image (Apache-2.0) | [maintenance/victorialogs](maintenance/victorialogs/) |
 
-Each app has its own source, dependencies, and `automaton.json`. Some examples use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
+Each app has its own source, dependencies, and `automaton.json`. Some apps use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 
 ## App design kit
 
@@ -29,14 +26,12 @@ Apps with a page are built from [design/automaton-app-ui](design/automaton-app-u
 
 Some apps here package a well-known upstream project without changing its source. Each folder holds `automaton.json`, a `README.md` (upstream project and link, license, packaged version, configuration) and the upstream license file. There are two ways to get the upstream code, always pinned to one version:
 
-- **B, from a pinned release (default):** `automaton.json` runs a build command (a script in the folder) that downloads one upstream release, verifies its SHA-256 and builds it on the Runner. Use it whenever the build fits a 2 vCPU / 4 GB Runner and the build timeout. When compiling is too heavy but the project publishes a ready-built release archive, the script unpacks that archive instead (same pinned version and checksum; [IT-Tools](utilities/it-tools/) does this); [GoatCounter](analytics/goatcounter/) compiles its release tag on the Runner, and the README says so.
+- **B, from a pinned release (default):** `automaton.json` runs a build command (a script in the folder) that downloads one upstream release, verifies its SHA-256 and builds it on the Runner. Use it whenever the build fits a 2 vCPU / 4 GB Runner and the build timeout. When compiling is too heavy but the project publishes a ready-built release archive, the script unpacks that archive instead (same pinned version and checksum).
 - **A, upstream image:** `application.runtime.image` is the project's own published image, pinned to a version (never `latest`), with no build. Use it when a build is too heavy for a small Runner, and say so in the app's README.
 
 ## Get started
 
 Clone this repository and choose an app folder. Read its README, where available, and its `AGENTS.md` for app-specific guidance. There is no shared root build or dependency installation.
-
-[Untranslatable's README](games/untranslatable/README.md) includes local run and deployment instructions for a dependency-free Node.js example.
 
 To build your own app, follow the [Automaton quickstart](https://github.com/rzvdaniel/automaton#readme).
 
@@ -53,3 +48,7 @@ This repository is licensed under the [Apache License 2.0](LICENSE). Third-party
 `catalog.json` in the root of `main` is the index every Automaton server reads to list installable apps (Apps → Catalog). It is generated by `python tools/generate_catalog.py`: to list an app, add its folder to `catalog-apps.json` (category and the oldest Automaton Server version that can run it) and give the app a `name` and `summary` in its `automaton.json`. Pull requests are checked by CI. After a merge to `main`, CI regenerates the file (each app is pinned to the last commit that changed its folder, so an entry never points at its own commit) and, if it changed, opens a pull request labelled `catalog-bot` and merges it itself, because `main` requires pull requests. You do not edit `catalog.json` by hand. A server reads `https://raw.githubusercontent.com/rzvdaniel/automaton-apps/main/catalog.json`, so GitHub sees the server's IP address; nothing else about the server is sent.
 
 Servers on Automaton 0.2.32 read the `catalog` branch, so CI keeps publishing the same file there until no server runs 0.2.32 any more (the owner decides when).
+
+## Store apps moved out
+
+Showcase apps, games and experiments moved to the [automaton-monster store](https://github.com/rzvdaniel/automaton-monster) (GoatCounter, linkding, Harbour, Untranslatable). IT-Tools was removed from both catalogs: an installed copy keeps running but gets no updates. The store's entries carry `movedFrom`, so servers that installed an app from this catalog follow it to the store once the store is a catalog source.
