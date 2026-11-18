@@ -1,0 +1,21 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Home card
+  key: home-card
+  description: Sites up and down, average response time and the last 24 hours for the Home card.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 30
+  schedulable: true
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  output:
+    type: object
+    properties:
+      status:
+        type: string
+      blocks:
+        type: array

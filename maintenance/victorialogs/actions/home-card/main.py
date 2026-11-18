@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Home card for VictoriaLogs: errors and warnings of the last hour.
 
-Prints {"status", "facts", "alerts"}: plain text, at most 3 facts.
+Prints the card language (https://automaton.monster/schemas/home-card.schema.json): ingestion counters,
+a 24 hour log-volume chart and a storage meter. A glance only: details stay in the app.
 """
 
 from __future__ import annotations
@@ -13,8 +14,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-COUNT_QUERY = '_time:1h severity_text:~"(?i)^(error|warn|warning|fatal|critical)$" | stats by (severity_text) count() c'
-SOURCE_QUERY = '_time:1h severity_text:~"(?i)^(error|fatal|critical)$" | stats by (service.name) count() c | sort by (c desc) | limit 1'
+COUNT_QUERY = '_time:1h | stats by (severity_text) count() c'
+VOLUME_QUERY = '_time:24h | stats by (_time:1h) count() c | sort by (_time)'
 
 
 class CardError(RuntimeError):
@@ -55,29 +56,67 @@ def query(base: str, logsql: str) -> list[dict]:
     return rows
 
 
-def build_card(counts: list[dict], top_sources: list[dict]) -> dict:
-    errors = warnings = 0
+def storage(base: str) -> tuple[float, float] | None:
+    """(used bytes, used + free bytes) from the server's own /metrics, or None when it does not say."""
+    try:
+        with build_opener(NoRedirect()).open(Request(base + "/metrics"), timeout=15) as response:
+            text = response.read(2_000_000).decode("utf-8", "replace")
+    except (HTTPError, URLError, OSError):
+        return None
+    used = free = None
+    for line in text.splitlines():
+        try:
+            name, value = line.rsplit(" ", 1)
+            number = float(value)
+        except ValueError:
+            continue
+        if number != number or number in (float("inf"), float("-inf")):
+            continue
+        if name.startswith("vl_data_size_bytes{") or name == "vl_data_size_bytes":
+            used = (used or 0) + number
+        elif name.startswith("vl_free_disk_space_bytes{") or name == "vl_free_disk_space_bytes":
+            free = number
+    return (used, used + free) if used is not None and free is not None else None
+
+
+def gigabytes(value: float) -> float:
+    return round(value / 1e9, 2)
+
+
+def build_card(counts: list[dict], volume: list[dict], disk: tuple[float, float] | None = None) -> dict:
+    total = errors = warnings = 0
     for row in counts:
         level = str(row.get("severity_text", "")).lower()
         value = int(row.get("c", 0))
+        total += value
         if level in ("error", "fatal", "critical"):
             errors += value
-        else:
+        elif level in ("warn", "warning"):
             warnings += value
-    facts = [{"label": "Errors (1h)", "value": str(errors)}, {"label": "Warnings (1h)", "value": str(warnings)}]
-    if top_sources and errors:
-        facts.append({"label": "Top source", "value": str(top_sources[0].get("service.name", "unknown"))[:60]})
-    alerts = []
+    blocks: list[dict] = []
     if errors:
-        alerts.append({"severity": "warning", "text": f"{errors} errors in the last hour"})
+        blocks.append({"type": "alert", "severity": "warning", "text": f"{errors} errors in the last hour"})
+    blocks.append({"type": "counters", "items": [
+        {"label": "Logs (1h)", "value": str(total)},
+        {"label": "Errors", "value": str(errors), "tone": "critical" if errors else "ok"},
+        {"label": "Warnings", "value": str(warnings), "tone": "warning" if warnings else "ok"},
+    ]})
+    points = [(str(r.get("_time", ""))[11:16], int(r.get("c", 0))) for r in volume][-24:]
+    if len(points) >= 2:
+        blocks.append({"type": "chart", "kind": "area", "title": "Log volume, 24 h",
+                       "labels": [p[0] for p in points],
+                       "series": [{"name": "Logs per hour", "tone": "info", "values": [p[1] for p in points]}]})
+    if disk and disk[1] > 0:
+        blocks.append({"type": "meter", "label": "Storage", "value": gigabytes(disk[0]), "max": gigabytes(disk[1]),
+                       "unit": "GB", "warnAt": gigabytes(disk[1] * 0.8), "critAt": gigabytes(disk[1] * 0.95)})
     status = f"{errors} errors in the last hour" if errors else "No errors in the last hour"
-    return {"status": status, "facts": facts[:3], "alerts": alerts}
+    return {"status": status, "tone": "warning" if errors else "ok", "blocks": blocks}
 
 
 def main() -> int:
     try:
         base = base_url(os.environ.get("LOGS_URL", ""))
-        card = build_card(query(base, COUNT_QUERY), query(base, SOURCE_QUERY))
+        card = build_card(query(base, COUNT_QUERY), query(base, VOLUME_QUERY), storage(base))
     except CardError as error:
         print(str(error), file=sys.stderr)
         return 1

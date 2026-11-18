@@ -327,3 +327,19 @@ def save_state(path: str, state: dict) -> None:
     with open(temp, "w", encoding="utf-8") as handle:
         json.dump(state, handle)
     os.replace(temp, path)
+
+
+HISTORY_SECONDS = 24 * 3600
+
+
+def load_history(path: str) -> list[list[float]]:
+    """The last 24 hours of [time, average ms of the sites that answered, sites up, sites down]."""
+    points = load_state(path).get("points", [])
+    return [p for p in points if isinstance(p, list) and len(p) == 4 and all(isinstance(v, (int, float)) for v in p)]
+
+
+def add_history(history: list[list[float]], state: dict, now: float) -> list[list[float]]:
+    times = [s["ms"] for s in state.values() if s.get("up") and isinstance(s.get("ms"), (int, float))]
+    up = sum(1 for s in state.values() if s.get("up"))
+    point = [round(now), round(sum(times) / len(times)) if times else 0, up, len(state) - up]
+    return [p for p in history if p[0] > now - HISTORY_SECONDS] + [point]

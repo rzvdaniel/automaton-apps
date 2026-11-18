@@ -120,3 +120,7 @@ Per-site intervals, and a public status page with history.
 ```sh
 python3 -m unittest discover -p 'test_*.py'
 ```
+
+## Home card
+
+`actions/home-card` draws the app's Home card from its own `/status.json`: counters (up, down, average ms), an area chart of the average response time over the last 24 hours, the sites that are down and a **See sites** button. The app keeps one point per check for 24 hours in `history.json` in its data folder. Detailed results stay on the app's page.
