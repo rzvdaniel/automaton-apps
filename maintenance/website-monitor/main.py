@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -183,6 +184,8 @@ class Monitor:
                     site = monitor.make_site(fields.get("url", ""), fields.get("status"), fields.get("keyword"))
                 except monitor.ConfigError as error:
                     return str(error)
+                if blocked_target(site.url):
+                    return "That address points at this server itself, so it can't be monitored."
                 if action == "edit" and index is None:
                     return "That site no longer exists."
                 if any(s["url"] == site.url and i != index for i, s in enumerate(sites)):
@@ -246,6 +249,24 @@ def render(snapshot: dict, error: str = "") -> str:
 {add}<p class="a-footer">Refreshes every minute.</p></main><script src="ui/theme.js"></script><script src="ui/page.js"></script></body></html>"""
 
 
+def blocked_target(url: str) -> bool:
+    """True for an address that points at the server itself: localhost, loopback, link-local or unspecified IPs (cloud metadata sits at 169.254.169.254)."""
+    host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    ip = ip.ipv4_mapped or ip if isinstance(ip, ipaddress.IPv6Address) else ip
+    return ip.is_loopback or ip.is_link_local or ip.is_unspecified
+
+
+def signed_in(headers) -> bool:
+    """The platform proxy sets both viewer headers for a signed-in user and replaces any the client sent."""
+    return bool(headers.get("X-Automaton-Viewer-Role")) and bool(headers.get("X-Automaton-Viewer-Token"))
+
+
 def same_origin(headers) -> bool:
     """A form post must come from this app's own page: its Origin names the host it was sent to."""
     origin = headers.get("Origin", "")
@@ -278,6 +299,8 @@ def make_handler(app: Monitor):
             action = path.removeprefix("/sites/")
             if action not in ("add", "edit", "remove") or not path.startswith("/sites/"):
                 self.reply(404, "text/plain", b"not found")
+            elif not signed_in(self.headers):
+                self.reply(401, "text/plain", b"sign in required")
             elif not same_origin(self.headers):
                 self.reply(403, "text/plain", b"forbidden")
             else:

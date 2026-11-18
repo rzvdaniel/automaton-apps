@@ -379,10 +379,12 @@ class Http(unittest.TestCase):
         self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close()))
         self.host = f"127.0.0.1:{self.server.server_port}"
 
-    def post(self, path, body, origin="same"):
+    def post(self, path, body, origin="same", signed=True):
         import http.client
         connection = http.client.HTTPConnection(self.host)
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        if signed:
+            headers.update({"X-Automaton-Viewer-Role": "user", "X-Automaton-Viewer-Token": "signed"})
         if origin:
             headers["Origin"] = "http://" + self.host if origin == "same" else origin
         connection.request("POST", path, body, headers)
@@ -406,6 +408,27 @@ class Http(unittest.TestCase):
         for origin in ("http://evil.example", None):
             self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example", origin)[0], 403)
         self.assertEqual(self.app.snapshot()["sites"], [])
+
+    def test_posts_without_the_viewer_headers_are_401_and_change_nothing(self):
+        import http.client
+        self.assertEqual(self.post("/sites/add", "url=https%3A%2F%2Fa.example", signed=False)[0], 401)
+        for name in ("X-Automaton-Viewer-Role", "X-Automaton-Viewer-Token"):  # one header alone is not enough
+            connection = http.client.HTTPConnection(self.host)
+            connection.request("POST", "/sites/add", "url=https%3A%2F%2Fa.example", {"Origin": "http://" + self.host, name: "x"})
+            self.assertEqual(connection.getresponse().status, 401)
+        self.app.edit("add", {"url": "https://b.example"})
+        site_id = self.app.snapshot()["sites"][0]["id"]
+        for action in ("edit", "remove"):
+            self.assertEqual(self.post(f"/sites/{action}", f"id={site_id}&url=https%3A%2F%2Fc.example", signed=False)[0], 401)
+        self.assertEqual([s["site"] for s in self.app.snapshot()["sites"]], ["https://b.example"])
+
+    def test_loopback_and_link_local_targets_are_refused(self):
+        for url in ("http://localhost/", "http://127.0.0.1:8080/", "http://[::1]/", "http://169.254.169.254/latest", "http://0.0.0.0/", "http://[::ffff:127.0.0.1]/", "http://x.localhost/"):
+            self.assertIn("this server itself", self.app.edit("add", {"url": url}), url)
+        self.assertEqual(self.app.snapshot()["sites"], [])
+        self.assertIsNone(self.app.edit("add", {"url": "https://example.com/"}))
+        site_id = self.app.snapshot()["sites"][0]["id"]
+        self.assertIn("this server itself", self.app.edit("edit", {"id": site_id, "url": "http://169.254.169.254/"}))
 
     def test_corrupt_sites_file_is_kept_until_fixed_by_hand(self):
         path = os.path.join(self.folder.name, "sites.json")
