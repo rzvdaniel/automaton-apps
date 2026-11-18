@@ -457,7 +457,7 @@ if __name__ == "__main__":
 
 class HttpStandalone(unittest.TestCase):
     """Not run by Automaton (no AUTOMATON_APP_ID): viewer headers are forgeable, so only the ADMIN_TOKEN counts."""
-    token = "s3cret-admin"
+    token = "s3cret-admin-0123456"
     env = {"ADMIN_TOKEN": token}
     forged = {"X-Automaton-Viewer-Role": "admin", "X-Automaton-Viewer-Token": "forged"}
 
@@ -475,7 +475,7 @@ class HttpStandalone(unittest.TestCase):
         connection = http.client.HTTPConnection(self.host)
         connection.request("POST", path, body, {"Content-Type": "application/x-www-form-urlencoded", "Origin": "http://" + self.host, **(headers or {})})
         response = connection.getresponse()
-        response.read()
+        self.body = response.read().decode()
         return response.status
 
     def sites(self):
@@ -498,6 +498,22 @@ class HttpStandalone(unittest.TestCase):
                 self.assertEqual(self.post(f"id={site_id}&url=https%3A%2F%2Fc.example{token}", path=f"/sites/{action}"), 401, (action, token))
         self.assertEqual(self.post(f"id={site_id}", {"Authorization": "Bearer nope"}, "/sites/remove"), 401)
         self.assertEqual(self.sites(), ["https://a.example"])
+
+    def test_short_admin_token_is_not_accepted(self):
+        short = "short-token-15c"
+        self.app.admin_token = short
+        self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={short}"), 401)
+        self.assertEqual(self.post("url=https%3A%2F%2Fa.example", {"Authorization": "Bearer " + short}), 401)
+        self.assertEqual(self.sites(), [])
+
+    def test_wrong_token_is_delayed_and_the_page_asks_again(self):
+        import time
+        start = time.monotonic()
+        self.assertEqual(self.post("url=https%3A%2F%2Fa.example&admin_token=nope"), 401)
+        self.assertGreaterEqual(time.monotonic() - start, 0.4)
+        self.assertIn("Wrong admin token", self.body)
+        self.assertIn('name="admin_token"', self.body)
+        self.assertNotIn("nope", self.body)
 
     def test_token_still_needs_the_same_origin(self):
         self.assertEqual(self.post(f"url=https%3A%2F%2Fa.example&admin_token={self.token}", {"Origin": "http://evil.example"}), 403)

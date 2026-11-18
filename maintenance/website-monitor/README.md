@@ -53,7 +53,7 @@ Create a free check at an outside service such as healthchecks.io, set its URL a
 
 **Upgrading an app you published:** the page can now add and remove sites, and the app fetches the addresses you give it, so anyone with the link could do the same. Republish it with `automaton publish --private` (Automaton sign-in required) before upgrading.
 
-Keep the app private (the default): the page asks for your Automaton sign-in, and that sign-in is what protects adding and removing sites. Changes need the sign-in the platform proxy vouches for (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`; a request without them gets 401), and those headers are trusted only when Automaton runs the app (see *Run it without Automaton*) and are only accepted from the page itself (same-origin check, which also stops another site from making your browser post a form). Addresses that point at the server itself (`localhost`, loopback and link-local IPs such as `169.254.169.254`) are refused; private network ranges (10.x, 192.168.x) are allowed on purpose, and a hostname that resolves to a private address, or a site that redirects to one, is not checked. If you publish the app, anyone with the link can change the list, so don't. The public-safe parts are what `/status.json` returns: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. If the last run failed, the page says why. `/health` answers `ok`.
+Keep the app private (the default): the page asks for your Automaton sign-in, and that sign-in is what protects adding and removing sites. Changes need the sign-in the platform proxy vouches for (`X-Automaton-Viewer-Role` and `X-Automaton-Viewer-Token`; a request without them gets 401), and those headers are trusted only when Automaton runs the app (see *Run it on its own*) and are only accepted from the page itself (same-origin check, which also stops another site from making your browser post a form). Addresses that point at the server itself (`localhost`, loopback and link-local IPs such as `169.254.169.254`) are refused; private network ranges (10.x, 192.168.x) are allowed on purpose, and a hostname that resolves to a private address, or a site that redirects to one, is not checked. If you publish the app, anyone with the link can change the list, so don't. The public-safe parts are what `/status.json` returns: each site's address (no query string), status, response time and certificate days; a failed keyword check names the keyword in its detail. If the last run failed, the page says why. `/health` answers `ok`.
 
 State (the last result per site, and what you were already told) is stored in the app's data directory, so a restart does not repeat alerts. Logs contain the alert texts and errors, never the webhook or heartbeat URLs.
 
@@ -61,15 +61,43 @@ State (the last result per site, and what you were already told) is stored in th
 
 This app cannot report its own server going down. To watch an Automaton server, install Website Monitor on a *second, separate* Automaton server (not a Runner of the same one), add the first server's address, and preferably set a `WEBHOOK_URL` so the alert does not depend on the server that is down.
 
-## Run it without Automaton
+## Run it on its own
 
-The app trusts the viewer headers only when Automaton runs it (the platform sets `AUTOMATON_APP_ID` for every app). Anywhere else anyone could forge them, so they are ignored and adding, editing and removing sites needs an admin token:
+The app trusts the viewer headers only when Automaton runs it (the platform sets `AUTOMATON_APP_ID` for every app). Anywhere else anyone could forge them, so they are ignored and adding, editing and removing sites needs an `ADMIN_TOKEN` of at least 16 characters. Run this from a copy of this folder (`main.py`, `monitor.py` and `ui/`):
 
-```sh
-ADMIN_TOKEN=<a long random value> AUTOMATON_APP_DATA_DIR=./data python3 main.py
+```yaml
+services:
+  website-monitor:
+    image: python:3.12-slim
+    user: "1000:1000"
+    working_dir: /app
+    command: python main.py
+    ports: ["8080:8080"]
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN}            # required to change sites, 16+ characters
+      AUTOMATON_APP_DATA_DIR: /data
+      CHECK_INTERVAL_SECONDS: "300"
+      # WEBHOOK_URL: https://hooks.example/...
+    volumes:
+      - ./:/app:ro
+      - ./data:/data                          # the site list and last results; make it writable for uid 1000
 ```
 
-The page shows an "Admin token" field in each form; scripts can post with `Authorization: Bearer <ADMIN_TOKEN>`. Posts still have to come from the page's own origin. Without `ADMIN_TOKEN` the status page and checks run, but every change is refused (401). Do not set `AUTOMATON_APP_ID` yourself: it switches the trust in viewer headers back on. Put it behind HTTPS, since the token is sent with each change.
+Environment variables:
+
+| Variable | What it does |
+| --- | --- |
+| `ADMIN_TOKEN` | Secret. Asked for by each form on the page (`Authorization: Bearer <ADMIN_TOKEN>` for scripts); at least 16 characters, otherwise every change is refused. A wrong token is delayed by half a second and the page asks again; it is never saved. |
+| `CHECK_INTERVAL_SECONDS` | Seconds between checks (60 to 86400, default 300). |
+| `CERT_WARN_DAYS` | Warn when a certificate has this many days left or fewer (default 14). |
+| `TIMEOUT_SECONDS` | Seconds to wait for a site before it counts as failed (default 10). |
+| `EMAIL_TO` | Who gets alert emails (default `administrators`). Email only works through Automaton's server, so on its own use `WEBHOOK_URL`. |
+| `WEBHOOK_URL` | Secret, optional. Where alerts are sent: a Slack, Discord or Telegram webhook URL, or any URL that accepts a JSON POST. Empty: alerts only appear in the log and on the status page. |
+| `HEARTBEAT_URL` | Secret, optional. Pinged (GET) after every successful run, for example a healthchecks.io check URL. |
+| `AUTOMATON_APP_DATA_DIR` | Folder for the site list and state (default `data`). Mount a volume here. |
+| `AUTOMATON_PORT` | Port to listen on (default 8080). |
+
+Posts still have to come from the page's own origin. Without a valid `ADMIN_TOKEN` the status page and checks run, but every change is refused (401). Do not set `AUTOMATON_APP_ID` yourself: it switches the trust in viewer headers back on. Put it behind HTTPS, since the token is sent with each change.
 
 For a one-off check without the page:
 

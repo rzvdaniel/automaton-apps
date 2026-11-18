@@ -25,6 +25,7 @@ from urllib.request import Request, urlopen
 import monitor
 
 MIN_INTERVAL = 60
+MIN_ADMIN_TOKEN = 16
 
 
 def env_int(env, name: str, default: int, minimum: int, maximum: int) -> int:
@@ -289,7 +290,12 @@ def may_manage(app: Monitor, headers, form: dict) -> bool:
     auth = headers.get("Authorization", "")
     if auth.lower().startswith("bearer "):
         supplied = auth[7:]
-    return bool(app.admin_token) and hmac.compare_digest(supplied.encode(), app.admin_token.encode())
+    if len(app.admin_token) < MIN_ADMIN_TOKEN:
+        return False
+    if hmac.compare_digest(supplied.encode(), app.admin_token.encode()):
+        return True
+    time.sleep(0.5)  # slows guessing
+    return False
 
 
 def same_origin(headers) -> bool:
@@ -338,7 +344,11 @@ def make_handler(app: Monitor):
                     return
                 form = {k: v[0] for k, v in parse_qs(self.rfile.read(length).decode("utf-8", "replace"), keep_blank_values=True).items()}
                 if not may_manage(app, self.headers, form):
-                    self.reply(401, "text/plain", b"sign in required" if app.managed else b"admin token required")
+                    if app.managed:
+                        self.reply(401, "text/plain", b"sign in required")
+                    else:  # the page again, with its token field empty: nothing typed is kept, so it asks again
+                        problem = "Wrong admin token" if len(app.admin_token) >= MIN_ADMIN_TOKEN else f"Set ADMIN_TOKEN (at least {MIN_ADMIN_TOKEN} characters) to manage sites outside Automaton"
+                        self.reply(401, "text/html; charset=utf-8", render(app.snapshot(), problem, True).encode())
                     return
                 error = app.edit(action, form)
                 self.send_response(303)
