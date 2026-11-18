@@ -30,15 +30,17 @@
     },
     {
       "id": "server-console",
-      "name": "Server Console",
-      "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
+      "name": "Server Keeper",
+      "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "c204bcd3936ef47f0821507cf32c3cf16d928492",
+      "commit": "fb199644ee328fc00779dc73139c9721109ea413",
       "minServerVersion": "0.2.63",
       "permissions": [
         "server:read",
         "notify:email",
+        "backups:read",
+        "apps:read-status",
         "server:cleanup",
         "runner:maintain",
         "backups:run"
@@ -68,20 +70,6 @@
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
-      ]
-    },
-    {
-      "id": "watchtower",
-      "name": "Watchtower",
-      "summary": "Watches your Automaton server and emails you once when something needs attention, with a mute link.",
-      "category": "Monitoring",
-      "folder": "maintenance/watchtower",
-      "commit": "3e29cbdfc9c232fabb9494945fc2ed7a246786b0",
-      "minServerVersion": "0.2.31",
-      "permissions": [
-        "notify:email",
-        "backups:read",
-        "apps:read-status"
       ]
     },
     {
