@@ -48,6 +48,8 @@ def _alerts(health: dict, state: dict, used: float | None) -> list[dict]:
     failing = state.get("failingApps")
     if isinstance(failing, int) and failing > 0:
         alerts.append(("warning", "An app is failing." if failing == 1 else f"{failing} apps are failing."))
+    if (state.get("fail2ban") or {}).get("running") is False:
+        alerts.append(("warning", "fail2ban is not running."))
     if found.get("security_overdue"):
         alerts.append(("warning", "Security updates have been waiting too long."))
     if found.get("reboot_overdue"):
@@ -96,6 +98,10 @@ def build_card(state: dict, now: float) -> dict:
     if server.get("updateAvailable"):
         latest = server.get("latestVersion")
         blocks.append({"type": "badge", "label": "Update", "text": str(latest)[:40] if latest else "Available", "tone": "info"})
+    guard = state.get("fail2ban")
+    if isinstance(guard, dict) and isinstance(guard.get("running"), bool):
+        blocks.append({"type": "badge", "label": "fail2ban", "tone": "ok" if guard["running"] else "warning",
+                       "text": f"on · {guard.get('banned', 0)} banned today" if guard["running"] else "off"})
     blocks.append({"type": "buttons", "items": [{"label": "Update", "path": "/#server"}, {"label": "Backups", "path": "/#backups"}]})
     fetched = state.get("fetchedAt")
     card = {"status": status, "tone": tone, "blocks": blocks, "alerts": alerts}

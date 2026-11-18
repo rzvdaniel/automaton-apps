@@ -1064,6 +1064,32 @@ class HomeCardTests(unittest.TestCase):
         self.assertEqual([a["severity"] for a in card["alerts"]], ["critical"] * 5)
         self.assertEqual(card["alerts"][0]["text"], "The last server backup failed. Open Server Keeper for details.")
 
+    def test_the_fail2ban_line_shows_on_with_todays_bans(self):
+        card = self.valid(card_for(health(), fail2ban={"running": True, "banned": 12}))
+        self.assertIn({"type": "badge", "label": "fail2ban", "text": "on · 12 banned today", "tone": "ok"}, card["blocks"])
+        self.assertEqual((card["status"], alerts_of(card)), ("All good", []))
+
+    def test_fail2ban_off_warns(self):
+        card = self.valid(card_for(health(), fail2ban={"running": False, "banned": 0}))
+        self.assertIn({"type": "badge", "label": "fail2ban", "text": "off", "tone": "warning"}, card["blocks"])
+        self.assertEqual((card["tone"], alerts_of(card)), ("warning", [("warning", "fail2ban is not running.")]))
+
+    def test_without_security_read_there_is_no_fail2ban_line(self):
+        card = self.valid(card_for(health(), fail2ban=None))
+        self.assertNotIn("fail2ban", json.dumps(card))
+
+    def test_fail2ban_is_read_only_when_reported_and_never_invented(self):
+        class Opener:
+            def __init__(self, body): self.body = body
+            def open(self, request, timeout=0):
+                self.url = request.full_url
+                return io.BytesIO(json.dumps(self.body).encode())
+        conf = settings()
+        ok = Opener({"reported": True, "running": True, "bannedLast24Hours": 7})
+        self.assertEqual(console.fetch_fail2ban(conf, opener=ok), {"running": True, "banned": 7})
+        self.assertTrue(ok.url.endswith("/api/server/security/fail2ban"))
+        self.assertIsNone(console.fetch_fail2ban(conf, opener=Opener({"reported": False, "running": None})))
+
     def test_the_card_holds_no_server_details(self):
         data = health(osName="Ubuntu 24.04 LTS")
         data["runners"] = [{"name": "prod-runner-77", "status": "offline"}]
