@@ -1,19 +1,19 @@
 {
-  "name": "Server Console",
-  "summary": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
-  "description": "Shows how your Automaton server and its Runners are doing: CPU, memory, disk and load with 24 hours of history, Docker disk use, OS name and uptime, pending and security updates, restart required, server and Runner versions and whether a newer release exists, certificate expiry and the last backup. Sends one warning, by email through the server's SMTP and by webhook, when disk space runs low, security updates wait too long or a restart is overdue, and one message when it is resolved. It asks for server:read and notify:email. A Maintenance section lists every task with its last result and next run: the nightly cleanup (with its time, keep days and journal limit), backup, Runner upgrades and OS updates. With server:cleanup, backups:run and runner:maintain approved, a system administrator can run the cleanup or a backup now, change the cleanup settings and upgrade old Runners; other people only read. With runner:maintain approved for a Runner by an administrator, a system administrator can run the Docker cleanup now, read an app's recent logs, restart an app, read Docker's disk use, install security updates and restart that one machine (each after typing its name); nothing else is changed on the server.",
+  "name": "Server Keeper",
+  "summary": "Live stats, alerts and one-click maintenance for this server.",
+  "description": "Server Keeper shows how your Automaton server and its Runners are doing: CPU, memory, disk and load with 24 hours of history, Docker disk use, OS name and uptime, pending and security updates, restart required, server and Runner versions and whether a newer release exists, certificate expiry and the last backup. Sends one warning, by email through the server's SMTP and by webhook, when disk space runs low, security updates wait too long, a restart is overdue, the server backup is older than 26 hours or failed, or the Off-site Backup app failed or has not run for 26 hours (this replaces Watchtower), and one message when it is resolved. Studio Home shows a card with the status, disk, last backup, version and the active alerts, and the alerts reach Studio's notification feed. It asks for server:read, notify:email, backups:read and apps:read-status. A Maintenance section lists every task with its last result and next run: the nightly cleanup (with its time, keep days and journal limit), backup, Runner upgrades and OS updates. With server:cleanup, backups:run and runner:maintain approved, a system administrator can run the cleanup or a backup now, change the cleanup settings and upgrade old Runners; other people only read. With runner:maintain approved for a Runner by an administrator, a system administrator can run the Docker cleanup now, read an app's recent logs, restart an app, read Docker's disk use, install security updates and restart that one machine (each after typing its name); nothing else is changed on the server.",
   "application": {
     "kind": "web",
-    "description": "A dashboard for your Automaton server: CPU, memory, disk, OS updates, restart status, versions, certificates and backups, with 24 hours of history and email and webhook warnings.",
+    "description": "Live stats, alerts and one-click maintenance for this server.",
     "pages": [{ "path": "/", "label": "Server dashboard" }],
-    "permissions": ["server:read", "notify:email", "server:cleanup", "runner:maintain", "backups:run"],
+    "permissions": ["server:read", "notify:email", "backups:read", "apps:read-status", "server:cleanup", "runner:maintain", "backups:run"],
     "build": {
       "image": "python:3.12-slim",
       "command": {
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py console.py && mkdir -p dist/ui && cp main.py console.py index.html dashboard.js console.css dist/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py console.py homecard.py && mkdir -p dist/ui && cp main.py console.py homecard.py index.html dashboard.js console.css dist/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },

@@ -1,4 +1,0 @@
-.a-form--rule { grid-template-columns: auto minmax(0, 8rem) auto; align-items: end; }
-.wt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-#message { margin-bottom: 16px; }
-.wt-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; }

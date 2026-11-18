@@ -7,7 +7,7 @@ One set of components for every app in this catalog, light and dark from the vis
 | Look | For | How |
 | --- | --- | --- |
 | **app** (default) | Tools, productivity, anything people build | Neutral colours, system fonts, your accent: `:root { --accent: #0f766e; }` in the app's own CSS. Use your own mark, not `>_`. |
-| **system** | Only official apps that run the server: Server Console, backups, monitors | `<html data-look="system">`: the Automaton Studio look (paper and ink, orange, Bricolage Grotesque and IBM Plex, the `>_` mark, `a-topbar`). |
+| **system** | Only official apps that run the server: Server Keeper, backups, monitors | `<html data-look="system">`: the Automaton Studio look (paper and ink, orange, Bricolage Grotesque and IBM Plex, the `>_` mark, `a-topbar`). |
 
 Keep the Studio look for system apps so people can tell Automaton from the apps on it, and an app never passes for an Automaton screen. Games bring their own style; at most they use the base reset.
 

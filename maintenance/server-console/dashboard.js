@@ -1,4 +1,4 @@
-/* Server Console page. Built only from the Automaton app UI kit in ui/. */
+/* Server Keeper page. Built only from the Automaton app UI kit in ui/. */
 (function () {
   "use strict";
 
@@ -254,8 +254,8 @@
     var revoked = status === "not_approved";
     waiting("Waiting for approval",
       revoked ? "The server refused this app's key. An administrator has not approved the <strong>server:read</strong> permission yet, or it was revoked."
-        : "Server Console has no <strong>server:read</strong> key yet. An administrator of your Automaton server must approve it before any figures appear.",
-      ["Sign in to Studio as a system administrator.", "Open <strong>Admin</strong>, then <strong>Apps</strong> (filter <em>Waiting for approval</em>) and choose <strong>Review</strong> next to Server Console.",
+        : "Server Keeper has no <strong>server:read</strong> key yet. An administrator of your Automaton server must approve it before any figures appear.",
+      ["Sign in to Studio as a system administrator.", "Open <strong>Admin</strong>, then <strong>Apps</strong> (filter <em>Waiting for approval</em>) and choose <strong>Review</strong> next to Server Keeper.",
         "On the <strong>Permissions</strong> tab, select <strong>Approve</strong> for <span class=\"a-mono\">server:read</span>. The app restarts by itself and this page fills in within a few minutes.",
         "App owners can see the same state with <span class=\"a-mono\">automaton permissions status</span>."]);
     subtitle.textContent = "Permission not approved yet";

@@ -9,10 +9,9 @@ The official app catalog for [Automaton](https://automaton.monster), a platform 
 | App | Source |
 | --- | --- |
 | Backup Warden — copies your server's backups to another place, every night (S3-compatible storage), with Back up now | [maintenance/offsite-backup](maintenance/offsite-backup/) |
-| Server Console — a dashboard for your server: CPU, memory, disk, OS updates, certificates and backups | [maintenance/server-console](maintenance/server-console/) |
+| Server Keeper — live stats, alerts and one-click maintenance for this server | [maintenance/server-console](maintenance/server-console/) |
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
-| Watchtower — watches your server and emails you once when something needs attention, with a mute link | [maintenance/watchtower](maintenance/watchtower/) |
 | Ghost — a blog with newsletters, packaged from the upstream image (MIT) | [publishing/ghost](publishing/ghost/) |
 | VictoriaLogs — search server and app logs in the browser, packaged from the upstream image (Apache-2.0) | [maintenance/victorialogs](maintenance/victorialogs/) |
 

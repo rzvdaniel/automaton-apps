@@ -1,0 +1,21 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Home card
+  key: home-card
+  description: The card Studio Home shows for Server Keeper, with status, disk, last backup, version and alerts.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 25
+  schedulable: false
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  output:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        type: string

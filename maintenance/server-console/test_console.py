@@ -10,7 +10,12 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 
 import console
+import homecard
 import main
+
+# No test may reach a real server: the backup and app sources answer nothing unless a test passes its own.
+console.fetch_backups = lambda *_a, **_k: None
+console.fetch_apps = lambda *_a, **_k: None
 
 NOW = 1_800_000_000.0
 GB = 1024 ** 3
@@ -47,8 +52,9 @@ class Recorder:
         return self.ok
 
 
-def cycle(state, conf, data, send, now=NOW):
-    return console.run_cycle(conf, state, now, send, fetch=lambda _s: ("ok", data, None))
+def cycle(state, conf, data, send, now=NOW, backups=None, apps=None):
+    return console.run_cycle(conf, state, now, send, fetch=lambda _s: ("ok", data, None),
+                             fetch_backup=lambda _s: backups, fetch_app=lambda _s: apps)
 
 
 class SettingsTests(unittest.TestCase):
@@ -884,3 +890,256 @@ class TaskServerTests(MaintenanceServerTests):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def backups_data(hours_ago=5, error=None, available=True):
+    return {"available": available, "lastSuccessAt": iso(hours_ago * 3600), "lastError": error, "backups": [{"createdAt": iso(hours_ago * 3600)}]}
+
+
+def offsite_app(status="Succeeded", hours_ago=3, name="Off-site Backup", **extra):
+    run = None if hours_ago is None else {"moduleKey": "upload", "status": status, "createdAtUtc": iso(hours_ago * 3600)}
+    return dict({"name": name, "liveStatus": "Running", "isPaused": False, "lastActionRun": run}, **extra)
+
+
+class BackupWarningTests(unittest.TestCase):
+    """Watchtower's two backup watchers, now Server Keeper warnings with the same send path as the others."""
+
+    def conditions(self, backups=None, apps=None):
+        return console.backup_conditions(backups, apps, NOW)
+
+    def test_a_fresh_backup_and_run_are_quiet(self):
+        found = self.conditions(backups_data(5), [offsite_app()])
+        self.assertEqual({k: v[0] for k, v in found.items()}, {"backup_old": False, "backup_failed": False, "offsite_failed": False, "offsite_old": False})
+
+    def test_an_old_server_backup_warns_after_26_hours_only(self):
+        self.assertFalse(self.conditions(backups_data(25))["backup_old"][0])
+        active, text = self.conditions(backups_data(27))["backup_old"]
+        self.assertTrue(active)
+        self.assertIn("27 hours old", text)
+
+    def test_no_backup_at_all_warns(self):
+        data = {"available": True, "lastSuccessAt": None, "backups": []}
+        self.assertEqual(self.conditions(data)["backup_old"], (True, "no server backup exists"))
+
+    def test_a_failed_server_backup_warns_and_carries_the_reason(self):
+        active, text = self.conditions(backups_data(2, error="disk full"))["backup_failed"]
+        self.assertTrue(active)
+        self.assertIn("disk full", text)
+
+    def test_a_server_that_reports_no_backups_judges_nothing(self):
+        self.assertEqual(self.conditions(backups_data(100, available=False)), {})
+        self.assertEqual(self.conditions(None, None), {})
+
+    def test_catalog_app_name_backup_warden_is_found(self):
+        found = self.conditions(None, [offsite_app("Failed", 30, name="Backup Warden")])
+        self.assertTrue(found["offsite_failed"][0])
+        self.assertTrue(found["offsite_old"][0])
+        self.assertFalse(self.conditions(None, [offsite_app("Succeeded", 3, name="backup warden")])["offsite_old"][0])
+
+    def test_offsite_failed_old_and_never_run(self):
+        self.assertTrue(self.conditions(None, [offsite_app("Failed", 1)])["offsite_failed"][0])
+        self.assertTrue(self.conditions(None, [offsite_app("TimedOut", 1)])["offsite_failed"][0])
+        self.assertTrue(self.conditions(None, [offsite_app("Succeeded", 30)])["offsite_old"][0])
+        never = self.conditions(None, [offsite_app(hours_ago=None)])
+        self.assertTrue(never["offsite_old"][0])
+        self.assertFalse(never["offsite_failed"][0])
+
+    def test_no_offsite_app_judges_nothing(self):
+        self.assertEqual(self.conditions(None, [offsite_app(name="Website Monitor")]), {})
+
+    def test_warning_goes_through_the_normal_send_once_and_recovers(self):
+        state, send = console.new_state(), Recorder()
+        for minutes in (0, 5, 10):
+            cycle(state, settings(), health(), send, NOW + minutes * 60, backups=backups_data(2, error="boom"))
+        self.assertEqual([(e, c) for e, c, _ in send.sent], [("warning", "backup_failed")])
+        self.assertTrue(send.sent[0][2].startswith("Server Keeper warning: "))
+        cycle(state, settings(), health(), send, NOW + 900, backups=backups_data(2))
+        self.assertEqual([(e, c) for e, c, _ in send.sent][-1], ("recovered", "backup_failed"))
+
+    def test_a_source_that_cannot_be_read_keeps_the_warning(self):
+        state, send = console.new_state(), Recorder()
+        cycle(state, settings(), health(), send, NOW, apps=[offsite_app("Failed", 1)])
+        cycle(state, settings(), health(), send, NOW + 300, apps=None)
+        self.assertEqual([e for e, *_ in send.sent], ["warning"])
+        self.assertIn("offsite_failed", state["alerts"])
+
+    def test_every_new_condition_has_advice_and_an_email_subject(self):
+        for name in ("backup_old", "backup_failed", "offsite_old", "offsite_failed"):
+            self.assertIn(name, console.CONDITIONS)
+            self.assertTrue(console.ADVICE[name])
+            self.assertIn(name, main.EMAIL_SUBJECTS)
+
+    def test_the_fetchers_return_none_when_unreadable(self):
+        class Opener:
+            def open(self, request, timeout=0):
+                raise urllib.error.URLError("down")
+        self.assertIsNone(console.fetch_backups(settings(), opener=Opener()))
+        self.assertIsNone(console.fetch_apps(settings(), opener=Opener()))
+        self.assertIsNone(console.fetch_backups(console.Settings({}), opener=Opener()))
+
+
+def card_for(data=None, found=None, failing=None, status="ok", **extra):
+    state = console.new_state()
+    state.update(health=data, status=status, fetchedAt=int(NOW) - 120, found=found or {}, failingApps=failing, **extra)
+    return homecard.build_card(state, NOW)
+
+
+def alerts_of(card):
+    return [(a["severity"], a["text"]) for a in card.get("alerts", [])]
+
+
+class HomeCardTests(unittest.TestCase):
+    schema = None
+
+    @classmethod
+    def setUpClass(cls):
+        import jsonschema
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", "home-card.schema.json")
+        with open(path, encoding="utf-8") as handle:
+            cls.schema = json.load(handle)
+        cls.jsonschema = jsonschema
+
+    def valid(self, card):
+        self.jsonschema.Draft202012Validator(self.schema).validate(card)
+        self.assertLessEqual(len(card["blocks"]), 6)
+        self.assertLessEqual(len(card["alerts"]) if "alerts" in card else 0, 5)
+        return card
+
+    def test_a_healthy_server_is_all_good_and_valid(self):
+        card = self.valid(card_for(health(disk_free_gb=60)))
+        self.assertEqual((card["status"], card["tone"]), ("All good", "ok"))
+        self.assertEqual(card["alerts"], [])
+        self.assertEqual(card["detail"], "Checked 2 min ago")
+        meter = card["blocks"][0]
+        self.assertEqual(meter, {"type": "meter", "label": "Disk", "value": 40.0, "max": 100, "unit": "%", "warnAt": 85, "critAt": 95})
+        self.assertEqual(card["blocks"][1], {"type": "badge", "label": "Last backup", "text": "5 h ago", "tone": "ok"})
+        self.assertEqual(card["blocks"][2], {"type": "fact", "label": "Automaton", "value": "0.2.6"})
+        self.assertEqual(card["blocks"][-1], {"type": "buttons", "items": [{"label": "Update", "path": "/#server"}, {"label": "Backups", "path": "/#backups"}]})
+
+    def test_disk_thresholds(self):
+        self.assertEqual(alerts_of(card_for(health(disk_free_gb=15))), [])  # 85% exactly is not above 85
+        self.assertEqual(alerts_of(card_for(health(disk_free_gb=14))), [("warning", "The disk is 86% full.")])
+        self.assertEqual(alerts_of(card_for(health(disk_free_gb=5))), [("warning", "The disk is 95% full.")])  # 95% exactly is not above 95
+        self.assertEqual(alerts_of(card_for(health(disk_free_gb=4)))[0][0], "critical")
+        warn = self.valid(card_for(health(disk_free_gb=10)))
+        self.assertEqual((warn["status"], warn["tone"]), ("Needs attention", "warning"))
+
+    def test_backup_failed_is_critical_with_a_failed_badge(self):
+        card = self.valid(card_for(health(), found={"backup_failed": True}))
+        self.assertEqual(alerts_of(card)[0][0], "critical")
+        self.assertEqual((card["status"], card["tone"]), ("Needs attention now", "critical"))
+        self.assertEqual(card["blocks"][1]["text"], "Failed")
+        self.assertEqual(card["blocks"][1]["tone"], "critical")
+
+    def test_old_backup_and_offsite_are_critical(self):
+        card = self.valid(card_for(health(), found={"backup_old": True, "offsite_failed": True, "offsite_old": True}))
+        self.assertEqual({s for s, _ in alerts_of(card)}, {"critical"})
+        self.assertEqual(len(card["alerts"]), 3)
+        self.assertEqual(card["blocks"][1]["tone"], "critical")
+
+    def test_runner_offline_failing_apps_and_update(self):
+        data = health()
+        data["runners"] = [{"name": "secret-host-1", "status": "offline"}, {"name": "secret-host-2", "status": "Online"}]
+        data["server"] = {"version": "0.2.6", "latestVersion": "0.2.7", "updateAvailable": True}
+        card = self.valid(card_for(data, failing=2))
+        self.assertEqual(alerts_of(card), [("warning", "A Runner is offline."), ("warning", "2 apps are failing."),
+                                           ("info", "A newer Automaton release is available.")])
+        self.assertIn({"type": "badge", "label": "Update", "text": "0.2.7", "tone": "info"}, card["blocks"])
+        self.assertEqual(len(card["blocks"]), 5)
+
+    def test_update_alone_is_info_and_the_card_stays_all_good(self):
+        data = health()
+        data["server"] = {"version": "0.2.6", "latestVersion": "0.2.7", "updateAvailable": True}
+        card = self.valid(card_for(data))
+        self.assertEqual((card["status"], card["tone"]), ("All good", "ok"))
+        self.assertEqual(alerts_of(card), [("info", "A newer Automaton release is available.")])
+
+    def test_alerts_are_sorted_worst_first_and_capped_at_five(self):
+        data = health(disk_free_gb=2)
+        data["runners"] = [{"name": "a", "status": "offline"}]
+        data["server"] = {"version": "1", "latestVersion": "2", "updateAvailable": True}
+        found = {k: True for k in ("backup_failed", "backup_old", "offsite_failed", "offsite_old", "security_overdue", "reboot_overdue")}
+        card = self.valid(card_for(data, found=found, failing=1))
+        self.assertEqual(len(card["alerts"]), 5)
+        self.assertEqual([a["severity"] for a in card["alerts"]], ["critical"] * 5)
+        self.assertEqual(card["alerts"][0]["text"], "The last server backup failed. Open Server Keeper for details.")
+
+    def test_the_card_holds_no_server_details(self):
+        data = health(osName="Ubuntu 24.04 LTS")
+        data["runners"] = [{"name": "prod-runner-77", "status": "offline"}]
+        data["certificates"] = [{"host": "studio.example.com", "daysRemaining": 1}]
+        card = card_for(data, found={"backup_failed": True}, failing=1, message="secret path /var/lib/x")
+        text = json.dumps(card)
+        for secret in ("prod-runner-77", "studio.example.com", "Ubuntu", "/var/lib", "api.example.com"):
+            self.assertNotIn(secret, text)
+
+    def test_without_figures_it_says_why(self):
+        waiting = self.valid(card_for(None, status="not_approved"))
+        self.assertEqual((waiting["status"], waiting["tone"]), ("Waiting for approval", "info"))
+        none = self.valid(card_for(None, status="starting"))
+        self.assertEqual(none["status"], "No figures yet")
+
+    def test_no_backup_data_and_unknown_disk(self):
+        data = health()
+        data["backup"] = {"available": False}
+        del data["host"]["diskTotalBytes"]
+        card = self.valid(card_for(data))
+        self.assertEqual(card["blocks"][0]["label"], "Last backup")
+        self.assertEqual(card["blocks"][0]["text"], "Unknown")
+
+    def test_a_failed_last_check_is_said_in_the_detail(self):
+        self.assertIn("the last check failed", card_for(health(), status="error")["detail"])
+
+    def test_texts_stay_inside_the_schema_limits_for_long_values(self):
+        data = health()
+        data["server"] = {"version": "v" * 300, "latestVersion": "x" * 300, "updateAvailable": True}
+        self.valid(card_for(data))
+
+
+class HomeCardEndpointTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        app = main.Console({"AUTOMATON_APP_DATA_DIR": self.directory.name, "API_BASE_URL": "https://api.example.com"})
+        app.state.update(health=health(), status="ok", fetchedAt=int(NOW))
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(app))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.directory.cleanup()
+
+    def test_the_endpoint_serves_the_card_and_ignores_viewer_headers(self):
+        for headers in ({}, {"X-Automaton-Viewer-Role": "administrator"}):
+            request = urllib.request.Request(self.base + "/api/home-card", headers=headers)
+            with urllib.request.urlopen(request) as response:
+                card = json.loads(response.read())
+            self.assertEqual(card["status"], "All good")
+            self.assertNotIn("host", json.dumps(card).lower().replace("hostname", ""))
+
+
+class RenameTests(unittest.TestCase):
+    def test_the_app_is_named_server_keeper_everywhere_users_look(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        manifest = json.load(open(os.path.join(here, "automaton.json"), encoding="utf-8"))
+        self.assertEqual(manifest["name"], "Server Keeper")
+        self.assertEqual(manifest["summary"], "Live stats, alerts and one-click maintenance for this server.")
+        for permission in ("server:read", "notify:email", "backups:read", "apps:read-status"):
+            self.assertIn(permission, manifest["application"]["permissions"])
+        self.assertIn("homecard.py", json.dumps(manifest["application"]["build"]))
+        for name in ("index.html", "dashboard.js", "README.md", "console.css"):
+            text = open(os.path.join(here, name), encoding="utf-8").read()
+            if name != "README.md":
+                self.assertNotIn("Server Console", text, name)
+        readme = open(os.path.join(here, "README.md"), encoding="utf-8").read()
+        self.assertIn("## Run it on its own", readme)
+        self.assertIn("needs an automaton server", readme.lower().replace("**", ""))
+        self.assertEqual(console.USER_AGENT, "Automaton-Server-Keeper/1.0")
+
+    def test_the_catalog_keeps_the_id_and_drops_watchtower(self):
+        root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+        folders = [a["folder"] for a in json.load(open(os.path.join(root, "catalog-apps.json"), encoding="utf-8"))["apps"]]
+        self.assertIn("maintenance/server-console", folders)
+        self.assertNotIn("maintenance/watchtower", folders)
+        self.assertFalse(os.path.exists(os.path.join(root, "maintenance", "watchtower", "automaton.json")))
