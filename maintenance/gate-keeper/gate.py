@@ -32,7 +32,7 @@ class _NoRedirect(HTTPRedirectHandler):
 class Settings:
     def __init__(self, env=None):
         env = os.environ if env is None else env
-        self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())  # only then are the viewer headers and the key trusted
+        self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())  # only then does Automaton's sign-in sit in front, and only then is the server key used
         self.api_base_url = (env.get("AUTOMATON_API_URL", "").strip() or env.get("API_BASE_URL", "").strip()).rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.admin_token = env.get("ADMIN_TOKEN", "").strip()

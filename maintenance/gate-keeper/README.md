@@ -22,7 +22,7 @@ Shows who fail2ban has banned on your server, and why: for each jail the address
 
 ## Where the numbers come from
 
-`GET /api/server/security/fail2ban` with the app's `APP_AUTOMATON_API_KEY`. A ban counts as current until its recorded expiry, so a manual unban on the server shows until the ban would have expired. Answers are cached for 20 seconds; the Runner's own report is at most a few minutes old.
+`GET /api/server/security/fail2ban` with the app's `APP_AUTOMATON_API_KEY`. A ban counts as current until its recorded expiry, so a manual unban on the server shows until the ban would have expired. "Last hour" and "Last 24 hours" count new bans as the server reports them; standalone, the app counts distinct addresses per jail from the database, so a repeat offender can count differently between the two. Answers are cached for 20 seconds; the Runner's own report is at most a few minutes old.
 
 ## Run it on its own
 
@@ -50,7 +50,7 @@ services:
 | `FAIL2BAN_PID` | Path of the mounted pid file, default `/host/fail2ban.pid`; "running" means it exists. |
 | `AUTOMATON_PORT` | Port to listen on, default 8080. |
 
-The app keeps no data of its own, so there is no data volume. It opens the database with `mode=ro`. Put your own TLS in front of it. Without Automaton there is no Home card (nothing calls it), though `/api/home-card` still answers.
+The app keeps no data of its own, so there is no data volume. It opens the database with `mode=ro`; if the database was not shut down cleanly and needs recovery on a read-only mount, the page says it could not read it. Put your own TLS in front of it. Without Automaton there is no Home card (nothing calls it), though `/api/home-card` still answers.
 
 ```sh
 FAIL2BAN_DB=/var/lib/fail2ban/fail2ban.sqlite3 python3 main.py --once
