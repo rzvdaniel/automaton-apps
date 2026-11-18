@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest import mock
 
@@ -12,7 +13,7 @@ class HomeCardTests(unittest.TestCase):
         self.assertEqual(card["status"], "12 errors in the last hour")
         kinds = [b["type"] for b in card["blocks"]]
         self.assertEqual(kinds, ["alert", "counters", "chart", "meter"])
-        self.assertEqual([i["value"] for i in card["blocks"][1]["items"]], ["1000", "12", "30"])
+        self.assertEqual([i["value"] for i in card["blocks"][1]["items"]], [1000, 12, 30])
         self.assertEqual(len(card["blocks"][2]["series"][0]["values"]), 24)
         self.assertEqual(card["blocks"][3]["max"], 100.0)
 
@@ -47,9 +48,24 @@ class HomeCardTests(unittest.TestCase):
             with self.assertRaises(main.CardError):
                 main.query("http://logs:9428", "q")
 
-    def test_main_reports_missing_setting(self):
-        with mock.patch.dict("os.environ", {"LOGS_URL": ""}):
-            self.assertEqual(main.main(), 1)
+    def test_empty_setting_falls_back_to_the_app_address(self):
+        self.assertEqual(main.base_url("", "http://10.0.0.5:32768/"), "http://10.0.0.5:32768")
+        self.assertEqual(main.base_url("http://other:9428", "http://10.0.0.5:32768"), "http://other:9428")
+
+    def test_missing_address_prints_a_no_data_card_not_a_failure(self):
+        with mock.patch.dict("os.environ", {"LOGS_URL": "", "AUTOMATON_APP_INTERNAL_URL": ""}), \
+                mock.patch("builtins.print") as out:
+            self.assertEqual(main.main(), 0)
+        card = json.loads(out.call_args.args[0])
+        self.assertEqual(card["tone"], "warning")
+        self.assertEqual(card["blocks"], [])
+        self.assertIn("LOGS_URL", card["detail"])
+
+    def test_alert_when_automaton_logs_do_not_arrive(self):
+        card = main.build_card([{"severity_text": "info", "c": "5"}], [], None, 0, "http://10.0.0.5:32768")
+        self.assertEqual(card["blocks"][0]["type"], "alert")
+        self.assertIn("Logging__Otlp__Endpoint to http://10.0.0.5:32768", card["blocks"][0]["text"])
+        self.assertEqual([b["type"] for b in main.build_card([], [], None, 3)["blocks"]], ["counters"])
 
 
 if __name__ == "__main__":

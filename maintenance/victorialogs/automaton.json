@@ -37,7 +37,7 @@
       },
       {
         "name": "LOGS_URL",
-        "description": "Address the Home card Action uses to ask this app for recent errors, for example http://<this app's internal address>:9428. Empty: the Home card stays off.",
+        "description": "Address the Home card Action uses to ask this app for recent errors. Empty (the default): the card uses this app's own address, so it works right after install.",
         "default": ""
       }
     ],
