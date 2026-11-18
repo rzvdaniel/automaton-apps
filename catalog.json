@@ -8,7 +8,7 @@
       "summary": "Copies your server's backups to another place, every night.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "dbf81d16b7e3a16247294f701aae8e9cbd522834",
+      "commit": "4fed7de0af9d54ff32f366f89f0a8099363ea074",
       "minServerVersion": "0.2.126",
       "permissions": [
         "backups:read",
@@ -22,7 +22,7 @@
       "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "d3303b6e432bb51fbeebee7e58e5b73ea172fbee",
+      "commit": "4fed7de0af9d54ff32f366f89f0a8099363ea074",
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
@@ -52,7 +52,7 @@
       "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
       "category": "Monitoring",
       "folder": "maintenance/victorialogs",
-      "commit": "4116cbc184902877763b70ce282f8ca9e24f5358",
+      "commit": "4fed7de0af9d54ff32f366f89f0a8099363ea074",
       "minServerVersion": "0.2.31",
       "permissions": [],
       "recommended": true,
