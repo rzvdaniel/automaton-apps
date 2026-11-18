@@ -54,7 +54,7 @@
       "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
       "category": "Monitoring",
       "folder": "maintenance/victorialogs",
-      "commit": "eccbb7da1df4cbdefe4cf713a3d14905f3bc639e",
+      "commit": "74f2c9a1cd824259b4e3229b3ab827c040764879",
       "minServerVersion": "0.2.31",
       "permissions": [],
       "recommended": true,
