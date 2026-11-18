@@ -18,6 +18,12 @@ Agent workflow skills in `.agents/skills/`: `apps-write-issue`, `apps-write-pr`,
 3. Add the folder to `catalog-apps.json` and the app to the table in `README.md`.
 4. Add a `.github/workflows/<app>-tests.yml` that runs the app's tests.
 
+## Rules for our own apps
+
+1. **Runs without Automaton too.** Every app we write has a README section "Run it on its own": a compose example, each environment variable with a description, and the data volume. Apps that manage an Automaton server (Server Keeper, Backup Warden) say in their README that they need one.
+2. **Choose the access the app needs.** Public (anyone may use it), an admin token (most apps: at least 16 characters, with a delay after each wrong try), or a real login screen when the app needs one (like VictoriaLogs).
+3. **Inside Automaton, Automaton's own login is always in front.** Trust the `X-Automaton-Viewer-*` headers only when Automaton runs the app, never when it runs on its own (rzvdaniel/automaton-apps#303).
+
 ## CI
 
 `Catalog` runs the tool tests, `python tools/validate_apps.py` (the server's own `automaton validate` contract check on changed apps; needs the CLI), `python tools/check_vendored_ui.py` (a copy of the kit that differs from `design/automaton-app-ui/` fails) and `python tools/generate_catalog.py --validate` (warns when a declared setting or secret has no description). Each app has its own tests workflow. Run the same commands locally before opening a pull request.
