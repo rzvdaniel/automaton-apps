@@ -46,8 +46,8 @@
   }
 
   function stat(label, value, hint, tone) {
-    return '<div class="a-stat' + (tone ? " a-stat--" + tone : "") + '"><span class="a-stat__label">' + esc(label) +
-      '</span><span class="a-stat__value">' + esc(String(value)) + '</span><span class="a-stat__hint">' + esc(hint) + "</span></div>";
+    return '<div class="a-stat' + (tone ? " a-stat--" + tone : "") + '"><div class="a-stat__label">' + esc(label) +
+      '</div><div class="a-stat__value">' + esc(String(value)) + '</div><div class="a-stat__hint">' + esc(hint) + "</div></div>";
   }
 
   function jailCard(jail) {
@@ -91,8 +91,8 @@
     subtitle.textContent = "Updated " + when(s.fetchedAt);
     var html = '<div class="stack">';
     if (s.running === false) html += '<div class="a-banner a-banner--warning"><span class="a-banner__title">Fail2ban is not running on this server, so nothing is being banned.</span></div>';
-    html += '<div class="a-stats">' + stat("Banned now", t.banned, "addresses", t.banned ? "warning" : "ok") +
-      stat("Last hour", t.lastHour, "new bans") + stat("Last 24 hours", t.last24Hours, "new bans") + "</div>";
+    html += '<section class="a-card"><div class="a-stats">' + stat("Banned now", t.banned, "addresses", t.banned ? "warning" : "ok") +
+      stat("Last hour", t.lastHour, "new bans") + stat("Last 24 hours", t.last24Hours, "new bans") + "</div></section>";
     html += s.jails.length ? s.jails.map(jailCard).join("") : '<p class="a-empty">Fail2ban has no jails.</p>';
     view.innerHTML = html + "</div>";
   }
