@@ -36,7 +36,7 @@ def hourly(history: list, now: float) -> tuple[list[str], list[int]]:
     """Averages the history into up to 24 hourly points, oldest first, skipping hours without a check."""
     buckets: dict[int, list[float]] = {}
     for point in history:
-        if isinstance(point, list) and len(point) == 4 and point[1] > 0:
+        if isinstance(point, list) and len(point) == 4 and all(isinstance(v, (int, float)) for v in point) and point[1] > 0:
             buckets.setdefault(int(point[0] // 3600), []).append(point[1])
     last = int(now // 3600)
     labels, values = [], []

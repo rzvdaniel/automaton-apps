@@ -65,10 +65,17 @@ def storage(base: str) -> tuple[float, float] | None:
         return None
     used = free = None
     for line in text.splitlines():
-        if line.startswith("vl_data_size_bytes"):
-            used = (used or 0) + float(line.rsplit(" ", 1)[1])
-        elif line.startswith("vl_free_disk_space_bytes"):
-            free = float(line.rsplit(" ", 1)[1])
+        try:
+            name, value = line.rsplit(" ", 1)
+            number = float(value)
+        except ValueError:
+            continue
+        if number != number or number in (float("inf"), float("-inf")):
+            continue
+        if name.startswith("vl_data_size_bytes{") or name == "vl_data_size_bytes":
+            used = (used or 0) + number
+        elif name.startswith("vl_free_disk_space_bytes{") or name == "vl_free_disk_space_bytes":
+            free = number
     return (used, used + free) if used is not None and free is not None else None
 
 
