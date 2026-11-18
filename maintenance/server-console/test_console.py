@@ -54,7 +54,7 @@ class Recorder:
 
 def cycle(state, conf, data, send, now=NOW, backups=None, apps=None):
     return console.run_cycle(conf, state, now, send, fetch=lambda _s: ("ok", data, None),
-                             fetch_backup=lambda _s: backups, fetch_app=lambda _s: apps)
+                             fetch_backup=lambda _s: backups, fetch_app=lambda _s: apps, fetch_security=lambda _s: None)
 
 
 class SettingsTests(unittest.TestCase):
