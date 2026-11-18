@@ -29,7 +29,6 @@ def plural(count: int, word: str) -> str:
 
 def _alerts(health: dict, state: dict, used: float | None) -> list[dict]:
     found = state.get("found") or {}
-    host = health.get("host") or {}
     alerts: list[tuple[str, str]] = []
     if found.get("backup_failed"):
         alerts.append(("critical", "The last server backup failed. Open Server Keeper for details."))
@@ -59,7 +58,7 @@ def _alerts(health: dict, state: dict, used: float | None) -> list[dict]:
     return [{"severity": severity, "text": text} for severity, text in alerts[:MAX_ALERTS]]
 
 
-def _backup_badge(health: dict, state: dict, now: float) -> dict:
+def _backup_badge(health: dict, state: dict) -> dict:
     found = state.get("found") or {}
     hours = (health.get("backup") or {}).get("lastSuccessAgeHours")
     if found.get("backup_failed"):
@@ -91,7 +90,7 @@ def build_card(state: dict, now: float) -> dict:
     blocks: list[dict] = []
     if used is not None:
         blocks.append({"type": "meter", "label": "Disk", "value": used, "max": 100, "unit": "%", "warnAt": DISK_WARN_AT, "critAt": DISK_CRIT_AT})
-    blocks.append(_backup_badge(health, state, now))
+    blocks.append(_backup_badge(health, state))
     if server.get("version"):
         blocks.append({"type": "fact", "label": "Automaton", "value": str(server["version"])[:120]})
     if server.get("updateAvailable"):
