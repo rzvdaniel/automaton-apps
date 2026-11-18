@@ -11,6 +11,11 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog["schemaVersion"], 1)
         self.assertTrue(any(app["id"] == "offsite-backup" for app in catalog["apps"]))
 
+    def test_missing_setting_descriptions_are_found_but_never_fail_the_catalog(self):
+        found = g.missing_descriptions()
+        self.assertTrue(all(len(item) == 2 and item[0].endswith("automaton.json") for item in found))
+        self.assertEqual(g.problems(g.build()), [])
+
     def test_permissions_come_from_the_manifest(self):
         app = next(a for a in g.build()["apps"] if a["id"] == "offsite-backup")
         self.assertEqual(app["permissions"], ["backups:read", "backups:run", "notify:email"])
