@@ -29,6 +29,7 @@ def pinned_commit(folder: str) -> str:
 def build() -> dict:
     config = json.loads((ROOT / "catalog-apps.json").read_text(encoding="utf-8"))
     repo = config.get("repo", OFFICIAL_REPO)
+    default_publisher = config.get("publisher")  # who made the apps unless an entry says otherwise
     apps = []
     for item in config["apps"]:
         folder = item["folder"]
@@ -43,6 +44,9 @@ def build() -> dict:
             "minServerVersion": item["minServerVersion"],
             "permissions": manifest.get("application", {}).get("permissions", []),
         }
+        publisher = item.get("publisher", default_publisher)
+        if publisher:  # Studio shows "by <name>" and a small logo; the server alone decides who is verified
+            entry["publisher"] = publisher
         if item.get("recommended") is True:  # Studio Home suggests these to administrators until installed
             entry["recommended"] = True
             if isinstance(item.get("recommendedOrder"), int):  # lower comes first; apps without one come last
@@ -68,6 +72,15 @@ def problems(catalog: dict) -> list:
         moved = app.get("movedFrom")
         if moved is not None and (moved.get("repo") != OFFICIAL_REPO or not FOLDER.fullmatch(moved.get("folder", ""))):
             found.append(f"{app['id']}: movedFrom must name a folder of {OFFICIAL_REPO}")
+        publisher = app.get("publisher")
+        if publisher is not None and not isinstance(publisher, dict):
+            found.append(f"{app['id']}: publisher must be an object with a name")
+        elif publisher is not None:
+            name, logo = publisher.get("name"), publisher.get("logo")
+            if not isinstance(name, str) or not name.strip() or len(name) > 80:
+                found.append(f"{app['id']}: publisher needs a name of at most 80 characters")
+            if logo is not None and not (isinstance(logo, str) and (logo.startswith("https://") or logo.startswith("/") and not logo.startswith("//"))):
+                found.append(f"{app['id']}: publisher logo must be an https:// address or a path")
         for field in ("name", "summary", "category"):
             if not app[field].strip():
                 found.append(f"{app['id']}: {field} is empty")

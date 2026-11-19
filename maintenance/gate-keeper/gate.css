@@ -1,0 +1,8 @@
+/* Gate Keeper: page-specific styles. Colours come from the UI kit's custom properties only. */
+.a-header__brand { display: flex; gap: 12px; align-items: center; }
+.a-header__brand .a-brand { flex: none; }
+.a-topbar__inner { padding: 10px 0; }
+.stack { display: grid; gap: 16px; }
+.ip { font-family: var(--font-mono, monospace); white-space: nowrap; }
+.a-table td { white-space: normal; }
+.token-form { display: grid; gap: 10px; max-width: 420px; }

@@ -127,6 +127,16 @@ def fetch_backups(settings: Settings, timeout: float = 20, opener=None) -> dict 
     return data if isinstance(data, dict) else None
 
 
+def fetch_fail2ban(settings: Settings, timeout: float = 20, opener=None) -> dict | None:
+    """Whether fail2ban runs and how many addresses it banned in 24 hours (permission security:read).
+    None when the server has not read fail2ban, the permission is not approved or the server does not offer it."""
+    data = _get_json(settings, "/api/server/security/fail2ban", timeout, opener)
+    if not isinstance(data, dict) or data.get("reported") is not True or not isinstance(data.get("running"), bool):
+        return None
+    banned = data.get("bannedLast24Hours")
+    return {"running": data["running"], "banned": banned if isinstance(banned, int) and banned >= 0 else 0}
+
+
 def fetch_apps(settings: Settings, timeout: float = 20, opener=None) -> list | None:
     """Every app's status (permission apps:read-status)."""
     data = _get_json(settings, "/api/apps/status", timeout, opener)
@@ -686,7 +696,7 @@ def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliv
     return sent
 
 
-def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health, fetch_backup=None, fetch_app=None) -> dict:
+def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health, fetch_backup=None, fetch_app=None, fetch_security=None) -> dict:
     """One poll: fetch, record, judge, warn. Returns the updated state."""
     status, health, message = fetch(settings)
     if status == "ok" and not health:
@@ -707,6 +717,7 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
         state["found"] = {name: bool(active) for name, (active, _text) in found.items()}
         state["failingApps"] = None if apps is None else sum(
             1 for a in apps if isinstance(a, dict) and not a.get("isPaused") and str(a.get("liveStatus", "")).lower() == "failed")
+        state["fail2ban"] = (fetch_security or fetch_fail2ban)(settings)
         evaluate_alerts(state, found, send, True, now)
     return state
 
