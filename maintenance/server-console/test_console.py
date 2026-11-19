@@ -2,6 +2,7 @@ import io
 import json
 import os
 import tempfile
+from pathlib import Path
 import threading
 import unittest
 from datetime import datetime, timezone
@@ -175,6 +176,15 @@ class AssessTests(unittest.TestCase):
     def test_unknown_figures_are_not_called_ok(self):
         verdict = self.judge(health(securityUpdates=None, updatesPending=None, rebootRequired=None))
         self.assertEqual((verdict["security"], verdict["reboot"]), ("unknown", "unknown"))
+
+    def test_unknown_update_counts_never_make_the_overall_state_ok(self):
+        verdict = self.judge(health(securityUpdates=None, updatesPending=None))
+        self.assertEqual((verdict["updates"], verdict["overall"]), ("unknown", "unknown"))
+        self.assertEqual(self.judge(health())["overall"], "ok")
+
+    def test_the_dashboard_keeps_cleanup_figures_through_one_refused_read(self):
+        script = (Path(__file__).parent / "dashboard.js").read_text()
+        self.assertIn("cleanupRefusals >= 2", script)
 
     def test_offline_runner_and_expiring_certificate_and_old_backup(self):
         data = health()
