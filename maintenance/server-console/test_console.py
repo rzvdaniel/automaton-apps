@@ -698,13 +698,13 @@ class MaintenanceTests(unittest.TestCase):
     RUNNER = "11111111-2222-3333-4444-555555555555"
 
     class Opener:
-        def __init__(self, code=200, body=b"{}"):
-            self.code, self.body, self.requests = code, body, []
+        def __init__(self, code=200, body=b"{}", error_body=b'{"error": "No."}'):
+            self.code, self.body, self.error_body, self.requests = code, body, error_body, []
 
         def open(self, request, timeout=None):
             self.requests.append(request)
             if self.code != 200:
-                raise urllib.error.HTTPError(request.full_url, self.code, "x", {}, io.BytesIO(b'{"error": "No."}'))
+                raise urllib.error.HTTPError(request.full_url, self.code, "x", {}, io.BytesIO(self.error_body))
             return io.BytesIO(self.body)
 
     def test_the_cleanup_call_is_one_fixed_post_with_the_key_and_the_viewer_token(self):
@@ -783,6 +783,29 @@ class TaskCallTests(unittest.TestCase):
             request = opener.requests[0]
             self.assertEqual((request.method, request.full_url), (method, "https://api.example.com" + path))
             self.assertEqual(request.get_header("X-automaton-viewer-token"), "vt")
+
+    def test_installing_os_updates_asks_for_security_updates_only_and_reads_the_result_without_the_token(self):
+        opener = self.Opener(body=b"{}")
+        self.assertEqual(console.os_updates_run(settings(), "vt", opener=opener)[0], "ok")
+        request = opener.requests[0]
+        self.assertEqual((request.method, request.full_url), ("POST", "https://api.example.com/api/Install/os-updates/run"))
+        self.assertEqual(json.loads(request.data), {"scope": "security"})
+        self.assertEqual(request.get_header("X-automaton-viewer-token"), "vt")
+        opener = self.Opener(body=b"{}")
+        console.os_updates_status(settings(), opener=opener)
+        self.assertEqual((opener.requests[0].method, opener.requests[0].full_url), ("GET", "https://api.example.com/api/install/os-updates"))
+        self.assertIsNone(opener.requests[0].get_header("X-automaton-viewer-token"))
+
+    def test_a_server_without_the_endpoint_or_with_a_busy_host_is_named(self):
+        self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(404))[0], "not_found")
+        self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(403))[0], "forbidden")
+        self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(409))[0], "conflict")
+
+    def test_the_servers_503_message_reaches_the_administrator(self):
+        text = "Run sudo bash /opt/automaton-server/update.sh once on the server to enable it."
+        status, _, message = console.os_updates_run(settings(), "vt", opener=self.Opener(503, error_body=json.dumps({"message": text}).encode()))
+        self.assertEqual((status, message), ("error", text))
+        self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(503, error_body=b"not json"))[2], "The server answered HTTP 503.")
 
     def test_reading_the_upgrade_sends_no_viewer_token(self):
         opener = self.Opener(body=b"{}")
@@ -917,7 +940,7 @@ class TaskServerTests(MaintenanceServerTests):
     test_the_typed_name_in_a_header_is_enough_when_the_proxy_drops_the_body = None
 
     def test_a_task_post_needs_the_pages_header_and_passes_the_token_on(self):
-        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"),
+        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"), ("/api/tasks/os-updates", "/api/Install/os-updates/run"),
                                (f"/api/tasks/upgrade?runner={self.RUNNER}", f"/api/server/runners/{self.RUNNER}/upgrade")]:
             self.seen.clear()
             self.assertEqual(self.post(path, {}), 404, "a form on another site cannot set the header")

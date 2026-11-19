@@ -205,15 +205,13 @@ def maintain_call(settings: Settings, method: str, path: str, viewer_token: str 
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
             return "ok", json.loads(response.read(2_000_000).decode("utf-8") or "null"), None
     except HTTPError as error:
-        status = MAINTAIN_STATUS.get(error.code)
-        if status:
-            message = ""
-            try:
-                message = json.loads(error.read(10_000).decode("utf-8")).get("error") or ""
-            except (ValueError, OSError, AttributeError):
-                pass
-            return status, None, message or f"The server answered HTTP {error.code}."
-        return "error", None, f"The server answered HTTP {error.code}."
+        message = ""
+        try:
+            body = json.loads(error.read(10_000).decode("utf-8"))
+            message = str(body.get("error") or body.get("message") or "")
+        except (ValueError, OSError, AttributeError):
+            pass
+        return MAINTAIN_STATUS.get(error.code, "error"), None, message or f"The server answered HTTP {error.code}."
     except (URLError, OSError, ValueError) as error:
         return "error", None, f"The server could not be reached: {type(error).__name__}."
 
@@ -296,6 +294,17 @@ def server_cleanup_settings(settings: Settings, body, viewer_token: str | None, 
 def backup_run(settings: Settings, viewer_token: str | None, **kwargs):
     """Asks the server for a backup now (permission backups:run, a system administrator's viewer token)."""
     return maintain_call(settings, "POST", "/api/Install/backups/run", viewer_token, **kwargs)
+
+
+def os_updates_run(settings: Settings, viewer_token: str | None, **kwargs):
+    """Installs the server's OS security updates (permission server:update-os, a system administrator's viewer token).
+    The server refuses with 409 while a backup, deploy, update, restart or another OS update runs."""
+    return maintain_call(settings, "POST", "/api/Install/os-updates/run", viewer_token, timeout=40, body={"scope": "security"}, **kwargs)
+
+
+def os_updates_status(settings: Settings, **kwargs):
+    """The state and result of the last OS update run (permission server:read)."""
+    return maintain_call(settings, "GET", "/api/install/os-updates", **kwargs)
 
 
 def runner_upgrade(settings: Settings, runner_id: str, viewer_token: str | None, start: bool = True, **kwargs):
