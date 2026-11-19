@@ -124,6 +124,7 @@ class Console:
         except Exception as error:  # a bad setting or a full disk must not stop the loop
             with self.lock:
                 self.state["status"], self.state["message"] = "error", f"{type(error).__name__}: {error}"
+                self.state["failedAt"] = int(time.time())
             log(f"check failed: {self.state['message']}")
 
     def loop(self) -> None:
