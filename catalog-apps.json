@@ -1,11 +1,11 @@
 {
   "publisher": { "name": "Automaton" },
-  "publisher": { "name": "Automaton" },
   "apps": [
     { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.126" },
     { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" },
-    { "folder": "maintenance/server-console", "category": "Monitoring", "minServerVersion": "0.2.63", "recommended": true, "recommendedOrder": 1 },
+    { "folder": "maintenance/server-console", "category": "Monitoring", "minServerVersion": "0.2.167", "recommended": true, "recommendedOrder": 1 },
     { "folder": "maintenance/victorialogs", "category": "Monitoring", "minServerVersion": "0.2.168", "recommended": true, "recommendedOrder": 2 },
+    { "folder": "maintenance/gate-keeper", "category": "Monitoring", "minServerVersion": "0.2.167", "recommended": true, "recommendedOrder": 3 },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "publishing/ghost", "category": "Publishing", "minServerVersion": "0.2.149" }
   ]
