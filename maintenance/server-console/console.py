@@ -205,15 +205,13 @@ def maintain_call(settings: Settings, method: str, path: str, viewer_token: str 
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
             return "ok", json.loads(response.read(2_000_000).decode("utf-8") or "null"), None
     except HTTPError as error:
-        status = MAINTAIN_STATUS.get(error.code)
-        if status:
-            message = ""
-            try:
-                message = (lambda body: body.get("error") or body.get("message"))(json.loads(error.read(10_000).decode("utf-8"))) or ""
-            except (ValueError, OSError, AttributeError):
-                pass
-            return status, None, message or f"The server answered HTTP {error.code}."
-        return "error", None, f"The server answered HTTP {error.code}."
+        message = ""
+        try:
+            body = json.loads(error.read(10_000).decode("utf-8"))
+            message = str(body.get("error") or body.get("message") or "")
+        except (ValueError, OSError, AttributeError):
+            pass
+        return MAINTAIN_STATUS.get(error.code, "error"), None, message or f"The server answered HTTP {error.code}."
     except (URLError, OSError, ValueError) as error:
         return "error", None, f"The server could not be reached: {type(error).__name__}."
 

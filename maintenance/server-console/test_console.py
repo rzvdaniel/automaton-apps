@@ -698,13 +698,13 @@ class MaintenanceTests(unittest.TestCase):
     RUNNER = "11111111-2222-3333-4444-555555555555"
 
     class Opener:
-        def __init__(self, code=200, body=b"{}"):
-            self.code, self.body, self.requests = code, body, []
+        def __init__(self, code=200, body=b"{}", error_body=b'{"error": "No."}'):
+            self.code, self.body, self.error_body, self.requests = code, body, error_body, []
 
         def open(self, request, timeout=None):
             self.requests.append(request)
             if self.code != 200:
-                raise urllib.error.HTTPError(request.full_url, self.code, "x", {}, io.BytesIO(b'{"error": "No."}'))
+                raise urllib.error.HTTPError(request.full_url, self.code, "x", {}, io.BytesIO(self.error_body))
             return io.BytesIO(self.body)
 
     def test_the_cleanup_call_is_one_fixed_post_with_the_key_and_the_viewer_token(self):
@@ -800,6 +800,12 @@ class TaskCallTests(unittest.TestCase):
         self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(404))[0], "not_found")
         self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(403))[0], "forbidden")
         self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(409))[0], "conflict")
+
+    def test_the_servers_503_message_reaches_the_administrator(self):
+        text = "Run sudo bash /opt/automaton-server/update.sh once on the server to enable it."
+        status, _, message = console.os_updates_run(settings(), "vt", opener=self.Opener(503, error_body=json.dumps({"message": text}).encode()))
+        self.assertEqual((status, message), ("error", text))
+        self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(503, error_body=b"not json"))[2], "The server answered HTTP 503.")
 
     def test_reading_the_upgrade_sends_no_viewer_token(self):
         opener = self.Opener(body=b"{}")
