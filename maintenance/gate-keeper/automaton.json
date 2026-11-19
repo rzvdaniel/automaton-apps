@@ -1,0 +1,32 @@
+{
+  "name": "Gate Keeper",
+  "summary": "Shows who fail2ban has banned on this server, and why, on its own page and a Home card.",
+  "description": "Gate Keeper lists every address fail2ban has banned on your server: the jail that banned it, when, and until when (or permanently), plus how many new bans came in the last hour and 24 hours. Studio Home shows a card with the counts and the busiest jails; the addresses stay on the app's page. It is read-only: it reads through the security:read permission, which gives no firewall, socket or shell access and cannot unban anything.",
+  "application": {
+    "kind": "web",
+    "description": "Shows who fail2ban has banned on this server, and why, on its own page and a Home card.",
+    "pages": [{ "path": "/", "label": "Bans" }],
+    "permissions": ["security:read"],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": ["-c", "python -m py_compile main.py gate.py && mkdir -p dist/ui && cp main.py gate.py index.html gate.js gate.css dist/ && cp ui/app.css ui/app.js dist/ui/"],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": { "executable": "python", "arguments": ["main.py"], "workingDirectory": "dist" },
+      "port": 8080
+    },
+    "health": { "path": "/health", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "settings": [
+      { "name": "API_BASE_URL", "description": "Optional. Base URL of this Automaton server's API; normally the server provides it, so leave empty" }
+    ]
+  }
+}
