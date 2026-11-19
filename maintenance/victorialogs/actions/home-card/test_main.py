@@ -62,9 +62,10 @@ class HomeCardTests(unittest.TestCase):
         self.assertIn("LOGS_URL", card["detail"])
 
     def test_alert_when_automaton_logs_do_not_arrive(self):
-        card = main.build_card([{"severity_text": "info", "c": "5"}], [], None, 0, "http://10.0.0.5:32768")
+        card = main.build_card([{"severity_text": "info", "c": "5"}], [], None, 0)
         self.assertEqual(card["blocks"][0]["type"], "alert")
-        self.assertIn("Logging__Otlp__Endpoint to http://10.0.0.5:32768", card["blocks"][0]["text"])
+        self.assertIn("logs:receive", card["blocks"][0]["text"])
+        self.assertNotIn("172.", card["blocks"][0]["text"])
         self.assertEqual([b["type"] for b in main.build_card([], [], None, 3)["blocks"]], ["counters"])
 
 
