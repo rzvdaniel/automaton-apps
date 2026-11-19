@@ -64,6 +64,20 @@
       "recommendedOrder": 2
     },
     {
+      "id": "gate-keeper",
+      "name": "Gate Keeper",
+      "summary": "Shows who fail2ban has banned on this server, and why, on its own page and a Home card.",
+      "category": "Monitoring",
+      "folder": "maintenance/gate-keeper",
+      "commit": "659e8ec4fde6bf02117625fe109fc04f741a53fe",
+      "minServerVersion": "0.2.167",
+      "permissions": [
+        "security:read"
+      ],
+      "recommended": true,
+      "recommendedOrder": 3
+    },
+    {
       "id": "heartbeat",
       "name": "Heartbeat",
       "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
