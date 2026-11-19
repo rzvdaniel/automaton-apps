@@ -160,8 +160,14 @@
     return card("Certificates", a.certificates, body, "Days until the certificate of each public host name expires.");
   }
 
+  function clock(seconds) {
+    var d = new Date(seconds * 1000), two = function (n) { return (n < 10 ? "0" : "") + n; };
+    return two(d.getHours()) + ":" + two(d.getMinutes());
+  }
+
   function banner(data) {
-    var stale = data.status === "error" ? '<div class="a-note a-note--warning" style="margin-bottom:16px">The last check failed (' + esc(data.message || "unknown error") + "), so these figures are from the last good check.</div>" : "";
+    var stale = data.status !== "ok" && data.status !== "starting" ? '<div class="a-note a-note--warning" style="margin-bottom:16px">Last read failed' + (data.failedAt ? " at " + clock(data.failedAt) : "") + ": " + esc(data.message || "no reason was reported (status " + (data.status || "unknown") + ")") +
+      ". Showing figures from " + (data.fetchedAt ? clock(data.fetchedAt) : "an earlier check") + ".</div>" : "";
     var items = data.attention || [];
     if (!items.length) return stale;
     var worst = items.some(function (i) { return i.level === "critical"; }) ? "critical" : "warning";
@@ -265,7 +271,7 @@
     var message = data.status === "not_configured" ? "This app does not know the server's address. Update Automaton so it provides one, or set the <span class=\"a-mono\">API_BASE_URL</span> setting, then restart the app."
       : data.status === "unavailable" ? "This server does not offer server health yet. Update Automaton, then reload."
       : data.status === "starting" ? "The first check is still running. This page refreshes by itself."
-      : "The server could not be read right now: " + esc(data.message || "unknown error") + ".";
+      : "The server could not be read right now: " + esc(data.message || "no reason was reported (status " + (data.status || "unknown") + ")") + ".";
     overall.hidden = true;
     view.innerHTML = '<div class="a-empty"><div class="a-empty__title">No figures yet</div><p>' + message + "</p></div>";
     subtitle.textContent = data.status === "starting" ? "Starting" : "No data";

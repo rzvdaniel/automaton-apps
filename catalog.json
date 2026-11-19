@@ -34,8 +34,8 @@
       "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "fb199644ee328fc00779dc73139c9721109ea413",
-      "minServerVersion": "0.2.63",
+      "commit": "c020330e2b9916b8edbca513830ba2bc0e627a18",
+      "minServerVersion": "0.2.167",
       "permissions": [
         "server:read",
         "notify:email",
@@ -43,7 +43,8 @@
         "apps:read-status",
         "server:cleanup",
         "runner:maintain",
-        "backups:run"
+        "backups:run",
+        "security:read"
       ],
       "recommended": true,
       "recommendedOrder": 1
@@ -54,9 +55,11 @@
       "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
       "category": "Monitoring",
       "folder": "maintenance/victorialogs",
-      "commit": "74f2c9a1cd824259b4e3229b3ab827c040764879",
-      "minServerVersion": "0.2.31",
-      "permissions": [],
+      "commit": "b9b8cd9ba93e520cde9eafacee779292e3a8b41d",
+      "minServerVersion": "0.2.168",
+      "permissions": [
+        "logs:receive"
+      ],
       "recommended": true,
       "recommendedOrder": 2
     },

@@ -93,7 +93,10 @@ def fetch_health(settings: Settings, timeout: float = 20, opener=None) -> tuple[
                       headers={"Authorization": "Bearer " + settings.api_key, "Accept": "application/json", "User-Agent": USER_AGENT})
     try:
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
-            return "ok", json.loads(response.read(2_000_000).decode("utf-8")), None
+            data = json.loads(response.read(2_000_000).decode("utf-8"))
+        if not isinstance(data, dict) or not data:
+            return "error", None, f"The server answered HTTP {getattr(response, 'status', 200)} without figures."
+        return "ok", data, None
     except HTTPError as error:
         if error.code in (401, 403):
             return "not_approved", None, "The server refused the key: server:read is not approved (or was revoked)."
@@ -122,6 +125,16 @@ def fetch_backups(settings: Settings, timeout: float = 20, opener=None) -> dict 
     """The server's backup status (permission backups:read)."""
     data = _get_json(settings, "/api/Install/backups", timeout, opener)
     return data if isinstance(data, dict) else None
+
+
+def fetch_fail2ban(settings: Settings, timeout: float = 20, opener=None) -> dict | None:
+    """Whether fail2ban runs and how many addresses it banned in 24 hours (permission security:read).
+    None when the server has not read fail2ban, the permission is not approved or the server does not offer it."""
+    data = _get_json(settings, "/api/server/security/fail2ban", timeout, opener)
+    if not isinstance(data, dict) or data.get("reported") is not True or not isinstance(data.get("running"), bool):
+        return None
+    banned = data.get("bannedLast24Hours")
+    return {"running": data["running"], "banned": banned if isinstance(banned, int) and banned >= 0 else 0}
 
 
 def fetch_apps(settings: Settings, timeout: float = 20, opener=None) -> list | None:
@@ -155,7 +168,10 @@ def cleanup_call(settings: Settings, timeout: float = 30, opener=None) -> tuple[
     request = Request(settings.api_base_url + "/api/server/cleanup", method="GET", headers=headers)
     try:
         with (opener or build_opener(_NoRedirect())).open(request, timeout=timeout) as response:
-            return "ok", json.loads(response.read(2_000_000).decode("utf-8")), None
+            data = json.loads(response.read(2_000_000).decode("utf-8"))
+        if not isinstance(data, dict) or not data:
+            return "error", None, f"The server answered HTTP {getattr(response, 'status', 200)} without figures."
+        return "ok", data, None
     except HTTPError as error:
         if error.code in (401, 403):
             return "not_approved", None, "server:cleanup is not approved (or was revoked)."
@@ -312,7 +328,7 @@ def cleanup_warning(data: dict, now: float) -> str | None:
 # --- History and state ----------------------------------------------------------------------------------------------
 
 def new_state() -> dict:
-    return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None,
+    return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None, "failedAt": None,
             "alerts": {}, "securitySince": None, "sent": {}, "machines": {}}
 
 
@@ -669,11 +685,18 @@ def evaluate_alerts(state: dict, found: dict[str, tuple[bool, str]], send, deliv
     return sent
 
 
-def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health, fetch_backup=None, fetch_app=None) -> dict:
+def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_health, fetch_backup=None, fetch_app=None, fetch_security=None) -> dict:
     """One poll: fetch, record, judge, warn. Returns the updated state."""
     status, health, message = fetch(settings)
-    state["status"], state["message"] = status, message
+    if status == "ok" and not health:
+        status, message = "error", "The server answered without figures."
+    state["status"] = status
+    state["message"] = None if status == "ok" else message or f"The read failed (status {status})."
+    if status != "ok":
+        # When the read failed, and why, so the page can say it next to the figures it keeps.
+        state["failedAt"] = int(now)
     if status == "ok" and health:
+        state["failedAt"] = None
         state["health"], state["fetchedAt"] = health, int(now)
         record(state, health, now)
         record_machines(state, health, now)
@@ -683,15 +706,20 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
         state["found"] = {name: bool(active) for name, (active, _text) in found.items()}
         state["failingApps"] = None if apps is None else sum(
             1 for a in apps if isinstance(a, dict) and not a.get("isPaused") and str(a.get("liveStatus", "")).lower() == "failed")
+        state["fail2ban"] = (fetch_security or fetch_fail2ban)(settings)
         evaluate_alerts(state, found, send, True, now)
     return state
+
+
+HIDING = ("no_key", "not_approved", "not_configured")
 
 
 def snapshot(state: dict, settings: Settings, now: float, machine: str | None = None) -> dict:
     """What the page receives. Without approval nothing from the server is shown; a passing error keeps the last figures.
     `machine` is the name of the Runner whose machine to show (default: the online Runner with the newest figures)."""
     status = state.get("status")
-    shown = status in ("ok", "error")
+    # Only a missing or revoked approval hides the figures. Any other failed read (error, unavailable, starting) keeps them.
+    shown = status not in HIDING
     health = state.get("health") if shown else None
     local, chosen, runner = state, None, None
     if health:
@@ -701,7 +729,7 @@ def snapshot(state: dict, settings: Settings, now: float, machine: str | None = 
     if runner and not is_online(runner):
         items.insert(0, {"level": CRITICAL, "title": f"{runner.get('name')} is offline.", "detail": "Its figures are not shown until the Runner reports again. Check the machine and the Runner service.", "command": "", "card": "runners"})
     return {"status": status, "message": state.get("message"), "fetchedAt": state.get("fetchedAt"),
-            "now": int(now), "health": health, "assessment": assess(health, local, settings, now),
+            "now": int(now), "failedAt": state.get("failedAt") if status != "ok" else None, "health": health, "assessment": assess(health, local, settings, now),
             "attention": items,
             "machines": machine_list(health) if health else [], "machine": chosen,
             "reclaim": reclaimable((health or {}).get("host") or {}), "appDisk": app_disk(runner),

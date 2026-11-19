@@ -6,11 +6,11 @@ Open the app (Open app goes to **Logs**, `/select/vmui/`): search, filter and li
 
 ## Retention
 
-Defaults, set as app settings: `RETENTION_PERIOD` = `14d` and `MAX_DISK_SPACE_BYTES` = `5GiB`. Saving a setting restarts the app. Whichever limit is reached first drops the oldest days. VictoriaLogs also has a percentage cap (`-retention.maxDiskUsagePercent`); it is mutually exclusive with the size cap, and this package offers the size cap only.
+Defaults, set as app settings: `RETENTION_PERIOD` = `14d` and `MAX_DISK_SPACE_BYTES` = `2GiB`. Saving a setting restarts the app. Whichever limit is reached first drops the oldest days. VictoriaLogs also has a percentage cap (`-retention.maxDiskUsagePercent`); it is mutually exclusive with the size cap, and this package offers the size cap only.
 
 ## Ship the server's logs here
 
-Set `Logging__Otlp__Endpoint` to this app's address, for example `http://<app address>:9428`, on the API, the Worker and each Runner, then restart them. They keep their log files and also send logs over OpenTelemetry (OTLP/HTTP, protobuf) to `/insert/opentelemetry/v1/logs`. A bare address gets that path added. Every record carries `service.name` (`automaton-api`, `automaton-worker`, `automaton-runner`) and `host.name`. Example searches:
+The app declares `"permissions": ["logs:receive"]`. A system administrator approves it on the install page (or later under the app's Admin tab); from then on, with no setting and no command, the Automaton API, Worker and the Runner that hosts this app send their logs here over OpenTelemetry (OTLP/HTTP, protobuf, `/insert/opentelemetry/v1/logs`) within about a minute. Automaton finds the app's current address itself, so restarts, redeploys and reboots need nothing. Pausing, uninstalling or revoking the permission stops it quietly. A Runner on another machine sends nothing until you set `Logging__Otlp__Endpoint` for it to an `https` address; the same setting on the API, Worker or a Runner always wins over the automatic choice. Needs Automaton 0.2.168 or newer. Every record carries `service.name` (`automaton-api`, `automaton-worker`, `automaton-runner`) and `host.name`. Example searches:
 
 ```
 _time:1h severity_text:Error
@@ -21,6 +21,6 @@ Not included yet: collecting Docker container output (Traefik, Postgres, apps). 
 
 ## Home card
 
-`actions/home-card` draws the Home card: counters for logs, errors and warnings of the last hour, a small chart of log volume over 24 hours and a storage meter (used and free disk from the server's own `/metrics`; left out when it does not report them). It asks this app at `AUTOMATON_APP_INTERNAL_URL`, so it works right after install; set `LOGS_URL` only to point it at another VictoriaLogs. When it cannot show data it shows one line with the reason and a Set up link, and when the API, Worker and Runners send no logs it says to set `Logging__Otlp__Endpoint`, with the address. Detailed searching stays in the app.
+`actions/home-card` draws the Home card: counters for logs, errors and warnings of the last hour, a small chart of log volume over 24 hours and a storage meter (used and free disk from the server's own `/metrics`; left out when it does not report them). It asks this app at `AUTOMATON_APP_INTERNAL_URL`, so it works right after install; set `LOGS_URL` only to point it at another VictoriaLogs. When it cannot show data it shows one line with the reason and a Set up link, and when the API, Worker and Runners have sent no logs yet it says that an administrator approves `logs:receive`; the line goes away once logs arrive. Detailed searching stays in the app.
 
 VictoriaLogs has no sign-in of its own: anything that can reach its port on the server's internal network can read and write logs. Automaton's sign-in protects only the browser address. Use `http` for an endpoint on the same server or Docker network; a remote Runner should reach it through `https`.
