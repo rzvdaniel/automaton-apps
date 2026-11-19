@@ -73,7 +73,9 @@ def problems(catalog: dict) -> list:
         if moved is not None and (moved.get("repo") != OFFICIAL_REPO or not FOLDER.fullmatch(moved.get("folder", ""))):
             found.append(f"{app['id']}: movedFrom must name a folder of {OFFICIAL_REPO}")
         publisher = app.get("publisher")
-        if publisher is not None:
+        if publisher is not None and not isinstance(publisher, dict):
+            found.append(f"{app['id']}: publisher must be an object with a name")
+        elif publisher is not None:
             name, logo = publisher.get("name"), publisher.get("logo")
             if not isinstance(name, str) or not name.strip() or len(name) > 80:
                 found.append(f"{app['id']}: publisher needs a name of at most 80 characters")

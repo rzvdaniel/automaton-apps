@@ -46,6 +46,7 @@ class CatalogTests(unittest.TestCase):
         entry = {"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "a/b", "commit": "a" * 40, "minServerVersion": "1.2.3"}
         self.assertEqual(g.problems({"apps": [dict(entry, publisher={"name": "Acme", "logo": "https://e.com/a.svg"})]}), [])
         self.assertEqual(len(g.problems({"apps": [dict(entry, publisher={"name": " "})]})), 1)
+        self.assertEqual(len(g.problems({"apps": [dict(entry, publisher="Automaton")]})), 1)
         self.assertEqual(len(g.problems({"apps": [dict(entry, publisher={"name": "Acme", "logo": "javascript:alert(1)"})]})), 1)
 
     def test_problems_report_bad_entries(self):
