@@ -54,7 +54,7 @@ class Recorder:
 
 def cycle(state, conf, data, send, now=NOW, backups=None, apps=None):
     return console.run_cycle(conf, state, now, send, fetch=lambda _s: ("ok", data, None),
-                             fetch_backup=lambda _s: backups, fetch_app=lambda _s: apps)
+                             fetch_backup=lambda _s: backups, fetch_app=lambda _s: apps, fetch_security=lambda _s: None)
 
 
 class SettingsTests(unittest.TestCase):
@@ -271,7 +271,7 @@ class AttentionTests(unittest.TestCase):
 
     def test_the_page_receives_the_list_and_the_reclaimable_space(self):
         state = console.new_state()
-        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(disk_free_gb=10, dockerImagesBytes=GB), None))
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(disk_free_gb=10, dockerImagesBytes=GB), None), fetch_security=lambda _s: None)
         shot = console.snapshot(state, settings(), NOW)
         self.assertEqual(shot["attention"][0]["command"], "docker image prune -a")
         self.assertEqual(shot["reclaim"]["freeable"], GB)
@@ -310,7 +310,7 @@ def two_machines(**second):
 class MachineTests(unittest.TestCase):
     def snapshot(self, machine=None):
         state = console.new_state()
-        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", two_machines(), None))
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", two_machines(), None), fetch_security=lambda _s: None)
         return console.snapshot(state, settings(), NOW, machine)
 
     def test_each_machine_shows_its_own_figures_history_and_needs_you(self):
@@ -337,17 +337,17 @@ class MachineTests(unittest.TestCase):
 
     def test_a_server_without_per_runner_figures_still_shows_its_host(self):
         state = console.new_state()
-        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(), None))
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(), None), fetch_security=lambda _s: None)
         shot = console.snapshot(state, settings(), NOW, "main")
         self.assertEqual(shot["health"]["host"]["diskAvailableBytes"], 60 * GB)
         self.assertEqual(len(shot["history"]), 1)
 
     def test_a_removed_runner_loses_its_history(self):
         state = console.new_state()
-        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", two_machines(), None))
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", two_machines(), None), fetch_security=lambda _s: None)
         data = two_machines()
         data["runners"] = data["runners"][:1]
-        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: ("ok", data, None))
+        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: ("ok", data, None), fetch_security=lambda _s: None)
         self.assertEqual(list(state["machines"]), ["Production"])
 
 
@@ -456,7 +456,7 @@ class EmailTests(unittest.TestCase):
 class AlertPermissionTests(unittest.TestCase):
     def test_nothing_is_recorded_or_sent_while_the_permission_is_not_approved(self):
         state, send = console.new_state(), Recorder()
-        console.run_cycle(settings(), state, NOW, send, fetch=lambda _s: ("not_approved", None, "refused"))
+        console.run_cycle(settings(), state, NOW, send, fetch=lambda _s: ("not_approved", None, "refused"), fetch_security=lambda _s: None)
         self.assertEqual((state["history"], send.sent, state["status"]), ([], [], "not_approved"))
         self.assertIsNone(console.snapshot(state, settings(), NOW)["health"])
 
@@ -464,7 +464,7 @@ class AlertPermissionTests(unittest.TestCase):
         state = console.new_state()
         cycle(state, settings(), health(), Recorder())
         self.assertIsNotNone(console.snapshot(state, settings(), NOW)["health"])
-        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("not_approved", None, "refused"))
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("not_approved", None, "refused"), fetch_security=lambda _s: None)
         self.assertIsNone(console.snapshot(state, settings(), NOW)["health"])
 
 
@@ -543,14 +543,14 @@ class SnapshotTests(unittest.TestCase):
     def test_revoking_hides_history_and_warnings_too(self):
         state = console.new_state()
         cycle(state, settings(), health(disk_free_gb=5), Recorder())
-        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("not_approved", None, "refused"))
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("not_approved", None, "refused"), fetch_security=lambda _s: None)
         view = console.snapshot(state, settings(), NOW)
         self.assertEqual((view["health"], view["history"], view["alerts"]), (None, [], {}))
 
     def test_a_passing_error_keeps_the_last_figures_and_says_so(self):
         state = console.new_state()
         cycle(state, settings(), health(), Recorder())
-        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: ("error", None, "timeout"))
+        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: ("error", None, "timeout"), fetch_security=lambda _s: None)
         view = console.snapshot(state, settings(), NOW + 300)
         self.assertIsNotNone(view["health"])
         self.assertEqual((view["status"], len(view["history"])), ("error", 1))
@@ -1116,6 +1116,32 @@ class HomeCardTests(unittest.TestCase):
         self.assertEqual(len(card["alerts"]), 5)
         self.assertEqual([a["severity"] for a in card["alerts"]], ["critical"] * 5)
         self.assertEqual(card["alerts"][0]["text"], "The last server backup failed. Open Server Keeper for details.")
+
+    def test_the_fail2ban_line_shows_on_with_todays_bans(self):
+        card = self.valid(card_for(health(), fail2ban={"running": True, "banned": 12}))
+        self.assertIn({"type": "badge", "label": "fail2ban", "text": "on · 12 banned in 24 h", "tone": "ok"}, card["blocks"])
+        self.assertEqual((card["status"], alerts_of(card)), ("All good", []))
+
+    def test_fail2ban_off_warns(self):
+        card = self.valid(card_for(health(), fail2ban={"running": False, "banned": 0}))
+        self.assertIn({"type": "badge", "label": "fail2ban", "text": "off", "tone": "warning"}, card["blocks"])
+        self.assertEqual((card["tone"], alerts_of(card)), ("warning", [("warning", "fail2ban is not running.")]))
+
+    def test_without_security_read_there_is_no_fail2ban_line(self):
+        card = self.valid(card_for(health(), fail2ban=None))
+        self.assertNotIn("fail2ban", json.dumps(card))
+
+    def test_fail2ban_is_read_only_when_reported_and_never_invented(self):
+        class Opener:
+            def __init__(self, body): self.body = body
+            def open(self, request, timeout=0):
+                self.url = request.full_url
+                return io.BytesIO(json.dumps(self.body).encode())
+        conf = settings()
+        ok = Opener({"reported": True, "running": True, "bannedLast24Hours": 7})
+        self.assertEqual(console.fetch_fail2ban(conf, opener=ok), {"running": True, "banned": 7})
+        self.assertTrue(ok.url.endswith("/api/server/security/fail2ban"))
+        self.assertIsNone(console.fetch_fail2ban(conf, opener=Opener({"reported": False, "running": None})))
 
     def test_the_card_holds_no_server_details(self):
         data = health(osName="Ubuntu 24.04 LTS")
