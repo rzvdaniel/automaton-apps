@@ -1,4 +1,5 @@
 {
+  "publisher": { "name": "Automaton" },
   "apps": [
     { "folder": "maintenance/offsite-backup", "category": "Maintenance", "minServerVersion": "0.2.126" },
     { "folder": "maintenance/website-monitor", "category": "Monitoring", "minServerVersion": "0.2.31" },
