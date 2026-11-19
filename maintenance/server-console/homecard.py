@@ -101,7 +101,7 @@ def build_card(state: dict, now: float) -> dict:
     guard = state.get("fail2ban")
     if isinstance(guard, dict) and isinstance(guard.get("running"), bool):
         blocks.append({"type": "badge", "label": "fail2ban", "tone": "ok" if guard["running"] else "warning",
-                       "text": f"on · {guard.get('banned', 0)} banned today" if guard["running"] else "off"})
+                       "text": f"on · {guard.get('banned', 0)} banned in 24 h" if guard["running"] else "off"})
     blocks.append({"type": "buttons", "items": [{"label": "Update", "path": "/#server"}, {"label": "Backups", "path": "/#backups"}]})
     fetched = state.get("fetchedAt")
     card = {"status": status, "tone": tone, "blocks": blocks, "alerts": alerts}
