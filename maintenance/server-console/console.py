@@ -199,7 +199,7 @@ def maintain_call(settings: Settings, method: str, path: str, viewer_token: str 
         if status:
             message = ""
             try:
-                message = json.loads(error.read(10_000).decode("utf-8")).get("error") or ""
+                message = (lambda body: body.get("error") or body.get("message"))(json.loads(error.read(10_000).decode("utf-8"))) or ""
             except (ValueError, OSError, AttributeError):
                 pass
             return status, None, message or f"The server answered HTTP {error.code}."
@@ -286,6 +286,17 @@ def server_cleanup_settings(settings: Settings, body, viewer_token: str | None, 
 def backup_run(settings: Settings, viewer_token: str | None, **kwargs):
     """Asks the server for a backup now (permission backups:run, a system administrator's viewer token)."""
     return maintain_call(settings, "POST", "/api/Install/backups/run", viewer_token, **kwargs)
+
+
+def os_updates_run(settings: Settings, viewer_token: str | None, **kwargs):
+    """Installs the server's OS security updates (permission server:update-os, a system administrator's viewer token).
+    The server refuses with 409 while a backup, deploy, update, restart or another OS update runs."""
+    return maintain_call(settings, "POST", "/api/Install/os-updates/run", viewer_token, timeout=40, body={"scope": "security"}, **kwargs)
+
+
+def os_updates_status(settings: Settings, **kwargs):
+    """The state and result of the last OS update run (permission server:read)."""
+    return maintain_call(settings, "GET", "/api/install/os-updates", **kwargs)
 
 
 def runner_upgrade(settings: Settings, runner_id: str, viewer_token: str | None, start: bool = True, **kwargs):

@@ -531,6 +531,7 @@
   var cleanupOp = null;   // { error } after Run now on the cleanup
   var cleanupEdit = false;
   var backupOp = null;    // { since, state: "waiting" | "done" | "failed", text, needsApproval }
+  var osOp = null;        // { asking, typed, state: "waiting" | "done" | "failed", text, restartRequired } installing the OS updates
   var upgradeOp = null;   // { items: [{ runnerId, name, state, text }], busy }
   var tasksTimer = null;
   var APPROVAL = "Needs approval. An administrator approves it in Studio under Admin, Apps, Permissions.";
@@ -609,17 +610,54 @@
     var host = (h && h.host) || {};
     if (typeof host.updatesPending !== "number") return row("updates", "OS updates", "unknown", ["Update counts need Ubuntu's update notifier on the server."], "");
     var line = plural(host.updatesPending, "update") + " waiting" + (typeof host.securityUpdates === "number" ? ", " + host.securityUpdates + " of them security" : "") + "; " + (host.rebootRequired ? "a restart is needed." : "no restart needed.");
-    return row("updates", "OS updates", a ? a.updates : "unknown", [line, "Check only here. Install them under This machine below."], "");
+    var name = chosenName();
+    var busy = osOp && osOp.state === "waiting";
+    var ask = osOp && osOp.asking ? '<div id="os-confirm"><span class="a-note a-note--warning">Installs the pending security updates on this server. It can take several minutes, and no app is stopped. Type <strong>' + esc(name) + '</strong> to confirm.</span> ' +
+      '<input class="a-input" id="os-typed" autocomplete="off" spellcheck="false" aria-label="Type the server name" value="' + esc(osOp.typed || "") + '"> ' +
+      '<button class="a-btn" type="button" id="os-go"' + (osOp.typed === name ? "" : " disabled") + '>Install updates</button> <button class="a-btn" type="button" id="os-cancel">Cancel</button></div>' : "";
+    var note = !osOp || osOp.asking ? "" : osOp.needsApproval ? esc(APPROVAL) : '<span class="a-note' + (osOp.state === "failed" ? " a-note--warning" : "") + '" id="os-result">' + esc(osOp.text) + "</span>";
+    return row("updates", "OS updates", a ? a.updates : "unknown", [line, "Installs security updates from here; other updates and a restart: see This machine below.", note, ask],
+      isAdmin && name ? '<button class="a-btn" type="button" id="os-run"' + (busy || (osOp && osOp.asking) ? " disabled" : "") + ">" + (busy ? "Installing..." : "Install updates") + "</button>" : "");
   }
 
   function paintTasks() {
     if (!lastData) return;
     // Do not redraw under someone typing in the settings form.
     if (cleanupEdit && document.activeElement && /^cs-/.test(document.activeElement.id || "")) return;
+    if (osOp && osOp.asking && document.activeElement && document.activeElement.id === "os-typed") return;
     tasksBox.hidden = false;
     tasksBox.innerHTML = '<section class="a-card spaced" id="maintenance"><div class="a-card__head"><h2 class="a-card__title">Maintenance</h2></div><ul class="a-list tasks">' +
       cleanupRow() + backupRow() + upgradeRow() + updatesRow() + "</ul></section>";
     UI.updateRelativeTimes(tasksBox);
+  }
+
+  function pollOsUpdates() {
+    if (!osOp || osOp.state !== "waiting") return;
+    fetch("api/tasks/os-updates", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
+      var s = (data.status === "ok" && data.data) || {};
+      if (s.state === "succeeded" || s.state === "failed" || s.state === "refused" || s.state === "unsupported") {
+        osOp = s.state === "succeeded"
+          ? { state: "done", text: "Installed " + (s.upgradedCount || 0) + " update(s)." + (s.restartRequired ? " A restart is now needed." : " No restart is needed.") }
+          : { state: "failed", text: s.message || "The updates were not installed." };
+        load(); return paintTasks();
+      }
+      if (Date.now() - osOp.started > 3 * 3600000) { osOp = { state: "failed", text: "Still not finished after 3 hours. Check the server." }; return paintTasks(); }
+      setTimeout(pollOsUpdates, 5000);
+    }).catch(function () { setTimeout(pollOsUpdates, 5000); });
+  }
+
+  function runOsUpdates() {
+    var name = chosenName();
+    if (!osOp || osOp.typed !== name) return;
+    osOp = { state: "waiting", text: "Installing...", started: Date.now() };
+    paintTasks();
+    post("api/tasks/os-updates").then(function (data) {
+      if (data.status === "ok") return setTimeout(pollOsUpdates, 5000);
+      osOp = data.status === "forbidden" || data.status === "not_approved" ? { state: "failed", needsApproval: true }
+        : data.status === "not_found" ? { state: "failed", text: "This server cannot install updates from Studio yet. Update Automaton, or run sudo apt upgrade on the server." }
+        : { state: "failed", text: data.message || "The updates could not be started." };
+      paintTasks();
+    }).catch(function () { osOp = { state: "failed", text: "The app could not be reached." }; paintTasks(); });
   }
 
   function pollTasks() {
@@ -706,7 +744,17 @@
     else if (id === "cleanup-cancel") { cleanupEdit = false; cleanupOp = null; paintTasks(); }
     else if (id === "cleanup-save") saveCleanup();
     else if (id === "backup-run") runBackupNow();
+    else if (id === "os-run") { osOp = { asking: true, typed: "" }; paintTasks(); var box = document.getElementById("os-typed"); if (box) box.focus(); }
+    else if (id === "os-cancel") { osOp = null; paintTasks(); }
+    else if (id === "os-go") runOsUpdates();
     else if (id === "upgrade-run") runUpgradeNow();
+  });
+
+  tasksBox.addEventListener("input", function (event) {
+    if (event.target.id !== "os-typed" || !osOp) return;
+    osOp.typed = event.target.value;
+    var go = document.getElementById("os-go");
+    if (go) go.disabled = osOp.typed !== chosenName();
   });
 
   fetch("api/tasks", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) { isAdmin = data.admin === true; paintTasks(); }).catch(function () { /* read-only */ });
