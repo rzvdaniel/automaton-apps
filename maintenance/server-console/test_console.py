@@ -486,6 +486,59 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual((len(hooks), mails, app.state["sent"]), (1, [], {}))
 
 
+class KeepFiguresTests(unittest.TestCase):
+    def good(self):
+        state = console.new_state()
+        cycle(state, settings(), health(), Recorder())
+        return state
+
+    def failed(self, state, reply):
+        console.run_cycle(settings(), state, NOW + 300, Recorder(), fetch=lambda _s: reply)
+        return console.snapshot(state, settings(), NOW + 300)
+
+    def test_every_failed_read_but_a_revoked_key_keeps_the_figures_and_says_why(self):
+        for reply in [("error", None, "The server answered HTTP 502."), ("unavailable", None, "old server"), ("weird", None, None)]:
+            view = self.failed(self.good(), reply)
+            self.assertIsNotNone(view["health"], reply)
+            self.assertEqual(view["failedAt"], NOW + 300)
+            self.assertTrue(view["message"])
+            self.assertEqual(view["fetchedAt"], NOW)
+
+    def test_a_read_that_answers_without_figures_is_an_error_not_a_silent_ok(self):
+        state = console.new_state()
+        view = self.failed(state, ("ok", {}, None))
+        self.assertEqual((view["status"], view["health"]), ("error", None))
+        self.assertIn("without figures", view["message"])
+
+    def test_the_next_good_read_clears_the_failure(self):
+        state = self.good()
+        self.failed(state, ("error", None, "timeout"))
+        cycle(state, settings(), health(), Recorder())
+        view = console.snapshot(state, settings(), NOW)
+        self.assertEqual((view["status"], view["failedAt"], view["message"]), ("ok", None, None))
+
+    def test_the_failure_survives_a_restart(self):
+        state = self.good()
+        self.failed(state, ("error", None, "timeout"))
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "state.json")
+            console.save_state(path, state)
+            view = console.snapshot(console.load_state(path), settings(), NOW + 300)
+        self.assertEqual((view["status"], view["failedAt"], view["health"] is not None), ("error", NOW + 300, True))
+
+    def test_an_empty_answer_is_read_as_an_error_with_the_http_code(self):
+        class Response:
+            status = 200
+            def read(self, _n): return b"{}"
+            def __enter__(self): return self
+            def __exit__(self, *_a): return False
+        class Opener:
+            def open(self, _request, timeout=0): return Response()
+        status, data, message = console.fetch_health(settings(), opener=Opener())
+        self.assertEqual((status, data), ("error", None))
+        self.assertIn("HTTP 200", message)
+
+
 class SnapshotTests(unittest.TestCase):
     def test_revoking_hides_history_and_warnings_too(self):
         state = console.new_state()
