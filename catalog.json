@@ -14,7 +14,10 @@
         "backups:read",
         "backups:run",
         "notify:email"
-      ]
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
     },
     {
       "id": "website-monitor",
@@ -26,7 +29,10 @@
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
-      ]
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
     },
     {
       "id": "server-console",
@@ -46,6 +52,9 @@
         "backups:run",
         "security:read"
       ],
+      "publisher": {
+        "name": "Automaton"
+      },
       "recommended": true,
       "recommendedOrder": 1
     },
@@ -60,6 +69,9 @@
       "permissions": [
         "logs:receive"
       ],
+      "publisher": {
+        "name": "Automaton"
+      },
       "recommended": true,
       "recommendedOrder": 2
     },
@@ -74,6 +86,9 @@
       "permissions": [
         "security:read"
       ],
+      "publisher": {
+        "name": "Automaton"
+      },
       "recommended": true,
       "recommendedOrder": 3
     },
@@ -87,7 +102,10 @@
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
-      ]
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
     },
     {
       "id": "ghost",
@@ -97,7 +115,10 @@
       "folder": "publishing/ghost",
       "commit": "ef6eb773bbd6fca68cb0eabcb93321c2c5926d55",
       "minServerVersion": "0.2.149",
-      "permissions": []
+      "permissions": [],
+      "publisher": {
+        "name": "Automaton"
+      }
     }
   ]
 }
