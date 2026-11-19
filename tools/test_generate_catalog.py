@@ -37,6 +37,17 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(g.problems(good), [])
         self.assertEqual(len(g.problems(other)), 1)
 
+    def test_every_app_names_its_publisher(self):
+        catalog = g.build()
+        self.assertTrue(all(app["publisher"] == {"name": "Automaton"} for app in catalog["apps"]))
+        self.assertEqual(g.problems(catalog), [])
+
+    def test_publisher_needs_a_name_and_a_safe_logo(self):
+        entry = {"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "a/b", "commit": "a" * 40, "minServerVersion": "1.2.3"}
+        self.assertEqual(g.problems({"apps": [dict(entry, publisher={"name": "Acme", "logo": "https://e.com/a.svg"})]}), [])
+        self.assertEqual(len(g.problems({"apps": [dict(entry, publisher={"name": " "})]})), 1)
+        self.assertEqual(len(g.problems({"apps": [dict(entry, publisher={"name": "Acme", "logo": "javascript:alert(1)"})]})), 1)
+
     def test_problems_report_bad_entries(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}
         self.assertEqual(len(g.problems(bad)), 3)
