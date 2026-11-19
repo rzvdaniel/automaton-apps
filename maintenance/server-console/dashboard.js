@@ -306,7 +306,7 @@
         else if (data.status === "not_approved" || data.status === "no_key") {
           cleanupRefusals += 1;
           if (!cleanupInfo || cleanupInfo.needsApproval || cleanupRefusals >= 2) cleanupInfo = { needsApproval: true };
-        } else if (!cleanupInfo) cleanupInfo = { needsApproval: true };
+        }
         if (typeof paintTasks === "function") paintTasks();
       });
     }).catch(function () { /* keep what is shown */ });
