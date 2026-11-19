@@ -245,7 +245,7 @@
     overall.hidden = false;
     var count = (data.attention || []).length;
     overall.className = "a-pill a-pill--large" + (a.overall !== "unknown" ? " a-pill--" + a.overall : "");
-    overall.textContent = a.overall === "ok" ? "All good" : count ? (count === 1 ? "1 thing needs you" : count + " things need you") : a.overall === "warning" ? "Needs attention" : a.overall === "critical" ? "Action needed" : "No data";
+    overall.textContent = a.overall === "ok" ? "All good" : count ? (count === 1 ? "1 thing needs you" : count + " things need you") : a.overall === "warning" ? "Needs attention" : a.overall === "critical" ? "Action needed" : "Some figures unknown";
     subtitle.innerHTML = "Checked " + (data.fetchedAt ? '<time datetime="' + new Date(data.fetchedAt * 1000).toISOString() + '" data-rel></time>' : "never");
     UI.updateRelativeTimes(document);
   }
@@ -294,12 +294,19 @@
 
   // --- Cleanup card: shown only when an administrator approved server:cleanup for this app. -----------------------------
 
+  var cleanupRefusals = 0;
   var cleanupInfo = null; // the nightly cleanup read through server:cleanup, or { needsApproval: true }
 
   function loadCleanup() {
     fetch("api/cleanup", { cache: "no-store" }).then(function (response) {
       return response.json().then(function (data) {
-        cleanupInfo = data.status === "ok" ? data.cleanup : { needsApproval: true };
+        // One refused read (a transient 401) must not turn approved permissions into "Needs approval": keep the last good
+        // figures until the refusal repeats. Other failures (unreachable, server error) never mean "not approved".
+        if (data.status === "ok") { cleanupInfo = data.cleanup; cleanupRefusals = 0; }
+        else if (data.status === "not_approved" || data.status === "no_key") {
+          cleanupRefusals += 1;
+          if (!cleanupInfo || cleanupInfo.needsApproval || cleanupRefusals >= 2) cleanupInfo = { needsApproval: true };
+        } else if (!cleanupInfo) cleanupInfo = { needsApproval: true };
         if (typeof paintTasks === "function") paintTasks();
       });
     }).catch(function () { /* keep what is shown */ });

@@ -509,7 +509,11 @@ def assess(health: dict | None, state: dict, settings: Settings, now: float) -> 
     status["freshness"] = UNKNOWN if age is None else WARNING if age > STALE_HOST_SECONDS else OK
     status["resources"] = worst(status["disk"], status["memory"], status["cpu"], status["load"], status["freshness"])
     status["updates"] = worst(status["security"], status["pending"], status["reboot"])
+    if UNKNOWN in (status["security"], status["pending"]) and status["updates"] == OK:
+        status["updates"] = UNKNOWN  # unreadable update counts are not "nothing to do"
     status["overall"] = worst(*(status[k] for k in ("server", "runners", "updates", "resources", "backup", "certificates")))
+    if status["updates"] == UNKNOWN and status["overall"] == OK:
+        status["overall"] = UNKNOWN  # never "All good" while the update counts are unknown
     status["securityDays"] = None if security_age is None else round(security_age / DAY, 1)
     return status
 
