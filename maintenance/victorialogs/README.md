@@ -6,7 +6,7 @@ Open the app (Open app goes to **Logs**, `/select/vmui/`): search, filter and li
 
 ## Retention
 
-Defaults, set as app settings: `RETENTION_PERIOD` = `14d` and `MAX_DISK_SPACE_BYTES` = `5GiB`. Saving a setting restarts the app. Whichever limit is reached first drops the oldest days. VictoriaLogs also has a percentage cap (`-retention.maxDiskUsagePercent`); it is mutually exclusive with the size cap, and this package offers the size cap only.
+Defaults, set as app settings: `RETENTION_PERIOD` = `14d` and `MAX_DISK_SPACE_BYTES` = `2GiB`. Saving a setting restarts the app. Whichever limit is reached first drops the oldest days. VictoriaLogs also has a percentage cap (`-retention.maxDiskUsagePercent`); it is mutually exclusive with the size cap, and this package offers the size cap only.
 
 ## Ship the server's logs here
 
