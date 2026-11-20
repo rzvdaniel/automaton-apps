@@ -10,14 +10,14 @@ The page shows:
 
 | Job | Default schedule (UTC) | What it runs |
 | --- | --- | --- |
-| `stall-check` | every 30 minutes | `orchestrator.sh`: requeues a stalled task, stops one that stalled twice, pauses the queue at the day's budget |
+| `stall-check` | every 30 minutes | `orchestrator.sh`: requeues a stalled task, stops one that stalled twice |
 | `report` | 06:00 | `orchestrator.sh` with `ORCH_REPORT=1`: queues the task that writes the morning report |
 | `lessons` | 03:00 | `agent-queue add lessons-<date>` with `LESSONS_PROMPT` |
 | `night-shift` | 22:00 | queues the open issues in one board column, in order |
 
 ## Night shift
 
-Set `NIGHT_BOARD` (`owner/number` of a GitHub project), `NIGHT_COLUMN` (a Status value, for example `Ready for night`) and the `GITHUB_TOKEN` secret (read access to the project and its issues). Each run queues up to `NIGHT_MAX_TASKS` open issues from that column, one task each (`night-<repo>-<number>`), and never one it queued before. **An empty column queues nothing; it never picks from the rest of the backlog.** Every night task is told to stop at the merged pull request and never release or deploy. The order is the one GitHub lists the project's items in (the order they were added to the board), not the order of the cards on the board. `TASK_BUDGET` caps how many tasks start per day; the stall check pauses the queue when it is reached. This counts tasks, not tokens.
+Set `NIGHT_BOARD` (`owner/number` of a GitHub project), `NIGHT_COLUMN` (a Status value, for example `Ready for night`) and the `GITHUB_TOKEN` secret (read access to the project and its issues). Each run queues every open issue in that column, one task each (`night-<repo>-<number>`), skips one that is already waiting or running in the queue (it reads the queue listing) and never queues one twice. **An empty column queues nothing; it never picks from the rest of the backlog.** Issues run in the column's card order, top to bottom as the board shows it. There is no token budget and no daily task limit: the night shift runs everything in the column, and when the Claude usage limit is hit the queue waits for the reset and continues. The queue machine needs the current `orchestrator.sh` (older copies still pause at 12 tasks a day). Only `STALL_MINUTES` bounds a task, so one stuck task cannot block the night. **Only put issues you trust in the night column**, and keep the queue host free of production credentials: night tasks run unattended with that machine's access. Every night task is told to stop at the merged pull request and never release or deploy.
 
 ## Install on an Automaton server
 
@@ -58,9 +58,9 @@ Without Automaton there are no scheduled actions: call a job from cron or a time
 | `ADMIN_TOKEN` | at least 16 characters (secret); wrong tries are delayed |
 | `QUEUE_BIN`, `QUEUE_HOME` | where the scripts and the queue's folder are on that machine (default `~/bin`, `~/agent-queue`) |
 | `RUNNER` | the command that runs one task (default `claude-task`) |
-| `STALL_MINUTES`, `TASK_BUDGET` | stall limit (default 120) and tasks per day (default 12) |
+| `STALL_MINUTES` | minutes without log output before a task counts as stalled (default 120) |
 | `ISSUE_REPO` | `owner/name` for linking a task named like `fix-login-344` to its issue |
-| `NIGHT_BOARD`, `NIGHT_COLUMN`, `NIGHT_MAX_TASKS`, `GITHUB_TOKEN` | the night shift (see above) |
+| `NIGHT_BOARD`, `NIGHT_COLUMN`, `GITHUB_TOKEN` | the night shift (see above) |
 | `LESSONS_PROMPT` | the lessons job's prompt |
 | `AUTOMATON_APP_DATA_DIR` | data folder: the job history and the remembered host key |
 

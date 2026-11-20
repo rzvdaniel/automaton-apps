@@ -76,8 +76,8 @@ class QueueTests(unittest.TestCase):
 
     def test_orchestrator_environment(self):
         ex = FakeExecutor()
-        overseer.Queue(ex, stall_minutes=90, task_budget=5).orchestrate(True)
-        self.assertIn("ORCH_REPORT=1 ORCH_STALL_MINUTES=90 ORCH_NIGHT_BUDGET=5 orchestrator.sh", ex.calls[-1][0])
+        overseer.Queue(ex, stall_minutes=90).orchestrate(True)
+        self.assertIn("ORCH_REPORT=1 ORCH_STALL_MINUTES=90 orchestrator.sh", ex.calls[-1][0])
 
 
 class Board(unittest.TestCase):
@@ -91,6 +91,14 @@ class Board(unittest.TestCase):
         nodes = [node(5, "Ready for night"), node(6, "Todo"), node(7, "Ready for night", "CLOSED"), {"status": None, "content": None}, node(8, "Ready for night")]
         got = overseer.fetch_column("t", "o/1", "Ready for night", self.reply(nodes))
         self.assertEqual([i["number"] for i in got], [5, 8])
+
+    def test_asks_github_for_the_cards_in_board_order(self):
+        sent = []
+        def opener(request, timeout):
+            sent.append(request.data.decode())
+            return _Resp(json.dumps({"data": {"repositoryOwner": {"projectV2": {"items": {"nodes": []}}}}}).encode())
+        overseer.fetch_column("t", "o/1", "Ready", opener)
+        self.assertIn("orderBy:{field:POSITION,direction:ASC}", sent[0])
 
     def test_bad_board(self):
         with self.assertRaises(overseer.InvalidConfig):
@@ -122,13 +130,21 @@ class Jobs(unittest.TestCase):
 
     def test_night_shift_queues_in_order_once(self):
         items = [{"repo": "o/r", "number": n, "title": f"t{n}", "url": f"https://github.com/o/r/issues/{n}"} for n in (5, 8, 9)]
-        app, ex = make_app(lambda *a: items, NIGHT_BOARD="o/1", NIGHT_COLUMN="Ready", GITHUB_TOKEN="gh-token-1", NIGHT_MAX_TASKS="2")
-        app.run_job("night-shift", "schedule")
-        self.assertEqual(ex.added(), ["night-r-5", "night-r-8"])
+        app, ex = make_app(lambda *a: items, NIGHT_BOARD="o/1", NIGHT_COLUMN="Ready", GITHUB_TOKEN="gh-token-1")
         app.run_job("night-shift", "schedule")
         self.assertEqual(ex.added(), ["night-r-5", "night-r-8", "night-r-9"])
         ok, text = app.run_job("night-shift", "schedule")
         self.assertIn("nothing", text)
+
+    def test_night_shift_skips_tasks_already_in_the_queue(self):
+        status = "worker: running\npaused: no\nrunning:\n  night-r-5 (log idle 10s)\npending:\n  night-r-8\n"
+        items = [{"repo": "o/r", "number": n, "title": f"t{n}", "url": f"https://github.com/o/r/issues/{n}"} for n in (5, 8, 9)]
+        ex = FakeExecutor(status)
+        app = main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20, "NIGHT_BOARD": "o/1", "NIGHT_COLUMN": "Ready",
+                        "GITHUB_TOKEN": "gh-token-1"}, executor=ex, fetch_board=lambda *a: items)
+        ok, _ = app.run_job("night-shift", "schedule")
+        self.assertTrue(ok)
+        self.assertEqual(ex.added(), ["night-r-9"])
 
     def test_night_shift_off_without_board(self):
         app, ex = make_app()

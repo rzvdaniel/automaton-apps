@@ -134,12 +134,10 @@ class App:
             raise overseer.InvalidConfig("QUEUE_HOST is not set (user@address of the machine where agent-queue runs)")
         executor = executor or SshExecutor(host, key, os.path.join(data, "known_hosts.json"))
         self.queue = overseer.Queue(executor, env.get("QUEUE_BIN", "").strip(), env.get("QUEUE_HOME", "").strip(),
-                                    env.get("RUNNER", "").strip() or "claude-task", self.number(env, "STALL_MINUTES", 120),
-                                    self.number(env, "TASK_BUDGET", 12))
+                                    env.get("RUNNER", "").strip() or "claude-task", self.number(env, "STALL_MINUTES", 120))
         self.jobs = overseer.Jobs(os.path.join(data, "overseer.json"), now)
         self.repo = env.get("ISSUE_REPO", "").strip()
         self.board, self.column = env.get("NIGHT_BOARD", "").strip(), env.get("NIGHT_COLUMN", "").strip()
-        self.night_max = self.number(env, "NIGHT_MAX_TASKS", 3)
         self.lessons = env.get("LESSONS_PROMPT", "").strip() or overseer.DEFAULT_LESSONS
         self.fetch_board = fetch_board or overseer.fetch_column
         self.job_lock = threading.Lock()
@@ -200,10 +198,12 @@ class App:
         if not items:
             return True, f'the column "{self.column}" has nothing new: nothing queued'
         queued = []
-        for item in items[: self.night_max]:
-            why = self.queue.add(overseer.night_name(item), overseer.night_prompt(item))
-            if why and "already" not in why:
-                return False, f"could not queue {item['url']}: {why}"
+        for item in items:
+            name = overseer.night_name(item)
+            if not self.queue.has(name):
+                why = self.queue.add(name, overseer.night_prompt(item))
+                if why:
+                    return False, f"could not queue {item['url']}: {why}"
             self.jobs.mark_queued(item["url"])
             queued.append(f"#{item['number']}")
         return True, "queued " + ", ".join(queued)

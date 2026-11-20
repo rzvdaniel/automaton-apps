@@ -72,11 +72,6 @@
         "default": "120"
       },
       {
-        "name": "TASK_BUDGET",
-        "description": "Most tasks the queue starts per day; the stall check pauses the queue when it is reached",
-        "default": "12"
-      },
-      {
         "name": "ISSUE_REPO",
         "description": "owner/name of the repository the tasks' issue numbers belong to, to link a task named like fix-login-344 to #344"
       },
@@ -87,11 +82,6 @@
       {
         "name": "NIGHT_COLUMN",
         "description": "The board's Status column the night shift takes its issues from, top to bottom (for example Ready for night)"
-      },
-      {
-        "name": "NIGHT_MAX_TASKS",
-        "description": "Most issues the night shift queues per run",
-        "default": "3"
       },
       {
         "name": "LESSONS_PROMPT",
