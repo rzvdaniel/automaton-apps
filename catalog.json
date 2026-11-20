@@ -125,6 +125,21 @@
       }
     },
     {
+      "id": "gauntlet",
+      "name": "Gauntlet",
+      "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
+      "category": "Monitoring",
+      "folder": "maintenance/gauntlet",
+      "commit": "d18aad3955204d22769ed08970c4e14cdc5772be",
+      "minServerVersion": "0.2.173",
+      "permissions": [
+        "notify:email"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
       "id": "ghost",
       "name": "Ghost",
       "summary": "Publish a blog and send a newsletter from your own server.",
