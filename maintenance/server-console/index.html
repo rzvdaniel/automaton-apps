@@ -23,17 +23,33 @@
       </div>
     </div>
     <div class="a-header__actions">
-      <span class="a-pill a-pill--large" id="overall" hidden></span>
       <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button>
     </div>
   </div>
 </header>
-<main class="a-page">
+<main class="a-page sk">
+  <div class="tabs" role="tablist" aria-label="Server Keeper" id="tabs">
+    <button type="button" class="tab is-on" role="tab" id="tab-overview" data-tab="overview" aria-selected="true" aria-controls="panel-overview">Overview</button>
+    <button type="button" class="tab" role="tab" id="tab-maintenance" data-tab="maintenance" aria-selected="false" aria-controls="panel-maintenance" tabindex="-1">Maintenance</button>
+    <button type="button" class="tab" role="tab" id="tab-apps" data-tab="apps" aria-selected="false" aria-controls="panel-apps" tabindex="-1">Apps on this machine</button>
+  </div>
   <nav class="picker" id="machines" aria-label="Machines" hidden></nav>
   <div id="session-ended" class="a-note a-note--warning" role="alert" hidden>Session ended. <a href="" id="session-signin">Sign in again</a> to refresh these figures.</div>
-  <div id="view"></div>
-  <div id="tasks-box" hidden></div>
-  <div id="maintenance-box" hidden></div>
+  <section class="panel is-on" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div id="view"></div>
+  </section>
+  <section class="panel" id="panel-maintenance" role="tabpanel" aria-labelledby="tab-maintenance" hidden>
+    <div class="maint">
+      <div class="maint__main">
+        <div id="tasks-box" hidden></div>
+        <div id="maintenance-box" hidden></div>
+      </div>
+      <aside class="maint__runs" id="runs-box" aria-label="Recent runs"></aside>
+    </div>
+  </section>
+  <section class="panel" id="panel-apps" role="tabpanel" aria-labelledby="tab-apps" hidden>
+    <div id="apps-box"></div>
+  </section>
   <p class="a-footer">Figures come from your Automaton server and refresh every few minutes.</p>
 </main>
 <script src="dashboard.js"></script>

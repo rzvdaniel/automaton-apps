@@ -362,7 +362,35 @@ def cleanup_warning(data: dict, now: float) -> str | None:
 
 def new_state() -> dict:
     return {"history": [], "health": None, "fetchedAt": None, "status": "starting", "message": None, "failedAt": None,
-            "alerts": {}, "securitySince": None, "sent": {}, "machines": {}}
+            "alerts": {}, "securitySince": None, "sent": {}, "machines": {}, "runs": [], "apps": None}
+
+
+RUN_TASKS = ("Cleanup", "Backup", "OS updates", "Restart server", "Upgrade Runners")
+RUN_LIMIT = 20
+
+
+def record_run(state: dict, task: str, result: str, detail: str | None, now: float) -> None:
+    """Keeps a short history of the maintenance this app was asked to start: newest first, at most RUN_LIMIT.
+    `result` is "started" (the server accepted it), "refused" (no permission) or "failed"."""
+    if task not in RUN_TASKS or result not in ("started", "refused", "failed"):
+        return
+    text = " ".join(str(detail or "").split())[:200]
+    state["runs"] = ([{"task": task, "result": result, "detail": text, "at": int(now)}] + list(state.get("runs") or []))[:RUN_LIMIT]
+
+
+def compact_apps(apps: list | None, limit: int = 1000) -> list | None:
+    """What the Apps tab needs from the server's app list; nothing else is kept."""
+    if apps is None:
+        return None
+    rows = []
+    for item in apps:
+        if not isinstance(item, dict) or not item.get("id") or not item.get("name"):
+            continue
+        error = item.get("lastDeploymentError")
+        rows.append({"id": str(item["id"]), "name": str(item["name"]), "paused": bool(item.get("isPaused")),
+                     "status": str(item.get("liveStatus") or "Unassigned"), "deployedAt": item.get("lastSuccessfulDeploymentAtUtc"),
+                     "error": str(error)[:200] if error else None})
+    return rows[:limit]
 
 
 def load_state(path: str) -> dict:
@@ -563,7 +591,7 @@ def reclaimable(host: dict) -> dict:
 DISK_PARTS = ("imageBytes", "containerBytes", "dataBytes", "logsBytes", "filesBytes")
 
 
-def app_disk(runner: dict | None, limit: int = 50) -> list[dict]:
+def app_disk(runner: dict | None, limit: int = 500) -> list[dict]:
     """The apps of one online machine by disk use, largest first, from the server's per-Runner list (older servers
     send none). Only the figures the page shows are kept."""
     if not runner or not is_online(runner):
@@ -741,6 +769,7 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
         found = conditions(health, state, settings, now, backups, apps)
         # What is true right now (also while a warning waits to be delivered), for the Home card.
         state["found"] = {name: bool(active) for name, (active, _text) in found.items()}
+        state["apps"] = compact_apps(apps)
         state["failingApps"] = None if apps is None else sum(
             1 for a in apps if isinstance(a, dict) and not a.get("isPaused") and str(a.get("liveStatus", "")).lower() == "failed")
         state["fail2ban"] = (fetch_security or fetch_fail2ban)(settings)
@@ -771,4 +800,7 @@ def snapshot(state: dict, settings: Settings, now: float, machine: str | None = 
             "machines": machine_list(health) if health else [], "machine": chosen,
             "reclaim": reclaimable((health or {}).get("host") or {}), "appDisk": app_disk(runner),
             "history": local.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
+            "fail2ban": state.get("fail2ban") if shown else None,
+            "runs": list(state.get("runs") or []) if shown else [], "apps": state.get("apps") if shown else None,
+            "studioBase": (studio_server_url(settings) or "")[:-len("/server")] or None,
             "settings": settings.public()}

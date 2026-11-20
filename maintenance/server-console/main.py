@@ -132,6 +132,12 @@ class Console:
             self.run_once()
             time.sleep(self.settings.interval)
 
+    def log_run(self, task: str, status: str, message: str | None) -> None:
+        result = "started" if status == "ok" else "refused" if status in ("forbidden", "not_approved", "no_key") else "failed"
+        with self.lock:
+            console.record_run(self.state, task, result, None if status == "ok" else message, time.time())
+            console.save_state(self.path, self.state)
+
     def view(self, machine: str | None = None) -> dict:
         with self.lock:
             return console.snapshot(self.state, self.settings, time.time(), machine)
@@ -168,8 +174,10 @@ def make_handler(app: Console):
             data["studioUrl"] = console.studio_server_url(app.settings, data.get("studioUrl"))
             self.json(200, {"status": "ok", "cleanup": data})
 
-        def maintain(self, call, *args) -> None:
+        def maintain(self, call, *args, task=None) -> None:
             status, data, message = call(app.settings, *args)
+            if task:
+                app.log_run(task, status, message)
             code = {"ok": 200, "not_approved": 403, "forbidden": 403, "not_found": 404, "conflict": 409, "no_key": 403, "not_configured": 404}.get(status, 502)
             self.json(code, {"status": status, "message": message, "data": data})
 
@@ -197,11 +205,11 @@ def make_handler(app: Console):
                 return self.json(404, {"error": "Not found"})
             token = self.headers.get("X-Automaton-Viewer-Token")
             if name == "cleanup-run":
-                return self.maintain(console.server_cleanup_run, token)
+                return self.maintain(console.server_cleanup_run, token, task="Cleanup")
             if name == "backup":
-                return self.maintain(console.backup_run, token)
+                return self.maintain(console.backup_run, token, task="Backup")
             if name == "os-updates":
-                return self.maintain(console.os_updates_run, token)
+                return self.maintain(console.os_updates_run, token, task="OS updates")
             if name == "restart":
                 try:
                     body = json.loads(self.read_body(2000).decode("utf-8") or "null")
@@ -209,9 +217,9 @@ def make_handler(app: Console):
                     body = None
                 if not isinstance(body, dict) or "restartAtUtc" not in body:  # a dropped body must never turn a scheduled restart into one now
                     return self.json(400, {"status": "error", "message": "The restart time did not arrive. Try again."})
-                return self.maintain(console.server_restart_run, token, body["restartAtUtc"])
+                return self.maintain(console.server_restart_run, token, body["restartAtUtc"], task="Restart server")
             if name == "upgrade":
-                return self.maintain(console.runner_upgrade, (parse_qs(parts.query).get("runner") or [""])[0], token)
+                return self.maintain(console.runner_upgrade, (parse_qs(parts.query).get("runner") or [""])[0], token, task="Upgrade Runners")
             try:
                 body = json.loads(self.read_body(2000).decode("utf-8") or "null")
             except (ValueError, UnicodeDecodeError):

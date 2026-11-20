@@ -216,8 +216,61 @@ class PageTests(unittest.TestCase):
         for needle in ('data-look="system"', 'class="a-topbar"', "fonts.googleapis.com/css2?family=Bricolage+Grotesque", 'href="console.css"'):
             self.assertIn(needle, page)
         script = open(os.path.join(here, "dashboard.js"), encoding="utf-8").read()
-        for needle in ("class=\"cards\"", "a-banner", 'class="summary"'):
+        for needle in ('class="needs"', "Everything is healthy", 'class="tiles"', 'class="lists"', "Install updates", "Free it now", "Left by deleted apps"):
             self.assertIn(needle, script)
+        for tab in ("Overview", "Maintenance", "Apps on this machine"):
+            self.assertIn(tab, page)
+
+    def test_no_green_anywhere_in_the_page_styles_or_script(self):
+        here = Path(__file__).parent
+        for name in ("console.css", "dashboard.js", "index.html"):
+            text = (here / name).read_text()
+            self.assertNotIn("var(--ok)", text, name)
+            self.assertNotIn("a-pill--ok", text, name)
+            self.assertNotIn("a-stat--ok", text, name)
+            self.assertNotRegex(text, r"(?<![&\w])#[0-9a-fA-F]{3,8}\b", name + " hard-codes a colour")
+
+    def test_the_viewport_rule_is_desktop_only_and_phones_get_cards(self):
+        css = (Path(__file__).parent / "console.css").read_text()
+        self.assertIn("@media (min-width: 761px)", css)
+        self.assertIn("overflow: hidden", css)
+        self.assertIn("@media (max-width: 760px)", css)
+        self.assertIn(".mt thead { display: none; }", css)
+
+
+class RunHistoryTests(unittest.TestCase):
+    def test_runs_are_kept_newest_first_and_capped(self):
+        state = console.new_state()
+        for i in range(console.RUN_LIMIT + 5):
+            console.record_run(state, "Backup", "started", None, NOW + i)
+        self.assertEqual(len(state["runs"]), console.RUN_LIMIT)
+        self.assertEqual(state["runs"][0]["at"], int(NOW) + console.RUN_LIMIT + 4)
+
+    def test_unknown_tasks_and_results_are_ignored_and_details_are_cut(self):
+        state = console.new_state()
+        console.record_run(state, "Format disk", "started", None, NOW)
+        console.record_run(state, "Backup", "weird", None, NOW)
+        console.record_run(state, "Cleanup", "failed", "x" * 500 + "\n", NOW)
+        self.assertEqual([r["task"] for r in state["runs"]], ["Cleanup"])
+        self.assertEqual(len(state["runs"][0]["detail"]), 200)
+
+    def test_the_snapshot_carries_runs_apps_and_fail2ban(self):
+        state = console.new_state()
+        apps = [{"id": "a1", "name": "Blog", "isPaused": False, "liveStatus": "Running", "secret": "x", "lastDeploymentError": None}, "junk", {"name": "no id"}]
+        console.run_cycle(settings(), state, NOW, Recorder(), fetch=lambda _s: ("ok", health(), None), fetch_app=lambda _s: apps, fetch_security=lambda _s: {"running": True, "banned": 3})
+        console.record_run(state, "Backup", "refused", "no", NOW)
+        shot = console.snapshot(state, settings(), NOW)
+        self.assertEqual(shot["apps"], [{"id": "a1", "name": "Blog", "paused": False, "status": "Running", "deployedAt": None, "error": None}])
+        self.assertEqual(shot["runs"][0]["result"], "refused")
+        self.assertEqual(shot["fail2ban"], {"running": True, "banned": 3})
+
+    def test_no_app_list_means_none_not_empty(self):
+        self.assertIsNone(console.compact_apps(None))
+        self.assertEqual(console.compact_apps([]), [])
+
+    def test_app_disk_keeps_more_than_fifty_apps(self):
+        runner = {"name": "x", "status": "online", "apps": [{"appId": str(i), "appName": f"a{i}", "totalBytes": i} for i in range(120)]}
+        self.assertEqual(len(console.app_disk(runner)), 120)
 
 
 class AttentionTests(unittest.TestCase):
