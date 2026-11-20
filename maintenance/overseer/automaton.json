@@ -1,0 +1,155 @@
+{
+  "name": "Overseer",
+  "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a night shift from one board column.",
+  "description": "Wraps the agent-queue and orchestrator.sh scripts on the machine where your coding agents (Claude Code) run, over SSH. The page shows the queue (running, pending and the last finished tasks, each with its log and its issue and pull request links), lets you add a task, cancel one, pause the queue or run a job now, and shows the latest morning report. Four schedules (stall check, morning report, lessons, night shift) run as Automaton scheduled actions that you can pause or change in Studio. The night shift pulls open issues from one GitHub board column you fill, in order, and runs nothing when the column is empty. It never merges, releases or touches production itself: that stays in the task prompts and skills of your agents.",
+  "application": {
+    "kind": "web",
+    "permissions": [
+      "apps:read-status"
+    ],
+    "description": "Shows and runs your coding agents' work queue and its schedules.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Queue"
+      }
+    ],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "python -m py_compile main.py overseer.py && pip install --quiet --no-cache-dir --target dist/lib 'paramiko>=3,<5' && mkdir -p dist/ui && cp main.py overseer.py index.html overseer.js overseer.css dist/ && cp ui/app.css ui/app.js dist/ui/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 600
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "python",
+        "arguments": [
+          "main.py"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "settings": [
+      {
+        "name": "QUEUE_HOST",
+        "description": "user@address of the machine where agent-queue runs and Claude Code is signed in (reached over SSH)",
+        "required": true
+      },
+      {
+        "name": "QUEUE_BIN",
+        "description": "Folder on that machine with agent-queue, orchestrator.sh and claude-task. Empty: ~/bin"
+      },
+      {
+        "name": "QUEUE_HOME",
+        "description": "The queue's data folder on that machine (AGENT_QUEUE_HOME). Empty: ~/agent-queue"
+      },
+      {
+        "name": "RUNNER",
+        "description": "The command that runs one task (AGENT_QUEUE_RUNNER)",
+        "default": "claude-task"
+      },
+      {
+        "name": "STALL_MINUTES",
+        "description": "Minutes without log output before the stall check treats a task as stalled",
+        "default": "120"
+      },
+      {
+        "name": "TASK_BUDGET",
+        "description": "Most tasks the queue starts per day; the stall check pauses the queue when it is reached",
+        "default": "12"
+      },
+      {
+        "name": "ISSUE_REPO",
+        "description": "owner/name of the repository the tasks' issue numbers belong to, to link a task named like fix-login-344 to #344"
+      },
+      {
+        "name": "NIGHT_BOARD",
+        "description": "GitHub project to pull the night shift from, as owner/number (for example rzvdaniel/1). Empty: the night shift queues nothing"
+      },
+      {
+        "name": "NIGHT_COLUMN",
+        "description": "The board's Status column the night shift takes its issues from, top to bottom (for example Ready for night)"
+      },
+      {
+        "name": "NIGHT_MAX_TASKS",
+        "description": "Most issues the night shift queues per run",
+        "default": "3"
+      },
+      {
+        "name": "LESSONS_PROMPT",
+        "description": "The prompt of the lessons job. Empty: work through the lessons inbox with the lessons-learned skill"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "SSH_KEY",
+        "description": "Private key (OpenSSH or PEM, no passphrase) that may sign in as the user in QUEUE_HOST. Use a key made for Overseer, never the production key"
+      },
+      {
+        "name": "ADMIN_TOKEN",
+        "description": "At least 16 characters. The schedules use it to call the app; outside Automaton it is the page's login"
+      },
+      {
+        "name": "GITHUB_TOKEN",
+        "optional": true,
+        "description": "Read access to the project board named in NIGHT_BOARD and to its issues. Empty: no night shift"
+      }
+    ],
+    "schedules": [
+      {
+        "name": "Stall check",
+        "action": "run-job",
+        "cron": "*/30 * * * *",
+        "timeZone": "Etc/UTC",
+        "input": {
+          "job": "stall-check"
+        }
+      },
+      {
+        "name": "Morning report",
+        "action": "run-job",
+        "cron": "0 6 * * *",
+        "timeZone": "Etc/UTC",
+        "input": {
+          "job": "report"
+        }
+      },
+      {
+        "name": "Lessons",
+        "action": "run-job",
+        "cron": "0 3 * * *",
+        "timeZone": "Etc/UTC",
+        "input": {
+          "job": "lessons"
+        }
+      },
+      {
+        "name": "Night shift",
+        "action": "run-job",
+        "cron": "0 22 * * *",
+        "timeZone": "Etc/UTC",
+        "input": {
+          "job": "night-shift"
+        }
+      }
+    ]
+  }
+}
