@@ -186,6 +186,13 @@ class AssessTests(unittest.TestCase):
         script = (Path(__file__).parent / "dashboard.js").read_text()
         self.assertIn('typeof security !== "number" || typeof host.updatesPending !== "number" ? "unknown" : "up to date"', script)
 
+    def test_a_gateway_401_says_session_ended_and_keeps_the_last_figures(self):
+        here = Path(__file__).parent
+        script = (here / "dashboard.js").read_text()
+        self.assertIn("response.status === 401", script)
+        self.assertIn("sessionEnded(true)", script)
+        self.assertIn("Sign in again", (here / "index.html").read_text())
+
     def test_the_dashboard_keeps_cleanup_figures_through_one_refused_read(self):
         script = (Path(__file__).parent / "dashboard.js").read_text()
         self.assertIn("cleanupRefusals >= 2", script)
