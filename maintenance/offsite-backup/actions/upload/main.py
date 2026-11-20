@@ -24,10 +24,17 @@ BACKUP_NAME = re.compile(r"^automaton-[0-9]{8}T[0-9]{6}Z$")
 PART_SIZE = 8 * 1024 * 1024
 DEFAULT_RETENTION_DAYS = 30
 DEFAULT_MINIMUM_BACKUPS = 7
+DEFAULT_STALE_HOURS = 26
+STALE_ALERT_EVERY = timedelta(hours=24)
+STALE_MARKER = ".stale-alert"
 
 
 class BackupError(RuntimeError):
     """A safe-to-report failure that does not include credential values."""
+
+
+class StaleError(BackupError):
+    """The newest off-site copy is too old; check_stale has already sent the alert."""
 
 
 class RejectRedirectHandler(HTTPRedirectHandler):
@@ -191,7 +198,8 @@ def upload_multipart(s3, bucket: str, key: str, response: BinaryIO, expected_siz
         raise
 
 
-def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_backups: int) -> tuple[int, int]:
+def list_copies(s3, bucket: str, prefix: str) -> list[tuple[datetime, str, int]]:
+    """The timestamped backup archives under the prefix, newest first, as (time, key, size)."""
     objects = []
     paginator = s3.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -200,11 +208,15 @@ def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_b
             name = key[len(prefix):-len(".tar.age")] if key.startswith(prefix) and key.endswith(".tar.age") else ""
             if BACKUP_NAME.fullmatch(name):
                 try:
-                    objects.append((parse_timestamp(name), key))
+                    objects.append((parse_timestamp(name), key, int(item.get("Size") or 0)))
                 except BackupError:
                     continue  # matches the pattern but is not a real date; leave it alone
-
     objects.sort(reverse=True)
+    return objects
+
+
+def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_backups: int) -> tuple[int, int]:
+    objects = [(created, key) for created, key, _ in list_copies(s3, bucket, prefix)]
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     keep = {key for index, (created, key) in enumerate(objects) if index < minimum_backups or created >= cutoff}
     stale = [key for _, key in objects if key not in keep]
@@ -217,7 +229,8 @@ def apply_retention(s3, bucket: str, prefix: str, retention_days: int, minimum_b
     return len(objects) - len(stale), len(stale)
 
 
-def run(input_data: dict) -> dict:
+def resolve_target() -> tuple[str, str, str, str, str, str, str, str]:
+    """Reads and checks the settings every run needs: API address and key, bucket, endpoint, keys, region, prefix."""
     base_url = required_setting("API_BASE_URL").rstrip("/")
     parsed = urlparse(base_url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password \
@@ -240,7 +253,11 @@ def run(input_data: dict) -> dict:
     prefix = requested_prefix.rstrip("/") + "/" if requested_prefix else default_prefix
     if not prefix.startswith(default_prefix):
         raise BackupError("prefix must stay within this install's own folder (automaton/<server host>/<app ID>/).")
+    return base_url, api_key, bucket, endpoint, access_key, secret_key, region, prefix
 
+
+def run(input_data: dict) -> dict:
+    base_url, api_key, bucket, endpoint, access_key, secret_key, region, prefix = resolve_target()
     retention_days = positive_int_setting("RETENTION_DAYS", DEFAULT_RETENTION_DAYS, 1)
     minimum_backups = positive_int_setting("MIN_BACKUPS", DEFAULT_MINIMUM_BACKUPS, 1)
 
@@ -284,8 +301,63 @@ def run(input_data: dict) -> dict:
     return {"uploaded": uploaded, "backup": name, "retained": retained, "deleted": deleted}
 
 
-def notify_failure(reason: str) -> None:
-    """Email the failure through the server's notify:email permission. Never raises; skips quietly without it."""
+def check_stale() -> dict:
+    """Fails when the newest off-site copy is older than STALE_HOURS. The alert goes out at most once a day."""
+    _, _, bucket, endpoint, access_key, secret_key, region, prefix = resolve_target()
+    stale_hours = positive_int_setting("STALE_HOURS", DEFAULT_STALE_HOURS, 1)
+    s3 = make_s3_client(endpoint, region, access_key, secret_key)
+    marker = prefix + STALE_MARKER
+    try:
+        copies = list_copies(s3, bucket, prefix)
+        now = datetime.now(timezone.utc)
+        newest = copies[0][0] if copies else None
+        if newest is not None and now - newest <= timedelta(hours=stale_hours):
+            s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": marker}], "Quiet": True})
+            return {"stale": False, "newest": newest.isoformat(), "alerted": False}
+        alerted = False
+        try:
+            last = s3.head_object(Bucket=bucket, Key=marker)["LastModified"]
+            recent = now - last < STALE_ALERT_EVERY
+        except ClientError:
+            recent = False
+        if not recent:
+            s3.put_object(Bucket=bucket, Key=marker, Body=b"")
+            alerted = True
+    except (ClientError, BotoCoreError) as error:
+        raise BackupError(describe_s3_error(error)) from error
+    age = f"The newest off-site copy is from {newest:%Y-%m-%d %H:%M} UTC" if newest else "There is no off-site copy"
+    reason = f"{age}, older than the {stale_hours} hours allowed (STALE_HOURS). Check that the server's nightly backup and the Off-site backup schedule are running."
+    if alerted:
+        notify_failure(reason, "Off-site backup is stale")
+    raise StaleError(reason)
+
+
+def notify_webhook(subject: str, reason: str) -> None:
+    """Posts the failure to WEBHOOK_URL (Slack, Discord, Telegram or any URL). Never raises; never prints the URL."""
+    url = os.environ.get("WEBHOOK_URL", "").strip()
+    if not url:
+        return
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+        print("Webhook alert not sent: WEBHOOK_URL must be an https:// address.", file=sys.stderr)
+        return
+    text = f"{subject}: {reason}"
+    # "text" is read by Slack, Telegram and most others, "content" by Discord.
+    request = Request(url, data=json.dumps({"text": text, "content": text}).encode(), method="POST", headers={
+        "Content-Type": "application/json", "User-Agent": "Automaton-Offsite-Backup"})
+    try:
+        with api_urlopen(request, timeout=15):
+            pass
+        print("Webhook alert sent.", file=sys.stderr)
+    except HTTPError as error:
+        print(f"Webhook alert not sent: the address answered HTTP {error.code}.", file=sys.stderr)
+    except Exception:
+        print("Webhook alert not sent: the address could not be reached.", file=sys.stderr)
+
+
+def notify_failure(reason: str, subject: str = "Off-site backup failed") -> None:
+    """Tell people: the webhook, then an email through the server's notify:email permission. Never raises."""
+    notify_webhook(subject, reason)
     api_key = os.environ.get("APP_AUTOMATON_API_KEY", "").strip()
     base_url = os.environ.get("API_BASE_URL", "").strip().rstrip("/")
     if not api_key or not base_url.startswith(("http://", "https://")):
@@ -293,8 +365,8 @@ def notify_failure(reason: str) -> None:
     to = os.environ.get("NOTIFY_EMAIL_TO", "").strip() or "administrators"
     body = json.dumps({
         "to": [to],
-        "subject": "Off-site backup failed",
-        "text": f"The off-site backup did not complete.\n\n{reason}\n\nOpen the app in Studio to see the run log.",
+        "subject": subject,
+        "text": f"{subject}.\n\n{reason}\n\nOpen the app in Studio to see the run log.",
     }).encode()
     request = Request(base_url + "/api/notify/email", data=body, method="POST", headers={
         "Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "Accept": "application/json"})
@@ -316,11 +388,12 @@ def main() -> int:
         data = json.load(sys.stdin)
         if not isinstance(data, dict):
             raise BackupError("Action input must be a JSON object.")
-        print(json.dumps(run(data), separators=(",", ":")))
+        print(json.dumps(check_stale() if data.get("check") == "stale" else run(data), separators=(",", ":")))
         return 0
     except BackupError as error:
         print(str(error), file=sys.stderr)
-        notify_failure(str(error))
+        if not isinstance(error, StaleError):  # the stale check sends its own, once a day
+            notify_failure(str(error))
         return 1
     except Exception as error:  # Avoid dumping boto3/HTTP exception details that could contain identifiers.
         message = f"Off-site backup failed ({type(error).__name__})."

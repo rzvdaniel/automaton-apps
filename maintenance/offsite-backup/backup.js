@@ -3,6 +3,7 @@
   var card = document.getElementById('card');
   var busy = false;
   var notice = '';
+  var copiesLoaded = false;
 
   function when(value) {
     return value ? new Date(value).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : 'never';
@@ -27,8 +28,33 @@
       html += '<p class="a-hint">Only a system administrator can start a backup.</p>';
     }
     card.innerHTML = html;
+    if (body.administrator && !copiesLoaded) { copiesLoaded = true; loadCopies(); }
     var button = document.getElementById('run');
     if (button) button.addEventListener('click', start);
+  }
+
+  function renderCopies(body) {
+    var box = document.getElementById('copies');
+    box.hidden = false;
+    var html = '<div class="a-card__head"><h2 class="a-card__title">Off-site copies</h2></div>';
+    if (body.status !== 'ok' || !body.data) {
+      html += '<p class="a-note a-note--warning">' + ui.escapeHtml(body.message || 'The copies could not be listed.') + '</p>';
+    } else if (!body.data.length) {
+      html += '<p class="a-empty">No copy in the bucket yet. The next 15-minute check uploads one.</p>';
+    } else {
+      html += '<p class="a-hint">Pick a copy, run the commands on the server you are restoring. You need the backup key from your password manager.</p><div class="a-table-wrap"><table class="a-table"><thead><tr><th>Copy</th><th>Date</th><th>Size</th></tr></thead><tbody>';
+      body.data.forEach(function (copy, index) {
+        html += '<tr><td>' + ui.escapeHtml(copy.name) + '</td><td>' + ui.escapeHtml(when(copy.createdAt)) + '</td><td class="a-num">' + ui.escapeHtml(ui.formatBytes(copy.sizeBytes || 0)) + '</td></tr>' +
+          '<tr><td colspan="3"><details' + (index === 0 ? ' open' : '') + '><summary>Restore command</summary><pre class="restore-cmd">' + ui.escapeHtml(copy.command) + '</pre></details></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    box.innerHTML = html;
+  }
+
+  function loadCopies() {
+    return fetch('api/copies', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(renderCopies)
+      .catch(function () { document.getElementById('copies').hidden = true; });
   }
 
   function load() {
@@ -47,7 +73,8 @@
           : (body.message || 'The backup could not be started.');
       })
       .catch(function () { notice = 'The backup could not be started.'; })
-      .then(function () { busy = false; return load(); });
+      .then(function () { busy = false; return load(); })
+      .then(loadCopies);
   }
 
   ui.bindThemeToggle();

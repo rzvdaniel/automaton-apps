@@ -224,6 +224,75 @@ class OffsiteBackupTests(unittest.TestCase):
             main.notify_failure("x")
         open_url.assert_not_called()
 
+    def put_copy(self, age_hours):
+        created = datetime.now(timezone.utc) - timedelta(hours=age_hours)
+        key = f"automaton/automaton.test/app-one/automaton-{created:%Y%m%dT%H%M%SZ}.tar.age"
+        self.s3.put_object(Bucket="automaton-backups", Key=key, Body=b"x")
+
+    def stale_run(self, **env):
+        sent = []
+        with patch.dict(os.environ, env), patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "notify_failure", side_effect=lambda *a: sent.append(a)):
+            try:
+                result = main.check_stale()
+            except main.StaleError as error:
+                result = str(error)
+        return result, sent
+
+    def test_fresh_copy_is_not_stale(self):
+        self.put_copy(3)
+        result, sent = self.stale_run()
+        self.assertFalse(result["stale"])
+        self.assertEqual(sent, [])
+
+    def test_old_copy_alerts_once_a_day_and_fails_the_run(self):
+        self.put_copy(30)
+        result, sent = self.stale_run()
+        self.assertIn("older than the 26 hours", result)
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0][1], "Off-site backup is stale")
+        result, sent = self.stale_run()
+        self.assertIn("older than", result)
+        self.assertEqual(sent, [])  # same day: no second alert
+
+    def test_stale_hours_is_a_setting_and_no_copy_is_stale(self):
+        self.put_copy(30)
+        self.assertFalse(self.stale_run(STALE_HOURS="48")[0]["stale"])
+        with self.assertRaises(main.BackupError):
+            self.stale_run(STALE_HOURS="0")
+        for key in [o["Key"] for o in self.s3.list_objects_v2(Bucket="automaton-backups").get("Contents", [])]:
+            self.s3.delete_object(Bucket="automaton-backups", Key=key)
+        result, sent = self.stale_run()
+        self.assertIn("no off-site copy", result.lower())
+        self.assertEqual(len(sent), 1)
+
+    def test_main_runs_the_stale_check_and_does_not_email_twice(self):
+        with patch.object(main, "check_stale", side_effect=main.StaleError("old")), \
+                patch.object(main, "notify_failure") as notify, patch("sys.stdin", io.StringIO('{"check":"stale"}')):
+            self.assertEqual(main.main(), 1)
+        notify.assert_not_called()
+
+    def test_webhook_gets_the_failure_without_the_server(self):
+        calls = []
+        with patch.dict(os.environ, {"WEBHOOK_URL": "https://hooks.example.test/T/secret", "APP_AUTOMATON_API_KEY": ""}), \
+                patch.object(main, "api_urlopen", side_effect=lambda r, timeout: calls.append(r) or io.BytesIO(b"")):
+            main.notify_failure("Bucket missing")
+        self.assertEqual(len(calls), 1)
+        body = json.loads(calls[0].data)
+        self.assertIn("Bucket missing", body["text"])
+        self.assertEqual(body["text"], body["content"])
+
+    def test_webhook_must_be_https_and_never_raises_or_prints_the_url(self):
+        with patch.dict(os.environ, {"WEBHOOK_URL": "http://hooks.example.test/secret-token"}), \
+                patch.object(main, "api_urlopen") as open_url, patch("sys.stderr", new_callable=io.StringIO) as err:
+            main.notify_webhook("s", "r")
+        open_url.assert_not_called()
+        with patch.dict(os.environ, {"WEBHOOK_URL": "https://hooks.example.test/secret-token"}), \
+                patch.object(main, "api_urlopen", side_effect=OSError("secret-token")), \
+                patch("sys.stderr", new_callable=io.StringIO) as err2:
+            main.notify_webhook("s", "r")
+        self.assertNotIn("secret-token", err.getvalue() + err2.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Backup Warden page: shows the newest server backup and lets an administrator start one now.
+"""Backup Warden page: shows the newest server backup, lists the off-site copies with their restore commands and lets an administrator start a backup now.
 The upload itself is the `upload` Action, which runs every 15 minutes and sends any new copy to your bucket."""
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 import backup
+import offsite
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = {
@@ -56,6 +57,11 @@ def make_handler(settings: backup.Settings):
             path = urlsplit(self.path).path
             if path == "/health":
                 return self.send_body(200, b"ok", "text/plain")
+            if path == "/api/copies":
+                # The names and restore commands are for administrators only.
+                if self.headers.get("X-Automaton-Viewer-Role") != "administrator":
+                    return self.json(403, {"status": "forbidden", "message": "Only a system administrator can see the restore list.", "data": None})
+                return self.reply(offsite.list_copies(offsite.Config()))
             if path == "/api/state":
                 status, data, message = backup.backups(settings)
                 administrator = self.headers.get("X-Automaton-Viewer-Role") == "administrator"

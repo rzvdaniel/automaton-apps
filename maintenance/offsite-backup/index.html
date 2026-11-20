@@ -7,6 +7,9 @@
 <title>Backup Warden</title>
 <link rel="stylesheet" href="ui/app.css">
 <script src="ui/app.js"></script>
+<style>
+.restore-cmd { margin: 6px 0 0; padding: 10px 12px; background: var(--surface-2, rgba(127,127,127,.12)); border: 1px solid var(--border); border-radius: 8px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+</style>
 </head>
 <body>
 <header class="a-topbar">
@@ -25,6 +28,7 @@
 </header>
 <main class="a-page">
   <div class="a-card" id="card"><p class="a-empty">Loading</p></div>
+  <div class="a-card" id="copies" hidden></div>
   <p class="a-footer">The copy is uploaded by the Off-site backup Action, which checks every 15 minutes.</p>
 </main>
 <script src="backup.js"></script>

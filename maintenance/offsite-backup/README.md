@@ -8,10 +8,10 @@ Copies your server's backups to another place, every night. An Automaton app (an
 
 Install the app from the store page in Studio (**Install on your server**). The install page asks for:
 
-- settings: `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and the optional `S3_PREFIX`, `RETENTION_DAYS` and `MIN_BACKUPS`;
-- secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`;
+- settings: `STALE_HOURS` (default 26), `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and the optional `S3_PREFIX`, `RETENTION_DAYS` and `MIN_BACKUPS`;
+- secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, and optionally `WEBHOOK_URL`;
 - approval of the `backups:read`, `backups:run` and `notify:email` permissions (a system administrator approves them);
-- the schedule: the Action checks every 15 minutes and uploads any new copy, so the off-site copy follows the server's nightly backup within 15 minutes (you can skip the schedule and run it by hand).
+- the schedules: the Action checks every 15 minutes and uploads any new copy, so the off-site copy follows the server's nightly backup within 15 minutes (you can skip the schedule and run it by hand). A second schedule, **Off-site freshness check**, runs hourly (see below).
 
 ## Back up now
 
@@ -35,7 +35,26 @@ The Action skips an object whose `sha256` metadata already matches the newest lo
 
 ## Failure emails
 
-When a run fails, the app emails the server's administrators through the server's own SMTP, using `POST /api/notify/email` with the `notify:email` permission (subject `Off-site backup failed`, which the server prefixes with the app's name; the platform allows 10 a hour). Set `NOTIFY_EMAIL_TO` to `owner` or `project` to send it elsewhere. Without the approval or SMTP settings the run still fails and logs that no email was sent. The app has no webhook of its own; use the platform's Action webhooks if you want one. When the storage rejects the first request without an error code (a wrong `S3_REGION` does this), the message names `S3_REGION`, `S3_ENDPOINT` and the access keys. Messages for wrong S3 settings name the setting to check (access key, secret, region, bucket or endpoint).
+When a run fails, the app emails the server's administrators through the server's own SMTP, using `POST /api/notify/email` with the `notify:email` permission (subject `Off-site backup failed`, which the server prefixes with the app's name; the platform allows 10 a hour). Set `NOTIFY_EMAIL_TO` to `owner` or `project` to send it elsewhere. Without the approval or SMTP settings the run still fails and logs that no email was sent. When the storage rejects the first request without an error code (a wrong `S3_REGION` does this), the message names `S3_REGION`, `S3_ENDPOINT` and the access keys. Messages for wrong S3 settings name the setting to check (access key, secret, region, bucket or endpoint).
+
+## Webhook alerts
+
+Set the `WEBHOOK_URL` secret to an `https://` address (a Slack or Discord incoming webhook, a Telegram `sendMessage` URL with `chat_id` in the query, or any URL that takes JSON) and every failure and stale alert is also posted there. It does not use the Automaton server, so it still arrives when the server's mail or the server itself is down. The body is `{"text": "...", "content": "..."}` (`text` for Slack and Telegram, `content` for Discord). Each run's log says "Webhook alert sent" or why it was not; the address itself is never logged. Redirects are not followed. The URL is a secret: treat it like a password, because anyone who has it can post to that channel.
+
+## Stale copy alert
+
+The **Off-site freshness check** schedule runs at minute 7 of every hour, independently of the upload schedule, so it still fires when the upload schedule is paused or the server did not make a backup. When the newest copy in the bucket is older than `STALE_HOURS` (default 26, a whole number of 1 or more) or there is none, the run fails and sends the email and webhook alert. It alerts at most once every 24 hours: it keeps an empty `.stale-alert` marker object next to the copies (retention ignores it) and removes it when a fresh copy is there again. Pause or delete this schedule if you do not want the check.
+
+## Restore page
+
+A system administrator sees an **Off-site copies** card on the page: every copy in the bucket (up to 200, newest first) with its date and size, and for each the exact commands. Copy the first to the machine with the AWS CLI configured for your storage; the second is the restore drill below:
+
+```sh
+aws s3 cp --endpoint-url 'https://...' 's3://<bucket>/automaton/<server host>/<app ID>/automaton-YYYYMMDDTHHMMSSZ.tar.age' ./automaton-YYYYMMDDTHHMMSSZ.tar.age
+sudo bash /opt/automaton-server/restore.sh --archive ./automaton-YYYYMMDDTHHMMSSZ.tar.age --key /path/to/backup-key
+```
+
+The page never shows the backup key or any storage key, and nobody but an administrator can read the list (the app answers 403). The app does not restore anything itself. The page reads the bucket with the app's own storage secrets, so a storage error there names the setting to check.
 
 ## Restore drill
 
@@ -54,4 +73,5 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r actions/upload/requirements-test.txt
 python -m unittest discover -s actions/upload -p 'test_*.py'
+python -m unittest discover -p 'test_*.py'
 ```
