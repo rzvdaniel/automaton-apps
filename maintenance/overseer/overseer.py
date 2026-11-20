@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 MAX_PROMPT = 8000
 JOBS = {
-    "stall-check": "Stall check: requeues a task that stopped writing output, stops one that stalled twice, pauses the queue at the day's budget",
+    "stall-check": "Stall check: requeues a task that stopped writing output, stops one that stalled twice",
     "report": "Morning report: starts a task that writes the report of merged PRs, blocked tasks and the latest release",
     "lessons": "Lessons: queues the task that works through the lessons inbox",
     "night-shift": "Night shift: queues the issues in the board column, in order, and nothing when the column is empty",
@@ -77,13 +77,13 @@ class Queue:
     """The agent-queue on one machine, reached through `executor.run(command, timeout, stdin) -> (status, output)`."""
 
     def __init__(self, executor, bin_dir: str = "", queue_home: str = "", runner: str = "claude-task",
-                 stall_minutes: int = 120, task_budget: int = 12):
+                 stall_minutes: int = 120):
         self.executor = executor
         bin_dir = shlex.quote(bin_dir) if bin_dir else '"$HOME/bin"'
         self.env = f'export PATH={bin_dir}:"$HOME/.local/bin":"$PATH" AGENT_QUEUE_RUNNER={shlex.quote(runner)}'
         if queue_home:
             self.env += f" AGENT_QUEUE_HOME={shlex.quote(queue_home)}"
-        self.stall_minutes, self.task_budget = stall_minutes, task_budget
+        self.stall_minutes = stall_minutes
         self.home = '"${AGENT_QUEUE_HOME:-$HOME/agent-queue}"'
 
     def run(self, command: str, timeout: int = 60, stdin: str | None = None) -> tuple[int | None, str]:
@@ -94,6 +94,11 @@ class Queue:
         if code != 0:
             raise RuntimeError("could not read the queue: " + (out.strip().splitlines() or ["no answer"])[-1][:200])
         return parse_status(out)
+
+    def has(self, name: str) -> bool:
+        """Whether a task of this name is waiting or running, from the queue listing."""
+        status = self.status()
+        return any(t["name"] == name for t in status["pending"] + status["running"])
 
     def add(self, name: str, prompt: str) -> str | None:
         """None on success, else why not."""
@@ -126,16 +131,16 @@ class Queue:
 
     def orchestrate(self, report: bool) -> tuple[bool, str]:
         extra = "ORCH_REPORT=1 " if report else ""
-        code, out = self.run(f"{extra}ORCH_STALL_MINUTES={self.stall_minutes} ORCH_NIGHT_BUDGET={self.task_budget} orchestrator.sh", 120)
+        code, out = self.run(f"{extra}ORCH_STALL_MINUTES={self.stall_minutes} orchestrator.sh", 120)
         return code == 0, (out.strip().splitlines() or ["done"])[-1][:200]
 
 
 def fetch_column(token: str, board: str, column: str, opener=urlopen) -> list[dict]:
-    """The issues in one Status column of a GitHub project, in the order GitHub lists the items. board is "owner/number"."""
+    """The issues in one Status column of a GitHub project, in the cards' order on the board (top to bottom). board is "owner/number"."""
     owner, _, number = board.partition("/")
     if not owner or not number.isdigit():
         raise InvalidConfig("NIGHT_BOARD is owner/number, for example rzvdaniel/1")
-    query = ("query($o:String!,$n:Int!){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){items(first:100){nodes{"
+    query = ("query($o:String!,$n:Int!){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){items(first:100,orderBy:{field:POSITION,direction:ASC}){nodes{"
              "status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}"
              "content{... on Issue{number title url state repository{nameWithOwner}}}}}}}}}")
     body = json.dumps({"query": query, "variables": {"o": owner, "n": int(number)}}).encode()
