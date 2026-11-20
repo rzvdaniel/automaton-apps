@@ -1,0 +1,53 @@
+{
+  "name": "upgrade",
+  "title": "Upgrade",
+  "description": "Installs the latest stable version, adds data, updates to the newest release and checks everything still works. Runs every week.",
+  "target": "nu8",
+  "schedule": "weekly sat 03:00",
+  "wipes": true,
+  "repo": "automaton",
+  "steps": [
+    {
+      "name": "Wipe any earlier install",
+      "script": "wipe.sh",
+      "timeout": 900,
+      "repo": "automaton"
+    },
+    {
+      "name": "Install the latest stable version",
+      "script": "install.sh",
+      "timeout": 1500,
+      "repo": "automaton"
+    },
+    {
+      "name": "Create the administrator and sign the CLI in",
+      "script": "admin.sh",
+      "timeout": 300,
+      "repo": "automaton"
+    },
+    {
+      "name": "Add data: deploy a sample app and run a backup",
+      "script": "use.sh",
+      "timeout": 900,
+      "repo": "automaton"
+    },
+    {
+      "name": "Update to the newest release",
+      "script": "update-to-newest.sh",
+      "timeout": 1800,
+      "repo": "automaton"
+    },
+    {
+      "name": "Default apps and permissions",
+      "script": "default-apps.sh",
+      "timeout": 300,
+      "repo": "automaton"
+    },
+    {
+      "name": "The sample app still answers",
+      "script": "sample-check.sh",
+      "timeout": 900,
+      "repo": "automaton"
+    }
+  ]
+}

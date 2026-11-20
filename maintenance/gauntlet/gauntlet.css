@@ -1,0 +1,4 @@
+.plan-meta { color: var(--ink-3, inherit); font-size: 13px; }
+.log { max-height: 320px; overflow: auto; margin: 8px 0 0; padding: 10px; font: 12px var(--mono); white-space: pre-wrap; word-break: break-word; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#message { margin-bottom: 16px; }

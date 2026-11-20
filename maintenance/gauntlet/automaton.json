@@ -1,0 +1,91 @@
+{
+  "name": "Gauntlet",
+  "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
+  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, run a backup, restart, uninstall and install again. Plans that wipe a machine run only on machines marked disposable. Every run and each step's log is kept in the app; a reports page shows history, a Run now button starts a plan and a Home card shows the last result. A failed run sends an email (permission notify:email), asks Claude Code on a machine you choose to diagnose it, and opens one GitHub issue in the right repository; a repeat failure comments on that issue and a later pass comments that it passes again. It never closes an issue.",
+  "application": {
+    "kind": "web",
+    "permissions": [
+      "notify:email"
+    ],
+    "description": "Runs install, use, uninstall and reinstall tests on your own machines on a schedule and reports failures by email and GitHub issue.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Reports"
+      }
+    ],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "python -m py_compile main.py gauntlet.py failures.py && pip install --quiet --no-cache-dir --target dist/lib 'paramiko>=3,<5' && mkdir -p dist/ui && cp -r main.py gauntlet.py failures.py index.html gauntlet.js gauntlet.css plans dist/ && cp ui/app.css ui/app.js dist/ui/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 600
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "python",
+        "arguments": [
+          "main.py"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "settings": [
+      {
+        "name": "TARGETS",
+        "description": "The machines to test, as a JSON list of name, host, domain and disposable (see the README). Plans that wipe a machine run only where disposable is true",
+        "required": true
+      },
+      {
+        "name": "EMAIL_TO",
+        "description": "Who gets failure emails (needs the notify:email permission approved): administrators, owner, project or an address an administrator allowed; separate several with commas",
+        "default": "administrators"
+      },
+      {
+        "name": "ISSUE_REPOS",
+        "description": "GitHub repositories a failure may open an issue in, as owner/name separated by commas. Empty: no issues, only emails"
+      },
+      {
+        "name": "BOARDS",
+        "description": "Optional project board per repository, as JSON (see the README). New issues are added to it"
+      },
+      {
+        "name": "CLAUDE_TARGET",
+        "description": "Name of the machine (from TARGETS) where Claude Code is installed and signed in. It diagnoses a failure there, read-only. Empty: issues carry the logs without a diagnosis"
+      },
+      {
+        "name": "CLAUDE_COMMAND",
+        "description": "The command that reads the prompt on standard input and prints one JSON answer on CLAUDE_TARGET",
+        "default": "claude -p --allowedTools Read,Grep,Glob"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "SSH_KEY",
+        "description": "Private key (OpenSSH or PEM, no passphrase) that may sign in to every machine in TARGETS. Use a key made for Gauntlet, never the production key"
+      },
+      {
+        "name": "GITHUB_TOKEN",
+        "optional": true,
+        "description": "A token that may create issues and comments in ISSUE_REPOS (and add to the project boards). Empty: no issues"
+      }
+    ]
+  }
+}

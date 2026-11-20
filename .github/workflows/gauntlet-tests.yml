@@ -1,0 +1,28 @@
+name: Gauntlet tests
+
+on:
+  pull_request:
+    paths:
+      - 'maintenance/gauntlet/**'
+      - '.github/workflows/gauntlet-tests.yml'
+  push:
+    paths:
+      - 'maintenance/gauntlet/**'
+      - '.github/workflows/gauntlet-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: maintenance/gauntlet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -p 'test_*.py'
+      - run: python -m unittest discover -p 'test_*.py' -s actions/home-card
