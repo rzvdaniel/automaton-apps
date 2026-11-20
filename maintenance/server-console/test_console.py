@@ -4,6 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 import threading
+import time
 import unittest
 from datetime import datetime, timezone
 import urllib.error
@@ -279,6 +280,25 @@ class AttentionTests(unittest.TestCase):
         console.record(state, data, NOW)
         conf = settings(**env)
         return console.attention(data, console.assess(data, state, conf, NOW), conf, NOW)
+
+    def test_unknown_update_counts_are_listed_not_skipped(self):
+        data = health()
+        data["host"]["securityUpdates"] = data["host"]["updatesPending"] = None
+        items = self.items(data)
+        self.assertEqual([i["title"] for i in items], ["Update status is unknown."])
+        self.assertEqual(items[0]["card"], "updates")
+
+    def test_update_hints_point_to_install_updates_not_sudo(self):
+        data = health(security=3, updatesPending=40)
+        conf = settings()
+        status = {"security": "warning", "pending": "warning", "securityDays": 1}
+        items = console.attention(data, status, conf, NOW)
+        security = next(i for i in items if i["title"].startswith("Install 3 security"))
+        other = next(i for i in items if i["title"].startswith("Install 40 updates"))
+        self.assertEqual((security["command"], other["command"]), ("", ""))
+        self.assertIn("Install updates under Maintenance", security["detail"])
+        self.assertNotIn("sudo apt upgrade", console.ADVICE["security_overdue"])
+        self.assertIn("Install updates", console.ADVICE["security_overdue"])
 
     def test_a_healthy_server_needs_nothing(self):
         self.assertEqual(self.items(health()), [])
@@ -947,7 +967,8 @@ class MaintenanceServerTests(unittest.TestCase):
         self.original = console.maintain_call
         console.maintain_call = lambda settings_, method, path, token=None, **_: (outer.seen.append((method, path, token)) or ("ok", {"id": "r"}, None))
         env = {"AUTOMATON_APP_DATA_DIR": self.directory.name, "API_BASE_URL": "https://api.example.com"}
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(main.Console(env)))
+        self.app = main.Console(env)
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(self.app))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
 
@@ -1038,6 +1059,16 @@ class TaskServerTests(MaintenanceServerTests):
     test_logs_restart_and_disk_need_the_header_and_pass_the_token_on = None
     test_os_update_and_reboot_need_the_header_and_a_typed_name = None
     test_the_typed_name_in_a_header_is_enough_when_the_proxy_drops_the_body = None
+
+    def test_refresh_needs_the_header_and_is_throttled(self):
+        runs = []
+        self.app.run_once = lambda: runs.append(1)
+        self.assertEqual(self.post("/api/tasks/refresh", {}), 404)
+        headers = {"X-Server-Console": "1"}
+        self.assertEqual(self.post("/api/tasks/refresh", headers), 200)
+        self.assertEqual(self.post("/api/tasks/refresh", headers), 200)
+        time.sleep(0.2)
+        self.assertEqual(len(runs), 1, "a second refresh within 20 seconds reads nothing")
 
     def test_a_restart_post_without_its_time_never_reaches_the_server(self):
         headers = {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}

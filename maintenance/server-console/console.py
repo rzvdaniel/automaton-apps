@@ -25,7 +25,7 @@ CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue", "backup_old", "b
 # What to do about each warning, shown on the page and in the email.
 ADVICE = {
     "disk_low": "Free some space: run `docker image prune -a` on the server (Automaton also frees unused images every night) or remove old backups and logs.",
-    "security_overdue": "Install the updates on the server: `sudo apt update && sudo apt upgrade`.",
+    "security_overdue": "Install the security updates: open Server Keeper and use Install updates under Maintenance.",
     "reboot_overdue": "Restart the server at a quiet time: `sudo reboot`.",
     "backup_old": "Check the server's backup timer, then press Run now under Maintenance (needs a system administrator).",
     "backup_failed": "Read the reason in Studio under Admin, Backups, fix it and run a backup now.",
@@ -631,7 +631,7 @@ def attention(health: dict | None, status: dict, settings: Settings, now: float)
     if isinstance(security, int) and security > 0:
         days = status.get("securityDays")
         add(status.get("security"), f"Install {plural(security, 'security update')}.",
-            "" if days is None else f"Waiting {days:g} {'day' if days == 1 else 'days'} (warning after {settings.security_days}):", "sudo apt upgrade", card="updates")
+            ("" if days is None else f"Waiting {days:g} {'day' if days == 1 else 'days'} (warning after {settings.security_days}). ") + "Use Install updates under Maintenance.", card="updates")
     if status.get("memory") in (WARNING, CRITICAL):
         add(status["memory"], "Memory is nearly full.", "Find what uses it, or restart the heavy app:", "docker stats --no-stream", card="resources")
     if status.get("cpu") in (WARNING, CRITICAL):
@@ -640,7 +640,9 @@ def attention(health: dict | None, status: dict, settings: Settings, now: float)
         add(status["load"], "The server load is high.", "More work is waiting than the processors can do. See what is running:", "top", card="resources")
     pending = host.get("updatesPending")
     if isinstance(pending, int) and status.get("pending") in (WARNING, CRITICAL):
-        add(status["pending"], f"Install {plural(pending, 'update')}.", "Many updates are waiting; none is urgent:", "sudo apt upgrade", card="updates")
+        add(status["pending"], f"Install {plural(pending, 'update')}.", "Many updates are waiting; none is urgent. Studio installs only the security updates; the rest need sudo apt upgrade on the server.", card="updates")
+    if security is None or pending is None:
+        items.append({"level": WARNING, "title": "Update status is unknown.", "detail": "The server did not report its update counts, so waiting updates cannot be ruled out.", "command": "", "card": "updates"})
     add(status.get("backup"), "Check the backups.", "The last successful backup is too old or missing.", card="backups")
     expiring = [c.get("host") for c in health.get("certificates") or [] if c.get("daysRemaining") is None or c["daysRemaining"] <= 14]
     add(status.get("certificates"), "A certificate is close to expiring.", ", ".join(str(h) for h in expiring), card="certificates")
