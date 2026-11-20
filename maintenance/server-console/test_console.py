@@ -817,6 +817,32 @@ class TaskCallTests(unittest.TestCase):
         self.assertEqual((status, message), ("error", text))
         self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(503, error_body=b"not json"))[2], "The server answered HTTP 503.")
 
+    def test_restarting_the_server_posts_the_time_with_the_viewer_token_and_reads_the_status_without_it(self):
+        opener = self.Opener(body=b"{}")
+        self.assertEqual(console.server_restart_run(settings(), "vt", "2026-11-21T01:00:00+01:00", opener=opener)[0], "ok")
+        request = opener.requests[0]
+        self.assertEqual((request.method, request.full_url), ("POST", "https://api.example.com/api/Install/restart/run"))
+        self.assertEqual(json.loads(request.data), {"restartAtUtc": "2026-11-21T00:00:00Z"})
+        self.assertEqual(request.get_header("X-automaton-viewer-token"), "vt")
+        opener = self.Opener(body=b"{}")
+        console.server_restart_run(settings(), "vt", opener=opener)
+        self.assertEqual(json.loads(opener.requests[0].data), {"restartAtUtc": None})
+        opener = self.Opener(body=b"{}")
+        console.server_restart_status(settings(), opener=opener)
+        self.assertEqual((opener.requests[0].method, opener.requests[0].full_url), ("GET", "https://api.example.com/api/install/restart"))
+        self.assertIsNone(opener.requests[0].get_header("X-automaton-viewer-token"))
+
+    def test_a_bad_restart_time_is_refused_before_any_call(self):
+        opener = self.Opener(body=b"{}")
+        for bad in ("tomorrow", 5, "x" * 50):
+            self.assertEqual(console.server_restart_run(settings(), "vt", bad, opener=opener)[0], "error")
+        self.assertEqual(opener.requests, [])
+
+    def test_a_server_without_the_restart_endpoint_busy_or_refusing_is_named(self):
+        self.assertEqual(console.server_restart_run(settings(), "vt", opener=self.Opener(404))[0], "not_found")
+        self.assertEqual(console.server_restart_run(settings(), "vt", opener=self.Opener(403))[0], "forbidden")
+        self.assertEqual(console.server_restart_run(settings(), "vt", opener=self.Opener(409))[0], "conflict")
+
     def test_reading_the_upgrade_sends_no_viewer_token(self):
         opener = self.Opener(body=b"{}")
         console.runner_upgrade(settings(), self.RUNNER, "vt", start=False, opener=opener)
@@ -950,7 +976,7 @@ class TaskServerTests(MaintenanceServerTests):
     test_the_typed_name_in_a_header_is_enough_when_the_proxy_drops_the_body = None
 
     def test_a_task_post_needs_the_pages_header_and_passes_the_token_on(self):
-        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"), ("/api/tasks/os-updates", "/api/Install/os-updates/run"),
+        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"), ("/api/tasks/os-updates", "/api/Install/os-updates/run"), ("/api/tasks/restart", "/api/Install/restart/run"),
                                (f"/api/tasks/upgrade?runner={self.RUNNER}", f"/api/server/runners/{self.RUNNER}/upgrade")]:
             self.seen.clear()
             self.assertEqual(self.post(path, {}), 404, "a form on another site cannot set the header")
