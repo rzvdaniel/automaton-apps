@@ -648,7 +648,7 @@
       '<button class="a-btn" type="button" id="restart-go"' + (restartOp.typed === name ? "" : " disabled") + '>' + (restartOp.at ? "Restart tonight" : "Restart now") + '</button> <button class="a-btn" type="button" id="restart-cancel">Cancel</button></div>' : "";
     var note = !restartOp || asking ? "" : restartOp.needsApproval ? esc(APPROVAL) : '<span class="a-note' + (restartOp.state === "failed" ? " a-note--warning" : "") + '" id="restart-result">' + esc(restartOp.text) + "</span>";
     var off = busy || asking ? " disabled" : "";
-    return row("restart", "Server restart", restartOp && restartOp.state === "failed" ? "warning" : "unknown", [last, plan, note, ask],
+    return row("restart", "Server restart", restartOp && restartOp.state === "failed" ? "warning" : plan ? "ok" : "unknown", [last, plan, note, ask],
       isAdmin && name ? '<button class="a-btn" type="button" id="restart-now"' + off + ">Restart now</button> " + '<button class="a-btn" type="button" id="restart-tonight"' + off + ">Restart tonight</button>" : "");
   }
 
@@ -703,6 +703,7 @@
     if (!restartOp || restartOp.state !== "waiting") return;
     // The server goes down while it restarts, so a failed read means keep waiting.
     loadRestart().catch(function () {}).then(function () {
+      if (restartInfo && restartInfo.state === "refused") { restartOp = { state: "failed", text: restartInfo.message || "The server refused the restart." }; return paintTasks(); }
       var at = restartInfo && restartInfo.lastRestartedAtUtc;
       if (at && Date.parse(at) >= restartOp.started - 60000) {
         restartOp = { state: "done", text: "Restarted at " + new Date(at).toLocaleTimeString() + "." };

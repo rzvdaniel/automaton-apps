@@ -975,8 +975,18 @@ class TaskServerTests(MaintenanceServerTests):
     test_os_update_and_reboot_need_the_header_and_a_typed_name = None
     test_the_typed_name_in_a_header_is_enough_when_the_proxy_drops_the_body = None
 
+    def test_a_restart_post_without_its_time_never_reaches_the_server(self):
+        headers = {"X-Server-Console": "1", "X-Automaton-Viewer-Token": "vt"}
+        self.seen.clear()
+        self.assertEqual(self.post("/api/tasks/restart", {}), 404, "a form on another site cannot set the header")
+        self.assertEqual(self.post("/api/tasks/restart", headers), 400, "a dropped body must not become a restart now")
+        self.assertEqual(self.post("/api/tasks/restart", headers, b"not json"), 400)
+        self.assertEqual(self.seen, [])
+        self.assertEqual(self.post("/api/tasks/restart", headers, b'{"restartAtUtc": null}'), 200)
+        self.assertEqual(self.seen, [("POST", "/api/Install/restart/run", "vt")])
+
     def test_a_task_post_needs_the_pages_header_and_passes_the_token_on(self):
-        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"), ("/api/tasks/os-updates", "/api/Install/os-updates/run"), ("/api/tasks/restart", "/api/Install/restart/run"),
+        for path, expected in [("/api/tasks/cleanup-run", "/api/server/cleanup/run"), ("/api/tasks/backup", "/api/Install/backups/run"), ("/api/tasks/os-updates", "/api/Install/os-updates/run"),
                                (f"/api/tasks/upgrade?runner={self.RUNNER}", f"/api/server/runners/{self.RUNNER}/upgrade")]:
             self.seen.clear()
             self.assertEqual(self.post(path, {}), 404, "a form on another site cannot set the header")

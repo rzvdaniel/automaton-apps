@@ -207,7 +207,9 @@ def make_handler(app: Console):
                     body = json.loads(self.read_body(2000).decode("utf-8") or "null")
                 except (ValueError, UnicodeDecodeError):
                     body = None
-                return self.maintain(console.server_restart_run, token, body.get("restartAtUtc") if isinstance(body, dict) else None)
+                if not isinstance(body, dict) or "restartAtUtc" not in body:  # a dropped body must never turn a scheduled restart into one now
+                    return self.json(400, {"status": "error", "message": "The restart time did not arrive. Try again."})
+                return self.maintain(console.server_restart_run, token, body["restartAtUtc"])
             if name == "upgrade":
                 return self.maintain(console.runner_upgrade, (parse_qs(parts.query).get("runner") or [""])[0], token)
             try:
