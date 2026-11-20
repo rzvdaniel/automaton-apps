@@ -20,7 +20,7 @@ MAX_TIMEOUT = 7200
 KEEP_DAYS = 90
 NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 DOMAIN = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$")
-HOST = re.compile(r"^([a-z_][a-z0-9_-]*@)?[A-Za-z0-9.:-]{1,253}$")
+HOST = re.compile(r"^([a-z_][a-z0-9_-]*@)?[A-Za-z0-9.-]{1,253}$")  # port 22 only
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 

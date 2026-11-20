@@ -66,7 +66,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(targets["box"]["email"], "admin@box.example.com")
 
     def test_bad_targets_are_refused(self):
-        for raw in ("nope", "{}", '[{"name":"A b","host":"root@h"}]', '[{"name":"a","host":"x y"}]',
+        for raw in ("nope", "{}", '[{"name":"A b","host":"root@h"}]', '[{"name":"a","host":"x y"}]', '[{"name":"a","host":"h:2222"}]',
                     '[{"name":"a","host":"h","domain":"a b"}]', '[{"name":"a","host":"h"},{"name":"a","host":"h"}]',
                     '[{"name":"a","host":"h","install_flags":"; rm -rf /"}]'):
             with self.assertRaises(gauntlet.InvalidConfig, msg=raw):

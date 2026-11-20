@@ -87,6 +87,7 @@ class SshExecutor:
         try:
             channel = client.get_transport().open_session()
             channel.settimeout(timeout)
+            channel.get_pty()  # closing the channel on a timeout then hangs up the command instead of leaving it running
             channel.set_combine_stderr(True)
             channel.exec_command("bash -lc " + gauntlet.shell_quote(command))
             if stdin is not None:
