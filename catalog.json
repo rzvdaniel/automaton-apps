@@ -115,7 +115,7 @@
       "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a night shift from one board column.",
       "category": "Maintenance",
       "folder": "maintenance/overseer",
-      "commit": "d3f43d36a5efbf335ee41c22aa11f4767c5ca292",
+      "commit": "43683759b59a428f4b65ebaaec70cca54b7f7c6f",
       "minServerVersion": "0.2.173",
       "permissions": [
         "apps:read-status"
