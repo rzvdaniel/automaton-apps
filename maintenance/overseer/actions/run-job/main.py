@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Overseer's run-job Action: asks the running app to run one job (stall-check, report, lessons or night-shift).
+
+The platform runs this on the schedules Overseer offers at install. AUTOMATON_APP_INTERNAL_URL is the app's address on the Runner's
+private network and ADMIN_TOKEN is the app's secret; the app does the work, so nothing here reaches the queue machine.
+A failed job exits with 1 and says why, so the run shows as failed in Studio.
+"""
+
+import json
+import os
+import sys
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+JOBS = ("stall-check", "report", "lessons", "night-shift")
+
+
+def run_job(base: str, token: str, job: str, opener=urlopen, timeout: float = 150) -> dict:
+    if not base.startswith(("http://", "https://")):
+        raise ValueError("AUTOMATON_APP_INTERNAL_URL is not an address")
+    if job not in JOBS:
+        raise ValueError("the input must be {\"job\": \"stall-check|report|lessons|night-shift\"}")
+    if len(token) < 16:
+        raise ValueError("the ADMIN_TOKEN secret is not set (at least 16 characters)")
+    request = Request(f"{base.rstrip('/')}/api/jobs/{job}", b"{}", {"Authorization": "Bearer " + token, "Content-Type": "application/json",
+                                                                   "User-Agent": "Automaton-Overseer-Action/1.0"}, method="POST")
+    try:
+        with opener(request, timeout=timeout) as response:
+            return json.loads(response.read())
+    except HTTPError as error:
+        try:
+            answer = json.loads(error.read())
+            detail = answer.get("text") or answer.get("error")
+        except (ValueError, AttributeError):
+            detail = None
+        raise RuntimeError(f"Overseer answered {error.code}" + (f": {detail}" if detail else ""))
+    except (URLError, OSError) as error:
+        raise RuntimeError("could not reach Overseer: " + type(error).__name__)
+
+
+def main() -> int:
+    try:
+        data = json.load(sys.stdin)
+        result = run_job(os.environ.get("AUTOMATON_APP_INTERNAL_URL", ""), os.environ.get("ADMIN_TOKEN", "").strip(),
+                         str(data.get("job", "")) if isinstance(data, dict) else "")
+        print(json.dumps(result, separators=(",", ":")))
+        return 0
+    except (ValueError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

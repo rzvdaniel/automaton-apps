@@ -7,6 +7,7 @@
     { "folder": "maintenance/victorialogs", "category": "Monitoring", "minServerVersion": "0.2.168", "recommended": true, "recommendedOrder": 2 },
     { "folder": "maintenance/gate-keeper", "category": "Monitoring", "minServerVersion": "0.2.167", "recommended": true, "recommendedOrder": 3 },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
+    { "folder": "maintenance/overseer", "category": "Maintenance", "minServerVersion": "0.2.173" },
     { "folder": "publishing/ghost", "category": "Publishing", "minServerVersion": "0.2.149" }
   ]
 }

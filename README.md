@@ -12,6 +12,7 @@ The official app catalog for [Automaton](https://automaton.monster), a platform 
 | Server Keeper — live stats, alerts and one-click maintenance for this server | [maintenance/server-console](maintenance/server-console/) |
 | Gate Keeper — shows who fail2ban has banned on this server, and why, on its own page and a Home card (read-only) | [maintenance/gate-keeper](maintenance/gate-keeper/) |
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
+| Overseer — runs and shows your coding agents' work queue and its schedules, with a morning report and a night shift | [maintenance/overseer](maintenance/overseer/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
 | Ghost — a blog with newsletters, packaged from the upstream image (MIT) | [publishing/ghost](publishing/ghost/) |
 | VictoriaLogs — search server and app logs in the browser, packaged from the upstream image (Apache-2.0) | [maintenance/victorialogs](maintenance/victorialogs/) |
