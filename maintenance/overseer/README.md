@@ -13,16 +13,22 @@ The page shows:
 | `stall-check` | every 30 minutes | `orchestrator.sh`: requeues a stalled task, stops one that stalled twice |
 | `report` | 06:00 | `orchestrator.sh` with `ORCH_REPORT=1`: queues the task that writes the morning report |
 | `lessons` | 03:00 | `agent-queue add lessons-<date>` with `LESSONS_PROMPT` |
-| `night-shift` | 22:00 | queues the open issues in one board column, in order |
+| `pick-up` | 22:00 | queues the open issues in the Ready for agents column of each board in `AGENT_BOARDS`, in order |
 
-## Night shift
+## Pick-up
 
-Set `NIGHT_BOARD` (`owner/number` of a GitHub project), `NIGHT_COLUMN` (a Status value, for example `Ready for night`) and the `GITHUB_TOKEN` secret (read access to the project and its issues). Each run queues every open issue in that column, one task each (`night-<repo>-<number>`), skips one that is already waiting or running in the queue (it reads the queue listing) and never queues one twice. **An empty column queues nothing; it never picks from the rest of the backlog.** Issues run in the column's card order, top to bottom as the board shows it. There is no token budget and no daily task limit: the night shift runs everything in the column, and when the Claude usage limit is hit the queue waits for the reset and continues. The queue machine needs the current `orchestrator.sh` (older copies still pause at 12 tasks a day). Only `STALL_MINUTES` bounds a task, so one stuck task cannot block the night. **Only put issues you trust in the night column**, and keep the queue host free of production credentials: night tasks run unattended with that machine's access. Every night task is told to stop at the merged pull request and never release or deploy.
+Set `AGENT_BOARDS` to the boards Pick-up takes cards from, in run order: comma-separated `owner/number: Column`, for example `rzvdaniel/17: Ready for agents, rzvdaniel/2: Ready for agents`. Add the `GITHUB_TOKEN` secret (read access to those boards and their repos' issues). Each run goes through the boards in that order and, per board, the column's cards top to bottom, and queues each open issue from any repo as one task (`pick-<repo>-<number>`). It skips one that is already waiting or running (it reads the queue listing), never queues one twice, and **skips issues labelled `needs-shape`**; they are listed under "Pick-up" in the morning report on the page, with the issue check's last comment as the reason. A board or column that does not exist is shown the same way ("Board rzvdaniel/2 has no column 'Ready for agents'") instead of being skipped silently. **Empty `AGENT_BOARDS` queues nothing; Pick-up never picks from the rest of the backlog.** Creating the columns is up to you (GitHub's web view).
+
+`PAUSE_BETWEEN` (optional, `HH:MM-HH:MM` in UTC, may span midnight, for example `08:00-18:00`) makes Pick-up queue nothing in that window. Both settings are read at each run, so a change applies from the next run.
+
+The schedule is the one in Studio's Schedules tab: `0 22 * * *` (default) is once a night, `*/15 * * * *` is continuous (a card dropped in the column is queued within 15 minutes), `*/15 18-7 * * *` is outside office hours.
+
+There is no token budget and no daily task limit: when the Claude usage limit is hit the queue waits for the reset and continues. The queue machine needs the current `orchestrator.sh` (older copies still pause at 12 tasks a day). Only `STALL_MINUTES` bounds a task. **Only put issues you trust in the column**, and keep the queue host free of production credentials: tasks run unattended with that machine's access. Every task is told to stop at the merged pull request and never release or deploy.
 
 ## Install on an Automaton server
 
 1. On the machine where the agents run (a Linux user with `agent-queue`, `orchestrator.sh` and `claude-task` in `~/bin`, Claude Code signed in), make a key for Overseer and allow it: `ssh-keygen -t ed25519 -N '' -f overseer_key`, then add `overseer_key.pub` to that user's `~/.ssh/authorized_keys`. The app must be able to reach the machine's SSH port from the Runner. The first host key it sees is remembered and must match afterwards.
-2. Install Overseer from the catalog. Fill in `QUEUE_HOST` (`user@address`), the secret `SSH_KEY` (the private key), a secret `ADMIN_TOKEN` of at least 16 characters (the schedules use it to call the app) and, for the night shift, the board settings and `GITHUB_TOKEN`. Keep the schedules you want.
+2. Install Overseer from the catalog. Fill in `QUEUE_HOST` (`user@address`), the secret `SSH_KEY` (the private key), a secret `ADMIN_TOKEN` of at least 16 characters (the schedules use it to call the app) and, for Pick-up, the board settings and `GITHUB_TOKEN`. Keep the schedules you want.
 3. An administrator approves `apps:read-status` (it only lets the page show the next scheduled run).
 4. Switch over from cron: look at the app's page, press **Run now** on each job, and when the schedules have run once, remove the `agent-queue`, `orchestrator.sh` and lessons lines from that user's crontab. Keep the `@reboot agent-queue worker` line: the worker is the long-running process and stays on the machine.
 
@@ -60,11 +66,11 @@ Without Automaton there are no scheduled actions: call a job from cron or a time
 | `RUNNER` | the command that runs one task (default `claude-task`) |
 | `STALL_MINUTES` | minutes without log output before a task counts as stalled (default 120) |
 | `ISSUE_REPO` | `owner/name` for linking a task named like `fix-login-344` to its issue |
-| `NIGHT_BOARD`, `NIGHT_COLUMN`, `GITHUB_TOKEN` | the night shift (see above) |
+| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `GITHUB_TOKEN` | Pick-up (see above) |
 | `LESSONS_PROMPT` | the lessons job's prompt |
 | `AUTOMATON_APP_DATA_DIR` | data folder: the job history and the remembered host key |
 
-The data volume holds `overseer.json` (last result of each job, issues the night shift queued) and `known_hosts.json`. The queue itself stays on the queue machine.
+The data volume holds `overseer.json` (last result of each job, issues Pick-up queued) and `known_hosts.json`. The queue itself stays on the queue machine.
 
 ## Tests
 

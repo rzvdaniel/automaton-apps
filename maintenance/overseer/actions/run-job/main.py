@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Overseer's run-job Action: asks the running app to run one job (stall-check, report, lessons or night-shift).
+"""Overseer's run-job Action: asks the running app to run one job (stall-check, report, lessons or pick-up).
 
 The platform runs this on the schedules Overseer offers at install. AUTOMATON_APP_INTERNAL_URL is the app's address on the Runner's
 private network and ADMIN_TOKEN is the app's secret; the app does the work, so nothing here reaches the queue machine.
@@ -12,14 +12,14 @@ import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-JOBS = ("stall-check", "report", "lessons", "night-shift")
+JOBS = ("stall-check", "report", "lessons", "pick-up")
 
 
 def run_job(base: str, token: str, job: str, opener=urlopen, timeout: float = 150) -> dict:
     if not base.startswith(("http://", "https://")):
         raise ValueError("AUTOMATON_APP_INTERNAL_URL is not an address")
     if job not in JOBS:
-        raise ValueError("the input must be {\"job\": \"stall-check|report|lessons|night-shift\"}")
+        raise ValueError("the input must be {\"job\": \"stall-check|report|lessons|pick-up\"}")
     if len(token) < 16:
         raise ValueError("the ADMIN_TOKEN secret is not set (at least 16 characters)")
     request = Request(f"{base.rstrip('/')}/api/jobs/{job}", b"{}", {"Authorization": "Bearer " + token, "Content-Type": "application/json",

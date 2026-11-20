@@ -21,8 +21,9 @@ JOBS = {
     "stall-check": "Stall check: requeues a task that stopped writing output, stops one that stalled twice",
     "report": "Morning report: starts a task that writes the report of merged PRs, blocked tasks and the latest release",
     "lessons": "Lessons: queues the task that works through the lessons inbox",
-    "night-shift": "Night shift: queues the issues in the board column, in order, and nothing when the column is empty",
+    "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, skipping needs-shape; nothing outside its hours or when AGENT_BOARDS is empty",
 }
+COLUMN = "Ready for agents"
 DEFAULT_LESSONS = "Follow .agents/skills/automaton-lessons-learned/SKILL.md end to end on the lessons inbox (the open issue labelled lessons). Reply on the inbox."
 
 
@@ -135,14 +136,44 @@ class Queue:
         return code == 0, (out.strip().splitlines() or ["done"])[-1][:200]
 
 
-def fetch_column(token: str, board: str, column: str, opener=urlopen) -> list[dict]:
-    """The issues in one Status column of a GitHub project, in the cards' order on the board (top to bottom). board is "owner/number"."""
+def parse_boards(text: str) -> list[tuple[str, str]]:
+    """AGENT_BOARDS: comma-separated "owner/number: Column", in run order."""
+    boards = []
+    for part in [p.strip() for p in text.split(",") if p.strip()]:
+        board, _, column = part.partition(":")
+        board, column = board.strip(), column.strip()
+        owner, _, number = board.partition("/")
+        if not owner or not number.isdigit() or not column:
+            raise InvalidConfig(f'AGENT_BOARDS entries are "owner/number: Column", for example "rzvdaniel/17: {COLUMN}" (got "{part[:60]}")')
+        boards.append((board, column))
+    return boards
+
+
+def in_pause(spec: str, now: float) -> bool:
+    """PAUSE_BETWEEN "HH:MM-HH:MM" (UTC; may span midnight): true when now falls inside it. Empty: never."""
+    spec = spec.strip()
+    if not spec:
+        return False
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})", spec)
+    if not match or int(match[1]) > 23 or int(match[3]) > 23 or int(match[2]) > 59 or int(match[4]) > 59:
+        raise InvalidConfig("PAUSE_BETWEEN is HH:MM-HH:MM in UTC, for example 08:00-18:00")
+    start, end = int(match[1]) * 60 + int(match[2]), int(match[3]) * 60 + int(match[4])
+    moment = time.gmtime(now)
+    minute = moment.tm_hour * 60 + moment.tm_min
+    if start == end:
+        return False
+    return start <= minute < end if start < end else minute >= start or minute < end
+
+
+def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
+    """One Status column of a GitHub project, cards top to bottom. board is "owner/number".
+    Returns {"items": [...], "problem": text or None}; items carry their labels and the last comment's first line."""
     owner, _, number = board.partition("/")
-    if not owner or not number.isdigit():
-        raise InvalidConfig("NIGHT_BOARD is owner/number, for example rzvdaniel/1")
-    query = ("query($o:String!,$n:Int!){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){items(first:100,orderBy:{field:POSITION,direction:ASC}){nodes{"
+    query = ("query($o:String!,$n:Int!){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){"
+             "field(name:\"Status\"){... on ProjectV2SingleSelectField{options{name}}}"
+             "items(first:100,orderBy:{field:POSITION,direction:ASC}){nodes{"
              "status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}"
-             "content{... on Issue{number title url state repository{nameWithOwner}}}}}}}}}")
+             "content{... on Issue{number title url state repository{nameWithOwner} labels(first:30){nodes{name}} comments(last:1){nodes{body}}}}}}}}}}")
     body = json.dumps({"query": query, "variables": {"o": owner, "n": int(number)}}).encode()
     request = Request("https://api.github.com/graphql", body, {"Authorization": "Bearer " + token, "Content-Type": "application/json",
                                                               "User-Agent": "Automaton-Overseer/1.0"})
@@ -150,29 +181,35 @@ def fetch_column(token: str, board: str, column: str, opener=urlopen) -> list[di
         with opener(request, timeout=20) as response:
             data = json.loads(response.read())
     except (HTTPError, URLError, ValueError, OSError) as error:
-        raise RuntimeError("could not read the board: " + type(error).__name__)
+        return {"items": [], "problem": f"Board {board}: could not read it ({type(error).__name__})"}
     project = (((data.get("data") or {}).get("repositoryOwner") or {}).get("projectV2") or {})
     if not project:
-        raise RuntimeError("the board was not found or the token cannot read it")
+        return {"items": [], "problem": f"Board {board}: not found or the token cannot read it"}
+    options = [o.get("name") for o in ((project.get("field") or {}).get("options") or [])]
+    if column not in options:
+        return {"items": [], "problem": f"Board {board} has no column '{column}'"}
     found = []
     for node in project["items"]["nodes"]:
         content = node.get("content") or {}
         if (node.get("status") or {}).get("name") == column and content.get("url") and content.get("state") == "OPEN":
-            found.append({"repo": content["repository"]["nameWithOwner"], "number": content["number"], "title": content["title"], "url": content["url"]})
-    return found
+            comments = (content.get("comments") or {}).get("nodes") or []
+            reason = next((l.strip() for l in (comments[-1].get("body") or "").splitlines() if l.strip()), "") if comments else ""
+            found.append({"repo": content["repository"]["nameWithOwner"], "number": content["number"], "title": content["title"], "url": content["url"],
+                          "labels": [l["name"] for l in (content.get("labels") or {}).get("nodes") or []], "reason": reason[:160]})
+    return {"items": found, "problem": None}
 
 
-def night_name(item: dict) -> str:
-    return "night-" + item["repo"].split("/")[-1].replace(".", "-") + "-" + str(item["number"])
+def pick_name(item: dict) -> str:
+    return "pick-" + item["repo"].split("/")[-1].replace(".", "-") + "-" + str(item["number"])
 
 
-def night_prompt(item: dict) -> str:
+def pick_prompt(item: dict) -> str:
     return (f"Implement {item['url']} ({item['title']}). Follow the repository's AGENTS.md. Stop at the merged pull request: "
             "do not release, upgrade or deploy. Write the handoff on the issue.")
 
 
 class Jobs:
-    """What each scheduled job did last, and which issues the night shift already queued. Kept in one JSON file."""
+    """What each scheduled job did last, and which issues Pick-up already queued, and what it skipped or could not read. Kept in one JSON file."""
 
     def __init__(self, path: str, now=time.time):
         self.path, self.now, self.lock = path, now, threading.Lock()
@@ -183,6 +220,7 @@ class Jobs:
             self.data = {}
         self.data.setdefault("jobs", {})
         self.data.setdefault("queued", [])
+        self.data.setdefault("pickup", {"skipped": [], "problems": []})
 
     def save(self) -> None:
         tmp = self.path + ".tmp"
@@ -202,3 +240,8 @@ class Jobs:
 
     def was_queued(self, url: str) -> bool:
         return url in self.data["queued"]
+
+    def set_pickup(self, skipped: list[dict], problems: list[str]) -> None:
+        with self.lock:
+            self.data["pickup"] = {"skipped": skipped, "problems": problems, "at": self.now()}
+            self.save()
