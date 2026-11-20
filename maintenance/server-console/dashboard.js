@@ -277,9 +277,22 @@
     subtitle.textContent = data.status === "starting" ? "Starting" : "No data";
   }
 
+  // The gateway answers 401 when the viewer's app session ended. That is not a server error: say so, keep the last figures
+  // (greyed) and offer to sign in again; reloading the page goes through sign-in.
+  var sessionBox = document.getElementById("session-ended");
+  function sessionEnded(ended) {
+    sessionBox.hidden = !ended;
+    view.style.opacity = ended && lastData ? "0.5" : "";
+    if (ended && !lastData) view.innerHTML = "";
+  }
+  document.getElementById("session-signin").addEventListener("click", function (e) { e.preventDefault(); location.reload(); });
+
   function load() {
     fetch("api/state" + (chosen ? "?machine=" + encodeURIComponent(chosen) : ""), { cache: "no-store" }).then(function (response) {
+      if (response.status === 401) return sessionEnded(true);
       return response.json().then(function (data) {
+        if (data.status === 401 || data.status === "401") return sessionEnded(true);
+        sessionEnded(false);
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);
         if (!data.health) return problem(data);
         lastData = data;
