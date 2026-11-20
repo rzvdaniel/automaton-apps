@@ -20,7 +20,7 @@
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py overseer.py && pip install --quiet --no-cache-dir --target dist/lib 'paramiko>=3,<5' && mkdir -p dist/ui && cp main.py overseer.py index.html overseer.js overseer.css dist/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py overseer.py && mkdir -p .pip-tmp && TMPDIR=$PWD/.pip-tmp pip install --quiet --cache-dir .pip-tmp/cache --target dist/lib 'paramiko>=3,<5' && rm -rf .pip-tmp && mkdir -p dist/ui && cp main.py overseer.py index.html overseer.js overseer.css dist/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },
