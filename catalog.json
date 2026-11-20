@@ -40,7 +40,7 @@
       "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "aa763aa38298ceee72be43036d0ef223c4618230",
+      "commit": "c6caf1aaf5502a2ae01966552d36825c91ccfce3",
       "minServerVersion": "0.2.173",
       "permissions": [
         "server:read",
@@ -119,6 +119,21 @@
       "minServerVersion": "0.2.173",
       "permissions": [
         "apps:read-status"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "gauntlet",
+      "name": "Gauntlet",
+      "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
+      "category": "Monitoring",
+      "folder": "maintenance/gauntlet",
+      "commit": "d18aad3955204d22769ed08970c4e14cdc5772be",
+      "minServerVersion": "0.2.173",
+      "permissions": [
+        "notify:email"
       ],
       "publisher": {
         "name": "Automaton"
