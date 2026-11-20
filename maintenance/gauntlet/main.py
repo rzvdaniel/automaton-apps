@@ -106,7 +106,8 @@ class SshExecutor:
                     return None, b"".join(chunks).decode("utf-8", "replace")
                 else:
                     time.sleep(0.2)
-            return channel.recv_exit_status(), b"".join(chunks).decode("utf-8", "replace")
+            status = channel.recv_exit_status()
+            return (None if status in (124, 137) else status), b"".join(chunks).decode("utf-8", "replace")  # timeout(1) ended it
         finally:
             client.close()
 
