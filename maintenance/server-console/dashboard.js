@@ -539,6 +539,8 @@
   var cleanupEdit = false;
   var backupOp = null;    // { since, state: "waiting" | "done" | "failed", text, needsApproval }
   var osOp = null;        // { asking, typed, state: "waiting" | "done" | "failed", text, restartRequired } installing the OS updates
+  var restartOp = null;   // { asking, at, typed, state: "waiting" | "scheduled" | "done" | "failed", text, started, needsApproval } restarting the server
+  var restartInfo = null; // the server's answer: { lastRestartedAtUtc, restartAtUtc, state }
   var upgradeOp = null;   // { items: [{ runnerId, name, state, text }], busy }
   var tasksTimer = null;
   var APPROVAL = "Needs approval. An administrator approves it in Studio under Admin, Apps, Permissions.";
@@ -627,14 +629,38 @@
       isAdmin && name ? '<button class="a-btn" type="button" id="os-run"' + (busy || (osOp && osOp.asking) ? " disabled" : "") + ">" + (busy ? "Installing..." : "Install updates") + "</button>" : "");
   }
 
+  function tonight() {
+    var d = new Date(); d.setHours(3, 0, 0, 0);
+    if (d.getTime() < Date.now() + 3600000) d.setDate(d.getDate() + 1);
+    return d;
+  }
+
+  function restartRow() {
+    var name = chosenName();
+    var info = restartInfo || {};
+    var asking = restartOp && restartOp.asking;
+    var busy = restartOp && restartOp.state === "waiting";
+    var last = info.lastRestartedAtUtc ? "Last restarted " + when(info.lastRestartedAtUtc) + "." : "";
+    var plan = info.state === "scheduled" && info.restartAtUtc ? "A restart is scheduled for " + when(info.restartAtUtc) + "." : "";
+    var ask = asking ? '<div id="restart-confirm"><span class="a-note a-note--warning">' + (restartOp.at ? "Restarts this server at " + esc(new Date(restartOp.at).toLocaleString()) + "." : "Restarts this server in about a minute.") +
+      " Every app on it is unavailable until it is back. Type <strong>" + esc(name) + '</strong> to confirm.</span> ' +
+      '<input class="a-input" id="restart-typed" autocomplete="off" spellcheck="false" aria-label="Type the server name" value="' + esc(restartOp.typed || "") + '"> ' +
+      '<button class="a-btn" type="button" id="restart-go"' + (restartOp.typed === name ? "" : " disabled") + '>' + (restartOp.at ? "Restart tonight" : "Restart now") + '</button> <button class="a-btn" type="button" id="restart-cancel">Cancel</button></div>' : "";
+    var note = !restartOp || asking ? "" : restartOp.needsApproval ? esc(APPROVAL) : '<span class="a-note' + (restartOp.state === "failed" ? " a-note--warning" : "") + '" id="restart-result">' + esc(restartOp.text) + "</span>";
+    var off = busy || asking ? " disabled" : "";
+    return row("restart", "Server restart", restartOp && restartOp.state === "failed" ? "warning" : plan ? "ok" : "unknown", [last, plan, note, ask],
+      isAdmin && name ? '<button class="a-btn" type="button" id="restart-now"' + off + ">Restart now</button> " + '<button class="a-btn" type="button" id="restart-tonight"' + off + ">Restart tonight</button>" : "");
+  }
+
   function paintTasks() {
     if (!lastData) return;
     // Do not redraw under someone typing in the settings form.
     if (cleanupEdit && document.activeElement && /^cs-/.test(document.activeElement.id || "")) return;
     if (osOp && osOp.asking && document.activeElement && document.activeElement.id === "os-typed") return;
+    if (restartOp && restartOp.asking && document.activeElement && document.activeElement.id === "restart-typed") return;
     tasksBox.hidden = false;
     tasksBox.innerHTML = '<section class="a-card spaced" id="maintenance"><div class="a-card__head"><h2 class="a-card__title">Maintenance</h2></div><ul class="a-list tasks">' +
-      cleanupRow() + backupRow() + upgradeRow() + updatesRow() + "</ul></section>";
+      cleanupRow() + backupRow() + upgradeRow() + updatesRow() + restartRow() + "</ul></section>";
     UI.updateRelativeTimes(tasksBox);
   }
 
@@ -665,6 +691,45 @@
         : { state: "failed", text: data.message || "The updates could not be started." };
       paintTasks();
     }).catch(function () { osOp = { state: "failed", text: "The app could not be reached." }; paintTasks(); });
+  }
+
+  function loadRestart() {
+    return fetch("api/tasks/restart", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data.status === "ok" && data.data) restartInfo = data.data;
+    });
+  }
+
+  function pollRestart() {
+    if (!restartOp || restartOp.state !== "waiting") return;
+    // The server goes down while it restarts, so a failed read means keep waiting.
+    loadRestart().catch(function () {}).then(function () {
+      if (restartInfo && restartInfo.state === "refused") { restartOp = { state: "failed", text: restartInfo.message || "The server refused the restart." }; return paintTasks(); }
+      var at = restartInfo && restartInfo.lastRestartedAtUtc;
+      if (at && Date.parse(at) >= restartOp.started - 60000) {
+        restartOp = { state: "done", text: "Restarted at " + new Date(at).toLocaleTimeString() + "." };
+        load(); return paintTasks();
+      }
+      if (Date.now() - restartOp.started > 15 * 60000) { restartOp = { state: "failed", text: "No restart after 15 minutes. Check the server." }; return paintTasks(); }
+      setTimeout(pollRestart, 5000);
+    });
+  }
+
+  function runRestart() {
+    var name = chosenName();
+    if (!restartOp || restartOp.typed !== name) return;
+    var at = restartOp.at;
+    restartOp = { state: "waiting", text: at ? "Scheduling..." : "Restart requested. Waiting for the server to come back...", started: Date.now() };
+    paintTasks();
+    post("api/tasks/restart", { restartAtUtc: at }).then(function (data) {
+      if (data.status === "ok") {
+        if (at) { restartOp = { state: "scheduled", text: "The server restarts at " + new Date(at).toLocaleString() + "." }; loadRestart().catch(function () {}).then(paintTasks); return paintTasks(); }
+        return pollRestart();
+      }
+      restartOp = data.status === "forbidden" || data.status === "not_approved" ? { state: "failed", needsApproval: true }
+        : data.status === "not_found" ? { state: "failed", text: "This server cannot restart itself from Studio yet. Update Automaton, or run sudo reboot on the server." }
+        : { state: "failed", text: data.message || "The restart could not be requested." };
+      paintTasks();
+    }).catch(function () { restartOp = { state: "failed", text: "The app could not be reached." }; paintTasks(); });
   }
 
   function pollTasks() {
@@ -754,10 +819,22 @@
     else if (id === "os-run") { osOp = { asking: true, typed: "" }; paintTasks(); var box = document.getElementById("os-typed"); if (box) box.focus(); }
     else if (id === "os-cancel") { osOp = null; paintTasks(); }
     else if (id === "os-go") runOsUpdates();
+    else if (id === "restart-now" || id === "restart-tonight") {
+      restartOp = { asking: true, typed: "", at: id === "restart-tonight" ? tonight().toISOString() : null }; paintTasks();
+      var rbox = document.getElementById("restart-typed"); if (rbox) rbox.focus();
+    }
+    else if (id === "restart-cancel") { restartOp = null; paintTasks(); }
+    else if (id === "restart-go") runRestart();
     else if (id === "upgrade-run") runUpgradeNow();
   });
 
   tasksBox.addEventListener("input", function (event) {
+    if (event.target.id === "restart-typed" && restartOp) {
+      restartOp.typed = event.target.value;
+      var rgo = document.getElementById("restart-go");
+      if (rgo) rgo.disabled = restartOp.typed !== chosenName();
+      return;
+    }
     if (event.target.id !== "os-typed" || !osOp) return;
     osOp.typed = event.target.value;
     var go = document.getElementById("os-go");
@@ -765,6 +842,7 @@
   });
 
   fetch("api/tasks", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) { isAdmin = data.admin === true; paintTasks(); }).catch(function () { /* read-only */ });
+  loadRestart().then(paintTasks).catch(function () { /* older server */ });
 
   UI.bindThemeToggle();
   load();

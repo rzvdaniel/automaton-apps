@@ -307,6 +307,30 @@ def os_updates_status(settings: Settings, **kwargs):
     return maintain_call(settings, "GET", "/api/install/os-updates", **kwargs)
 
 
+def restart_at_value(value) -> str | None:
+    """The restart time a page asked for as an ISO UTC string, or None for "now". Raises ValueError for anything else."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or len(value) > 40:
+        raise ValueError("bad time")
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def server_restart_run(settings: Settings, viewer_token: str | None, restart_at=None, **kwargs):
+    """Restarts the server now or at a time within the next 7 days (permission server:restart, a system administrator's
+    viewer token). The server refuses with 409 while a backup, deploy or update runs."""
+    try:
+        at = restart_at_value(restart_at)
+    except ValueError:
+        return "error", None, "The restart time is not valid."
+    return maintain_call(settings, "POST", "/api/Install/restart/run", viewer_token, timeout=40, body={"restartAtUtc": at}, **kwargs)
+
+
+def server_restart_status(settings: Settings, **kwargs):
+    """When the server last restarted and whether a restart is requested or scheduled (permission server:read)."""
+    return maintain_call(settings, "GET", "/api/install/restart", **kwargs)
+
+
 def runner_upgrade(settings: Settings, runner_id: str, viewer_token: str | None, start: bool = True, **kwargs):
     """Starts (POST, with the viewer token) or reads (GET) the upgrade of one Runner (permission runner:maintain)."""
     if not GUID.match(runner_id or ""):

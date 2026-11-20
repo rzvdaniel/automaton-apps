@@ -193,7 +193,7 @@ def make_handler(app: Console):
         def task(self, parts) -> None:
             """The Maintenance section's four changes. Each passes the viewer token on; the server decides who may."""
             name = parts.path[len("/api/tasks/"):]
-            if self.headers.get("X-Server-Console") != "1" or name not in ("cleanup-run", "cleanup-settings", "backup", "os-updates", "upgrade"):
+            if self.headers.get("X-Server-Console") != "1" or name not in ("cleanup-run", "cleanup-settings", "backup", "os-updates", "restart", "upgrade"):
                 return self.json(404, {"error": "Not found"})
             token = self.headers.get("X-Automaton-Viewer-Token")
             if name == "cleanup-run":
@@ -202,6 +202,14 @@ def make_handler(app: Console):
                 return self.maintain(console.backup_run, token)
             if name == "os-updates":
                 return self.maintain(console.os_updates_run, token)
+            if name == "restart":
+                try:
+                    body = json.loads(self.read_body(2000).decode("utf-8") or "null")
+                except (ValueError, UnicodeDecodeError):
+                    body = None
+                if not isinstance(body, dict) or "restartAtUtc" not in body:  # a dropped body must never turn a scheduled restart into one now
+                    return self.json(400, {"status": "error", "message": "The restart time did not arrive. Try again."})
+                return self.maintain(console.server_restart_run, token, body["restartAtUtc"])
             if name == "upgrade":
                 return self.maintain(console.runner_upgrade, (parse_qs(parts.query).get("runner") or [""])[0], token)
             try:
@@ -260,6 +268,8 @@ def make_handler(app: Console):
                 return self.json(200, {"admin": (self.headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"})
             if path == "/api/tasks/os-updates":
                 return self.maintain(console.os_updates_status)
+            if path == "/api/tasks/restart":
+                return self.maintain(console.server_restart_status)
             if path == "/api/tasks/upgrade":
                 return self.maintain(console.runner_upgrade, (parse_qs(urlsplit(self.path).query).get("runner") or [""])[0], None, False)
             if path == "/api/maintenance":
