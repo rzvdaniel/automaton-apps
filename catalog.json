@@ -110,6 +110,21 @@
       }
     },
     {
+      "id": "overseer",
+      "name": "Overseer",
+      "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a night shift from one board column.",
+      "category": "Maintenance",
+      "folder": "maintenance/overseer",
+      "commit": "d3f43d36a5efbf335ee41c22aa11f4767c5ca292",
+      "minServerVersion": "0.2.173",
+      "permissions": [
+        "apps:read-status"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
       "id": "ghost",
       "name": "Ghost",
       "summary": "Publish a blog and send a newsletter from your own server.",
