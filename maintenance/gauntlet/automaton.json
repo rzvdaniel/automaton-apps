@@ -50,7 +50,7 @@
     "settings": [
       {
         "name": "TARGETS",
-        "description": "The machines to test, as JSON: [{\"name\":\"nu8\",\"host\":\"root@203.0.113.7\",\"domain\":\"nu8.example.com\",\"email\":\"you@example.com\",\"disposable\":true}]. Plans that wipe a machine run only where disposable is true. Never list a production server",
+        "description": "The machines to test, as a JSON list of name, host, domain and disposable (see the README). Plans that wipe a machine run only where disposable is true",
         "required": true
       },
       {
@@ -64,7 +64,7 @@
       },
       {
         "name": "BOARDS",
-        "description": "Optional project board per repository, as JSON: {\"owner/name\":{\"owner\":\"login\",\"number\":1}}. New issues are added to it"
+        "description": "Optional project board per repository, as JSON (see the README). New issues are added to it"
       },
       {
         "name": "CLAUDE_TARGET",
