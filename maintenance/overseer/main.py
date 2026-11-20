@@ -7,7 +7,7 @@
   POST /api/tasks          {"name", "prompt"} adds a task
   POST /api/tasks/<name>/cancel
   POST /api/queue          {"paused": true|false}
-  POST /api/jobs/<job>     runs stall-check, report, lessons or night-shift now (the schedules call this too)
+  POST /api/jobs/<job>     runs stall-check, report, lessons or pick-up now (the schedules call this too)
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ class App:
                                     env.get("RUNNER", "").strip() or "claude-task", self.number(env, "STALL_MINUTES", 120))
         self.jobs = overseer.Jobs(os.path.join(data, "overseer.json"), now)
         self.repo = env.get("ISSUE_REPO", "").strip()
-        self.board, self.column = env.get("NIGHT_BOARD", "").strip(), env.get("NIGHT_COLUMN", "").strip()
+        self.env = env  # AGENT_BOARDS and PAUSE_BETWEEN are read at each run, so a change applies from the next one
         self.lessons = env.get("LESSONS_PROMPT", "").strip() or overseer.DEFAULT_LESSONS
         self.fetch_board = fetch_board or overseer.fetch_column
         self.job_lock = threading.Lock()
@@ -191,22 +191,42 @@ class App:
         why = self.queue.add(name, self.lessons)
         return (False, why) if why else (True, f"queued {name}")
 
-    def job_night_shift(self) -> tuple[bool, str]:
-        if not (self.board and self.column and self.github_token):
-            return True, "no board column is set (NIGHT_BOARD, NIGHT_COLUMN and GITHUB_TOKEN): nothing to run"
-        items = [i for i in self.fetch_board(self.github_token, self.board, self.column) if not self.jobs.was_queued(i["url"])]
-        if not items:
-            return True, f'the column "{self.column}" has nothing new: nothing queued'
-        queued = []
-        for item in items:
-            name = overseer.night_name(item)
-            if not self.queue.has(name):
-                why = self.queue.add(name, overseer.night_prompt(item))
-                if why:
-                    return False, f"could not queue {item['url']}: {why}"
-            self.jobs.mark_queued(item["url"])
-            queued.append(f"#{item['number']}")
-        return True, "queued " + ", ".join(queued)
+    def job_pick_up(self) -> tuple[bool, str]:
+        spec, pause = self.env.get("AGENT_BOARDS", "").strip(), self.env.get("PAUSE_BETWEEN", "").strip()
+        if not spec:
+            self.jobs.set_pickup([], [])
+            return True, "AGENT_BOARDS is empty: nothing queued"
+        if overseer.in_pause(pause, self.now()):
+            return True, f"paused ({pause} UTC): nothing queued"
+        if not self.github_token:
+            return True, "GITHUB_TOKEN is not set: nothing queued"
+        boards = overseer.parse_boards(spec)
+        queued, skipped, problems = [], [], []
+        for board, column in boards:
+            result = self.fetch_board(self.github_token, board, column)
+            if result["problem"]:
+                problems.append(result["problem"])
+                continue
+            for item in result["items"]:
+                if "needs-shape" in item["labels"]:
+                    skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"],
+                                    "reason": "needs shape" + (": " + item["reason"] if item["reason"] else "")})
+                    continue
+                if self.jobs.was_queued(item["url"]):
+                    continue
+                name = overseer.pick_name(item)
+                if not self.queue.has(name):
+                    why = self.queue.add(name, overseer.pick_prompt(item))
+                    if why:
+                        self.jobs.set_pickup(skipped, problems)
+                        return False, f"could not queue {item['url']}: {why}"
+                self.jobs.mark_queued(item["url"])
+                queued.append(f"#{item['number']}")
+        self.jobs.set_pickup(skipped, problems)
+        text = ("queued " + ", ".join(queued)) if queued else "nothing new: nothing queued"
+        if skipped:
+            text += "; skipped " + ", ".join(f"#{s['number']}" for s in skipped) + " (needs shape)"
+        return not problems, "; ".join([text] + problems)
 
     # --- views ------------------------------------------------------------------------------------------------
     def schedule_info(self) -> dict | None:
@@ -235,8 +255,14 @@ class App:
             queue, problem = None, str(error)
         jobs = [{"name": name, "what": what, "last": self.jobs.data["jobs"].get(name)} for name, what in overseer.JOBS.items()]
         report = overseer.redact(self.queue.report(), self.secrets) if queue else ""
+        pickup = self.jobs.data["pickup"]
+        if pickup["skipped"] or pickup["problems"]:
+            report += "\n\n## Pick-up\n" + "".join(f"- Skipped: {s['repo']}#{s['number']} {s['reason']}\n" for s in pickup["skipped"]) \
+                + "".join(f"- {p}\n" for p in pickup["problems"])
         return {"queue": queue, "problem": problem, "jobs": jobs, "schedule": self.schedule_info(), "report": report[-20000:],
-                "night": {"board": self.board, "column": self.column, "ready": bool(self.board and self.column and self.github_token)}}
+                "pickup": {"boards": self.env.get("AGENT_BOARDS", "").strip(), "pause": self.env.get("PAUSE_BETWEEN", "").strip(),
+                           "ready": bool(self.env.get("AGENT_BOARDS", "").strip() and self.github_token),
+                           "skipped": pickup["skipped"], "problems": pickup["problems"]}}
 
     def task(self, name: str) -> dict | None:
         text = self.queue.log(name)

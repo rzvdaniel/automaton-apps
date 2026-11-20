@@ -1,7 +1,7 @@
 {
   "name": "Overseer",
-  "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a night shift from one board column.",
-  "description": "Wraps the agent-queue and orchestrator.sh scripts on the machine where your coding agents (Claude Code) run, over SSH. The page shows the queue (running, pending and the last finished tasks, each with its log and its issue and pull request links), lets you add a task, cancel one, pause the queue or run a job now, and shows the latest morning report. Four schedules (stall check, morning report, lessons, night shift) run as Automaton scheduled actions that you can pause or change in Studio. The night shift pulls open issues from one GitHub board column you fill, in order, and runs nothing when the column is empty. It never merges, releases or touches production itself: that stays in the task prompts and skills of your agents.",
+  "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
+  "description": "Wraps the agent-queue and orchestrator.sh scripts on the machine where your coding agents (Claude Code) run, over SSH. The page shows the queue (running, pending and the last finished tasks, each with its log and its issue and pull request links), lets you add a task, cancel one, pause the queue or run a job now, and shows the latest morning report. Four schedules (stall check, morning report, lessons, Pick-up) run as Automaton scheduled actions that you can pause or change in Studio. Pick-up queues the open issues in the Ready for agents column of each board you list, in order, skips those that need shape, and queues nothing when no board is set. It never merges, releases or touches production itself: that stays in the task prompts and skills of your agents.",
   "application": {
     "kind": "web",
     "permissions": [
@@ -76,12 +76,13 @@
         "description": "owner/name of the repository the tasks' issue numbers belong to, to link a task named like fix-login-344 to #344"
       },
       {
-        "name": "NIGHT_BOARD",
-        "description": "GitHub project to pull the night shift from, as owner/number (for example rzvdaniel/1). Empty: the night shift queues nothing"
+        "name": "AGENT_BOARDS",
+        "description": "Boards Pick-up takes issues from, in run order: comma-separated owner/number: Column (for example rzvdaniel/17: Ready for agents, rzvdaniel/2: Ready for agents). Empty: Pick-up queues nothing"
       },
       {
-        "name": "NIGHT_COLUMN",
-        "description": "The board's Status column the night shift takes its issues from, top to bottom (for example Ready for night)"
+        "name": "PAUSE_BETWEEN",
+        "optional": true,
+        "description": "Pick-up queues nothing in this UTC window, HH:MM-HH:MM (for example 08:00-18:00). Empty: never paused"
       },
       {
         "name": "LESSONS_PROMPT",
@@ -100,7 +101,7 @@
       {
         "name": "GITHUB_TOKEN",
         "optional": true,
-        "description": "Read access to the project board named in NIGHT_BOARD and to its issues. Empty: no night shift"
+        "description": "Read access to the boards named in AGENT_BOARDS and to their repos' issues. Empty: no Pick-up"
       }
     ],
     "schedules": [
@@ -132,12 +133,12 @@
         }
       },
       {
-        "name": "Night shift",
+        "name": "Pick-up",
         "action": "run-job",
         "cron": "0 22 * * *",
         "timeZone": "Etc/UTC",
         "input": {
-          "job": "night-shift"
+          "job": "pick-up"
         }
       }
     ]

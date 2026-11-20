@@ -3,7 +3,7 @@ kind: Action
 metadata:
   name: Run job
   key: run-job
-  description: Runs one of Overseer's jobs (stall-check, report, lessons, night-shift) in the app.
+  description: Runs one of Overseer's jobs (stall-check, report, lessons, pick-up) in the app.
 spec:
   runtime: python
   entrypoint: main.py

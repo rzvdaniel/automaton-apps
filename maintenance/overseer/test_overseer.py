@@ -81,28 +81,54 @@ class QueueTests(unittest.TestCase):
 
 
 class Board(unittest.TestCase):
-    def reply(self, nodes):
-        body = json.dumps({"data": {"repositoryOwner": {"projectV2": {"items": {"nodes": nodes}}}}}).encode()
+    def reply(self, nodes, options=("Todo", "Ready for agents")):
+        body = json.dumps({"data": {"repositoryOwner": {"projectV2": {"field": {"options": [{"name": o} for o in options]}, "items": {"nodes": nodes}}}}}).encode()
         return lambda request, timeout: _Resp(body)
 
-    def test_only_open_issues_in_the_column_in_order(self):
-        def node(n, column, state="OPEN"):
-            return {"status": {"name": column}, "content": {"number": n, "title": f"t{n}", "url": f"https://github.com/o/r/issues/{n}", "state": state, "repository": {"nameWithOwner": "o/r"}}}
-        nodes = [node(5, "Ready for night"), node(6, "Todo"), node(7, "Ready for night", "CLOSED"), {"status": None, "content": None}, node(8, "Ready for night")]
-        got = overseer.fetch_column("t", "o/1", "Ready for night", self.reply(nodes))
-        self.assertEqual([i["number"] for i in got], [5, 8])
+    def test_only_open_issues_in_the_column_in_order_with_labels(self):
+        def node(n, column, state="OPEN", labels=(), comment=None):
+            return {"status": {"name": column}, "content": {"number": n, "title": f"t{n}", "url": f"https://github.com/o/r/issues/{n}", "state": state,
+                    "repository": {"nameWithOwner": "o/r"}, "labels": {"nodes": [{"name": l} for l in labels]},
+                    "comments": {"nodes": [{"body": comment}] if comment else []}}}
+        nodes = [node(5, "Ready for agents"), node(6, "Todo"), node(7, "Ready for agents", "CLOSED"), {"status": None, "content": None},
+                 node(8, "Ready for agents", labels=["needs-shape"], comment="\nmissing Done when\nmore")]
+        got = overseer.fetch_column("t", "o/1", "Ready for agents", self.reply(nodes))
+        self.assertIsNone(got["problem"])
+        self.assertEqual([i["number"] for i in got["items"]], [5, 8])
+        self.assertEqual(got["items"][1]["labels"], ["needs-shape"])
+        self.assertEqual(got["items"][1]["reason"], "missing Done when")
 
     def test_asks_github_for_the_cards_in_board_order(self):
         sent = []
         def opener(request, timeout):
             sent.append(request.data.decode())
-            return _Resp(json.dumps({"data": {"repositoryOwner": {"projectV2": {"items": {"nodes": []}}}}}).encode())
-        overseer.fetch_column("t", "o/1", "Ready", opener)
+            return self.reply([])(request, timeout)
+        overseer.fetch_column("t", "o/1", "Ready for agents", opener)
         self.assertIn("orderBy:{field:POSITION,direction:ASC}", sent[0])
 
-    def test_bad_board(self):
+    def test_missing_column_and_board_are_reported(self):
+        got = overseer.fetch_column("t", "o/2", "Ready for agents", self.reply([], options=("Todo",)))
+        self.assertEqual(got["problem"], "Board o/2 has no column 'Ready for agents'")
+        empty = lambda request, timeout: _Resp(json.dumps({"data": {"repositoryOwner": None}}).encode())
+        self.assertIn("not found", overseer.fetch_column("t", "o/3", "x", empty)["problem"])
+
+    def test_parse_boards(self):
+        self.assertEqual(overseer.parse_boards("a/17: Ready for agents, b/2: Ready for agents"), [("a/17", "Ready for agents"), ("b/2", "Ready for agents")])
+        self.assertEqual(overseer.parse_boards(""), [])
+        for bad in ("nonsense", "a/x: C", "a/1"):
+            with self.assertRaises(overseer.InvalidConfig):
+                overseer.parse_boards(bad)
+
+    def test_pause_window(self):
+        at = lambda h, m: 1_700_000_000 - 1_700_000_000 % 86400 + h * 3600 + m * 60
+        self.assertTrue(overseer.in_pause("08:00-18:00", at(8, 0)))
+        self.assertFalse(overseer.in_pause("08:00-18:00", at(18, 0)))
+        self.assertTrue(overseer.in_pause("22:00-06:00", at(23, 30)))
+        self.assertTrue(overseer.in_pause("22:00-06:00", at(5, 59)))
+        self.assertFalse(overseer.in_pause("22:00-06:00", at(12, 0)))
+        self.assertFalse(overseer.in_pause("", at(12, 0)))
         with self.assertRaises(overseer.InvalidConfig):
-            overseer.fetch_column("t", "nonsense", "x")
+            overseer.in_pause("8-18", 0)
 
 
 class _Resp(io.BytesIO):
@@ -121,36 +147,64 @@ def make_app(board=None, **env):
 
 
 class Jobs(unittest.TestCase):
-    def test_night_shift_with_empty_column_queues_nothing(self):
-        app, ex = make_app(lambda *a: [], NIGHT_BOARD="o/1", NIGHT_COLUMN="Ready", GITHUB_TOKEN="gh-token-1")
-        ok, text = app.run_job("night-shift", "manual")
+    def item(self, n, repo="o/r", labels=()):
+        return {"repo": repo, "number": n, "title": f"t{n}", "url": f"https://github.com/{repo}/issues/{n}", "labels": list(labels), "reason": "missing Done when"}
+
+    def boards(self, mapping):
+        return lambda token, board, column: mapping[board]
+
+    def test_pick_up_empty_boards_queues_nothing(self):
+        app, ex = make_app(self.boards({}), GITHUB_TOKEN="gh-token-1")
+        ok, text = app.run_job("pick-up", "manual")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), [])
-        self.assertIn("nothing", text)
+        self.assertIn("AGENT_BOARDS is empty", text)
 
-    def test_night_shift_queues_in_order_once(self):
-        items = [{"repo": "o/r", "number": n, "title": f"t{n}", "url": f"https://github.com/o/r/issues/{n}"} for n in (5, 8, 9)]
-        app, ex = make_app(lambda *a: items, NIGHT_BOARD="o/1", NIGHT_COLUMN="Ready", GITHUB_TOKEN="gh-token-1")
-        app.run_job("night-shift", "schedule")
-        self.assertEqual(ex.added(), ["night-r-5", "night-r-8", "night-r-9"])
-        ok, text = app.run_job("night-shift", "schedule")
+    def test_pick_up_two_boards_in_board_then_card_order_once(self):
+        mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}, "o/2": {"items": [self.item(3, "o/apps")], "problem": None}}
+        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(ex.added(), ["pick-r-5", "pick-r-8", "pick-apps-3"])
+        ok, text = app.run_job("pick-up", "schedule")
         self.assertIn("nothing", text)
+        self.assertEqual(ex.added(), ["pick-r-5", "pick-r-8", "pick-apps-3"])
 
-    def test_night_shift_skips_tasks_already_in_the_queue(self):
-        status = "worker: running\npaused: no\nrunning:\n  night-r-5 (log idle 10s)\npending:\n  night-r-8\n"
-        items = [{"repo": "o/r", "number": n, "title": f"t{n}", "url": f"https://github.com/o/r/issues/{n}"} for n in (5, 8, 9)]
+    def test_pick_up_skips_needs_shape_and_reports_it(self):
+        mapping = {"o/1": {"items": [self.item(5), self.item(6, labels=["needs-shape"]), self.item(7)], "problem": None}}
+        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertTrue(ok)
+        self.assertEqual(ex.added(), ["pick-r-5", "pick-r-7"])
+        self.assertIn("skipped #6", text)
+        self.assertIn("Skipped: o/r#6 needs shape: missing Done when", app.state()["report"])
+
+    def test_pick_up_wrong_column_shows_in_state_and_report(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None}, "o/2": {"items": [], "problem": "Board o/2 has no column 'Ready for agents'"}}
+        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertEqual(ex.added(), ["pick-r-5"])
+        state = app.state()
+        self.assertEqual(state["pickup"]["problems"], ["Board o/2 has no column 'Ready for agents'"])
+        self.assertIn("Board o/2 has no column", state["report"])
+
+    def test_pick_up_pause_window_queues_nothing(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None}}
+        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents", PAUSE_BETWEEN="00:00-23:59", GITHUB_TOKEN="gh-token-1")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertTrue(ok)
+        self.assertEqual(ex.added(), [])
+        self.assertIn("paused", text)
+
+    def test_pick_up_skips_tasks_already_in_the_queue(self):
+        status = "worker: running\npaused: no\nrunning:\n  pick-r-5 (log idle 10s)\npending:\n  pick-r-8\n"
+        mapping = {"o/1": {"items": [self.item(n) for n in (5, 8, 9)], "problem": None}}
         ex = FakeExecutor(status)
-        app = main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20, "NIGHT_BOARD": "o/1", "NIGHT_COLUMN": "Ready",
-                        "GITHUB_TOKEN": "gh-token-1"}, executor=ex, fetch_board=lambda *a: items)
-        ok, _ = app.run_job("night-shift", "schedule")
+        app = main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20, "AGENT_BOARDS": "o/1: Ready for agents",
+                        "GITHUB_TOKEN": "gh-token-1"}, executor=ex, fetch_board=self.boards(mapping))
+        ok, _ = app.run_job("pick-up", "schedule")
         self.assertTrue(ok)
-        self.assertEqual(ex.added(), ["night-r-9"])
-
-    def test_night_shift_off_without_board(self):
-        app, ex = make_app()
-        ok, text = app.run_job("night-shift", "manual")
-        self.assertTrue(ok)
-        self.assertEqual(ex.added(), [])
+        self.assertEqual(ex.added(), ["pick-r-9"])
 
     def test_lessons_and_unknown_job(self):
         app, ex = make_app()

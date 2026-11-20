@@ -48,7 +48,9 @@ async function load() {
       <td><button class="a-btn" data-job="${esc(j.name)}" type="button">Run now</button></td></tr>`).join('');
     $('schedule').textContent = (s.schedule && s.schedule.next ? 'Next scheduled run: ' + s.schedule.next.replace('T', ' ').slice(0, 16) + ' UTC. ' : '') +
       'Pause or change a schedule in Studio, on this app\'s Schedules tab. ' +
-      (s.night.ready ? 'Night shift pulls from "' + s.night.column + '" on ' + s.night.board + '.' : 'Night shift is off until NIGHT_BOARD, NIGHT_COLUMN and GITHUB_TOKEN are set.');
+      (s.pickup.ready ? 'Pick-up pulls from ' + s.pickup.boards + (s.pickup.pause ? ' (paused ' + s.pickup.pause + ' UTC)' : '') + '.' : 'Pick-up is off until AGENT_BOARDS and GITHUB_TOKEN are set.') +
+      (s.pickup.problems.length ? ' ' + s.pickup.problems.join('. ') + '.' : '') +
+      (s.pickup.skipped.length ? ' Skipped: ' + s.pickup.skipped.map(x => '#' + x.number).join(', ') + ' (needs shape).' : '');
     $('report').textContent = s.report || 'No morning report yet.';
     if (open) await show(open);
   } catch (error) { fail(error); }
