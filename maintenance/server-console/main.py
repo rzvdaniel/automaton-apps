@@ -201,9 +201,17 @@ def make_handler(app: Console):
         def task(self, parts) -> None:
             """The Maintenance section's four changes. Each passes the viewer token on; the server decides who may."""
             name = parts.path[len("/api/tasks/"):]
-            if self.headers.get("X-Server-Console") != "1" or name not in ("cleanup-run", "cleanup-settings", "backup", "os-updates", "restart", "upgrade"):
+            if self.headers.get("X-Server-Console") != "1" or name not in ("cleanup-run", "cleanup-settings", "backup", "os-updates", "restart", "upgrade", "refresh"):
                 return self.json(404, {"error": "Not found"})
             token = self.headers.get("X-Automaton-Viewer-Token")
+            if name == "refresh":  # read the server's figures now (the page asks after an install); no secret, no new access
+                with app.lock:
+                    due = time.time() - getattr(app, "refreshed", 0) > 20  # at most one extra read every 20 seconds
+                    if due:
+                        app.refreshed = time.time()
+                if due:
+                    threading.Thread(target=app.run_once, daemon=True).start()
+                return self.json(200, {"status": "ok"})
             if name == "cleanup-run":
                 return self.maintain(console.server_cleanup_run, token, task="Cleanup")
             if name == "backup":

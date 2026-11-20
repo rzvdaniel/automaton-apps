@@ -557,15 +557,13 @@
   }
 
   var HOST_TEXT = {
-    "os-update": { button: "Install security updates", ask: "Installs the pending security updates on this machine. It can take several minutes.", done: "Security updates installed." },
     "reboot": { button: "Restart machine", ask: "Restarts the whole machine one minute from now. Everything on it, including this app, is unavailable until it is back.", done: "The machine restarts in one minute." }
   };
 
   function hostBody(item, offline) {
     var mine = hostOp && hostOp.runner === item.runnerId ? hostOp : null;
     var busy = mine && mine.busy;
-    var html = '<p><button class="a-btn" type="button" id="host-os-update"' + (busy || offline ? " disabled" : "") + ">" + HOST_TEXT["os-update"].button + "</button> " +
-      '<button class="a-btn" type="button" id="host-reboot"' + (busy || offline ? " disabled" : "") + ">" + HOST_TEXT.reboot.button + "</button>" + (busy ? ' <span class="a-hint">Working...</span>' : "") + "</p>";
+    var html = '<p><button class="a-btn" type="button" id="host-reboot"' + (busy || offline ? " disabled" : "") + ">" + HOST_TEXT.reboot.button + "</button>" + (busy ? ' <span class="a-hint">Working...</span>' : "") + "</p>";
     if (mine && mine.asking && !busy) {
       html += '<div id="host-confirm"><p class="a-note a-note--warning">' + esc(HOST_TEXT[mine.kind].ask) + " Type <strong>" + esc(item.name) + '</strong> to confirm.</p>' +
         '<p><input class="a-input" id="host-typed" autocomplete="off" spellcheck="false" aria-label="Type the machine name" value="' + esc(mine.typed || "") + '"> ' +
@@ -598,13 +596,11 @@
         hostOp = { runner: item.runnerId, kind: kind };
         if (data.status !== "ok" || !data.data) {
           hostOp.error = data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can do this, on a machine approved for this app." : data.message || "That did not work.";
-        } else if (kind === "os-update") {
-          hostOp.text = data.data.succeeded ? HOST_TEXT[kind].done + (data.data.restartRequired ? " A restart is now needed." : " No restart is needed.") : "The update failed: " + (data.data.summary || "unknown error");
         } else hostOp.text = HOST_TEXT[kind].done;
         paintMaintenance();
       });
     }).catch(function () { // The Runner resets its connections while it works on the machine, which can drop this answer although the work went on.
-      hostOp = { runner: item.runnerId, kind: kind, error: kind === "os-update" ? "The connection dropped while the updates were installed. They usually still finish: the Updates card shows the result after the next check (up to 5 minutes)." : "The connection dropped. Check the machine before trying again." }; paintMaintenance(); });
+      hostOp = { runner: item.runnerId, kind: kind, error: "The connection dropped. Check the machine before trying again." }; paintMaintenance(); });
   }
 
   function loadApps(item) {
@@ -711,7 +707,6 @@
   maintenanceBox.addEventListener("click", function (event) {
     if (event.target.id === "cleanup-now") startCleanup();
     else if (event.target.id === "disk-report") runTool("disk", null);
-    else if (event.target.id === "host-os-update") askHost("os-update");
     else if (event.target.id === "host-reboot") askHost("reboot");
     else if (event.target.id === "host-go") runHost();
     else if (event.target.id === "host-cancel") { hostOp = null; paintMaintenance(); }
@@ -868,6 +863,12 @@
     refreshOverview();
   }
 
+  // After an install the figures are old: have the app read the server again now and once more a minute later.
+  function reread() {
+    var again = function () { post("api/tasks/refresh").then(load, load); };
+    again(); setTimeout(again, 60000);
+  }
+
   function pollOsUpdates() {
     if (!osOp || osOp.state !== "waiting") return;
     fetch("api/tasks/os-updates", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
@@ -876,7 +877,7 @@
         osOp = s.state === "succeeded"
           ? { state: "done", text: "Installed " + (s.upgradedCount || 0) + " update(s)." + (s.restartRequired ? " A restart is now needed." : " No restart is needed.") }
           : { state: "failed", text: s.message || "The updates were not installed." };
-        load(); return paintTasks();
+        reread(); return paintTasks();
       }
       if (Date.now() - osOp.started > 3 * 3600000) { osOp = { state: "failed", text: "Still not finished after 3 hours. Check the server." }; return paintTasks(); }
       setTimeout(pollOsUpdates, 5000);
