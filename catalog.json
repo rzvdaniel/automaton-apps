@@ -112,10 +112,10 @@
     {
       "id": "overseer",
       "name": "Overseer",
-      "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a night shift from one board column.",
+      "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
       "category": "Maintenance",
       "folder": "maintenance/overseer",
-      "commit": "a72c1d07263c9f2c5da38e34def077a8e900b47c",
+      "commit": "a9851b7ebd439df5b291534b543247b03b6022ad",
       "minServerVersion": "0.2.173",
       "permissions": [
         "apps:read-status"
