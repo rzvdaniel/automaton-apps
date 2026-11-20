@@ -185,7 +185,7 @@
     var host = h.host || {};
     var s = h.server || {};
     var security = host.securityUpdates;
-    var updates = host.rebootRequired === true ? "restart needed" : security > 0 ? security + " security" : "up to date";
+    var updates = host.rebootRequired === true ? "restart needed" : security > 0 ? security + " security" : typeof security !== "number" || typeof host.updatesPending !== "number" ? "unknown" : "up to date";
     var diskUsed = typeof host.diskTotalBytes === "number" && host.diskTotalBytes > 0 ? Math.round(100 - 100 * host.diskAvailableBytes / host.diskTotalBytes) + "% disk" : "";
     var b = h.backup || {};
     var certs = (h.certificates || []).map(function (c) { return c.daysRemaining; }).filter(function (d) { return typeof d === "number"; });

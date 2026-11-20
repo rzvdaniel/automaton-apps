@@ -182,6 +182,10 @@ class AssessTests(unittest.TestCase):
         self.assertEqual((verdict["updates"], verdict["overall"]), ("unknown", "unknown"))
         self.assertEqual(self.judge(health())["overall"], "ok")
 
+    def test_the_header_says_unknown_not_up_to_date_when_update_counts_are_missing(self):
+        script = (Path(__file__).parent / "dashboard.js").read_text()
+        self.assertIn('typeof security !== "number" || typeof host.updatesPending !== "number" ? "unknown" : "up to date"', script)
+
     def test_the_dashboard_keeps_cleanup_figures_through_one_refused_read(self):
         script = (Path(__file__).parent / "dashboard.js").read_text()
         self.assertIn("cleanupRefusals >= 2", script)
