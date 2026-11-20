@@ -10,6 +10,9 @@ on:
       - 'maintenance/gauntlet/**'
       - '.github/workflows/gauntlet-tests.yml'
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     runs-on: ubuntu-latest

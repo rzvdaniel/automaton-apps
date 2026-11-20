@@ -80,7 +80,7 @@ services:
 | `SSH_KEY` | Secret. The private key for every target. A key with newlines written as `\n` also works. |
 | `EMAIL_TO` | Who gets failure emails. Needs Automaton's `notify:email`; on its own there is no email and the page and log show failures. |
 | `ISSUE_REPOS` | Repositories a failure may open an issue in (`owner/name`, comma separated). |
-| `GITHUB_TOKEN` | Secret, optional. May create issues and comments in `ISSUE_REPOS` and add to the boards. |
+| `GITHUB_TOKEN` | Secret, optional. May create issues and comments in `ISSUE_REPOS` and add to the boards. Use a fine-grained token limited to the `ISSUE_REPOS` repositories with only Issues: read and write; for `BOARDS` add Projects: read and write (classic tokens: `repo` or `public_repo`, plus `project`). Nothing else is needed: no contents, actions or admin scopes. |
 | `BOARDS` | Optional JSON `{"owner/name": {"owner": "login", "number": 1}}`. |
 | `CLAUDE_TARGET`, `CLAUDE_COMMAND` | Machine and command for the diagnosis. |
 | `AUTOMATON_APP_DATA_DIR` | Folder for `gauntlet.db`, `known_hosts.json` and extra plans (default `data`). Mount a volume. History is kept 90 days. |
