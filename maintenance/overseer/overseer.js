@@ -25,7 +25,10 @@ async function api(method, path, body, retry = true) {
   return data;
 }
 function fail(error) { const m = $('message'); m.textContent = error.message; m.hidden = false; }
-const row = (name, state, tn, extra) => `<tr><td><a href="#task-${esc(name)}" data-open="${esc(name)}">${esc(name)}</a>${extra || ''}</td><td>${pill(state, tn)}</td>
+const tokens = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
+const usageText = u => u ? `${tokens(u.input)} in (${tokens(u.cached)} cached), ${tokens(u.output)} out, $${u.cost.toFixed(2)}` : '';
+let usage = {tasks: {}, days: []};
+const row = (name, state, tn, extra) => `<tr><td><a href="#task-${esc(name)}" data-open="${esc(name)}">${esc(name)}</a>${extra || ''}</td><td>${pill(state, tn)}<div class="meta">${esc(usageText(usage.tasks[name]))}</div></td>
   <td>${state === 'running' || state === 'pending' ? `<button class="a-btn" data-cancel="${esc(name)}" type="button">Cancel</button>` : ''}</td></tr>`;
 
 async function load() {
@@ -33,6 +36,9 @@ async function load() {
     const s = await api('GET', '/api/state');
     $('message').hidden = !s.problem;
     if (s.problem) $('message').textContent = s.problem;
+    usage = s.usage || usage;
+    $('usage').innerHTML = usage.days.length ? usage.days.map(d => `<tr><td>${esc(d.day)}</td><td>${esc(d.runner)}</td><td>${d.tasks}</td><td>${tokens(d.input)} (${tokens(d.cached)} cached)</td><td>${tokens(d.output)}</td><td>$${d.cost.toFixed(2)}</td></tr>`).join('')
+      : '<tr><td colspan="6"><div class="a-empty">No usage recorded yet.</div></td></tr>';
     const q = s.queue;
     if (q) {
       paused = q.paused;
@@ -42,7 +48,7 @@ async function load() {
         .concat(q.pending.map(t => row(t.name, 'pending', 'info')), q.finished.map(t => row(t.name, t.state, tone(t.state))));
       $('tasks').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="3"><div class="a-empty">The queue is empty.</div></td></tr>';
     }
-    $('jobs').innerHTML = s.jobs.map(j => `<tr><td><strong>${esc(j.name)}</strong><div class="meta">${esc(j.what)}</div></td>
+    $('jobs').innerHTML = s.jobs.map(j => `<tr><td><strong>${esc(j.name)}</strong>${j.claude ? ' ' + pill('starts Claude', 'info') : ''}<div class="meta">${esc(j.what)}</div></td>
       <td>${j.last ? time(j.last.at) + '<div class="meta">' + esc(j.last.trigger) + '</div>' : '<span class="meta">Not run yet</span>'}</td>
       <td>${j.last ? pill(j.last.ok ? 'ok' : 'failed', j.last.ok ? 'ok' : 'critical') + '<div class="meta">' + esc(j.last.text) + '</div>' : ''}</td>
       <td><button class="a-btn" data-job="${esc(j.name)}" type="button">Run now</button></td></tr>`).join('');

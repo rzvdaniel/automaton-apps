@@ -80,6 +80,34 @@ class QueueTests(unittest.TestCase):
         self.assertIn("ORCH_REPORT=1 ORCH_STALL_MINUTES=90 orchestrator.sh", ex.calls[-1][0])
 
 
+class Usage(unittest.TestCase):
+    LINES = (json.dumps({"task": "impl-1", "runner": "r1", "finished": "2026-11-21T10:00:00Z", "model": ["m"], "cost_usd": 1.5,
+                         "input_tokens": 10, "cache_read_tokens": 380, "cache_write_tokens": 10, "output_tokens": 22}) + "\n"
+             + json.dumps({"task": "impl-2", "runner": "r1", "finished": "2026-11-21T12:00:00Z", "cost_usd": 0.5, "output_tokens": 8}) + "\n"
+             + json.dumps({"task": "old", "runner": "r2", "finished": "2026-11-20T01:00:00Z", "cost_usd": 2}) + "\nnot json\njq: error\n[1]\n")
+
+    def test_summary_per_task_and_per_day_and_runner(self):
+        s = overseer.usage_summary(overseer.parse_usage(self.LINES))
+        self.assertEqual(s["tasks"]["impl-1"]["input"], 400)
+        self.assertEqual(s["tasks"]["impl-1"]["cached"], 380)
+        self.assertEqual(s["days"][0], {"day": "2026-11-21", "runner": "r1", "tasks": 2, "input": 400, "cached": 380, "output": 30, "cost": 2.0})
+        self.assertEqual([(d["day"], d["runner"]) for d in s["days"]], [("2026-11-21", "r1"), ("2026-11-20", "r2")])
+
+    def test_queue_reads_usage_files_and_survives_no_files(self):
+        class Ex(FakeExecutor):
+            def run(self, command, timeout, stdin=None):
+                return (0, UsageText) if "/usage" in command else super().run(command, timeout, stdin)
+        UsageText = self.LINES
+        self.assertEqual(len(overseer.Queue(Ex()).usage()["tasks"]), 3)
+        self.assertEqual(overseer.Queue(FakeExecutor()).usage(), {"tasks": {}, "days": []})
+
+    def test_state_marks_jobs_that_start_claude(self):
+        app, _ = make_app()
+        jobs = {j["name"]: j["claude"] for j in app.state()["jobs"]}
+        self.assertEqual(jobs, {"stall-check": False, "report": True, "lessons": True, "pick-up": True})
+        self.assertIn("usage", app.state())
+
+
 class Board(unittest.TestCase):
     def reply(self, nodes, options=("Todo", "Ready for agents")):
         body = json.dumps({"data": {"repositoryOwner": {"projectV2": {"field": {"options": [{"name": o} for o in options]}, "items": {"nodes": nodes}}}}}).encode()

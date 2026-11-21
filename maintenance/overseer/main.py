@@ -310,13 +310,14 @@ class App:
             queue, problem = self.queue.status(), None
         except RuntimeError as error:
             queue, problem = None, str(error)
-        jobs = [{"name": name, "what": what, "last": self.jobs.data["jobs"].get(name)} for name, what in overseer.JOBS.items()]
+        jobs = [{"name": name, "what": what, "claude": name in overseer.CLAUDE_JOBS, "last": self.jobs.data["jobs"].get(name)} for name, what in overseer.JOBS.items()]
+        usage = self.queue.usage() if queue else {"tasks": {}, "days": []}
         report = overseer.redact(self.queue.report(), self.secrets) if queue else ""
         pickup = self.jobs.data["pickup"]
         if pickup["skipped"] or pickup["problems"]:
             report += "\n\n## Pick-up\n" + "".join(f"- Skipped: {s['repo']}#{s['number']} {s['reason']}\n" for s in pickup["skipped"]) \
                 + "".join(f"- {p}\n" for p in pickup["problems"])
-        return {"queue": queue, "problem": problem, "jobs": jobs, "schedule": self.schedule_info(), "report": report[-20000:],
+        return {"queue": queue, "problem": problem, "jobs": jobs, "usage": usage, "schedule": self.schedule_info(), "report": report[-20000:],
                 "pickup": {"boards": self.env.get("AGENT_BOARDS", "").strip(), "pause": self.env.get("PAUSE_BETWEEN", "").strip(),
                            "ready": bool(self.env.get("AGENT_BOARDS", "").strip() and self.github_token),
                            "skipped": pickup["skipped"], "problems": pickup["problems"]}}

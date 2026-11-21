@@ -23,6 +23,8 @@ JOBS = {
     "lessons": "Lessons: queues the task that works through the lessons inbox",
     "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, skipping needs-shape; nothing outside its hours or when AGENT_BOARDS is empty",
 }
+CLAUDE_JOBS = {"report", "lessons", "pick-up"}  # the schedules that queue Claude tasks (stall-check only runs a script)
+USAGE_FIELDS = "task,runner,finished,model,cost_usd,duration_ms,input_tokens,cache_read_tokens,cache_write_tokens,output_tokens"
 COLUMN = "Ready for agents"
 RELEASE_STALE = 25 * 60
 VERSION_RE = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}$")
@@ -64,6 +66,43 @@ def parse_status(text: str) -> dict:
                 if name:
                     out["finished"].append({"name": name, "state": state})
     return out
+
+
+def parse_usage(text: str) -> list[dict]:
+    """The usage files claude-task writes (one JSON object per line); lines that are not usage records are ignored."""
+    out = []
+    for line in text.splitlines():
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(item, dict) and isinstance(item.get("task"), str):
+            out.append(item)
+    return out
+
+
+def usage_summary(records: list[dict]) -> dict:
+    """Per task, and per day and runner: tokens (input = fresh + cache read + cache write) and cost."""
+    def number(item, key):
+        value = item.get(key)
+        return value if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
+
+    def add(into, item):
+        into["tasks"] = into.get("tasks", 0) + 1
+        into["input"] = into.get("input", 0) + number(item, "input_tokens") + number(item, "cache_read_tokens") + number(item, "cache_write_tokens")
+        into["cached"] = into.get("cached", 0) + number(item, "cache_read_tokens")
+        into["output"] = into.get("output", 0) + number(item, "output_tokens")
+        into["cost"] = round(into.get("cost", 0) + number(item, "cost_usd"), 4)
+
+    tasks, days = {}, {}
+    for item in records:
+        entry: dict = {"finished": str(item.get("finished", ""))}
+        add(entry, item)
+        entry["model"] = [str(m) for m in item.get("model", [])][:5] if isinstance(item.get("model"), list) else []
+        tasks[item["task"]] = entry
+        key = (entry["finished"][:10], str(item.get("runner", ""))[:60])
+        add(days.setdefault(key, {"day": key[0], "runner": key[1]}), item)
+    return {"tasks": tasks, "days": sorted(days.values(), key=lambda d: (d["day"], d["runner"]), reverse=True)[:14]}
 
 
 def links(name: str, log: str, repo: str) -> dict:
@@ -127,6 +166,11 @@ class Queue:
             return None
         code, out = self.run(f'tail -n {int(lines)} {self.home}/logs/{shlex.quote(name)}.log')
         return out if code == 0 else ""
+
+    def usage(self) -> dict:
+        """Tokens and cost of finished tasks, from the files claude-task writes; empty when there are none or jq is missing."""
+        code, out = self.run(f'cd {self.home}/usage 2>/dev/null && ls -t -- *.json 2>/dev/null | head -n 300 | xargs -r jq -c \'{{{USAGE_FIELDS}}}\'', timeout=30)
+        return usage_summary(parse_usage(out if code == 0 else ""))
 
     def report(self) -> str:
         code, out = self.run(f'cat {self.home}/orchestrator/morning-report.md')

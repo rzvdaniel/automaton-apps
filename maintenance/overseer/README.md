@@ -15,6 +15,10 @@ The page shows:
 | `lessons` | 03:00 | `agent-queue add lessons-<date>` with `LESSONS_PROMPT` |
 | `pick-up` | 22:00 | queues the open issues in the Ready for agents column of each board in `AGENT_BOARDS`, in order |
 
+## Token usage and cost
+
+`claude-task` (on the queue machine) runs `claude -p --output-format json` and saves each finished task's usage (input, cache read and write, output tokens, cost, duration, models; subagents are included in the per-model figures) to `~/agent-queue/usage/<task>.json`, still writing the readable answer to the task's log. Overseer reads those files over SSH (needs `jq` on the queue machine): the queue shows each finished task's tokens and cost, **Usage per day** shows the total per day and runner (UTC), and the jobs that start Claude (`report`, `lessons`, `pick-up`) are marked. No new service; a task finished before `claude-task` was changed has no figures.
+
 ## Pick-up
 
 Set `AGENT_BOARDS` to the boards Pick-up takes cards from, in run order: comma-separated `owner/number: Column`, for example `rzvdaniel/17: Ready for agents, rzvdaniel/2: Ready for agents`. Add the `GITHUB_TOKEN` secret (read access to those boards and their repos' issues). Each run goes through the boards in that order and, per board, the column's cards top to bottom, and queues each open issue from any repo as one task (`pick-<repo>-<number>`). It skips one that is already waiting or running (it reads the queue listing), never queues one twice, and **skips issues labelled `needs-shape`**; they are listed under "Pick-up" in the morning report on the page, with the issue check's last comment as the reason. A board or column that does not exist is shown the same way ("Board rzvdaniel/2 has no column 'Ready for agents'") instead of being skipped silently. **Empty `AGENT_BOARDS` queues nothing; Pick-up never picks from the rest of the backlog.** Creating the columns is up to you (GitHub's web view).
