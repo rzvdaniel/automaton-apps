@@ -107,6 +107,11 @@
         "name": "WEBHOOK_URL",
         "description": "Optional https address (Slack, Discord, Telegram or any URL) that also gets each failure and stale alert, even when the server's mail is down"
       }
+      ,
+      {
+        "name": "CHECKIN_URL",
+        "description": "Optional https address (for example a Heartbeat check) that is called once after each new backup is uploaded off-site, so you get a message when backups stop"
+      }
     ],
     "schedules": [
       {

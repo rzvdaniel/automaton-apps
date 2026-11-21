@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -48,13 +49,10 @@ def _sign(key: bytes, text: str) -> bytes:
     return hmac.new(key, text.encode(), hashlib.sha256).digest()
 
 
-def _list_page(config: Config, token: str | None, now: datetime, opener) -> ET.Element:
-    query = {"list-type": "2", "prefix": config.prefix}
-    if token:
-        query["continuation-token"] = token
+def _signed_get(config: Config, key: str, query: dict, now: datetime, opener, limit: int = 5_000_000) -> bytes:
     canonical_query = "&".join(f"{quote(k, safe='')}={quote(v, safe='')}" for k, v in sorted(query.items()))
     parts = urlsplit(config.endpoint)
-    path = (parts.path.rstrip("/") + "/" + quote(config.bucket, safe=""))
+    path = parts.path.rstrip("/") + "/" + quote(config.bucket, safe="") + ("/" + quote(key, safe="/") if key else "")
     stamp, day = now.strftime("%Y%m%dT%H%M%SZ"), now.strftime("%Y%m%d")
     empty = hashlib.sha256(b"").hexdigest()
     headers = {"host": parts.netloc, "x-amz-content-sha256": empty, "x-amz-date": stamp}
@@ -62,13 +60,31 @@ def _list_page(config: Config, token: str | None, now: datetime, opener) -> ET.E
     canonical = "\n".join(["GET", path, canonical_query, "".join(f"{k}:{headers[k]}\n" for k in sorted(headers)), signed, empty])
     scope = f"{day}/{config.region}/s3/aws4_request"
     to_sign = "\n".join(["AWS4-HMAC-SHA256", stamp, scope, hashlib.sha256(canonical.encode()).hexdigest()])
-    key = _sign(_sign(_sign(_sign(("AWS4" + config.secret_key).encode(), day), config.region), "s3"), "aws4_request")
-    signature = hmac.new(key, to_sign.encode(), hashlib.sha256).hexdigest()
+    signing = _sign(_sign(_sign(_sign(("AWS4" + config.secret_key).encode(), day), config.region), "s3"), "aws4_request")
+    signature = hmac.new(signing, to_sign.encode(), hashlib.sha256).hexdigest()
     authorization = f"AWS4-HMAC-SHA256 Credential={config.access_key}/{scope}, SignedHeaders={signed}, Signature={signature}"
-    request = Request(f"{parts.scheme}://{parts.netloc}{path}?{canonical_query}", headers={
+    request = Request(f"{parts.scheme}://{parts.netloc}{path}" + (f"?{canonical_query}" if canonical_query else ""), headers={
         "x-amz-date": stamp, "x-amz-content-sha256": empty, "Authorization": authorization, "User-Agent": "Automaton-Offsite-Backup"})
     with (opener or build_opener(_NoRedirect())).open(request, timeout=20) as response:
-        return ET.fromstring(response.read(5_000_000))
+        return response.read(limit)
+
+
+def _list_page(config: Config, token: str | None, now: datetime, opener) -> ET.Element:
+    query = {"list-type": "2", "prefix": config.prefix}
+    if token:
+        query["continuation-token"] = token
+    return ET.fromstring(_signed_get(config, "", query, now, opener))
+
+
+def last_checkin(config: Config, now: datetime | None = None, opener=None) -> dict | None:
+    """The outcome the upload Action stored after its last check-in call: {at, ok, message}, or None when there is none."""
+    if config.problem:
+        return None
+    try:
+        data = json.loads(_signed_get(config, config.prefix + ".last-checkin", {}, now or datetime.now(timezone.utc), opener, 10_000))
+        return {"at": str(data["at"]), "ok": bool(data["ok"]), "message": str(data.get("message", ""))[:200]}
+    except (HTTPError, URLError, OSError, ValueError, KeyError, TypeError):
+        return None
 
 
 def restore_command(config: Config, key: str) -> str:

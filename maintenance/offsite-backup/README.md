@@ -9,7 +9,7 @@ Copies your server's backups to another place, every night. An Automaton app (an
 Install the app from the store page in Studio (**Install on your server**). The install page asks for:
 
 - settings: `STALE_HOURS` (default 26), `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `API_BASE_URL` (this server's public API URL) and the optional `S3_PREFIX`, `RETENTION_DAYS` and `MIN_BACKUPS`;
-- secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, and optionally `WEBHOOK_URL`;
+- secrets: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, and optionally `WEBHOOK_URL` and `CHECKIN_URL`;
 - approval of the `backups:read`, `backups:run` and `notify:email` permissions (a system administrator approves them);
 - the schedules: the Action checks every 15 minutes and uploads any new copy, so the off-site copy follows the server's nightly backup within 15 minutes (you can skip the schedule and run it by hand). A second schedule, **Off-site freshness check**, runs hourly (see below).
 
@@ -40,6 +40,10 @@ When a run fails, the app emails the server's administrators through the server'
 ## Webhook alerts
 
 Set the `WEBHOOK_URL` secret to an `https://` address (a Slack or Discord incoming webhook, a Telegram `sendMessage` URL with `chat_id` in the query, or any URL that takes JSON) and every failure and stale alert is also posted there. It does not use the Automaton server, so it still arrives when the server's mail or the server itself is down. The body is `{"text": "...", "content": "..."}` (`text` for Slack and Telegram, `content` for Discord). Each run's log says "Webhook alert sent" or why it was not; the address itself is never logged. Redirects are not followed. The URL is a secret: treat it like a password, because anyone who has it can post to that channel.
+
+## Check-in after each good backup
+
+Set the `CHECKIN_URL` secret to an `https://` address and the upload Action calls it once (GET, 10 s timeout, up to 3 retries) after it has uploaded a **new** copy. It never calls it for an old copy, a failed backup or a failed upload, and a failed call is only logged: it never fails the upload. Point it at the check-in URL of Heartbeat (or any similar service) running somewhere else, with a period a little over a day (for example 26 h): when backups or the whole server stop, the outside service notices the missing check-in and emails you, without placing anything on the server. The run log says "Check-in sent" or why not; the address is never logged and redirects are not followed. The page (for administrators) shows "Last check-in: <time>, OK" or "failed: <reason>"; the Action keeps that result in a small `.last-checkin` object next to the copies (retention ignores it). The address is a secret: anyone who has it can send check-ins.
 
 ## Stale copy alert
 

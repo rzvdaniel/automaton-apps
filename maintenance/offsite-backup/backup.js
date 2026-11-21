@@ -19,6 +19,8 @@
       html += '<dl class="a-kv"><dt>Last backup</dt><dd>' + ui.escapeHtml(when(data.lastSuccessAt)) + '</dd>' +
         '<dt>Newest copy</dt><dd>' + (data.newest ? ui.escapeHtml(data.newest.name) + ', ' + ui.escapeHtml(ui.formatBytes(data.newest.sizeBytes || 0)) : 'none yet') + '</dd>' +
         '<dt>Kept on the server</dt><dd>' + data.count + '</dd></dl>';
+      if (body.checkin) html += '<dl class="a-kv"><dt>Last check-in</dt><dd>' + ui.escapeHtml(when(body.checkin.at)) + ', ' +
+        (body.checkin.ok ? 'OK' : 'failed: ' + ui.escapeHtml(body.checkin.message)) + '</dd></dl>';
       if (data.lastError) html += '<p class="a-note a-note--warning">' + ui.escapeHtml(data.lastError) + '</p>';
     }
     if (notice) html += '<p class="a-note" role="status">' + ui.escapeHtml(notice) + '</p>';

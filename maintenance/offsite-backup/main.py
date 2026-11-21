@@ -65,7 +65,8 @@ def make_handler(settings: backup.Settings):
             if path == "/api/state":
                 status, data, message = backup.backups(settings)
                 administrator = self.headers.get("X-Automaton-Viewer-Role") == "administrator"
-                return self.json(CODES.get(status, 502), {"status": status, "message": message, "data": data, "administrator": administrator})
+                checkin = offsite.last_checkin(offsite.Config()) if administrator else None
+                return self.json(CODES.get(status, 502), {"status": status, "message": message, "data": data, "administrator": administrator, "checkin": checkin})
             entry = STATIC.get(path)
             if not entry:
                 return self.json(404, {"error": "Not found"})
