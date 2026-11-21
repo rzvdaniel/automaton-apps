@@ -7,6 +7,12 @@
   "repo": "automaton",
   "steps": [
     {
+      "name": "Start the clock",
+      "script": "drill-start.sh",
+      "timeout": 60,
+      "repo": "automaton"
+    },
+    {
       "name": "Wipe any earlier install",
       "script": "wipe.sh",
       "timeout": 900,

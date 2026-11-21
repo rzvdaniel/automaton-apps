@@ -10,12 +10,16 @@ curl -fsS "https://api.$DOMAIN/health" | grep -q '"status":"ok"' || { echo "the 
 echo "API healthy"
 curl -fsS -o /dev/null "https://studio.$DOMAIN/api/install/status" || { echo "Studio does not answer after the restore" >&2; exit 1; }
 echo "Studio answers"
+# The server's own rule (InstallService.InstallationComplete) reads the restored database: an "Installation.Complete" setting
+# or any System Administrator membership, so an adopted install without the setting still counts.
+curl -fsS "https://api.$DOMAIN/api/install/status" | grep -Eq '"installationComplete" *: *true' || { echo "the restored server does not report the installation as complete" >&2; exit 1; }
+echo "restored server reports the installation complete"
 cd /opt/automaton-server
 compose=(docker compose --project-directory . --env-file release.env --env-file .env -f compose.yaml)
 [ -f compose.override.yaml ] && compose+=(-f compose.override.yaml)
-marker=$("${compose[@]}" exec -T postgres psql -U automaton -d automaton -At -c "SELECT COUNT(*) FROM \"Settings\" WHERE \"Key\" = 'Installation.Complete'" < /dev/null)
-[ "$marker" = 1 ] || { echo "the restored database has no installation marker" >&2; exit 1; }
-echo "restored database is installed"
+admins=$("${compose[@]}" exec -T postgres psql -U automaton -d automaton -At -c "SELECT COUNT(*) FROM \"AspNetUserRoles\" ur JOIN \"AspNetRoles\" r ON r.\"Id\" = ur.\"RoleId\" WHERE r.\"Name\" = 'SysAdmin'" < /dev/null)
+[ "${admins:-0}" -ge 1 ] 2>/dev/null || { echo "the restored database has no System Administrator" >&2; exit 1; }
+echo "restored database has $admins System Administrator(s)"
 code=$(jq -n '{email:"restore-drill@invalid.example",password:"Not-A-Real-Password-1!"}' |
   curl -s -o /dev/null -w '%{http_code}' -X POST "https://api.$DOMAIN/api/Account/LoginUser" -H 'Content-Type: application/json' --data-binary @-)
 case "$code" in 400|401|403) echo "sign-in is handled (a wrong password got HTTP $code)";; *) echo "sign-in returned HTTP $code, expected a refusal" >&2; exit 1;; esac
