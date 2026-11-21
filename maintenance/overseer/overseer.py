@@ -169,7 +169,7 @@ class Queue:
 
     def usage(self) -> dict:
         """Tokens and cost of finished tasks, from the files claude-task writes; empty when there are none or jq is missing."""
-        code, out = self.run(f'cd {self.home}/usage 2>/dev/null && ls -t -- *.json 2>/dev/null | head -n 300 | xargs -r jq -c \'{{{USAGE_FIELDS}}}\'', timeout=30)
+        code, out = self.run(f'cd {self.home}/usage 2>/dev/null && ls -t -- *.json 2>/dev/null | head -n 1000 | xargs -r jq -c \'{{{USAGE_FIELDS}}}\'', timeout=30)
         return usage_summary(parse_usage(out if code == 0 else ""))
 
     def report(self) -> str:
