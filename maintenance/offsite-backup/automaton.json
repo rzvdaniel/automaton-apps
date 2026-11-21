@@ -1,7 +1,7 @@
 {
   "name": "Backup Warden",
   "summary": "Copies your server's backups to another place, every night.",
-  "description": "Uploads each new encrypted backup to your own bucket (checks every 15 minutes; an upload that already exists is skipped). The page shows the newest backup and lets a system administrator press Back up now and send off-site. It asks for backups:read, backups:run (start a backup; it cannot read the backup key) and notify:email.",
+  "description": "Uploads each new encrypted backup to your own bucket (checks every 15 minutes; an upload that already exists is skipped). Failures and a stale off-site copy also go to an optional webhook. The page shows the newest backup, lists the off-site copies with a restore command for each, and lets a system administrator press Back up now and send off-site. It asks for backups:read, backups:run (start a backup; it cannot read the backup key) and notify:email.",
   "application": {
     "kind": "web",
     "description": "Copies each new encrypted server backup to S3-compatible storage within 15 minutes, and can start a backup now.",
@@ -22,7 +22,7 @@
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py backup.py && mkdir -p dist/ui && cp main.py backup.py index.html backup.js dist/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py backup.py offsite.py && mkdir -p dist/ui && cp main.py backup.py offsite.py index.html backup.js dist/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },
@@ -75,6 +75,11 @@
         "description": "Who gets the failure email: administrators (default), owner or project"
       },
       {
+        "name": "STALE_HOURS",
+        "description": "Alert when the newest off-site copy is older than this many hours (default 26)",
+        "default": "26"
+      },
+      {
         "name": "RETENTION_DAYS",
         "description": "Keep backups newer than this many days (default 30)",
         "default": "30"
@@ -97,6 +102,10 @@
       {
         "name": "S3_SECRET_ACCESS_KEY",
         "description": "Object storage secret access key"
+      },
+      {
+        "name": "WEBHOOK_URL",
+        "description": "Optional https address (Slack, Discord, Telegram or any URL) that also gets each failure and stale alert, even when the server's mail is down"
       }
     ],
     "schedules": [
@@ -106,6 +115,15 @@
         "cron": "*/15 * * * *",
         "timeZone": "Etc/UTC",
         "input": {}
+      },
+      {
+        "name": "Off-site freshness check",
+        "action": "upload",
+        "cron": "7 * * * *",
+        "timeZone": "Etc/UTC",
+        "input": {
+          "check": "stale"
+        }
       }
     ]
   }
