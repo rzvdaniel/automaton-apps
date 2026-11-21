@@ -28,3 +28,6 @@ jobs:
       - run: python ../../tools/check_vendored_ui.py
       - run: python -m unittest discover -p 'test_*.py'
         working-directory: maintenance/gate-keeper/actions/home-card
+      - name: Build into dist/ and start it
+        run: python ../../tools/smoke_build.py maintenance/gate-keeper
+        working-directory: .

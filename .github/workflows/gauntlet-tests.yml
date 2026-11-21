@@ -27,3 +27,6 @@ jobs:
       - run: python -m unittest discover -p 'test_*.py'
       - run: python -m unittest discover -p 'test_*.py' -s actions/home-card
       - run: python -m unittest discover -p 'test_*.py' -s actions
+      - name: Build into dist/ and start it
+        run: python ../../tools/smoke_build.py maintenance/gauntlet
+        working-directory: .
