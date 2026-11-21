@@ -9,21 +9,24 @@
 <script src="ui/app.js"></script>
 </head>
 <body>
-<header class="a-topbar"><div class="a-topbar__inner">
-  <div style="display:flex;gap:12px;align-items:center"><div class="a-brand" aria-hidden="true">&gt;_</div>
-    <div><h1 class="a-header__title">Gauntlet</h1><p class="a-header__sub">Install, use, uninstall and reinstall tests</p></div></div>
-  <div class="a-header__actions"><button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div>
-</div></header>
-<main class="a-page">
-  <p id="message" class="a-note a-note--critical" hidden></p>
-  <section id="app" class="a-stack">
-    <p id="mode" class="a-note"></p>
-    <p id="machines" class="chips" aria-label="Machines"></p>
-    <section class="a-card"><div class="a-card__head"><h2 class="a-card__title">Plans</h2></div>
-      <ul id="plans" class="plans"></ul>
-      <p id="setup" class="a-card__foot"></p></section>
+<div class="page">
+  <header>
+    <div>
+      <h1>Gauntlet</h1>
+      <p class="sub">Install, use and wipe Automaton on test machines, and tell you what breaks before a release reaches users.</p>
+    </div>
+    <button class="btn" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button>
+  </header>
+  <p id="message" class="note note--bad" hidden></p>
+  <p id="mode" class="note"></p>
+  <p id="machines" class="chips" aria-label="Machines"></p>
+  <section class="panel" aria-labelledby="plans-title">
+    <h2 id="plans-title">Plans</h2>
+    <p class="foot">Open a plan to see its last 5 runs; open a run to see its steps. A plan whose last run failed opens with that run.</p>
+    <div id="plans" class="plans"></div>
   </section>
-</main>
+  <p id="setup" class="foot"></p>
+</div>
 <script src="gauntlet.js"></script>
 </body>
 </html>
