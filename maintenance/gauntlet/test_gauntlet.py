@@ -175,6 +175,37 @@ class StoreTests(unittest.TestCase):
             self.assertIsNone(store.run(999))
 
 
+class GitHubLabelTests(unittest.TestCase):
+    def github(self, label_error=None):
+        sent = []
+
+        class Response:
+            def __init__(self, data): self.data = data
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self, n): return self.data
+
+        def opener(request, timeout):
+            sent.append((request.get_method(), request.full_url.split("api.github.com")[1], json.loads(request.data)))
+            if request.full_url.endswith("/labels") and label_error:
+                raise HTTPError(request.full_url, label_error, "x", {}, None)
+            return Response(b'{"number": 1}')
+        return failures.GitHub("t", opener), sent
+
+    def test_an_issue_gets_the_gauntlet_label_and_the_label_is_created_once(self):
+        github, sent = self.github()
+        github.create_issue("o/r", "T", "B")
+        github.create_issue("o/r", "T2", "B")
+        self.assertEqual([c[1] for c in sent], ["/repos/o/r/labels", "/repos/o/r/issues", "/repos/o/r/issues"])
+        self.assertEqual(sent[1][2]["labels"], ["gauntlet"])
+
+    def test_an_existing_label_or_a_refused_create_does_not_stop_the_issue(self):
+        for code in (422, 403):
+            github, sent = self.github(code)
+            github.create_issue("o/r", "T", "B")
+            self.assertEqual(sent[-1][2]["labels"], ["gauntlet"])
+
+
 class ReportTests(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
