@@ -14,6 +14,7 @@ Plans are JSON files in [`plans/`](plans/). Each step runs a script from [`plans
 | `full-cycle` | `nu8` | every Sunday 03:00 UTC | The same, then installs again. Each install also creates a non-root `automaton` user with the limited sudo rules of production (the updater, Backup now and `systemctl status automaton-*`) and checks through that user, so a step that needs more root than production allows fails here first. |
 | `upgrade` | `nu8` | every Saturday 03:00 UTC | Installs the latest stable version, adds data, updates to the newest published server release and checks everything still works. |
 | `docs-walk` | `runner-02` | every Wednesday 04:00 UTC | Claude Code follows the install docs as a new user (it changes nothing) and reports anything unclear or wrong. |
+| `restore-drill` | `runner-02` | every Sunday 05:00 UTC | Proves an off-site backup restores. Wipes the machine and installs the latest build, downloads the newest `.tar.age` under `automaton/` in the bucket, copies the backup key over (mode 600, never printed), restores with `restore.sh`, checks the API, Studio, the restored database and that sign-in is answered, reports the result and duration, deletes the key and wipes the machine again. Needs the `DRILL_*` values below. |
 
 The machine of a plan is the name of an entry in `TARGETS`. To add or change a plan without changing the app, put a JSON file with the same shape in `plans/` inside the app's data folder; a file with the name of a built-in plan replaces it. A plan's `schedule` is `daily HH:MM`, `weekly mon HH:MM` (UTC) or `manual`; a plan with `"wipes": true` is refused on any machine that is not marked `disposable`. A scheduled plan runs once per slot and never for a slot before the app was first started. One run at a time.
 
@@ -35,6 +36,15 @@ Set `TARGETS` (settings) to a JSON list and put a private key that may sign in t
 - Plans that install Automaton need the domain's `domain` and `*.domain` DNS records to point at the machine.
 - The `automaton` user of the `full-cycle` plan is created by the plan on the machine; Gauntlet itself only needs root over SSH.
 - Installing every night uses real Let's Encrypt certificates, which are limited to a few a week for the same names. The installer has no staging option yet, so give a nightly machine `install_flags` that avoids new certificates (for example `--tls-mode cloudflare`), or schedule the plan weekly.
+
+## Restore drill
+
+The `restore-drill` plan only runs on a machine marked `disposable` (it wipes it twice) and never touches the server Gauntlet runs on. Enter these after installing Gauntlet; the drill fails with the missing name until they are set:
+
+- Secrets: `DRILL_BACKUP_KEY` (the server's age private key), `DRILL_S3_ACCESS_KEY_ID` and `DRILL_S3_SECRET_ACCESS_KEY` (a separate read-only token for that one bucket, never Backup Warden's key).
+- Settings: `DRILL_S3_ENDPOINT`, `DRILL_S3_REGION` (default `auto`) and `DRILL_S3_BUCKET`.
+
+The values travel to the machine on the SSH session's standard input with the step's script, so they are not in a command line. The key is written to `/root/.gauntlet/drill/backup-key` (mode 600) for the restore only and is shredded by its own step even when the restore failed; the last step wipes the machine. Logs are scrubbed of all of them. A failed drill (no backup, a damaged archive, a wrong key, an unhealthy server) fails the run, so it emails and opens a GitHub issue like any other plan. The sign-in check sends a wrong password for a made-up account and expects a refusal, which proves the restored identity store answers without a real credential on the machine. App data is not checked yet (rzvdaniel/automaton#1454).
 
 ## When a run fails
 
@@ -83,6 +93,7 @@ services:
 | `GITHUB_TOKEN` | Secret, optional. May create issues and comments in `ISSUE_REPOS` and add to the boards. Use a fine-grained token limited to the `ISSUE_REPOS` repositories with only Issues: read and write; for `BOARDS` add Projects: read and write (classic tokens: `repo` or `public_repo`, plus `project`). Nothing else is needed: no contents, actions or admin scopes. |
 | `BOARDS` | Optional JSON `{"owner/name": {"owner": "login", "number": 1}}`. |
 | `CLAUDE_TARGET`, `CLAUDE_COMMAND` | Machine and command for the diagnosis. |
+| `DRILL_BACKUP_KEY`, `DRILL_S3_ACCESS_KEY_ID`, `DRILL_S3_SECRET_ACCESS_KEY`, `DRILL_S3_ENDPOINT`, `DRILL_S3_REGION`, `DRILL_S3_BUCKET` | The restore drill's key, read-only bucket token and bucket (see above). Secrets for the first three. |
 | `AUTOMATON_APP_DATA_DIR` | Folder for `gauntlet.db`, `known_hosts.json` and extra plans (default `data`). Mount a volume. History is kept 90 days. |
 | `AUTOMATON_PORT` | Port to listen on (default 8080). |
 

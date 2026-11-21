@@ -123,7 +123,14 @@ def validate_plan(raw: object, source: str) -> dict:
                 raise InvalidConfig(f"{name}: step {step['name']}: {key} must be text")
         if step.get("as", "root") not in ("root", "automaton"):
             raise InvalidConfig(f"{name}: step {step['name']}: as is root or automaton")
-        clean.append({"name": step["name"][:120], "command": step.get("command", "bash -s"), "timeout": timeout, "exit": expect,
+        env = step.get("env", [])
+        if not isinstance(env, list) or not all(isinstance(n, str) and re.fullmatch(r"DRILL_[A-Z0-9_]+", n) for n in env):
+            raise InvalidConfig(f"{name}: step {step['name']}: env is a list of DRILL_ setting names")
+        if env and not step.get("script"):
+            raise InvalidConfig(f"{name}: step {step['name']}: env needs a script (values must not be on a command line)")
+        if env and raw.get("wipes") is not True:
+            raise InvalidConfig(f"{name}: step {step['name']}: env is only for plans that wipe a disposable machine")
+        clean.append({"name": step["name"][:120], "env": env, "command": step.get("command", "bash -s"), "timeout": timeout, "exit": expect,
                       "contains": step.get("contains"), "not_contains": step.get("not_contains"),
                       "script": script, "as": step.get("as", "root"), "continue": step.get("continue") is True,
                       "repo": step.get("repo") if isinstance(step.get("repo"), str) else None})
@@ -159,12 +166,14 @@ def refusal(plan: dict, target: dict | None) -> str | None:
     return None
 
 
-def render(step: dict, target: dict, scripts: str | os.PathLike | None = None) -> tuple[str, str | None]:
+def render(step: dict, target: dict, scripts: str | os.PathLike | None = None, extra: dict | None = None) -> tuple[str, str | None]:
     """The command to run on the target and what to send it on stdin. The target's facts reach the command as environment
     variables (DOMAIN, ADDRESS, EMAIL, INSTALL_FLAGS) that were validated when the targets were read, and {domain} in a
     command is filled the same way. A step that asks for the limited 'automaton' user runs as that user."""
     exports = "export " + " ".join(f"{k}={shell_quote(v)}" for k, v in (
         ("DOMAIN", target["domain"]), ("ADDRESS", target["host"].split("@")[-1]), ("EMAIL", target["email"]), ("INSTALL_FLAGS", target["flags"]))) + "; "
+    # Settings and secrets a step names in "env" (DRILL_*) travel on stdin with the script, never on the command line or disk.
+    exports += "".join(f"export {n}={shell_quote((extra or {}).get(n, ''))}; " for n in step.get("env", []))
     command, stdin = step["command"].replace("{domain}", target["domain"]), None
     if step.get("script"):
         stdin = exports + Path(scripts or ".", step["script"]).read_text(encoding="utf-8")
@@ -184,6 +193,7 @@ def redact(text: str, secrets: list[str]) -> str:
         if len(secret) >= 6:
             text = text.replace(secret, "[hidden]")
     text = re.sub(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(-----END [A-Z ]*PRIVATE KEY-----|$)", "[hidden key]", text, flags=re.S)
+    text = re.sub(r"AGE-SECRET-KEY-[A-Z0-9]+", "[hidden key]", text)
     text = re.sub(r"\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})", "[hidden]", text)
     text = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{12,}", r"\1[hidden]", text)
     text = re.sub(r"(?i)(token|password|secret|api[_-]?key)(=|:\s*)\S{6,}", r"\1\2[hidden]", text)
@@ -210,7 +220,7 @@ def judge(step: dict, code: int | None, output: str) -> str | None:
     return None
 
 
-def execute(plan: dict, target: dict | None, executor, secrets: list[str], now=time.time, on_step=None, scripts=None) -> dict:
+def execute(plan: dict, target: dict | None, executor, secrets: list[str], now=time.time, on_step=None, scripts=None, extra: dict | None = None) -> dict:
     """Runs the plan's steps in order and returns the result. A failed step stops the plan unless it says continue."""
     started = now()
     result = {"plan": plan["name"], "target": plan.get("target"), "started": started, "steps": [], "status": "passed"}
@@ -220,7 +230,7 @@ def execute(plan: dict, target: dict | None, executor, secrets: list[str], now=t
         return result
     for step in plan["steps"]:
         began = now()
-        command, stdin = render(step, target, scripts)
+        command, stdin = render(step, target, scripts, extra)
         code, output = executor.run(target, command, step["timeout"], stdin=stdin)
         problem = judge(step, code, output)
         entry = {"name": step["name"], "status": "failed" if problem else "passed", "problem": problem, "repo": step["repo"],

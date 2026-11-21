@@ -28,6 +28,7 @@ sys.path.insert(0, str(HERE / "lib"))  # paramiko, installed by the build step
 MIN_ADMIN_TOKEN = 16
 MAX_BODY = 4096
 log = failures.log
+DRILL_NAMES = ("DRILL_BACKUP_KEY", "DRILL_S3_ACCESS_KEY_ID", "DRILL_S3_SECRET_ACCESS_KEY", "DRILL_S3_ENDPOINT", "DRILL_S3_REGION", "DRILL_S3_BUCKET")
 
 
 class SshExecutor:
@@ -126,7 +127,9 @@ class App:
         self.store = gauntlet.Store(os.path.join(data, "gauntlet.db"), now)
         self.store.finish_orphans()
         self.ssh_key = env.get("SSH_KEY", "").replace("\\n", "\n")
-        self.secrets = [s for s in (self.ssh_key, env.get("GITHUB_TOKEN", "").strip(), env.get("APP_AUTOMATON_API_KEY", "").strip(), self.admin_token) if s]
+        self.drill = {n: env.get(n, "").strip() if n != "DRILL_BACKUP_KEY" else env.get(n, "").replace("\\n", "\n").strip() for n in DRILL_NAMES}
+        key_lines = [x.strip() for x in self.drill["DRILL_BACKUP_KEY"].splitlines()]
+        self.secrets = [s for s in (self.ssh_key, *key_lines, self.drill["DRILL_S3_ACCESS_KEY_ID"], self.drill["DRILL_S3_SECRET_ACCESS_KEY"], env.get("GITHUB_TOKEN", "").strip(), env.get("APP_AUTOMATON_API_KEY", "").strip(), self.admin_token) if s]
         self.executor = executor or SshExecutor(self.ssh_key, os.path.join(data, "known_hosts.json"))
         api_url, api_key = env.get("AUTOMATON_API_URL", "").strip(), env.get("APP_AUTOMATON_API_KEY", "").strip()
         recipients = [x for x in env.get("EMAIL_TO", "").replace(";", ",").replace(" ", ",").split(",") if x] or ["administrators"]
@@ -179,7 +182,7 @@ class App:
 
     def work(self, plan: dict, target: dict | None, run_id: int) -> None:
         try:
-            result = gauntlet.execute(plan, target, self.executor, self.secrets, self.now, lambda partial: self.store.save(run_id, partial), HERE / "plans" / "scripts")
+            result = gauntlet.execute(plan, target, self.executor, self.secrets, self.now, lambda partial: self.store.save(run_id, partial), HERE / "plans" / "scripts", self.drill)
             self.store.save(run_id, result)
             if result["status"] == "passed":
                 self.reporter.passed(plan, result, run_id)

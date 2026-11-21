@@ -106,7 +106,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_shipped_plans_load_and_their_scripts_exist(self):
         plans = gauntlet.load_plans(HERE / "plans")
-        self.assertEqual(set(plans), {"smoke", "full-cycle", "upgrade", "docs-walk"})
+        self.assertEqual(set(plans), {"smoke", "full-cycle", "upgrade", "docs-walk", "restore-drill"})
         for one in plans.values():
             for s in one["steps"]:
                 if s["script"]:
@@ -373,7 +373,7 @@ class AppTests(unittest.TestCase):
             self.assertEqual(call("/api/runs/1")[0], 401)
             self.assertEqual(call("/api/home-card")[0], 200)
             status, state = call("/api/state", headers=auth)
-            self.assertEqual((status, {p["name"] for p in state["plans"]}), (200, {"smoke", "full-cycle", "upgrade", "docs-walk"}))
+            self.assertEqual((status, {p["name"] for p in state["plans"]}), (200, {"smoke", "full-cycle", "upgrade", "docs-walk", "restore-drill"}))
             self.assertEqual(call("/api/runs", "POST", {"plan": "smoke"}, {"Authorization": auth["Authorization"]})[0], 403, "needs X-Gauntlet")
             self.assertEqual(call("/api/runs", "POST", {"plan": "nope"}, auth)[0], 404)
             self.assertEqual(call("/api/runs", "POST", {}, auth)[0], 400)
