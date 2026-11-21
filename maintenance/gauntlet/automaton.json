@@ -1,7 +1,7 @@
 {
   "name": "Gauntlet",
   "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
-  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, run a backup, restart, uninstall and install again. Plans that wipe a machine run only on machines marked disposable. Every run and each step's log is kept in the app; a reports page shows history, a Run now button starts a plan and a Home card shows the last result. A failed run sends an email (permission notify:email), asks Claude Code on a machine you choose to diagnose it, and opens one GitHub issue in the right repository; a repeat failure comments on that issue and a later pass comments that it passes again. It never closes an issue.",
+  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, run a backup, restart, uninstall and install again, and every week restore the newest off-site backup on a disposable machine to prove it works. Plans that wipe a machine run only on machines marked disposable. Every run and each step's log is kept in the app; a reports page shows history, a Run now button starts a plan and a Home card shows the last result. A failed run sends an email (permission notify:email), asks Claude Code on a machine you choose to diagnose it, and opens one GitHub issue in the right repository; a repeat failure comments on that issue and a later pass comments that it passes again. It never closes an issue.",
   "application": {
     "kind": "web",
     "permissions": [
@@ -74,6 +74,19 @@
         "name": "CLAUDE_COMMAND",
         "description": "The command that reads the prompt on standard input and prints one JSON answer on CLAUDE_TARGET",
         "default": "claude -p --allowedTools Read,Grep,Glob"
+      },
+      {
+        "name": "DRILL_S3_ENDPOINT",
+        "description": "Restore drill: the S3-compatible endpoint of the off-site backup bucket (Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com)"
+      },
+      {
+        "name": "DRILL_S3_REGION",
+        "description": "Restore drill: the bucket's region (R2: auto)",
+        "default": "auto"
+      },
+      {
+        "name": "DRILL_S3_BUCKET",
+        "description": "Restore drill: the bucket that holds the off-site backups (under automaton/)"
       }
     ],
     "secrets": [
@@ -85,6 +98,21 @@
         "name": "GITHUB_TOKEN",
         "optional": true,
         "description": "A token that may create issues and comments in ISSUE_REPOS (and add to the project boards). Empty: no issues"
+      },
+      {
+        "name": "DRILL_BACKUP_KEY",
+        "optional": true,
+        "description": "Restore drill: the server's backup (age) private key. Gauntlet copies it to runner-02 only for the restore and deletes it afterwards"
+      },
+      {
+        "name": "DRILL_S3_ACCESS_KEY_ID",
+        "optional": true,
+        "description": "Restore drill: access key id of a read-only token (Object Read, that one bucket); never Backup Warden's key"
+      },
+      {
+        "name": "DRILL_S3_SECRET_ACCESS_KEY",
+        "optional": true,
+        "description": "Restore drill: secret access key of that read-only token"
       }
     ]
   }
