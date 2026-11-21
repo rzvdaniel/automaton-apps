@@ -41,7 +41,7 @@ Serve the files from the app and link them:
 <script src="ui/app.js"></script>
 ```
 
-Build the page only from the classes below (all start with `a-`). Add app-specific CSS in the app's own file, never by overriding kit classes. Use the colours through the custom properties (`var(--ok)`, `var(--orange)`, ...), so both themes keep working.
+Build the page only from the classes below (all start with `a-`). Add app-specific CSS in the app's own file, never by overriding kit classes. Use the colours through the custom properties (`var(--ink)`, `var(--orange)`, `var(--muted)`, ...), so both themes keep working.
 
 ## Components
 
