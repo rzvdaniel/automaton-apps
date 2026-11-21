@@ -1,0 +1,11 @@
+{
+  "Backup Warden": "Maintenance",
+  "Website Monitor": "Monitoring",
+  "Server Keeper": "Monitoring",
+  "VictoriaLogs": "Monitoring",
+  "Gate Keeper": "Monitoring",
+  "Heartbeat": "Monitoring",
+  "Overseer": "Maintenance",
+  "Gauntlet": "Monitoring",
+  "Ghost": "Publishing"
+}

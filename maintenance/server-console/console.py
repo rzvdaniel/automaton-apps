@@ -14,6 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+HERE = os.path.dirname(os.path.abspath(__file__))
 USER_AGENT = "Automaton-Server-Keeper/1.0"
 HISTORY_SECONDS = 24 * 3600
 STALE_HOST_SECONDS = 15 * 60
@@ -378,6 +379,20 @@ def record_run(state: dict, task: str, result: str, detail: str | None, now: flo
     state["runs"] = ([{"task": task, "result": result, "detail": text, "at": int(now)}] + list(state.get("runs") or []))[:RUN_LIMIT]
 
 
+def load_categories(path: str | None = None) -> dict[str, str]:
+    """App name (lower case) -> function category, from categories.json (the catalog's apps; a test keeps it equal to
+    catalog.json). /api/apps/status carries no catalog slug, so an app is found by its name. Apps not in it are "Other"."""
+    try:
+        with open(path or os.path.join(HERE, "categories.json"), encoding="utf-8") as handle:
+            data = json.load(handle)
+        return {str(k).lower(): str(v) for k, v in data.items() if isinstance(v, str)} if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+CATEGORIES = load_categories()
+
+
 def compact_apps(apps: list | None, limit: int = 1000) -> list | None:
     """What the Apps tab needs from the server's app list; nothing else is kept."""
     if apps is None:
@@ -389,7 +404,8 @@ def compact_apps(apps: list | None, limit: int = 1000) -> list | None:
         error = item.get("lastDeploymentError")
         rows.append({"id": str(item["id"]), "name": str(item["name"]), "paused": bool(item.get("isPaused")),
                      "status": str(item.get("liveStatus") or "Unassigned"), "deployedAt": item.get("lastSuccessfulDeploymentAtUtc"),
-                     "error": str(error)[:200] if error else None})
+                     "error": str(error)[:200] if error else None,
+                     "category": CATEGORIES.get(str(item["name"]).strip().lower(), "Other")})
     return rows[:limit]
 
 
@@ -589,6 +605,8 @@ def reclaimable(host: dict) -> dict:
 
 
 DISK_PARTS = ("imageBytes", "containerBytes", "dataBytes", "logsBytes", "filesBytes")
+# Per-app CPU and memory: the Runner does not report them yet (rzvdaniel/automaton#1442); shown when it does.
+USE_PARTS = ("cpuPercent", "memoryBytes")
 
 
 def app_disk(runner: dict | None, limit: int = 500) -> list[dict]:
@@ -601,7 +619,7 @@ def app_disk(runner: dict | None, limit: int = 500) -> list[dict]:
         if not isinstance(item, dict) or not isinstance(item.get("totalBytes"), (int, float)):
             continue
         row = {"appId": item.get("appId"), "name": str(item.get("appName") or "(unknown app)"), "totalBytes": item["totalBytes"]}
-        row.update({key: item.get(key) if isinstance(item.get(key), (int, float)) else None for key in DISK_PARTS})
+        row.update({key: item.get(key) if isinstance(item.get(key), (int, float)) else None for key in DISK_PARTS + USE_PARTS})
         rows.append(row)
     return sorted(rows, key=lambda row: -row["totalBytes"])[:limit]
 
@@ -782,6 +800,12 @@ def run_cycle(settings: Settings, state: dict, now: float, send, fetch=fetch_hea
 HIDING = ("no_key", "not_approved", "not_configured")
 
 
+def server_host(settings: Settings) -> str | None:
+    """The server's own host name for the page headline: the API address without its api. prefix (api.example.com -> example.com)."""
+    host = urlsplit(settings.api_base_url).hostname or ""
+    return (host[4:] if host.startswith("api.") else host) or None
+
+
 def snapshot(state: dict, settings: Settings, now: float, machine: str | None = None) -> dict:
     """What the page receives. Without approval nothing from the server is shown; a passing error keeps the last figures.
     `machine` is the name of the Runner whose machine to show (default: the online Runner with the newest figures)."""
@@ -804,5 +828,6 @@ def snapshot(state: dict, settings: Settings, now: float, machine: str | None = 
             "history": local.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
             "fail2ban": state.get("fail2ban") if shown else None,
             "runs": list(state.get("runs") or []) if shown else [], "apps": state.get("apps") if shown else None,
+            "host": server_host(settings),
             "studioBase": (studio_server_url(settings) or "")[:-len("/server")] or None,
             "settings": settings.public()}
