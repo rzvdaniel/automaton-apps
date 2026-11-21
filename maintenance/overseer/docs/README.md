@@ -28,7 +28,7 @@ The app page shows the **Queue** (running, pending, finished; add, cancel, pause
 
 ## Read a failed run
 
-1. On the page, a job that failed shows its last result under **Schedules**; open it for the error.
+1. On the page, a job that failed shows its failed label and the error text in its row under **Schedules**.
 2. SSH errors (host unreachable, key refused, host key changed) mean Overseer cannot reach `QUEUE_HOST`: check the key and the machine.
 3. For a task, open it in the **Queue** to read its log and the issue and pull request it mentions. A task that stalled twice was stopped by `stall-check`.
 4. Pick-up lists skipped issues and missing boards or columns in the morning report, with the reason.
