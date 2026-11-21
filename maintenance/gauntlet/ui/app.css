@@ -1,4 +1,4 @@
-/* Automaton app UI kit 2.0.0 - https://github.com/rzvdaniel/automaton-apps/tree/main/design/automaton-app-ui
+/* Automaton app UI kit 2.1.0 - https://github.com/rzvdaniel/automaton-apps/tree/main/design/automaton-app-ui
    Copied into each app as ui/app.css. Do not edit a copy: change the kit and copy it again. */
 
 /* Two looks.
@@ -19,9 +19,12 @@
   --text: #1b1d22;
   --muted: #5d626c;
   --border: #e1e3e8;
-  --ok: #167a46;
-  --warn: #8f5600;
-  --critical: #b42318;
+  /* Status (Studio Home): normal is quiet ink, attention and failure are the same orange, red is only --danger. */
+  --ok: #55565e;
+  --bar: #17181c;
+  --warn: #b84a08;
+  --critical: #b84a08;
+  --danger: #b42318;
   --neutral: #5d626c;
   --focus: var(--accent);
   --rail: #1b1d22;
@@ -44,7 +47,6 @@
   --text: #17181c;
   --muted: #55565e;
   --border: #e2e0da;
-  --ok: #1f6b4f;
   --neutral: #55565e;
   --rail: #17181c;
   --rail-text: #f1f0eb;
@@ -64,9 +66,11 @@
     --text: #ececf0;
     --muted: #a3a7b1;
     --border: #2c2f36;
-    --ok: #4fb98c;
-    --warn: #f2b23d;
-    --critical: #ff7262;
+    --ok: #a3a7b1;
+    --bar: #ececf0;
+    --warn: #ff9a5c;
+    --critical: #ff9a5c;
+    --danger: #ff7262;
     --neutral: #a3a7b1;
     --orange-ink: color-mix(in srgb, var(--accent) 65%, white);
     --orange-soft: color-mix(in srgb, var(--accent) 18%, black);
@@ -84,9 +88,11 @@
   --text: #ececf0;
   --muted: #a3a7b1;
   --border: #2c2f36;
-  --ok: #4fb98c;
-  --warn: #f2b23d;
-  --critical: #ff7262;
+  --ok: #a3a7b1;
+  --bar: #ececf0;
+  --warn: #ff9a5c;
+  --critical: #ff9a5c;
+  --danger: #ff7262;
   --neutral: #a3a7b1;
   --orange-ink: color-mix(in srgb, var(--accent) 65%, white);
   --orange-soft: color-mix(in srgb, var(--accent) 18%, black);
@@ -161,7 +167,9 @@ a { color: var(--orange-ink); text-underline-offset: 2px; }
 .a-pill--ok { color: var(--ok); }
 .a-pill--warning { color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
 .a-pill--critical { color: var(--critical); background: color-mix(in srgb, var(--critical) 8%, transparent); }
-.a-pill--critical::before { box-shadow: 0 0 0 3px color-mix(in srgb, var(--critical) 25%, transparent); }
+.a-pill--critical { font-weight: 600; }
+.a-pill--running { color: var(--warn); background: transparent; }
+.a-pill--running::before { background: transparent; border: 1.5px solid currentColor; }
 .a-pill--large { font-size: 14px; padding: 5px 14px 5px 11px; }
 
 /* Stat tiles and key/value rows */
@@ -183,7 +191,7 @@ a { color: var(--orange-ink); text-underline-offset: 2px; }
 /* Meter (use for a percentage of something) */
 
 .a-meter { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--neutral) 18%, transparent); overflow: hidden; }
-.a-meter > span { display: block; height: 100%; width: var(--value, 0%); border-radius: inherit; background: var(--ok); transition: width 0.4s ease; }
+.a-meter > span { display: block; height: 100%; width: var(--value, 0%); border-radius: inherit; background: var(--bar); transition: width 0.4s ease; }
 .a-meter--warning > span { background: var(--warn); }
 .a-meter--critical > span { background: var(--critical); }
 
@@ -225,6 +233,7 @@ a { color: var(--orange-ink); text-underline-offset: 2px; }
 :root[data-look="system"] .a-btn--primary { color: #17181c; }
 .a-btn--primary:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
 
+.a-btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 .a-btn--icon { width: 36px; padding: 0; }
 .a-btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 

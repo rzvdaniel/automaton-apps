@@ -1,6 +1,6 @@
 # Automaton app UI kit
 
-One set of components for every app in this catalog, light and dark from the visitor's system, phone-ready. Version **2.0.0**.
+One set of components for every app in this catalog, light and dark from the visitor's system, phone-ready. Version **2.1.0**.
 
 ## Two looks
 
@@ -54,15 +54,15 @@ Build the page only from the classes below (all start with `a-`). Add app-specif
 | `a-topbar`, `a-topbar__inner` | System look: the dark Studio bar above `a-page`, holding the header parts. |
 | `a-banner` (+ `--warning/--critical`), `a-banner__title` | Page-level "needs you" list, above everything else: one line per problem with the fix. |
 | `a-card`, `a-card__head`, `a-card__title`, `a-card__foot` | One topic per card. Put a status pill at the right of the head. |
-| `a-pill` + `a-pill--ok` / `--warning` / `--critical`, `a-pill--large` | Status. Plain `a-pill` is neutral or unknown. Always write the status in words, never colour alone. |
+| `a-pill` + `a-pill--ok` / `--warning` / `--critical` / `--running`, `a-pill--large` | Status in the Studio Home colours: ok is quiet grey, warning and critical are the accent orange, running an orange outline, never green. Plain `a-pill` is neutral or unknown. Always write the status in words, never colour alone. |
 | `a-stats`, `a-stat` (+ `a-stat--ok/--warning/--critical`), `a-stat__label/__value/__hint` | A few headline numbers. |
 | `a-kv` | Label and value rows (`<dl>`). |
-| `a-meter` (+ `--warning/--critical`) with `style="--value:42%"` | A percentage of something. |
+| `a-meter` (+ `--warning/--critical`; the normal bar is dark) with `style="--value:42%"` | A percentage of something. |
 | `a-metric`, `a-metric__row`, `a-metric__spark` | A named figure with a meter and a trend line. |
 | `AutomatonUI.sparkline(values, {min, max, status, label})` | Inline SVG trend (see `app.js`); style it with `a-spark`. |
 | `a-table-wrap`, `a-table`, `a-num` | Tables that scroll sideways on a phone instead of breaking the page. |
 | `a-list` | Rows with a name on the left and a pill or value on the right. |
-| `a-btn`, `a-btn--primary`, `a-btn--icon` | Actions. One primary button per view. |
+| `a-btn`, `a-btn--primary`, `a-btn--danger` (the only red), `a-btn--icon` | Actions. One primary button per view. |
 | `a-form`, `a-field`, `a-label`, `a-input`, `a-hint` | Forms. |
 | `a-note` (+ `--warning/--critical`) | A short message inside a card. |
 | `a-empty` | Nothing to show yet. |
