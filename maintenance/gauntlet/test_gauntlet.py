@@ -393,5 +393,17 @@ class AppTests(unittest.TestCase):
         self.assertNotIn("abcdef", json.dumps(app.store.run(1)))
 
 
+class PlanScriptTests(unittest.TestCase):
+    def test_deleting_data_always_comes_with_a_confirmation(self):
+        # uninstall-automaton.sh refuses --delete-data without --confirm (--yes does not confirm it)
+        files = list((HERE / "plans" / "scripts").glob("*.sh")) + list((HERE / "plans").glob("*.json"))
+        uses = [f for f in files if "uninstall-automaton.sh" in f.read_text() or "--delete-data" in f.read_text()]
+        self.assertTrue(uses)
+        for f in uses:
+            for line in f.read_text().splitlines():
+                if "--delete-data" in line and not line.lstrip().startswith("#"):
+                    self.assertIn("--confirm", line, f"{f.name} deletes data without --confirm: {line.strip()}")
+
+
 if __name__ == "__main__":
     unittest.main()

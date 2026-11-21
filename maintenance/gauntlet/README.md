@@ -10,7 +10,7 @@ Plans are JSON files in [`plans/`](plans/). Each step runs a script from [`plans
 
 | Plan | Machine | When | What it does |
 | --- | --- | --- | --- |
-| `smoke` | `runner-02` | every day 02:30 UTC | Wipes the machine (`uninstall-automaton.sh --delete-data --yes`), installs the latest build, creates the administrator and signs the CLI in, checks the default apps and pending permissions, deploys a sample app and runs a backup, restarts the machine, checks log forwarding, uninstalls and checks nothing is left. |
+| `smoke` | `runner-02` | every day 02:30 UTC | Wipes the machine (`uninstall-automaton.sh --delete-data --yes --no-final-backup --confirm <the installed domain>`), installs the latest build, creates the administrator and signs the CLI in, checks the default apps and pending permissions, deploys a sample app and runs a backup, restarts the machine, checks log forwarding, uninstalls and checks nothing is left. |
 | `full-cycle` | `nu8` | every Sunday 03:00 UTC | The same, then installs again. Each install also creates a non-root `automaton` user with the limited sudo rules of production (the updater, Backup now and `systemctl status automaton-*`) and checks through that user, so a step that needs more root than production allows fails here first. |
 | `upgrade` | `nu8` | every Saturday 03:00 UTC | Installs the latest stable version, adds data, updates to the newest published server release and checks everything still works. |
 | `docs-walk` | `runner-02` | every Wednesday 04:00 UTC | Claude Code follows the install docs as a new user (it changes nothing) and reports anything unclear or wrong. |
