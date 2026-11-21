@@ -53,6 +53,23 @@ class PlanActionTests(unittest.TestCase):
             self.assertEqual(request.get_header("Authorization"), "Bearer " + "t" * 20)
             self.assertEqual(request.get_header("X-gauntlet"), "1")
 
+    def test_a_webhook_input_names_the_release_and_a_schedule_sends_none(self):
+        for key in KEYS:
+            action = load(key)
+            self.assertIsNone(action.webhook_version(""))
+            self.assertIsNone(action.webhook_version("{}"))
+            self.assertEqual(action.webhook_version('{"version":"0.2.177"}'), "0.2.177")
+            for bad in ('{"version":"x; rm"}', '{"version":5}', '[1]', 'nope', '{"other":1}'):
+                with self.assertRaises(ValueError, msg=bad):
+                    action.webhook_version(bad)
+            seen = []
+
+            def opener(request, timeout=0):
+                seen.append(request)
+                return Response(b'{"id": 7}')
+            action.start_plan("http://app:8080", "t" * 20, version="0.2.177", opener=opener)
+            self.assertEqual(json.loads(seen[0].data), {"plan": key, "trigger": "action", "version": "0.2.177"})
+
     def test_a_refused_or_unreachable_app_fails_with_the_reason(self):
         action = load("smoke")
 

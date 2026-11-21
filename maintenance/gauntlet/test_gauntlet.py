@@ -408,7 +408,12 @@ class AppTests(unittest.TestCase):
             self.assertEqual(post("z" * 20), 401)
             self.assertEqual(post("t" * 20), 202)
             self.wait(app)
-            self.assertEqual([(r["plan"], r["trigger"], r["status"]) for r in app.store.runs(5)], [("smoke", "action", "passed")])
+            self.assertEqual([(r["plan"], r["trigger"], r["status"]) for r in app.store.runs(5)], [("smoke", "schedule", "passed")])
+            hook = Request(base + "/api/runs", method="POST", data=b'{"plan":"smoke","trigger":"action","version":"0.2.177"}',
+                           headers={"Authorization": "Bearer " + "t" * 20, "X-Gauntlet": "1"})
+            self.assertEqual(urlopen(hook).status, 202)
+            self.wait(app)
+            self.assertEqual(app.store.runs(1)[0]["trigger"], "webhook 0.2.177")
             signed = Request(base + "/api/runs", method="POST", data=b'{"plan":"smoke","trigger":"action"}',
                              headers={"X-Automaton-Viewer-Role": "Administrator", "X-Automaton-Viewer-Token": "v", "X-Gauntlet": "1"})
             self.assertEqual(urlopen(signed).status, 202)
