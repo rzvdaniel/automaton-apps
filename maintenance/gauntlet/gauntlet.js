@@ -58,8 +58,9 @@ function schedule(p, managed) {
 function runRow(p, r) {
   const open = state.openRuns.has(r.id);
   const steps = state.steps[r.id];
+  const drill = steps && r.plan === 'restore-drill' ? (steps.steps.map(x => /^RESTORE DRILL:.*$/m.exec(x.output || '')).find(Boolean) || [])[0] : '';
   const body = !open ? '' : !steps ? '<p class="plan-meta">Loading…</p>' :
-    (steps.error ? `<p class="step-error">${esc(steps.error)}</p>` : '') + steps.steps.map(s => `<div class="step"><div class="step-line">${pill(s.status)} <strong>${esc(s.name)}</strong> <span class="plan-meta">${s.seconds} s</span></div>
+    (steps.error ? `<p class="step-error">${esc(steps.error)}</p>` : '') + (drill ? `<p><strong>${esc(drill)}</strong></p>` : '') + steps.steps.map(s => `<div class="step"><div class="step-line">${pill(s.status)} <strong>${esc(s.name)}</strong> <span class="plan-meta">${s.seconds} s</span></div>
       ${s.problem ? `<div class="step-error">${esc(s.problem)}</div>` : ''}${s.output ? `<details><summary class="plan-meta">Output</summary><pre class="log a-card">${esc(s.output)}</pre></details>` : ''}</div>`).join('');
   return `<div class="run${open ? ' is-open' : ''}${r.status === 'passed' || r.status === 'running' ? '' : ' is-failed'}" id="run-${r.id}">
     <button class="run-head" type="button" data-run-open="${r.id}" aria-expanded="${open}">${pill(r.status)} <strong>#${r.id}</strong> <span>${time(r.started)}</span> <span class="plan-meta">${took(r.started, r.finished)}${r.trigger ? ' · ' + esc(r.trigger) : ''}${r.failed_step ? ' · failed: ' + esc(r.failed_step) : ''}</span></button>
@@ -103,6 +104,7 @@ async function load() {
       if (p.last && p.last.status !== 'passed' && p.last.status !== 'running') { state.openPlans.add(p.name); state.openRuns.add(p.last.id); }
     }
     for (const id of state.openRuns) if (!state.steps[id] || [...data.plans].some(p => p.last && p.last.id === id && p.last.status === 'running')) state.steps[id] = await api('GET', '/api/runs/' + id).catch(() => state.steps[id]);
+    for (const n of Object.keys(state.extra)) state.extra[n] = await api('GET', '/api/runs?plan=' + encodeURIComponent(n)).catch(() => state.extra[n]);
     render();
   } catch (error) { fail(error); }
 }
