@@ -16,7 +16,8 @@ import gauntlet
 USER_AGENT = "automaton-gauntlet"
 MAX_BODY = 60000
 RELEASE_REPO = "rzvdaniel/automaton"
-DOCS_WALK_LINE = re.compile(r"^DOCS-WALK RESULT: (PASS|FAIL) (\d+\.\d+\.\d+)(?: - (.*))?$", re.M)
+DOCS_WALK_RELEASE = re.compile(r"^DOCS-WALK RELEASE (\d+\.\d+\.\d+)$", re.M)  # printed by the script itself
+DOCS_WALK_LINE = re.compile(r"^DOCS-WALK RESULT: (PASS|FAIL) (\d+\.\d+\.\d+)(?: - (.*))?$")
 
 
 def set_docs_walk(body: str, result: str, note: str = "") -> str:
@@ -213,10 +214,13 @@ class Reporter:
 
     def docs_walk(self, result: dict) -> None:
         """Records the walk's last line in the release notes when GITHUB_TOKEN is set (it needs write access to the releases)."""
-        found = [m for step in result["steps"] for m in DOCS_WALK_LINE.finditer(step["output"])]
-        if not self.github or not found:
-            return
-        verdict, version, note = found[-1].groups()
+        output = "\n".join(step["output"] for step in result["steps"])
+        release = DOCS_WALK_RELEASE.findall(output)
+        lines = [line for line in output.splitlines() if line.strip()]
+        last = DOCS_WALK_LINE.match(lines[-1].strip()) if lines else None
+        if not self.github or not release or not last or last.group(2) != release[0]:
+            return  # the release comes from the script, never from Claude's words; the verdict is only the very last line
+        verdict, version, note = last.groups()
         try:
             self.github.record_docs_walk(version, verdict.capitalize(), note or "")
         except (HTTPError, URLError, OSError, ValueError, KeyError) as error:

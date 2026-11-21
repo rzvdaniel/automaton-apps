@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gauntlet's docs-walk Action: asks the running app to start this plan, and prints the run it started.
 
-The platform runs this on the schedule Gauntlet offers at install (Studio -> Actions: change, pause or run it there).
+The release workflow's webhook (or Run now in Studio -> Actions) runs this; it has no default schedule.
 AUTOMATON_APP_INTERNAL_URL is the app's address on the Runner's private network and ADMIN_TOKEN is the app's secret. The app runs
 the plan in the background (one at a time) and keeps the step logs in its Reports, so this returns as soon as the run has started.
 A refused start (another run in progress, a machine that is not disposable) exits with 1 and says why, so Studio shows it as failed.

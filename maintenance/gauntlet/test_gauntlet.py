@@ -420,6 +420,7 @@ class DocsWalkTests(unittest.TestCase):
         script = (HERE / "plans" / "scripts" / "docs-walk.sh").read_text()
         self.assertIn("--model haiku --effort low", script)
         self.assertIn("DOCS-WALK RESULT: PASS $version", script)
+        self.assertIn("exit 1", script)
         self.assertEqual(json.loads((HERE / "plans" / "docs-walk.json").read_text())["steps"][0]["contains"], "DOCS-WALK RESULT: PASS")
 
     def test_the_section_replaces_an_earlier_one_and_goes_before_the_report(self):
@@ -427,16 +428,17 @@ class DocsWalkTests(unittest.TestCase):
         out = failures.set_docs_walk(body, "Pass", "pages: a, b")
         self.assertEqual(out, "Notes\n\n## Docs walk\n\nResult: Pass\npages: a, b\n\n## Automaton Server 1.2.3\nx\n")
 
-    def test_the_last_result_line_is_recorded_only_when_a_token_is_set(self):
-        output = "found things\nDOCS-WALK RESULT: FAIL 0.2.176 - deploy page unclear\n"
-        result = {"steps": [{"output": output}]}
-        github = FakeGitHub()
-        reporter = failures.Reporter(None, github, [], {}, None, lambda *a: None)
-        reporter.docs_walk(result)
-        self.assertEqual(github.walks, [("0.2.176", "Fail", "deploy page unclear")])
-        failures.Reporter(None, None, [], {}, None, lambda *a: None).docs_walk(result)
-        reporter.docs_walk({"steps": [{"output": "no result line"}]})
-        self.assertEqual(len(github.walks), 1)
+    def test_only_the_very_last_line_for_the_release_the_script_named_is_recorded_and_only_with_a_token(self):
+        def run(output, token=True):
+            github = FakeGitHub()
+            failures.Reporter(None, github if token else None, [], {}, None, lambda *a: None).docs_walk({"steps": [{"output": output}]})
+            return getattr(github, "walks", [])
+        good = "DOCS-WALK RELEASE 0.2.176\nfound things\nDOCS-WALK RESULT: FAIL 0.2.176 - deploy page unclear\n"
+        self.assertEqual(run(good), [("0.2.176", "Fail", "deploy page unclear")])
+        self.assertEqual(run(good, token=False), [])
+        self.assertEqual(run("DOCS-WALK RELEASE 0.2.176\nDOCS-WALK RESULT: PASS 0.2.175 - x\n"), [])  # Claude named another release
+        self.assertEqual(run("DOCS-WALK RELEASE 0.2.176\nDOCS-WALK RESULT: PASS 0.2.176 - x\nmore text\n"), [])  # not the last line
+        self.assertEqual(run("DOCS-WALK RESULT: PASS 0.2.176 - x\n"), [])  # no release line from the script
 
 
 class PlanScriptTests(unittest.TestCase):
