@@ -3,6 +3,7 @@ import os
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -144,16 +145,68 @@ class DrillTests(unittest.TestCase):
         self.assertEqual([i[0] for i in github.issues], ["rzvdaniel/automaton"])
         self.assertEqual(len(mails), 1)
 
-    def test_report_names_result_and_duration(self):
+    def test_report_names_result_and_whole_run_duration(self):
         os.makedirs(self.result)
-        for name, text in (("start", "0"), ("restore-seconds", "42"), ("archive", "automaton-20261120T031500Z.tar.age"), ("health-ok", "")):
+        start = os.path.join(self.folder.name, "start")
+        Path(start).write_text(str(int(time.time()) - 181))  # written by drill-start.sh before the first wipe
+        for name, text in (("restore-seconds", "42"), ("archive", "automaton-20261120T031500Z.tar.age"), ("health-ok", "")):
             Path(self.result, name).write_text(text)
-        code, out = self.run_script("drill-report.sh", {})
+        code, out = self.run_script("drill-report.sh", {"DRILL_START_FILE": start})
         self.assertEqual(code, 0)
         self.assertIn("RESTORE DRILL: PASS", out)
         self.assertIn("restored in 42 s", out)
+        self.assertRegex(out, r"18[1-4] s in all")
+        self.assertFalse(os.path.exists(start))
         os.remove(os.path.join(self.result, "health-ok"))
         self.assertNotEqual(self.run_script("drill-report.sh", {})[0], 0)
+
+    def test_the_clock_starts_before_the_first_wipe_and_survives_it(self):
+        plan = gauntlet.load_plans(HERE / "plans")["restore-drill"]
+        self.assertEqual([s["script"] for s in plan["steps"]][:2], ["drill-start.sh", "wipe.sh"])
+        self.assertIn("rm -rf", (SCRIPTS / "wipe.sh").read_text())
+        self.assertNotIn("/root/.gauntlet/", (SCRIPTS / "drill-start.sh").read_text().replace("/root/.gauntlet-drill-start", ""))
+        start = os.path.join(self.folder.name, "start")
+        self.assertEqual(self.run_script("drill-start.sh", {"DRILL_START_FILE": start})[0], 0)
+        self.assertLessEqual(abs(int(Path(start).read_text()) - time.time()), 5)
+
+    def check(self, status_body, admins):
+        """Runs drill-check.sh with curl, sleep, docker and jq faked: the status body and the administrator count are given."""
+        bin_dir = os.path.join(self.folder.name, "bin"); os.makedirs(bin_dir, exist_ok=True)
+        os.makedirs(self.result, exist_ok=True)
+        fakes = {
+            "curl": f'''case "$*" in
+*install/status*) echo '{status_body}';;
+*/health*) echo '{{"status":"ok"}}';;
+*LoginUser*) printf 401;;
+esac''',
+            "sleep": "true", "docker": f"echo {admins}", "jq": "echo {}",
+        }
+        for name, body in fakes.items():
+            Path(bin_dir, name).write_text("#!/bin/bash\n" + body + "\n"); os.chmod(Path(bin_dir, name), 0o755)
+        server = os.path.join(self.folder.name, "srv"); os.makedirs(server, exist_ok=True)
+        for name in ("release.env", ".env", "compose.yaml"):
+            Path(server, name).write_text("")
+        script = (SCRIPTS / "drill-check.sh").read_text().replace("/opt/automaton-server", server)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "DOMAIN": "x.test", "DRILL_RESULT_DIR": self.result}
+        done = subprocess.run(["bash", "-s"], input=script, capture_output=True, text=True, env=env, timeout=60)
+        return done.returncode, done.stdout + done.stderr
+
+    def test_the_check_follows_the_servers_own_installation_rule(self):
+        # an adopted install: no Installation.Complete setting, the server still reports complete through its administrator
+        code, out = self.check('{"installationComplete":true,"userSignUp":false}', 1)
+        self.assertEqual(code, 0, out)
+        self.assertIn("installation complete", out)
+        self.assertTrue(os.path.exists(os.path.join(self.result, "health-ok")))
+        self.assertNotIn("Settings", (SCRIPTS / "drill-check.sh").read_text())
+
+    def test_the_check_fails_when_not_installed_or_without_an_administrator(self):
+        code, out = self.check('{"installationComplete":false}', 1)
+        self.assertNotEqual(code, 0)
+        self.assertIn("does not report the installation as complete", out)
+        code, out = self.check('{"installationComplete":true}', 0)
+        self.assertNotEqual(code, 0)
+        self.assertIn("no System Administrator", out)
+        self.assertFalse(os.path.exists(os.path.join(self.result, "health-ok")))
 
 
 if __name__ == "__main__":

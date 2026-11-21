@@ -7,7 +7,6 @@ set -euo pipefail
 export DRILL_S3_REGION=${DRILL_S3_REGION:-auto}
 dir=${DRILL_DIR:-/root/.gauntlet/drill}; result=${DRILL_RESULT_DIR:-/root/.gauntlet/drill-result}
 umask 077; mkdir -p "$dir" "$result"; rm -f "$dir"/*.tar.age "$result"/*
-date +%s > "$result/start"
 python3 -I - "$dir" <<'PY'
 import datetime, hashlib, hmac, os, re, sys, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
