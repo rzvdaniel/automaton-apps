@@ -12,6 +12,11 @@ spec:
   allowedExecutionScopes:
     - AppRunner
   defaultConcurrencyPolicy: SkipIfRunning
+  input:
+    type: object
+    properties:
+      version:
+        type: string
   output:
     type: object
     properties:

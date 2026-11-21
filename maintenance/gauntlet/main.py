@@ -5,7 +5,7 @@
   /api/state             plans, targets, recent runs        (needs Studio's sign-in, or the ADMIN_TOKEN when run on its own)
   /api/runs/<id>         one run with each step's log
   POST /api/runs         {"plan": "smoke"} runs a plan now    (administrators only when run by Automaton, or the ADMIN_TOKEN:
-                         the platform Actions that Studio's schedules run send it with "trigger": "action")
+                         the platform Actions that Studio's schedules and webhooks run send it with "trigger": "action")
   /api/home-card         the card Studio Home shows           (no host names, no logs)
 """
 
@@ -14,6 +14,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -245,6 +246,16 @@ class App:
                 "detail": "Last run " + gauntlet.ago(now - (newest["finished"] or newest["started"])), "blocks": blocks + [buttons]}
 
 
+def run_trigger(body) -> str:
+    """How a run started by the platform Action is labelled: "schedule", or "webhook <version>" when a webhook named a release."""
+    if not isinstance(body, dict) or body.get("trigger") != "action":
+        return "manual"
+    version = body.get("version")
+    if isinstance(version, str) and re.fullmatch(r"(server-v|v)?\d{1,4}\.\d{1,4}\.\d{1,4}", version):
+        return "webhook " + version
+    return "schedule"
+
+
 def make_handler(app: App, page: bytes):
     class Handler(BaseHTTPRequestHandler):
         server_version = "gauntlet"
@@ -317,7 +328,7 @@ def make_handler(app: App, page: bytes):
                         return self.json(413, {"error": "request too large"})
                     body = json.loads(self.rfile.read(length) or b"{}")
                     plan = body.get("plan") if isinstance(body, dict) else None
-                    trigger = "action" if app.has_token(self.headers) and isinstance(body, dict) and body.get("trigger") == "action" else "manual"
+                    trigger = run_trigger(body) if app.has_token(self.headers) else "manual"
                 except ValueError:
                     return self.json(400, {"error": "send a JSON object"})
                 if not isinstance(plan, str):
