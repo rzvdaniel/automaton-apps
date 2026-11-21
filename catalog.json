@@ -130,7 +130,7 @@
       "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
       "category": "Monitoring",
       "folder": "maintenance/gauntlet",
-      "commit": "21e5d092f8e7040d76cbc7b698f039a8bc72c59a",
+      "commit": "1ece200c323d198ad6de6f03bf67c601237bd979",
       "minServerVersion": "0.2.173",
       "permissions": [
         "notify:email"
