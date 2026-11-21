@@ -115,10 +115,11 @@
       "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
       "category": "Maintenance",
       "folder": "maintenance/overseer",
-      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
+      "commit": "07ce127f1e715bc6ecbcbfb907e9d3e563caebd8",
       "minServerVersion": "0.2.173",
       "permissions": [
-        "apps:read-status"
+        "apps:read-status",
+        "notify:email"
       ],
       "publisher": {
         "name": "Automaton"
