@@ -8,7 +8,7 @@
       "summary": "Copies your server's backups to another place, every night.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
+      "commit": "37346565ccbd88c6a722e10d8cdcecaeac58923b",
       "minServerVersion": "0.2.126",
       "permissions": [
         "backups:read",
