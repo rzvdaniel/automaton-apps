@@ -40,7 +40,7 @@
       "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
+      "commit": "1666b97103279ce8408ee7fff36fc362de8ca5a5",
       "minServerVersion": "0.2.173",
       "permissions": [
         "server:read",
