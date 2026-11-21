@@ -115,7 +115,7 @@
       "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
       "category": "Maintenance",
       "folder": "maintenance/overseer",
-      "commit": "07ce127f1e715bc6ecbcbfb907e9d3e563caebd8",
+      "commit": "9e0e2bf82e14f3b8629edbc15f1256e107efc52d",
       "minServerVersion": "0.2.173",
       "permissions": [
         "apps:read-status",
@@ -131,7 +131,7 @@
       "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
       "category": "Monitoring",
       "folder": "maintenance/gauntlet",
-      "commit": "105bcb415d0a0a3ea0de22a1556c98eb67dff314",
+      "commit": "9e0e2bf82e14f3b8629edbc15f1256e107efc52d",
       "minServerVersion": "0.2.173",
       "permissions": [
         "notify:email"
