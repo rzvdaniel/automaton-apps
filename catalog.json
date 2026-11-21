@@ -8,7 +8,7 @@
       "summary": "Copies your server's backups to another place, every night.",
       "category": "Maintenance",
       "folder": "maintenance/offsite-backup",
-      "commit": "b01c68c537ad83b7edbed638e388dd022f850a98",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.126",
       "permissions": [
         "backups:read",
@@ -25,7 +25,7 @@
       "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
       "category": "Monitoring",
       "folder": "maintenance/website-monitor",
-      "commit": "eccbb7da1df4cbdefe4cf713a3d14905f3bc639e",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
@@ -40,7 +40,7 @@
       "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "c6caf1aaf5502a2ae01966552d36825c91ccfce3",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.173",
       "permissions": [
         "server:read",
@@ -83,7 +83,7 @@
       "summary": "Shows who fail2ban has banned on this server, and why, on its own page and a Home card.",
       "category": "Monitoring",
       "folder": "maintenance/gate-keeper",
-      "commit": "659e8ec4fde6bf02117625fe109fc04f741a53fe",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.167",
       "permissions": [
         "security:read"
@@ -100,7 +100,7 @@
       "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
       "category": "Monitoring",
       "folder": "maintenance/heartbeat",
-      "commit": "e1b3e15ac8956642571e919858bcdc910b4c5227",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.31",
       "permissions": [
         "notify:email"
@@ -115,7 +115,7 @@
       "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
       "category": "Maintenance",
       "folder": "maintenance/overseer",
-      "commit": "a9851b7ebd439df5b291534b543247b03b6022ad",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.173",
       "permissions": [
         "apps:read-status"
@@ -130,7 +130,7 @@
       "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
       "category": "Monitoring",
       "folder": "maintenance/gauntlet",
-      "commit": "1ece200c323d198ad6de6f03bf67c601237bd979",
+      "commit": "68980d5f286493c45a252bd9ba83e10e66fcd067",
       "minServerVersion": "0.2.173",
       "permissions": [
         "notify:email"
