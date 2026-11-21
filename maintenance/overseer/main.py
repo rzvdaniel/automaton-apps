@@ -16,6 +16,7 @@ import hmac
 import io
 import json
 import os
+import shlex
 import sys
 import threading
 import time
@@ -139,6 +140,9 @@ class App:
         self.repo = env.get("ISSUE_REPO", "").strip()
         self.env = env  # AGENT_BOARDS and PAUSE_BETWEEN are read at each run, so a change applies from the next one
         self.lessons = env.get("LESSONS_PROMPT", "").strip() or overseer.DEFAULT_LESSONS
+        self.cli_server, self.cli_key = env.get("CLI_SERVER", "").strip(), env.get("CLI_API_KEY", "").strip()
+        self.release_repo, self.email_to = env.get("RELEASE_REPO", "").strip(), env.get("EMAIL_TO", "").strip()
+        self.secrets += [self.cli_key] if self.cli_key else []
         self.fetch_board = fetch_board or overseer.fetch_column
         self.job_lock = threading.Lock()
         self.status_cache: tuple[float, dict | None] = (0.0, None)
@@ -227,6 +231,59 @@ class App:
         if skipped:
             text += "; skipped " + ", ".join(f"#{s['number']}" for s in skipped) + " (needs shape)"
         return not problems, "; ".join([text] + problems)
+
+    # --- release check --------------------------------------------------------------------------------------
+    def start_release_check(self, version: str, spawn=None) -> tuple[int, str]:
+        """Answers at once: 202 started, 200 already started for this version, 400 bad input, 409 not set up. The work goes on in a thread."""
+        version = version.strip().removeprefix("server-v").removeprefix("v")
+        if not overseer.VERSION_RE.match(version):
+            return 400, 'send {"version": "0.2.176"}'
+        if not self.cli_server or not self.cli_key or not self.release_repo:
+            return 409, "set CLI_SERVER, CLI_API_KEY and RELEASE_REPO first"
+        if not self.jobs.claim_release(version):
+            return 200, f"the release check for {version} was already started: nothing done"
+        (spawn or (lambda f: threading.Thread(target=f, daemon=True).start()))(lambda: self.release_check(version))
+        return 202, f"upgrading the test server to {version}, then queuing its release check"
+
+    def release_check(self, version: str) -> None:
+        try:
+            ok, text = self.upgrade_and_queue(version)
+        except Exception as error:
+            ok, text = False, f"release check {version} failed: {type(error).__name__}"
+        text = overseer.redact(text, self.secrets)
+        self.jobs.finish_release(version, ok, text)
+        if not ok:
+            self.report_failure(version, text.split(": ")[0])  # the release notes are public: no output of the command
+
+    def upgrade_and_queue(self, version: str) -> tuple[bool, str]:
+        # the key travels on standard input, so it is not in the command line or the process list
+        command = (f"IFS= read -r AUTOMATON_API_KEY; export AUTOMATON_API_KEY AUTOMATON_SERVER={shlex.quote(self.cli_server)}; "
+                   f"automaton server update --version server-v{version} --wait")
+        code, out = self.queue.run(command, 1200, self.cli_key + "\n")
+        if code != 0:
+            last = (out.strip().splitlines() or ["no output"])[-1][:200]
+            return False, f"the upgrade to {version} failed" + (" (timed out)" if code is None else f" (exit {code}): {last}")
+        name = "release-check-" + version.replace(".", "-")
+        if not self.queue.has(name):
+            why = self.queue.add(name, overseer.release_prompt(version, self.release_repo))
+            if why:
+                return False, f"upgraded to {version}, but could not queue the check: {why}"
+        return True, f"upgraded to {version} and queued {name}"
+
+    def report_failure(self, version: str, text: str) -> None:
+        """Posts the error on the release (with the queue machine's gh) and emails the owner (notify:email); neither may break the run."""
+        note = f"\n\n## Release check\nThe test server upgrade did not finish: {text}\n"
+        self.queue.run(f'gh release view server-v{version} -R {shlex.quote(self.release_repo)} --json body -q .body > "$HOME/.overseer-notes.$$" && '
+                       f'cat >> "$HOME/.overseer-notes.$$" && gh release edit server-v{version} -R {shlex.quote(self.release_repo)} '
+                       f'--notes-file "$HOME/.overseer-notes.$$"; rm -f "$HOME/.overseer-notes.$$"', 60, note)
+        if self.email_to and self.api_url and self.api_key:
+            try:
+                body = json.dumps({"to": [a.strip() for a in self.email_to.split(",") if a.strip()],
+                                   "subject": f"Release check {version} did not start", "text": text}).encode()
+                urlopen(Request(self.api_url.rstrip("/") + "/api/notify/email", body, {"Authorization": "Bearer " + self.api_key,
+                        "Content-Type": "application/json", "User-Agent": "Automaton-Overseer/1.0"}, method="POST"), timeout=15).close()
+            except (HTTPError, URLError, ValueError, OSError):
+                log("failure email not sent")
 
     # --- views ------------------------------------------------------------------------------------------------
     def schedule_info(self) -> dict | None:
@@ -357,6 +414,12 @@ def make_handler(app: App, page: bytes):
                     return body is None or self.json(400, {"error": "send paused: true or false"})
                 why = app.queue.pause(body["paused"])
                 self.json(502 if why else 200, {"error": why} if why else {"paused": body["paused"]})
+            elif rest == ["release-check"] and post:
+                body = self.body()
+                if body is None:
+                    return
+                code, text = app.start_release_check(str(body.get("version", "")))
+                self.json(code, {"ok": code < 300, "text": text})
             elif len(rest) == 2 and rest[0] == "jobs" and post:
                 if rest[1] not in overseer.JOBS:
                     return self.json(404, {"error": "unknown job"})

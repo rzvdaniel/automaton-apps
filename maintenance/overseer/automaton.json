@@ -5,7 +5,8 @@
   "application": {
     "kind": "web",
     "permissions": [
-      "apps:read-status"
+      "apps:read-status",
+      "notify:email"
     ],
     "description": "Shows and runs your coding agents' work queue and its schedules.",
     "pages": [
@@ -85,6 +86,21 @@
         "description": "Pick-up queues nothing in this UTC window, HH:MM-HH:MM (for example 08:00-18:00). Empty: never paused"
       },
       {
+        "name": "CLI_SERVER",
+        "optional": true,
+        "description": "Address of the test server (https://...) for the release check: the upgrade runs as automaton server update on the queue machine. Empty: no release check"
+      },
+      {
+        "name": "RELEASE_REPO",
+        "optional": true,
+        "description": "owner/name of the repository whose server releases the release check follows; its table and upgrade errors are posted on the release (needs gh signed in on the queue machine)"
+      },
+      {
+        "name": "EMAIL_TO",
+        "optional": true,
+        "description": "Who is emailed when the release-check upgrade fails (addresses separated by commas; needs notify:email approved). Empty: no email"
+      },
+      {
         "name": "LESSONS_PROMPT",
         "description": "The prompt of the lessons job. Empty: work through the lessons inbox with the lessons-learned skill"
       }
@@ -97,6 +113,11 @@
       {
         "name": "ADMIN_TOKEN",
         "description": "At least 16 characters. The schedules use it to call the app; outside Automaton it is the page's login"
+      },
+      {
+        "name": "CLI_API_KEY",
+        "optional": true,
+        "description": "Administrator API key for CLI_SERVER, used only to run automaton server update on the queue machine. Create one just for Overseer; empty: no release check"
       },
       {
         "name": "GITHUB_TOKEN",

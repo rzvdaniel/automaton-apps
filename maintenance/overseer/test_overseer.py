@@ -218,6 +218,81 @@ class Jobs(unittest.TestCase):
             main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp()})
 
 
+class ReleaseCheck(unittest.TestCase):
+    ENV = dict(CLI_SERVER="https://test.example", CLI_API_KEY="cli-key-secret-1", RELEASE_REPO="o/r")
+
+    def now(self, app, version="0.2.176"):
+        return app.start_release_check(version, spawn=lambda f: f())
+
+    def test_upgrades_then_queues_once_and_a_repeat_does_nothing(self):
+        app, ex = make_app(**self.ENV)
+        code, _ = self.now(app)
+        self.assertEqual(code, 202)
+        update = [c for c in ex.calls if "server update" in c[0]]
+        self.assertEqual(len(update), 1)
+        self.assertIn("--version server-v0.2.176 --wait", update[0][0])
+        self.assertNotIn("cli-key-secret-1", update[0][0])  # the key goes on standard input
+        self.assertEqual(update[0][1], "cli-key-secret-1\n")
+        self.assertEqual(ex.added()[0].split()[0], "release-check-0-2-176")
+        prompt = [c for c in ex.calls if "agent-queue add" in c[0]][0][1]
+        self.assertIn("Haiku", prompt)
+        self.assertIn("server-v0.2.176", prompt)
+        self.assertEqual(self.now(app)[0], 200)
+        self.assertEqual(self.now(app, "server-v0.2.176")[0], 200)
+        self.assertEqual(len([c for c in ex.calls if "server update" in c[0]]), 1)
+        self.assertEqual(len(ex.added()), 1)
+
+    def test_failed_upgrade_queues_nothing_posts_on_the_release_and_may_be_retried(self):
+        app, ex = make_app(**self.ENV)
+        run = ex.run
+
+        def failing(command, timeout, stdin=None):
+            if "server update" in command:
+                ex.calls.append((command, stdin))
+                return 1, "boom cli-key-secret-1\n"
+            return run(command, timeout, stdin)
+        ex.run = failing
+        self.assertEqual(self.now(app)[0], 202)
+        self.assertEqual(ex.added(), [])
+        posted = [c for c in ex.calls if "gh release edit" in c[0]]
+        self.assertEqual(len(posted), 1)
+        self.assertIn("upgrade to 0.2.176 failed", posted[0][1])
+        self.assertNotIn("boom", posted[0][1])
+        self.assertNotIn("cli-key-secret-1", posted[0][1])
+        self.assertEqual(app.jobs.data["releases"]["0.2.176"]["state"], "failed")
+        ex.run = run
+        self.assertEqual(self.now(app)[0], 202)
+
+    def test_a_release_left_running_by_a_stopped_app_may_be_tried_again(self):
+        clock = [1000.0]
+        app, ex = make_app(**self.ENV)
+        app.jobs.now = lambda: clock[0]
+        self.assertTrue(app.jobs.claim_release("0.2.176"))
+        clock[0] += 60
+        self.assertFalse(app.jobs.claim_release("0.2.176"))
+        clock[0] += 30 * 60
+        self.assertTrue(app.jobs.claim_release("0.2.176"))
+
+    def test_bad_version_and_missing_setup(self):
+        app, ex = make_app(**self.ENV)
+        for bad in ("", "latest", "0.2", "0.2.1; rm -rf /"):
+            self.assertEqual(self.now(app, bad)[0], 400)
+        bare, _ = make_app()
+        self.assertEqual(self.now(bare)[0], 409)
+        self.assertEqual(ex.calls, [])
+
+    def test_endpoint_needs_the_token(self):
+        app, ex = make_app(**self.ENV)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(app, b""))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_port}/api/release-check"
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(Request(url, b'{"version":"0.2.176"}', {"X-Overseer": "1"}, method="POST"))
+        self.assertEqual(caught.exception.code, 401)
+        self.assertEqual(ex.calls, [])
+
+
 class Http(unittest.TestCase):
     def setUp(self):
         self.app, self.ex = make_app(ISSUE_REPO="o/r")
