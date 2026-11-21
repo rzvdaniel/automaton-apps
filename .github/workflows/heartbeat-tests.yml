@@ -23,5 +23,6 @@ jobs:
           python-version: '3.12'
       - run: python -m unittest discover -p 'test_*.py'
       - name: Build into dist/ and start it
-        run: python ../../tools/smoke_build.py maintenance/heartbeat
+nd start it/,$ {/working-directory: ./d}
+        run: python tools/smoke_build.py maintenance/heartbeat
         working-directory: .

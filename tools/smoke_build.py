@@ -50,13 +50,14 @@ def smoke(folder):
         argv, cwd = command_line(runtime["command"])
         port = free_port()
         env = {**os.environ, "PATH": path_env, "AUTOMATON_PORT": str(port), "AUTOMATON_APP_DATA_DIR": str(Path(tmp) / "data")}
-        proc = subprocess.Popen(argv, cwd=work / cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        log = open(Path(tmp) / "app.log", "w+")  # a file, so a chatty app never blocks on a full pipe
+        proc = subprocess.Popen(argv, cwd=work / cwd, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
         url = f"http://127.0.0.1:{port}{path}"
         deadline = time.time() + START_SECONDS
         try:
             while time.time() < deadline:
                 if proc.poll() is not None:
-                    return False, f"exited with {proc.returncode} before answering {path}:\n{proc.stdout.read()[-3000:]}"
+                    return False, f"exited with {proc.returncode} before answering {path}:\n{(log.seek(0), log.read()[-3000:])[1]}"
                 try:
                     with urllib.request.urlopen(url, timeout=2) as r:
                         return True, f"answered {r.status} on {path}"
