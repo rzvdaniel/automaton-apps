@@ -330,6 +330,20 @@ class AppTests(unittest.TestCase):
             self.assertIn("schedulable: true", (HERE / "actions" / key / "action.yaml").read_text())
         self.assertIn("ADMIN_TOKEN", [s["name"] for s in manifest["secrets"]])
 
+    def test_state_gives_each_plan_its_schedule_and_last_runs(self):
+        app = self.app(AUTOMATON_APP_ID="a1")
+        for _ in range(12):
+            app.start("smoke", "manual")
+            self.wait(app)
+        state = app.state()
+        plan = next(p for p in state["plans"] if p["name"] == "smoke")
+        self.assertTrue(state["managed"])
+        self.assertEqual(plan["schedule"], "30 2 * * * UTC")
+        self.assertEqual(len(plan["runs"]), 10)
+        self.assertEqual(plan["runs"][0]["id"], plan["last"]["id"])
+        self.assertNotIn("runs", state)
+        self.assertFalse(self.app().state()["managed"])
+
     def test_home_card_has_no_host_names_or_logs(self):
         app = self.app()
         self.assertEqual(app.home_card()["status"], "No run yet")

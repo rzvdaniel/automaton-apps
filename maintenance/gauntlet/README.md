@@ -2,7 +2,7 @@
 
 Installs, uses, uninstalls and reinstalls Automaton on your own test machines on a schedule, and tells you when something breaks, before a release reaches users.
 
-Gauntlet signs in to each machine over SSH and runs **plans**: lists of steps, each with a command, a check and a timeout. Every run and each step's log is kept in the app's own database. The **Reports** page shows history, each step's pass or fail, its timing and its log, and a **Run now** button starts a plan. Studio Home shows a card with the last result of each plan.
+Gauntlet signs in to each machine over SSH and runs **plans**: lists of steps, each with a command, a check and a timeout. Every run and each step's log is kept in the app's own database. The app page is one list of plans: each row shows the machine, schedule, the last 10 runs as bars (dark passed, orange failed, outlined running, light none), the last result and **Run now**. Opening a plan shows its last 5 runs (**Show older runs** for more); opening a run shows each step's result, timing, error and output. Only a plan whose last run failed opens by itself. Studio Home shows a card with the last result of each plan.
 
 ## Plans
 

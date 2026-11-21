@@ -19,7 +19,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import failures
 import gauntlet
@@ -127,6 +127,8 @@ class App:
         self.repos = failures.parse_repos(env.get("ISSUE_REPOS", ""))
         self.store = gauntlet.Store(os.path.join(data, "gauntlet.db"), now)
         self.store.finish_orphans()
+        manifest = json.loads((HERE / "automaton.json").read_text()).get("application", {})
+        self.schedules = {s["action"]: s["cron"] + " UTC" for s in manifest.get("schedules", [])}
         self.ssh_key = env.get("SSH_KEY", "").replace("\\n", "\n")
         self.drill = {n: env.get(n, "").strip() if n != "DRILL_BACKUP_KEY" else env.get(n, "").replace("\\n", "\n").strip() for n in DRILL_NAMES}
         key_lines = [x.strip() for x in self.drill["DRILL_BACKUP_KEY"].splitlines()]
@@ -209,17 +211,25 @@ class App:
 
     # --- views ------------------------------------------------------------------------------------------------
     def state(self) -> dict:
-        now = self.now()
         plans = []
         for name, plan in self.plans.items():
-            last = (self.store.runs(1, name) or [None])[0]
+            runs = self.store.runs(10, name)
+            for run in runs:
+                run["failed_step"] = self.failed_step(run)
+            if runs and runs[0]["status"] == "running":
+                runs[0]["step"] = len(self.store.run(runs[0]["id"])["steps"]) + 1
             target = self.targets.get(plan["target"] or "")
             plans.append({"name": name, "title": plan["title"], "description": plan["description"], "target": plan["target"],
-                          "wipes": plan["wipes"], "steps": len(plan["steps"]),
-                          "problem": gauntlet.refusal(plan, target), "last": last})
-        return {"plans": plans, "running": self.running, "runs": self.store.runs(50),
+                          "wipes": plan["wipes"], "steps": len(plan["steps"]), "schedule": self.schedules.get(name),
+                          "problem": gauntlet.refusal(plan, target), "last": runs[0] if runs else None, "runs": runs})
+        return {"plans": plans, "running": self.running, "managed": self.managed,
                 "targets": [{"name": t["name"], "disposable": t["disposable"]} for t in self.targets.values()],
                 "github": bool(self.repos), "claude": bool(self.claude_target and self.claude_command)}
+
+    def failed_step(self, run: dict) -> str | None:
+        if run["status"] not in ("failed", "refused"):
+            return None
+        return next((s["name"] for s in self.store.run(run["id"])["steps"] if s["status"] != "passed"), None)
 
     def home_card(self) -> dict:
         now = self.now()
@@ -292,6 +302,9 @@ def make_handler(app: App, page: bytes):
                 return
             if rest == ["state"] and self.command == "GET":
                 self.json(200, app.state())
+            elif rest == ["runs"] and self.command == "GET":
+                plan = parse_qs(urlsplit(self.path).query).get("plan", [""])[0]
+                self.json(200, app.store.runs(200, plan) if plan in app.plans else [])
             elif len(rest) == 2 and rest[0] == "runs" and rest[1].isdigit() and self.command == "GET":
                 run = app.store.run(int(rest[1]))
                 self.json(200, run) if run else self.json(404, {"error": "no such run"})
