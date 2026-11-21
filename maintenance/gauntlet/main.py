@@ -304,7 +304,7 @@ def make_handler(app: App, page: bytes):
                         return self.json(413, {"error": "request too large"})
                     body = json.loads(self.rfile.read(length) or b"{}")
                     plan = body.get("plan") if isinstance(body, dict) else None
-                    trigger = "action" if isinstance(body, dict) and body.get("trigger") == "action" else "manual"
+                    trigger = "action" if app.has_token(self.headers) and isinstance(body, dict) and body.get("trigger") == "action" else "manual"
                 except ValueError:
                     return self.json(400, {"error": "send a JSON object"})
                 if not isinstance(plan, str):

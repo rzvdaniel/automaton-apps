@@ -394,6 +394,11 @@ class AppTests(unittest.TestCase):
             self.assertEqual(post("t" * 20), 202)
             self.wait(app)
             self.assertEqual([(r["plan"], r["trigger"], r["status"]) for r in app.store.runs(5)], [("smoke", "action", "passed")])
+            signed = Request(base + "/api/runs", method="POST", data=b'{"plan":"smoke","trigger":"action"}',
+                             headers={"X-Automaton-Viewer-Role": "Administrator", "X-Automaton-Viewer-Token": "v", "X-Gauntlet": "1"})
+            self.assertEqual(urlopen(signed).status, 202)
+            self.wait(app)
+            self.assertEqual(app.store.runs(1)[0]["trigger"], "manual", "a signed-in administrator cannot label a run as the schedule's")
         finally:
             server.shutdown()
 
