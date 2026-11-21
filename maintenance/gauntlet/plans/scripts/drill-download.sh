@@ -15,9 +15,15 @@ import xml.etree.ElementTree as ET
 dest = sys.argv[1]
 endpoint, bucket, region = os.environ["DRILL_S3_ENDPOINT"].rstrip("/"), os.environ["DRILL_S3_BUCKET"], os.environ["DRILL_S3_REGION"]
 access, secret = os.environ["DRILL_S3_ACCESS_KEY_ID"], os.environ["DRILL_S3_SECRET_ACCESS_KEY"]
-if not endpoint.startswith(("https://", "http://")):
+if not (endpoint.startswith("https://") or endpoint.startswith("http://127.0.0.1")):
     sys.exit("DRILL_S3_ENDPOINT must start with https://")
 host = urllib.parse.urlsplit(endpoint).netloc
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):  # the signature is never sent to another address
+        return None
+
+OPENER = urllib.request.build_opener(NoRedirect)
+MAX_BYTES = 50 << 30
 NAME = re.compile(r"automaton-([0-9]{8}T[0-9]{6}Z)\.tar\.age$")
 
 def sign(key, text):
@@ -39,7 +45,7 @@ def request(path, query):
     req = urllib.request.Request(endpoint + canon_path + ("?" + canon_query if canon_query else ""), headers={
         "x-amz-date": stamp, "x-amz-content-sha256": empty,
         "Authorization": f"AWS4-HMAC-SHA256 Credential={access}/{scope}, SignedHeaders={signed}, Signature={signature}"})
-    return urllib.request.urlopen(req, timeout=120)
+    return OPENER.open(req, timeout=120)
 
 candidates, token = [], None
 while True:
@@ -68,6 +74,8 @@ try:
         while chunk := response.read(1 << 20):
             out.write(chunk)
             size += len(chunk)
+            if size > MAX_BYTES:
+                sys.exit("the backup is larger than 50 GB")
 except Exception as error:
     sys.exit(f"could not download the newest backup: {type(error).__name__} {getattr(error, 'code', '')}".strip())
 if size == 0 or (expected >= 0 and size != expected):

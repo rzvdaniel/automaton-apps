@@ -126,6 +126,10 @@ def validate_plan(raw: object, source: str) -> dict:
         env = step.get("env", [])
         if not isinstance(env, list) or not all(isinstance(n, str) and re.fullmatch(r"DRILL_[A-Z0-9_]+", n) for n in env):
             raise InvalidConfig(f"{name}: step {step['name']}: env is a list of DRILL_ setting names")
+        if env and not step.get("script"):
+            raise InvalidConfig(f"{name}: step {step['name']}: env needs a script (values must not be on a command line)")
+        if env and raw.get("wipes") is not True:
+            raise InvalidConfig(f"{name}: step {step['name']}: env is only for plans that wipe a disposable machine")
         clean.append({"name": step["name"][:120], "env": env, "command": step.get("command", "bash -s"), "timeout": timeout, "exit": expect,
                       "contains": step.get("contains"), "not_contains": step.get("not_contains"),
                       "script": script, "as": step.get("as", "root"), "continue": step.get("continue") is True,

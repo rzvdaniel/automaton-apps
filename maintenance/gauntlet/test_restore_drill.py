@@ -78,8 +78,11 @@ class DrillTests(unittest.TestCase):
             self.assertEqual("DRILL_BACKUP_KEY" in (stdin or ""), "DRILL_BACKUP_KEY" in s["env"])
         self.assertEqual(plan["steps"][-2]["name"], "Result and duration")
         self.assertEqual(plan["steps"][-1]["script"], "wipe.sh")
-        with self.assertRaises(gauntlet.InvalidConfig):
-            gauntlet.validate_plan({"name": "x", "steps": [{"name": "a", "command": "b", "env": ["HOME"]}]}, "t")
+        for bad in ({"name": "x", "wipes": True, "steps": [{"name": "a", "command": "b", "env": ["HOME"]}]},
+                    {"name": "x", "wipes": True, "steps": [{"name": "a", "command": "true", "env": ["DRILL_BACKUP_KEY"]}]},
+                    {"name": "x", "steps": [{"name": "a", "script": "wipe.sh", "env": ["DRILL_BACKUP_KEY"]}]}):
+            with self.assertRaises(gauntlet.InvalidConfig):
+                gauntlet.validate_plan(bad, "t")
 
     def test_the_newest_archive_is_downloaded_and_the_key_is_private(self):
         server, seen = fake_s3(OBJECTS)
