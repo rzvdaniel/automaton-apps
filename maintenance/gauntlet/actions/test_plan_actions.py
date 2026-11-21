@@ -9,7 +9,7 @@ from unittest import mock
 from urllib.error import HTTPError, URLError
 
 HERE = Path(__file__).parent
-KEYS = ("smoke", "full-cycle", "upgrade", "restore-drill")
+KEYS = ("smoke", "full-cycle", "upgrade", "docs-walk", "restore-drill")
 
 
 def load(key):
@@ -28,7 +28,7 @@ class Response(io.BytesIO):
 
 
 class PlanActionTests(unittest.TestCase):
-    def test_the_four_folders_differ_only_in_the_plan_and_each_is_named_for_it(self):
+    def test_the_five_folders_differ_only_in_the_plan_and_each_is_named_for_it(self):
         base = (HERE / "smoke" / "main.py").read_text()
         for key in KEYS:
             text = (HERE / key / "main.py").read_text()

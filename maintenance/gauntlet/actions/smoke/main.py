@@ -5,7 +5,7 @@ The platform runs this on the schedule Gauntlet offers at install (Studio -> Act
 AUTOMATON_APP_INTERNAL_URL is the app's address on the Runner's private network and ADMIN_TOKEN is the app's secret. The app runs
 the plan in the background (one at a time) and keeps the step logs in its Reports, so this returns as soon as the run has started.
 A refused start (another run in progress, a machine that is not disposable) exits with 1 and says why, so Studio shows it as failed.
-The four plan folders hold the same file; only PLAN differs (test_plan_actions.py keeps them in step).
+The five plan folders hold the same file; only PLAN differs (test_plan_actions.py keeps them in step).
 """
 
 import json

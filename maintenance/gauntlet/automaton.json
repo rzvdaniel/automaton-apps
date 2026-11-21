@@ -101,7 +101,7 @@
       {
         "name": "GITHUB_TOKEN",
         "optional": true,
-        "description": "A token that may create issues and comments in ISSUE_REPOS (and add to the project boards). Empty: no issues"
+        "description": "A token that may create issues and comments in ISSUE_REPOS (and add to the project boards). Empty: no issues. The Docs walk also needs it to write the result into the release notes of rzvdaniel/automaton (contents write there)"
       },
       {
         "name": "DRILL_BACKUP_KEY",

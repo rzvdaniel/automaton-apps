@@ -189,6 +189,8 @@ class App:
         try:
             result = gauntlet.execute(plan, target, self.executor, self.secrets, self.now, lambda partial: self.store.save(run_id, partial), HERE / "plans" / "scripts", self.drill)
             self.store.save(run_id, result)
+            if plan["name"] == "docs-walk":
+                self.reporter.docs_walk(result)
             if result["status"] == "passed":
                 self.reporter.passed(plan, result, run_id)
             else:

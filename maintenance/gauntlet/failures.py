@@ -15,6 +15,20 @@ import gauntlet
 
 USER_AGENT = "automaton-gauntlet"
 MAX_BODY = 60000
+RELEASE_REPO = "rzvdaniel/automaton"
+DOCS_WALK_LINE = re.compile(r"^DOCS-WALK RESULT: (PASS|FAIL) (\d+\.\d+\.\d+)(?: - (.*))?$", re.M)
+
+
+def set_docs_walk(body: str, result: str, note: str = "") -> str:
+    """Puts the `## Docs walk` section before the report title (or at the end), replacing an old one."""
+    body = body.replace("\r\n", "\n")
+    body = re.sub(r"^## Docs walk[ \t]*$.*?(?=^## |\Z)", "", body, flags=re.M | re.S)
+    note = " ".join(note.split())[:300].lstrip("#")
+    section = "\n".join(["## Docs walk", "", f"Result: {result}"] + ([note] if note else []) + [""]) + "\n"
+    title = re.search(r"^## Automaton Server", body, re.M)
+    at = title.start() if title else len(body)
+    head = body[:at].rstrip("\n")
+    return (head + "\n\n" if head else "") + section + body[at:]
 
 
 def log(text: str) -> None:
@@ -55,6 +69,11 @@ class GitHub:
 
     def create_issue(self, repo: str, title: str, body: str) -> dict:
         return self.call("POST", f"/repos/{repo}/issues", {"title": title[:200], "body": body[:MAX_BODY]})
+
+    def record_docs_walk(self, version: str, result: str, note: str = "") -> None:
+        """Writes `## Docs walk` with `Result: Pass|Fail` into the notes of server-v<version>, as the verify-release proof.py does."""
+        release = self.call("GET", f"/repos/{RELEASE_REPO}/releases/tags/server-v{version}")
+        self.call("PATCH", f"/repos/{RELEASE_REPO}/releases/{release['id']}", {"body": set_docs_walk(release.get("body") or "", result, note)})
 
     def comment(self, repo: str, number: int, body: str) -> None:
         self.call("POST", f"/repos/{repo}/issues/{number}/comments", {"body": body[:MAX_BODY]})
@@ -191,6 +210,17 @@ class Reporter:
         except (HTTPError, URLError, OSError, ValueError, KeyError) as error:
             log(f"GitHub issue handling failed: {type(error).__name__}")
             return None
+
+    def docs_walk(self, result: dict) -> None:
+        """Records the walk's last line in the release notes when GITHUB_TOKEN is set (it needs write access to the releases)."""
+        found = [m for step in result["steps"] for m in DOCS_WALK_LINE.finditer(step["output"])]
+        if not self.github or not found:
+            return
+        verdict, version, note = found[-1].groups()
+        try:
+            self.github.record_docs_walk(version, verdict.capitalize(), note or "")
+        except (HTTPError, URLError, OSError, ValueError, KeyError) as error:
+            log(f"docs walk result not recorded: {type(error).__name__}")
 
     def passed(self, plan: dict, result: dict, run_id: int) -> None:
         for known in self.store.awaiting_pass(plan["name"], result["target"]):

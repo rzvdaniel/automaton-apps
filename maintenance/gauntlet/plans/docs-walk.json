@@ -1,0 +1,17 @@
+{
+  "name": "docs-walk",
+  "title": "Docs walk",
+  "description": "Claude (Haiku, low effort) plays the user pages changed in the newest server release and two rotating requests from its docs, and reports anything unclear or wrong. Started by the release workflow's webhook or Run now; no schedule.",
+  "target": "runner-02",
+  "wipes": false,
+  "repo": "automaton",
+  "steps": [
+    {
+      "name": "Walk the release docs",
+      "script": "docs-walk.sh",
+      "timeout": 900,
+      "contains": "DOCS-WALK RESULT: PASS",
+      "repo": "automaton"
+    }
+  ]
+}

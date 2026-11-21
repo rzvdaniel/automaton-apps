@@ -42,6 +42,9 @@ class FakeGitHub:
     def comment(self, repo, number, body):
         self.comments.append((repo, number, body))
 
+    def record_docs_walk(self, version, result, note=""):
+        self.walks = getattr(self, "walks", []) + [(version, result, note)]
+
     def is_open(self, repo, number):
         return self.open
 
@@ -82,7 +85,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_shipped_plans_load_and_their_scripts_exist(self):
         plans = gauntlet.load_plans(HERE / "plans")
-        self.assertEqual(set(plans), {"smoke", "full-cycle", "upgrade", "restore-drill"})
+        self.assertEqual(set(plans), {"smoke", "full-cycle", "upgrade", "docs-walk", "restore-drill"})
         for one in plans.values():
             for s in one["steps"]:
                 if s["script"]:
@@ -321,8 +324,9 @@ class AppTests(unittest.TestCase):
     def test_every_built_in_plan_has_a_studio_schedule_and_an_action(self):
         manifest = json.loads((HERE / "automaton.json").read_text())["application"]
         schedules = {s["action"]: s for s in manifest["schedules"]}
+        # docs-walk has no default schedule (owner decision, apps#379); it stays an Action for manual runs
         plans = set(gauntlet.load_plans(HERE / "plans"))
-        self.assertEqual(set(schedules), plans)
+        self.assertEqual(set(schedules), plans - {"docs-walk"})
         self.assertEqual({k: s["cron"] for k, s in schedules.items()},
                          {"smoke": "30 2 * * *", "full-cycle": "0 3 * * 0", "upgrade": "0 3 * * 6", "restore-drill": "0 5 * * 0"})
         for key in plans:
@@ -364,7 +368,7 @@ class AppTests(unittest.TestCase):
             self.assertEqual(call("/api/runs/1")[0], 401)
             self.assertEqual(call("/api/home-card")[0], 200)
             status, state = call("/api/state", headers=auth)
-            self.assertEqual((status, {p["name"] for p in state["plans"]}), (200, {"smoke", "full-cycle", "upgrade", "restore-drill"}))
+            self.assertEqual((status, {p["name"] for p in state["plans"]}), (200, {"smoke", "full-cycle", "upgrade", "docs-walk", "restore-drill"}))
             self.assertEqual(call("/api/runs", "POST", {"plan": "smoke"}, {"Authorization": auth["Authorization"]})[0], 403, "needs X-Gauntlet")
             self.assertEqual(call("/api/runs", "POST", {"plan": "nope"}, auth)[0], 404)
             self.assertEqual(call("/api/runs", "POST", {}, auth)[0], 400)
@@ -409,6 +413,30 @@ class AppTests(unittest.TestCase):
         app.start("smoke", "manual")
         self.wait(app)
         self.assertNotIn("abcdef", json.dumps(app.store.run(1)))
+
+
+class DocsWalkTests(unittest.TestCase):
+    def test_the_script_runs_claude_on_haiku_at_low_effort_and_ends_with_the_result_line(self):
+        script = (HERE / "plans" / "scripts" / "docs-walk.sh").read_text()
+        self.assertIn("--model haiku --effort low", script)
+        self.assertIn("DOCS-WALK RESULT: PASS $version", script)
+        self.assertEqual(json.loads((HERE / "plans" / "docs-walk.json").read_text())["steps"][0]["contains"], "DOCS-WALK RESULT: PASS")
+
+    def test_the_section_replaces_an_earlier_one_and_goes_before_the_report(self):
+        body = "Notes\n\n## Docs walk\n\nResult: Fail\n\n## Automaton Server 1.2.3\nx\n"
+        out = failures.set_docs_walk(body, "Pass", "pages: a, b")
+        self.assertEqual(out, "Notes\n\n## Docs walk\n\nResult: Pass\npages: a, b\n\n## Automaton Server 1.2.3\nx\n")
+
+    def test_the_last_result_line_is_recorded_only_when_a_token_is_set(self):
+        output = "found things\nDOCS-WALK RESULT: FAIL 0.2.176 - deploy page unclear\n"
+        result = {"steps": [{"output": output}]}
+        github = FakeGitHub()
+        reporter = failures.Reporter(None, github, [], {}, None, lambda *a: None)
+        reporter.docs_walk(result)
+        self.assertEqual(github.walks, [("0.2.176", "Fail", "deploy page unclear")])
+        failures.Reporter(None, None, [], {}, None, lambda *a: None).docs_walk(result)
+        reporter.docs_walk({"steps": [{"output": "no result line"}]})
+        self.assertEqual(len(github.walks), 1)
 
 
 class PlanScriptTests(unittest.TestCase):
