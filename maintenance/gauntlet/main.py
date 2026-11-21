@@ -15,6 +15,7 @@ import hmac
 import json
 import os
 import re
+import socket
 import sys
 import threading
 import time
@@ -145,6 +146,21 @@ class App:
         self.lock = threading.Lock()
         self.running: dict | None = None  # {"id", "plan", "target"} while a run is in progress
         self.queue_lock = threading.Lock()
+        self.reachable: dict[str, bool] = {}  # target name -> answers on its SSH port, refreshed by probe_loop
+
+    def probe(self) -> None:
+        for name, target in self.targets.items():
+            host = target["host"].rsplit("@", 1)[-1]
+            try:
+                with socket.create_connection((host, 22), timeout=3):
+                    self.reachable[name] = True
+            except OSError:
+                self.reachable[name] = False
+
+    def probe_loop(self) -> None:
+        while True:
+            self.probe()
+            time.sleep(60)
 
     def diagnose(self, prompt: str) -> dict | None:
         """Asks Claude Code, headless on a configured target with its own login, to read the failure and write the issue."""
@@ -217,6 +233,10 @@ class App:
             runs = self.store.runs(10, name)
             for run in runs:
                 run["failed_step"] = self.failed_step(run)
+            if runs and runs[0]["status"] != "passed":
+                row = self.store.db.execute("select number, url from issues where last_run=?", (runs[0]["id"],)).fetchone()
+                if row and str(row[1]).startswith(("https://", "http://")):
+                    runs[0]["issue"] = {"number": row[0], "url": row[1]}
             if runs and runs[0]["status"] == "running":
                 runs[0]["step"] = len(self.store.run(runs[0]["id"])["steps"]) + 1
             target = self.targets.get(plan["target"] or "")
@@ -224,7 +244,7 @@ class App:
                           "wipes": plan["wipes"], "steps": len(plan["steps"]), "schedule": self.schedules.get(name),
                           "problem": gauntlet.refusal(plan, target), "last": runs[0] if runs else None, "runs": runs})
         return {"plans": plans, "running": self.running, "managed": self.managed,
-                "targets": [{"name": t["name"], "disposable": t["disposable"]} for t in self.targets.values()],
+                "targets": [{"name": t["name"], "disposable": t["disposable"], "reachable": self.reachable.get(t["name"])} for t in self.targets.values()],
                 "github": bool(self.repos), "claude": bool(self.claude_target and self.claude_command)}
 
     def failed_step(self, run: dict) -> str | None:
@@ -241,8 +261,8 @@ class App:
             return {"status": "No run yet", "tone": "info", "detail": "Gauntlet has not finished a run.", "blocks": [buttons]}
         bad = [p for p, r in finished if r["status"] != "passed"]
         newest = max((r for _, r in finished), key=lambda r: r["finished"] or r["started"])
-        blocks = [{"type": "badge", "label": p["title"], "text": gauntlet.summary(r, now), "tone": "ok" if r["status"] == "passed" else "critical"} for p, r in finished[:6]]
-        return {"status": "Needs attention" if bad else "Last run: passed", "tone": "critical" if bad else "ok",
+        blocks = [{"type": "badge", "label": p["title"], "text": gauntlet.summary(r, now), "tone": "ok" if r["status"] == "passed" else "warning"} for p, r in finished[:6]]
+        return {"status": "Needs attention" if bad else "Last run: passed", "tone": "warning" if bad else "ok",
                 "detail": "Last run " + gauntlet.ago(now - (newest["finished"] or newest["started"])), "blocks": blocks + [buttons]}
 
 
@@ -354,6 +374,7 @@ def main() -> int:
         log(f"cannot start: {error}")
         return 1
     threading.Thread(target=app.prune_daily, daemon=True).start()
+    threading.Thread(target=app.probe_loop, daemon=True).start()
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))
     log(f"Gauntlet listening on port {port}")
     ThreadingHTTPServer(("0.0.0.0", port), make_handler(app, (HERE / "index.html").read_bytes())).serve_forever()

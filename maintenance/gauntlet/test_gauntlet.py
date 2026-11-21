@@ -344,6 +344,18 @@ class AppTests(unittest.TestCase):
         self.assertNotIn("runs", state)
         self.assertFalse(self.app().state()["managed"])
 
+    def test_state_names_reachable_machines_and_the_issue_of_a_failed_run(self):
+        app = self.app(executor=FakeExecutor(code=1, output="boom"))
+        app.reachable = {"box": True, "prod": False}
+        app.start("smoke", "manual")
+        self.wait(app)
+        run = app.store.runs(1, "smoke")[0]
+        app.store.remember_issue("sig", "owner/repo", 7, "https://github.com/owner/repo/issues/7", "smoke", "runner-02", run["id"])
+        state = app.state()
+        self.assertEqual({t["name"]: t["reachable"] for t in state["targets"]}, {"box": True, "runner-02": None, "prod": False})
+        last = next(p for p in state["plans"] if p["name"] == "smoke")["last"]
+        self.assertEqual(last["issue"], {"number": 7, "url": "https://github.com/owner/repo/issues/7"})
+
     def test_home_card_has_no_host_names_or_logs(self):
         app = self.app()
         self.assertEqual(app.home_card()["status"], "No run yet")
@@ -356,7 +368,7 @@ class AppTests(unittest.TestCase):
         failing = self.app(executor=FakeExecutor(code=1, output="boom"))
         failing.start("smoke", "schedule")
         self.wait(failing)
-        self.assertEqual(failing.home_card()["tone"], "critical")
+        self.assertEqual(failing.home_card()["tone"], "warning")
 
     def test_a_standalone_app_needs_its_token_over_http(self):
         app = self.app(ADMIN_TOKEN="t" * 20)
@@ -428,6 +440,20 @@ class AppTests(unittest.TestCase):
         app.start("smoke", "manual")
         self.wait(app)
         self.assertNotIn("abcdef", json.dumps(app.store.run(1)))
+
+
+class BuildTests(unittest.TestCase):
+    def test_the_build_copies_every_file_the_app_reads_at_run_time(self):
+        # main.py runs from dist/: a file it reads that the build does not copy only fails once deployed (apps#405)
+        manifest = json.loads((HERE / "automaton.json").read_text())["application"]["build"]
+        command = manifest["command"]["arguments"][-1]
+        copied = command.split(" cp ")[1].split(" dist/")[0].split() if " cp " in command else []
+        reads = ["main.py", "gauntlet.py", "failures.py", "index.html", "gauntlet.js", "gauntlet.css", "plans", "automaton.json"]
+        for name in reads:
+            self.assertIn(name, [c for c in copied if not c.startswith("-")], f"the build does not copy {name}")
+            self.assertTrue((HERE / name).exists())
+        self.assertIn("cp ui/app.css ui/app.js dist/ui/", command)
+        self.assertEqual(manifest["outputDirectory"], "dist")
 
 
 class PlanScriptTests(unittest.TestCase):
