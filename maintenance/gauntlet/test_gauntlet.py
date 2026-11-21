@@ -321,10 +321,12 @@ class AppTests(unittest.TestCase):
     def test_every_built_in_plan_has_a_studio_schedule_and_an_action(self):
         manifest = json.loads((HERE / "automaton.json").read_text())["application"]
         schedules = {s["action"]: s for s in manifest["schedules"]}
-        self.assertEqual(set(schedules), set(gauntlet.load_plans(HERE / "plans")))
+        # docs-walk has no default schedule (owner decision, apps#379); it stays an Action for manual runs
+        plans = set(gauntlet.load_plans(HERE / "plans"))
+        self.assertEqual(set(schedules), plans - {"docs-walk"})
         self.assertEqual({k: s["cron"] for k, s in schedules.items()},
-                         {"smoke": "30 2 * * *", "full-cycle": "0 3 * * 0", "upgrade": "0 3 * * 6", "docs-walk": "0 4 * * 3", "restore-drill": "0 5 * * 0"})
-        for key in schedules:
+                         {"smoke": "30 2 * * *", "full-cycle": "0 3 * * 0", "upgrade": "0 3 * * 6", "restore-drill": "0 5 * * 0"})
+        for key in plans:
             self.assertTrue((HERE / "actions" / key / "action.yaml").is_file(), key)
             self.assertIn("schedulable: true", (HERE / "actions" / key / "action.yaml").read_text())
         self.assertIn("ADMIN_TOKEN", [s["name"] for s in manifest["secrets"]])

@@ -1,7 +1,7 @@
 {
   "name": "Gauntlet",
   "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
-  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, run a backup, restart, uninstall and install again, and every week restore the newest off-site backup on a disposable machine to prove it works. Plans that wipe a machine run only on machines marked disposable. Each plan is a platform Action with a schedule you can see, change, pause and run in Studio. Every run and each step's log is kept in the app; a reports page shows history, a Run now button starts a plan and a Home card shows the last result. A failed run sends an email (permission notify:email), asks Claude Code on a machine you choose to diagnose it, and opens one GitHub issue in the right repository; a repeat failure comments on that issue and a later pass comments that it passes again. It never closes an issue.",
+  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, back up, restart, uninstall and reinstall, and weekly restore the newest off-site backup on a disposable machine. Plans that wipe run only on machines marked disposable. Each plan is an Action with a schedule you can change in Studio. Runs and logs are kept; a failed run emails you, gets a Claude Code diagnosis and opens one GitHub issue.",
   "application": {
     "kind": "web",
     "permissions": [
@@ -136,12 +136,6 @@
         "name": "Upgrade",
         "action": "upgrade",
         "cron": "0 3 * * 6",
-        "timeZone": "Etc/UTC"
-      },
-      {
-        "name": "Docs walk",
-        "action": "docs-walk",
-        "cron": "0 4 * * 3",
         "timeZone": "Etc/UTC"
       },
       {
