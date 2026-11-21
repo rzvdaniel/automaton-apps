@@ -71,6 +71,61 @@ class OffsiteBackupTests(unittest.TestCase):
             self.assertFalse(second["uploaded"])
             self.assertEqual(open_url.call_count, 3)  # Two metadata reads, one archive download.
 
+    def run_with_checkin(self, calls, fail_times=0, upload=True, url="https://hb.example.test/ping/secret-token"):
+        def open_url(request, timeout):
+            if request.full_url.startswith("https://hb.example.test"):
+                self.assertEqual(timeout, 10)
+                calls.append(request.full_url)
+                if len(calls) <= fail_times:
+                    raise main.HTTPError(request.full_url, 500, "x", {}, io.BytesIO(b""))
+                return io.BytesIO(b"ok")
+            return self.api_responses()(request, timeout)
+
+        with patch.object(main, "make_s3_client", return_value=self.s3), \
+                patch.object(main, "api_urlopen", side_effect=open_url), \
+                patch.object(main.time, "sleep"), \
+                patch.dict(os.environ, {"CHECKIN_URL": url}):
+            return main.run({})
+
+    def marker(self):
+        body = self.s3.get_object(Bucket="automaton-backups", Key="automaton/automaton.test/app-one/.last-checkin")["Body"].read()
+        return json.loads(body)
+
+    def test_new_backup_leads_to_one_checkin_and_a_second_run_to_none(self):
+        calls = []
+        self.assertTrue(self.run_with_checkin(calls)["uploaded"])
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(self.marker()["ok"])
+        self.assertFalse(self.run_with_checkin(calls)["uploaded"])
+        self.assertEqual(len(calls), 1)  # nothing new, no check-in
+
+    def test_failed_upload_makes_no_checkin(self):
+        calls = []
+        self.status["backups"][1]["archiveSha256"] = "0" * 64
+        with self.assertRaises(main.BackupError):
+            self.run_with_checkin(calls)
+        self.assertEqual(calls, [])
+
+    def test_checkin_retries_three_times_then_reports_failure_without_failing_the_upload(self):
+        calls = []
+        self.assertTrue(self.run_with_checkin(calls, fail_times=99)["uploaded"])
+        self.assertEqual(len(calls), 4)
+        marker = self.marker()
+        self.assertFalse(marker["ok"])
+        self.assertIn("HTTP 500", marker["message"])
+        self.assertNotIn("secret-token", json.dumps(marker))
+
+    def test_checkin_recovers_on_a_retry_and_rejects_a_non_https_address(self):
+        calls = []
+        self.run_with_checkin(calls, fail_times=2)
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(self.marker()["ok"])
+        calls = []
+        self.s3.delete_object(Bucket="automaton-backups", Key=f"automaton/automaton.test/app-one/{self.name}.tar.age")
+        self.assertTrue(self.run_with_checkin(calls, url="http://hb.example.test/x")["uploaded"])
+        self.assertEqual(calls, [])
+        self.assertIn("https", self.marker()["message"])
+
     def test_two_installs_keep_copies_under_their_own_prefix(self):
         with patch.object(main, "make_s3_client", return_value=self.s3), \
                 patch.object(main, "api_urlopen", side_effect=self.api_responses()):

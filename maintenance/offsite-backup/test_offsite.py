@@ -28,6 +28,18 @@ class Opener:
         return io.BytesIO(self.bodies.pop(0))
 
 
+class CheckinTests(unittest.TestCase):
+    def test_reads_the_stored_checkin_from_the_install_folder(self):
+        opener = Opener(b'{"at": "2026-11-21T03:52:00+00:00", "ok": false, "message": "the address answered HTTP 500"}')
+        result = offsite.last_checkin(offsite.Config(ENV), datetime(2026, 11, 21, tzinfo=timezone.utc), opener)
+        self.assertEqual(result, {"at": "2026-11-21T03:52:00+00:00", "ok": False, "message": "the address answered HTTP 500"})
+        self.assertTrue(opener.requests[0].full_url.startswith("https://s3.example.test/bk/" + P + ".last-checkin"))
+
+    def test_none_when_missing_or_unreadable(self):
+        self.assertIsNone(offsite.last_checkin(offsite.Config(ENV), opener=Opener(status=404)))
+        self.assertIsNone(offsite.last_checkin(offsite.Config(ENV), opener=Opener(b"not json")))
+
+
 class OffsiteTests(unittest.TestCase):
     def test_lists_newest_first_with_a_restore_command_and_ignores_other_objects(self):
         opener = Opener(page([(P + "automaton-20261101T030000Z.tar.age", 10), (P + ".stale-alert", 0), (P + "automaton-20261103T030000Z.tar.age", 2048), (P + "notes.txt", 1)]))

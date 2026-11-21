@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from typing import BinaryIO
 from urllib.error import HTTPError, URLError
@@ -27,6 +28,9 @@ DEFAULT_MINIMUM_BACKUPS = 7
 DEFAULT_STALE_HOURS = 26
 STALE_ALERT_EVERY = timedelta(hours=24)
 STALE_MARKER = ".stale-alert"
+CHECKIN_MARKER = ".last-checkin"
+CHECKIN_RETRIES = 3
+CHECKIN_PAUSE_SECONDS = 2
 
 
 class BackupError(RuntimeError):
@@ -256,6 +260,37 @@ def resolve_target() -> tuple[str, str, str, str, str, str, str, str]:
     return base_url, api_key, bucket, endpoint, access_key, secret_key, region, prefix
 
 
+def checkin(s3, bucket: str, prefix: str) -> None:
+    """After a new copy is safely off-site, calls CHECKIN_URL once (10 s timeout, 3 retries) and stores the outcome
+    in a small marker object for the page. Never raises and never prints the URL: it must not fail the upload."""
+    url = os.environ.get("CHECKIN_URL", "").strip()
+    if not url:
+        return
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+        result = "CHECKIN_URL must be an https:// address."
+    else:
+        result = ""
+        for attempt in range(CHECKIN_RETRIES + 1):
+            if attempt:
+                time.sleep(CHECKIN_PAUSE_SECONDS)
+            try:
+                with api_urlopen(Request(url, method="GET", headers={"User-Agent": "Automaton-Offsite-Backup"}), timeout=10):
+                    pass
+                result = ""
+                break
+            except HTTPError as error:
+                result = f"the address answered HTTP {error.code}"
+            except Exception:
+                result = "the address could not be reached"
+    print("Check-in sent." if not result else f"Check-in failed: {result}.", file=sys.stderr)
+    body = json.dumps({"at": datetime.now(timezone.utc).isoformat(), "ok": not result, "message": result})
+    try:
+        s3.put_object(Bucket=bucket, Key=prefix + CHECKIN_MARKER, Body=body.encode(), ContentType="application/json")
+    except Exception:
+        print("Check-in result could not be saved for the page.", file=sys.stderr)
+
+
 def run(input_data: dict) -> dict:
     base_url, api_key, bucket, endpoint, access_key, secret_key, region, prefix = resolve_target()
     retention_days = positive_int_setting("RETENTION_DAYS", DEFAULT_RETENTION_DAYS, 1)
@@ -298,6 +333,8 @@ def run(input_data: dict) -> dict:
         retained, deleted = apply_retention(s3, bucket, prefix, retention_days, minimum_backups)
     except (ClientError, BotoCoreError) as error:
         raise BackupError(describe_s3_error(error)) from error
+    if uploaded:
+        checkin(s3, bucket, prefix)
     return {"uploaded": uploaded, "backup": name, "retained": retained, "deleted": deleted}
 
 
