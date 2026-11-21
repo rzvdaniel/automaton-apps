@@ -28,7 +28,7 @@ class Config:
         get = lambda name: env.get(name, "").strip()  # noqa: E731
         self.endpoint, self.bucket, self.region = get("S3_ENDPOINT").rstrip("/"), get("S3_BUCKET"), get("S3_REGION") or "us-east-1"
         self.access_key, self.secret_key = get("S3_ACCESS_KEY_ID"), get("S3_SECRET_ACCESS_KEY")
-        host = urlsplit(get("API_BASE_URL") or get("AUTOMATON_API_URL")).netloc
+        host = urlsplit(get("API_BASE_URL")).netloc
         app_id = get("AUTOMATON_APP_ID")
         default = f"automaton/{host}/{app_id}/"
         requested = get("S3_PREFIX")

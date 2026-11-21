@@ -64,3 +64,10 @@ class OffsiteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestApiBaseOnly(unittest.TestCase):
+    def test_prefix_ignores_automaton_api_url(self):
+        env = {k: v for k, v in ENV.items() if k != "API_BASE_URL"}
+        env["AUTOMATON_API_URL"] = "http://internal:8080"
+        self.assertNotIn("internal", offsite.Config(env).prefix)

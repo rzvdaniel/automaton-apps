@@ -272,6 +272,15 @@ class OffsiteBackupTests(unittest.TestCase):
             self.assertEqual(main.main(), 1)
         notify.assert_not_called()
 
+    def test_s3_error_in_the_stale_check_does_not_alert_again(self):
+        from botocore.exceptions import ClientError
+        error = ClientError({"Error": {"Code": "InvalidAccessKeyId"}}, "ListObjectsV2")
+        with patch.object(main, "make_s3_client", return_value=self.s3), patch.object(main, "list_copies", side_effect=error), \
+                patch.object(main, "notify_failure") as notify, \
+                patch("sys.stdin", io.StringIO('{"check":"stale"}')):
+            self.assertEqual(main.main(), 1)
+        notify.assert_not_called()
+
     def test_webhook_gets_the_failure_without_the_server(self):
         calls = []
         with patch.dict(os.environ, {"WEBHOOK_URL": "https://hooks.example.test/T/secret", "APP_AUTOMATON_API_KEY": ""}), \

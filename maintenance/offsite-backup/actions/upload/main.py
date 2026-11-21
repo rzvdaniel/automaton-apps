@@ -324,7 +324,8 @@ def check_stale() -> dict:
             s3.put_object(Bucket=bucket, Key=marker, Body=b"")
             alerted = True
     except (ClientError, BotoCoreError) as error:
-        raise BackupError(describe_s3_error(error)) from error
+        # The upload schedule already alerts on S3 errors; failing here without a second alert avoids an hourly duplicate.
+        raise StaleError(describe_s3_error(error)) from error
     age = f"The newest off-site copy is from {newest:%Y-%m-%d %H:%M} UTC" if newest else "There is no off-site copy"
     reason = f"{age}, older than the {stale_hours} hours allowed (STALE_HOURS). Check that the server's nightly backup and the Off-site backup schedule are running."
     if alerted:
