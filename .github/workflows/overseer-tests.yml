@@ -25,5 +25,5 @@ jobs:
       - run: python -m unittest discover -p 'test_*.py' -s actions/run-job
       - run: python -m unittest discover -p 'test_*.py' -s actions/release-check
       - name: Build into dist/ and start it
-        run: python tools/smoke_build.py maintenance/overseer
+        run: python tools/smoke_build.py QUEUE_HOST=smoke@127.0.0.1 maintenance/overseer
         working-directory: .
