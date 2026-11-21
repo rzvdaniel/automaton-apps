@@ -3,7 +3,7 @@ kind: Action
 metadata:
   name: Home card
   key: home-card
-  description: The card Studio Home shows for Gauntlet, with the last result of each scheduled plan.
+  description: The card Studio Home shows for Gauntlet, with the last result of each plan.
 spec:
   runtime: python
   entrypoint: main.py

@@ -72,30 +72,6 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(gauntlet.InvalidConfig, msg=raw):
                 gauntlet.parse_targets(raw)
 
-    def test_schedules(self):
-        self.assertIsNone(gauntlet.parse_schedule("manual"))
-        self.assertEqual(gauntlet.parse_schedule("weekly sun 03:00")["weekday"], 6)
-        for bad in ("hourly", "daily 25:00", "weekly funday 01:00", "daily"):
-            with self.assertRaises(gauntlet.InvalidConfig):
-                gauntlet.parse_schedule(bad)
-
-    def test_a_plan_is_due_once_per_slot_and_never_before_the_app_existed(self):
-        schedule = gauntlet.parse_schedule("daily 02:30")
-        smoke = plan(schedule=schedule)
-        day = time.mktime(time.strptime("2026-11-20 12:00", "%Y-%m-%d %H:%M")) - time.timezone  # UTC noon
-        slot = gauntlet.last_slot(schedule, day)
-        self.assertEqual(time.gmtime(slot)[3:5], (2, 30))
-        self.assertTrue(gauntlet.due(smoke, None, slot - 10, day))
-        self.assertFalse(gauntlet.due(smoke, slot + 5, slot - 10, day), "already ran in this slot")
-        self.assertFalse(gauntlet.due(smoke, None, day - 60, day), "the app started after the slot")
-        self.assertFalse(gauntlet.due(plan(), None, 0, day), "manual plans never run by themselves")
-
-    def test_weekly_slot_lands_on_its_weekday(self):
-        schedule = gauntlet.parse_schedule("weekly sun 03:00")
-        now = 1795000000
-        self.assertEqual(time.gmtime(gauntlet.last_slot(schedule, now)).tm_wday, 6)
-        self.assertEqual(gauntlet.next_slot(schedule, now) - gauntlet.last_slot(schedule, now), 7 * 86400)
-
     def test_plan_validation(self):
         for bad in ({}, {"name": "x"}, {"name": "x", "steps": [{"name": "a"}]},
                     {"name": "x", "steps": [{"name": "a", "command": "b", "timeout": 0}]},
@@ -111,7 +87,7 @@ class ConfigTests(unittest.TestCase):
             for s in one["steps"]:
                 if s["script"]:
                     self.assertTrue((HERE / "plans" / "scripts" / s["script"]).is_file(), s["script"])
-        self.assertEqual((plans["smoke"]["target"], plans["smoke"]["schedule_text"]), ("runner-02", "daily 02:30"))
+        self.assertEqual(plans["smoke"]["target"], "runner-02")
         self.assertTrue(plans["full-cycle"]["wipes"] and plans["full-cycle"]["target"] == "nu8")
         self.assertTrue(any(s["as"] == "automaton" for s in plans["full-cycle"]["steps"]))
 
@@ -197,7 +173,6 @@ class StoreTests(unittest.TestCase):
             store.finish_orphans()
             self.assertEqual(store.run(second)["status"], "failed")
             self.assertIsNone(store.run(999))
-            self.assertEqual(store.last_started("p", "schedule"), store.run(second)["started"])
 
 
 class ReportTests(unittest.TestCase):
@@ -317,6 +292,14 @@ class AppTests(unittest.TestCase):
         self.assertEqual(alone.may_manage({"X-Automaton-Viewer-Role": "administrator", "X-Automaton-Viewer-Token": "t"}), "token", "forged headers do nothing")
         self.assertIsNone(alone.may_manage({"Authorization": "Bearer " + "x" * 20}))
         self.assertEqual(self.app(ADMIN_TOKEN="short").may_manage({"Authorization": "Bearer short"}), "token")
+        # the Actions of the schedules call the running app with the ADMIN_TOKEN and no Studio sign-in
+        scheduled = self.app(AUTOMATON_APP_ID="a1", ADMIN_TOKEN="x" * 20)
+        bearer = {"Authorization": "Bearer " + "x" * 20}
+        self.assertIsNone(scheduled.may_manage(bearer))
+        self.assertTrue(scheduled.may_run(bearer))
+        self.assertEqual(scheduled.may_manage({"Authorization": "Bearer " + "y" * 20}), "signin")
+        self.assertFalse(scheduled.may_run({"Authorization": "Bearer " + "y" * 20}))
+        self.assertEqual(managed.may_manage(bearer), "signin", "no token configured: a Bearer header means nothing")
 
     def test_a_manual_run_stores_every_step(self):
         app = self.app()
@@ -329,15 +312,22 @@ class AppTests(unittest.TestCase):
         self.assertEqual(len(run["steps"]), 9)
         self.assertEqual(app.start("nope", "manual"), (None, "unknown plan"))
 
-    def test_the_scheduler_starts_a_due_plan_once(self):
+    def test_no_plan_runs_on_the_apps_own_clock(self):
         app = self.app()
-        app.store.db.execute("update meta set value=?", (str(time.time() - 3 * 86400),))
-        app.tick()
-        self.wait(app)
-        self.assertEqual(len(app.store.runs(10)), 1)
-        app.tick()
-        self.wait(app)
-        self.assertEqual(len([r for r in app.store.runs(10) if r["plan"] == app.store.runs(1)[0]["plan"]]), 1)
+        self.assertFalse(hasattr(app, "tick") or hasattr(app, "loop") or hasattr(gauntlet, "due"))
+        time.sleep(0.2)
+        self.assertEqual(app.store.runs(10), [])
+
+    def test_every_built_in_plan_has_a_studio_schedule_and_an_action(self):
+        manifest = json.loads((HERE / "automaton.json").read_text())["application"]
+        schedules = {s["action"]: s for s in manifest["schedules"]}
+        self.assertEqual(set(schedules), set(gauntlet.load_plans(HERE / "plans")))
+        self.assertEqual({k: s["cron"] for k, s in schedules.items()},
+                         {"smoke": "30 2 * * *", "full-cycle": "0 3 * * 0", "upgrade": "0 3 * * 6", "docs-walk": "0 4 * * 3", "restore-drill": "0 5 * * 0"})
+        for key in schedules:
+            self.assertTrue((HERE / "actions" / key / "action.yaml").is_file(), key)
+            self.assertIn("schedulable: true", (HERE / "actions" / key / "action.yaml").read_text())
+        self.assertIn("ADMIN_TOKEN", [s["name"] for s in manifest["secrets"]])
 
     def test_home_card_has_no_host_names_or_logs(self):
         app = self.app()
@@ -382,6 +372,28 @@ class AppTests(unittest.TestCase):
             self.wait(app)
             self.assertEqual(call(f"/api/runs/{started['id']}", headers=auth)[1]["status"], "passed")
             self.assertEqual(call("/api/runs/999", headers=auth)[0], 404)
+        finally:
+            server.shutdown()
+
+    def test_a_schedule_starts_a_plan_through_the_action_in_a_managed_app(self):
+        app = self.app(AUTOMATON_APP_ID="a1", ADMIN_TOKEN="t" * 20)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), main.make_handler(app, b"<html>"))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+
+            def post(token):
+                request = Request(base + "/api/runs", method="POST", data=b'{"plan":"smoke","trigger":"action"}',
+                                  headers={"Authorization": "Bearer " + token, "X-Gauntlet": "1"})
+                try:
+                    with urlopen(request) as response:
+                        return response.status
+                except HTTPError as error:
+                    return error.code
+            self.assertEqual(post("z" * 20), 401)
+            self.assertEqual(post("t" * 20), 202)
+            self.wait(app)
+            self.assertEqual([(r["plan"], r["trigger"], r["status"]) for r in app.store.runs(5)], [("smoke", "action", "passed")])
         finally:
             server.shutdown()
 

@@ -3,7 +3,6 @@
   "title": "Upgrade",
   "description": "Installs the latest stable version, adds data, updates to the newest release and checks everything still works. Runs every week.",
   "target": "nu8",
-  "schedule": "weekly sat 03:00",
   "wipes": true,
   "repo": "automaton",
   "steps": [

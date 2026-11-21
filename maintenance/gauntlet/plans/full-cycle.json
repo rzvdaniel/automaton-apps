@@ -3,7 +3,6 @@
   "title": "Full cycle",
   "description": "Install, use, restart, uninstall with deleted data, then install again, with production's limited automaton user. Runs every week.",
   "target": "nu8",
-  "schedule": "weekly sun 03:00",
   "wipes": true,
   "repo": "automaton",
   "steps": [

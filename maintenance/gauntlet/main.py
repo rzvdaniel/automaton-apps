@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Gauntlet: scheduled install, use, uninstall and reinstall tests on your own machines, with reports and failure issues.
+"""Gauntlet: install, use, uninstall and reinstall tests on your own machines, with reports and failure issues.
 
   /                      the reports page
   /api/state             plans, targets, recent runs        (needs Studio's sign-in, or the ADMIN_TOKEN when run on its own)
   /api/runs/<id>         one run with each step's log
-  POST /api/runs         {"plan": "smoke"} runs a plan now    (administrators only when run by Automaton)
+  POST /api/runs         {"plan": "smoke"} runs a plan now    (administrators only when run by Automaton, or the ADMIN_TOKEN:
+                         the platform Actions that Studio's schedules run send it with "trigger": "action")
   /api/home-card         the card Studio Home shows           (no host names, no logs)
 """
 
@@ -151,19 +152,23 @@ class App:
         return failures.parse_diagnosis(gauntlet.redact(output, self.secrets), self.repos) if code == 0 else None
 
     # --- access ---------------------------------------------------------------------------------------------
-    def may_manage(self, headers) -> str | None:
-        """None when the request may use the API, else why not: "signin" (run by Automaton) or "token" (standalone)."""
-        if self.managed:
-            return None if headers.get("X-Automaton-Viewer-Role") and headers.get("X-Automaton-Viewer-Token") else "signin"
+    def has_token(self, headers) -> bool:
         supplied = headers.get("Authorization", "")
         supplied = supplied[7:] if supplied.lower().startswith("bearer ") else ""
-        if len(self.admin_token) >= MIN_ADMIN_TOKEN and hmac.compare_digest(supplied.encode(), self.admin_token.encode()):
+        return len(self.admin_token) >= MIN_ADMIN_TOKEN and hmac.compare_digest(supplied.encode(), self.admin_token.encode())
+
+    def may_manage(self, headers) -> str | None:
+        """None when the request may use the API, else why not: "signin" (run by Automaton) or "token" (standalone).
+        The ADMIN_TOKEN works in both: it is how the platform Actions of the schedules call the app."""
+        if self.has_token(headers):
             return None
+        if self.managed:
+            return None if headers.get("X-Automaton-Viewer-Role") and headers.get("X-Automaton-Viewer-Token") else "signin"
         return "token"
 
     def may_run(self, headers) -> bool:
-        """Runs can wipe machines: run by Automaton only a system administrator may start one."""
-        return not self.managed or (headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"
+        """Runs can wipe machines: run by Automaton only a system administrator (or the ADMIN_TOKEN) may start one."""
+        return not self.managed or self.has_token(headers) or (headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"
 
     # --- running ----------------------------------------------------------------------------------------------
     def start(self, plan_name: str, trigger: str) -> tuple[int | None, str | None]:
@@ -194,25 +199,13 @@ class App:
         finally:
             self.running = None
 
-    def tick(self) -> None:
-        first = self.store.first_seen()
-        for name, plan in self.plans.items():
-            if gauntlet.due(plan, self.store.last_started(name, "schedule"), first, self.now()):
-                self.start(name, "schedule")
-                return  # one at a time; the next plan is picked up on the next pass
-
-    def loop(self) -> None:
-        pruned = 0.0
+    def prune_daily(self) -> None:
         while True:
             try:
-                if not self.running:
-                    self.tick()
-                if self.now() - pruned > 86400:
-                    self.store.prune()
-                    pruned = self.now()
+                self.store.prune()
             except Exception as error:
-                log(f"scheduler pass failed: {type(error).__name__}")
-            time.sleep(30)
+                log(f"pruning failed: {type(error).__name__}")
+            time.sleep(86400)
 
     # --- views ------------------------------------------------------------------------------------------------
     def state(self) -> dict:
@@ -222,8 +215,7 @@ class App:
             last = (self.store.runs(1, name) or [None])[0]
             target = self.targets.get(plan["target"] or "")
             plans.append({"name": name, "title": plan["title"], "description": plan["description"], "target": plan["target"],
-                          "schedule": plan["schedule_text"], "wipes": plan["wipes"], "steps": len(plan["steps"]),
-                          "next": gauntlet.next_slot(plan["schedule"], now) if plan["schedule"] else None,
+                          "wipes": plan["wipes"], "steps": len(plan["steps"]),
                           "problem": gauntlet.refusal(plan, target), "last": last})
         return {"plans": plans, "running": self.running, "runs": self.store.runs(50),
                 "targets": [{"name": t["name"], "disposable": t["disposable"]} for t in self.targets.values()],
@@ -231,12 +223,11 @@ class App:
 
     def home_card(self) -> dict:
         now = self.now()
-        scheduled = [p for p in self.plans.values() if p["schedule"]]
-        lasts = [(p, (self.store.runs(1, p["name"]) or [None])[0]) for p in scheduled]
+        lasts = [(p, (self.store.runs(1, p["name"]) or [None])[0]) for p in self.plans.values()]
         finished = [(p, r) for p, r in lasts if r and r["status"] != "running"]
         buttons = {"type": "buttons", "items": [{"label": "Reports", "path": "/"}]}
         if not finished:
-            return {"status": "No run yet", "tone": "info", "detail": "Gauntlet has not finished a scheduled run.", "blocks": [buttons]}
+            return {"status": "No run yet", "tone": "info", "detail": "Gauntlet has not finished a run.", "blocks": [buttons]}
         bad = [p for p, r in finished if r["status"] != "passed"]
         newest = max((r for _, r in finished), key=lambda r: r["finished"] or r["started"])
         blocks = [{"type": "badge", "label": p["title"], "text": gauntlet.summary(r, now), "tone": "ok" if r["status"] == "passed" else "critical"} for p, r in finished[:6]]
@@ -313,11 +304,12 @@ def make_handler(app: App, page: bytes):
                         return self.json(413, {"error": "request too large"})
                     body = json.loads(self.rfile.read(length) or b"{}")
                     plan = body.get("plan") if isinstance(body, dict) else None
+                    trigger = "action" if isinstance(body, dict) and body.get("trigger") == "action" else "manual"
                 except ValueError:
                     return self.json(400, {"error": "send a JSON object"})
                 if not isinstance(plan, str):
                     return self.json(400, {"error": "say which plan to run"})
-                run_id, why = app.start(plan, "manual")
+                run_id, why = app.start(plan, trigger)
                 if run_id is None:
                     return self.json(404 if why == "unknown plan" else 409, {"error": why})
                 self.json(202, {"id": run_id})
@@ -337,7 +329,7 @@ def main() -> int:
     except (gauntlet.InvalidConfig, OSError) as error:
         log(f"cannot start: {error}")
         return 1
-    threading.Thread(target=app.loop, daemon=True).start()
+    threading.Thread(target=app.prune_daily, daemon=True).start()
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))
     log(f"Gauntlet listening on port {port}")
     ThreadingHTTPServer(("0.0.0.0", port), make_handler(app, (HERE / "index.html").read_bytes())).serve_forever()

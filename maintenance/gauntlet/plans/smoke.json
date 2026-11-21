@@ -3,7 +3,6 @@
   "title": "Smoke test",
   "description": "Wipes the machine, installs the latest build, checks it works and uninstalls. Runs every night.",
   "target": "runner-02",
-  "schedule": "daily 02:30",
   "wipes": true,
   "repo": "automaton",
   "steps": [

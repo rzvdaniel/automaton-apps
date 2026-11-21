@@ -1,7 +1,7 @@
 {
   "name": "Gauntlet",
   "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
-  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, run a backup, restart, uninstall and install again, and every week restore the newest off-site backup on a disposable machine to prove it works. Plans that wipe a machine run only on machines marked disposable. Every run and each step's log is kept in the app; a reports page shows history, a Run now button starts a plan and a Home card shows the last result. A failed run sends an email (permission notify:email), asks Claude Code on a machine you choose to diagnose it, and opens one GitHub issue in the right repository; a repeat failure comments on that issue and a later pass comments that it passes again. It never closes an issue.",
+  "description": "Runs test plans over SSH on machines you name: wipe and install Automaton, check the default apps, deploy an app, run a backup, restart, uninstall and install again, and every week restore the newest off-site backup on a disposable machine to prove it works. Plans that wipe a machine run only on machines marked disposable. Each plan is a platform Action with a schedule you can see, change, pause and run in Studio. Every run and each step's log is kept in the app; a reports page shows history, a Run now button starts a plan and a Home card shows the last result. A failed run sends an email (permission notify:email), asks Claude Code on a machine you choose to diagnose it, and opens one GitHub issue in the right repository; a repeat failure comments on that issue and a later pass comments that it passes again. It never closes an issue.",
   "application": {
     "kind": "web",
     "permissions": [
@@ -95,6 +95,10 @@
         "description": "Private key (OpenSSH or PEM, no passphrase) that may sign in to every machine in TARGETS. Use a key made for Gauntlet, never the production key"
       },
       {
+        "name": "ADMIN_TOKEN",
+        "description": "At least 16 characters. The schedules use it to call the app and start a plan; outside Automaton it is the page's login"
+      },
+      {
         "name": "GITHUB_TOKEN",
         "optional": true,
         "description": "A token that may create issues and comments in ISSUE_REPOS (and add to the project boards). Empty: no issues"
@@ -113,6 +117,38 @@
         "name": "DRILL_S3_SECRET_ACCESS_KEY",
         "optional": true,
         "description": "Restore drill: secret access key of that read-only token"
+      }
+    ],
+    "schedules": [
+      {
+        "name": "Smoke test",
+        "action": "smoke",
+        "cron": "30 2 * * *",
+        "timeZone": "Etc/UTC"
+      },
+      {
+        "name": "Full cycle",
+        "action": "full-cycle",
+        "cron": "0 3 * * 0",
+        "timeZone": "Etc/UTC"
+      },
+      {
+        "name": "Upgrade",
+        "action": "upgrade",
+        "cron": "0 3 * * 6",
+        "timeZone": "Etc/UTC"
+      },
+      {
+        "name": "Docs walk",
+        "action": "docs-walk",
+        "cron": "0 4 * * 3",
+        "timeZone": "Etc/UTC"
+      },
+      {
+        "name": "Restore drill",
+        "action": "restore-drill",
+        "cron": "0 5 * * 0",
+        "timeZone": "Etc/UTC"
       }
     ]
   }
