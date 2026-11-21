@@ -2,7 +2,7 @@
 
 Installs, uses, uninstalls and reinstalls Automaton on your own test machines on a schedule, and tells you when something breaks, before a release reaches users.
 
-Gauntlet signs in to each machine over SSH and runs **plans**: lists of steps, each with a command, a check and a timeout. Every run and each step's log is kept in the app's own database. The **Reports** page shows history, each step's pass or fail, its timing and its log, and a **Run now** button starts a plan. Studio Home shows a card with the last result of each scheduled plan.
+Gauntlet signs in to each machine over SSH and runs **plans**: lists of steps, each with a command, a check and a timeout. Every run and each step's log is kept in the app's own database. The **Reports** page shows history, each step's pass or fail, its timing and its log, and a **Run now** button starts a plan. Studio Home shows a card with the last result of each plan.
 
 ## Plans
 
@@ -16,7 +16,13 @@ Plans are JSON files in [`plans/`](plans/). Each step runs a script from [`plans
 | `docs-walk` | `runner-02` | every Wednesday 04:00 UTC | Claude Code follows the install docs as a new user (it changes nothing) and reports anything unclear or wrong. |
 | `restore-drill` | `runner-02` | every Sunday 05:00 UTC | Proves an off-site backup restores. Wipes the machine and installs the latest build, downloads the newest `.tar.age` under `automaton/` in the bucket, copies the backup key over (mode 600, never printed), restores with `restore.sh`, checks the API, Studio, the restored database and that sign-in is answered, reports the result and duration, deletes the key and wipes the machine again. Needs the `DRILL_*` values below. |
 
-The machine of a plan is the name of an entry in `TARGETS`. To add or change a plan without changing the app, put a JSON file with the same shape in `plans/` inside the app's data folder; a file with the name of a built-in plan replaces it. A plan's `schedule` is `daily HH:MM`, `weekly mon HH:MM` (UTC) or `manual`; a plan with `"wipes": true` is refused on any machine that is not marked `disposable`. A scheduled plan runs once per slot and never for a slot before the app was first started. One run at a time.
+The machine of a plan is the name of an entry in `TARGETS`. To add or change a plan without changing the app, put a JSON file with the same shape in `plans/` inside the app's data folder; a file with the name of a built-in plan replaces it. A plan with `"wipes": true` is refused on any machine that is not marked `disposable`. One run at a time.
+
+## Schedules
+
+Each built-in plan is a platform Action (`actions/<plan>/`) with a default schedule from `automaton.json` (times in UTC; the table above). In Studio, open the app's Actions tab to see, change, pause or run each one: Run there starts the plan, and its report and step logs show in the app's Reports (trigger `action`). Pausing the app stops them all. The Action calls the running app with the `ADMIN_TOKEN` secret (at least 16 characters; set it when you install). The app has no clock of its own: a plan you add in the data folder has no schedule and runs only from **Run now**. Anyone who holds the `ADMIN_TOKEN` can use the app's whole API from its public address, not only from the Runner's network; keep it as secret as the SSH key. In Studio, whoever may run the app's Actions can start a plan (it is still refused on a machine that is not `disposable`). The Run now button starts the run in the app directly, so those runs show in Reports but not in Studio's Activity. A `schedule` key left in a plan file of the data folder is ignored. One run at a time: a start while another plan runs is refused and shows as a failed Action run in Studio.
+
+Run on its own (outside Automaton) there are no Actions: start plans with `POST /api/runs` and the `ADMIN_TOKEN` from your own scheduler.
 
 The target's facts reach each script as environment variables: `DOMAIN`, `ADDRESS`, `EMAIL` (certificate email) and `INSTALL_FLAGS` (the target's optional `install_flags`, for example `--tls-mode http`).
 

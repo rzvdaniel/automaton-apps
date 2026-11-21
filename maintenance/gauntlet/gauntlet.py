@@ -11,7 +11,6 @@ import os
 import re
 import sqlite3
 import time
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 MAX_OUTPUT = 16000          # characters kept per step
@@ -21,7 +20,6 @@ KEEP_DAYS = 90
 NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 DOMAIN = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$")
 HOST = re.compile(r"^([a-z_][a-z0-9_-]*@)?[A-Za-z0-9.-]{1,253}$")  # port 22 only
-WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 class InvalidConfig(ValueError):
@@ -57,43 +55,6 @@ def parse_targets(raw: str) -> dict[str, dict]:
             raise InvalidConfig(f"target {name}: email or install_flags has characters that are not allowed")
         targets[name] = {"name": name, "host": host, "domain": domain, "email": email, "flags": flags, "disposable": item.get("disposable") is True}
     return targets
-
-
-def parse_schedule(text) -> dict | None:
-    """'daily 02:30' or 'weekly sun 03:00', in UTC. None: only run by hand."""
-    if text in (None, "", "manual"):
-        return None
-    parts = str(text).lower().split()
-    try:
-        if len(parts) == 2 and parts[0] == "daily":
-            hour, minute = (int(x) for x in parts[1].split(":"))
-            weekday = None
-        elif len(parts) == 3 and parts[0] == "weekly" and parts[1] in WEEKDAYS:
-            hour, minute = (int(x) for x in parts[2].split(":"))
-            weekday = WEEKDAYS.index(parts[1])
-        else:
-            raise ValueError
-        if not (0 <= hour < 24 and 0 <= minute < 60):
-            raise ValueError
-    except ValueError as error:
-        raise InvalidConfig(f"schedule '{text}' must be 'daily HH:MM', 'weekly mon HH:MM' or 'manual'") from error
-    return {"weekday": weekday, "hour": hour, "minute": minute}
-
-
-def last_slot(schedule: dict, now: float) -> float:
-    """The most recent moment at or before now when the schedule was due."""
-    moment = datetime.fromtimestamp(now, timezone.utc)
-    slot = moment.replace(hour=schedule["hour"], minute=schedule["minute"], second=0, microsecond=0)
-    if slot > moment:
-        slot -= timedelta(days=1)
-    if schedule["weekday"] is not None:
-        slot -= timedelta(days=(slot.weekday() - schedule["weekday"]) % 7)
-    return slot.timestamp()
-
-
-def next_slot(schedule: dict, now: float) -> float:
-    last = last_slot(schedule, now)
-    return last + (7 if schedule["weekday"] is not None else 1) * 86400
 
 
 def validate_plan(raw: object, source: str) -> dict:
@@ -136,7 +97,6 @@ def validate_plan(raw: object, source: str) -> dict:
                       "repo": step.get("repo") if isinstance(step.get("repo"), str) else None})
     return {"name": name, "title": str(raw.get("title") or name)[:120], "description": str(raw.get("description") or "")[:600],
             "target": raw.get("target") if isinstance(raw.get("target"), str) else None,
-            "schedule": parse_schedule(raw.get("schedule")), "schedule_text": str(raw.get("schedule") or "manual"),
             "wipes": raw.get("wipes") is True, "repo": raw.get("repo") if isinstance(raw.get("repo"), str) else None,
             "steps": clean}
 
@@ -271,10 +231,6 @@ class Store:
                 passing_noted integer default 0, last_run integer);
             create table if not exists meta(key text primary key, value text);
         """)
-        self.db.execute("insert or ignore into meta values('first_seen', ?)", (str(now()),))
-
-    def first_seen(self) -> float:
-        return float(self.db.execute("select value from meta where key='first_seen'").fetchone()[0])
 
     def begin(self, plan: str, target: str | None, trigger: str) -> int:
         cursor = self.db.execute("insert into runs(plan, target, trigger, started, status) values(?,?,?,?, 'running')",
@@ -293,12 +249,6 @@ class Store:
         except Exception:
             self.db.execute("rollback")
             raise
-
-    def last_started(self, plan: str, trigger: str | None = None) -> float | None:
-        query, args = "select max(started) from runs where plan=?", [plan]
-        if trigger:
-            query, args = query + " and trigger=?", args + [trigger]
-        return self.db.execute(query, args).fetchone()[0]
 
     def runs(self, limit: int = 50, plan: str | None = None) -> list[dict]:
         query = "select id, plan, target, trigger, started, finished, status, error from runs"
@@ -347,14 +297,6 @@ class Store:
 
     def forget_issue(self, sig: str) -> None:
         self.db.execute("delete from issues where signature=?", (sig,))
-
-
-def due(plan: dict, last_started: float | None, first_seen: float, now: float) -> bool:
-    """A scheduled plan is due when its latest slot has passed, nothing ran since, and the slot is after this install began."""
-    if not plan["schedule"]:
-        return False
-    slot = last_slot(plan["schedule"], now)
-    return slot >= first_seen and (last_started is None or last_started < slot)
 
 
 def summary(result: dict | None, now: float) -> str:

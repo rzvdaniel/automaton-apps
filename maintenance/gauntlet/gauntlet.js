@@ -31,7 +31,7 @@ async function load() {
     const state = await api('GET', '/api/state');
     $('message').hidden = true;
     $('plans').innerHTML = state.plans.map(p => `<tr><td><strong>${esc(p.title)}</strong><div class="plan-meta">${esc(p.description)}</div></td>
-      <td>${esc(p.target || '-')}</td><td>${esc(p.schedule)}</td>
+      <td>${esc(p.target || '-')}</td>
       <td>${p.last ? pill(p.last.status) + ' <span class="plan-meta">' + time(p.last.started) + '</span>' : '<span class="plan-meta">No run yet</span>'}</td>
       <td>${p.problem ? '<span class="plan-meta">' + esc(p.problem) + '</span>' : `<button class="a-btn" data-run="${esc(p.name)}" ${state.running ? 'disabled' : ''}>Run now</button>`}</td></tr>`).join('');
     $('runs').innerHTML = state.runs.length ? state.runs.map(r => `<tr><td><a href="#run-${r.id}" data-open="${r.id}">#${r.id}</a></td><td>${esc(r.plan)} on ${esc(r.target || '-')}</td>

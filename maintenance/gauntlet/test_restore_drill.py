@@ -68,9 +68,9 @@ class DrillTests(unittest.TestCase):
         done = subprocess.run(["bash", "-s"], input=stdin, capture_output=True, text=True, env=env, timeout=60)
         return done.returncode, done.stdout + done.stderr
 
-    def test_the_plan_is_weekly_on_runner_02_wipes_and_passes_the_secrets_only_on_stdin(self):
+    def test_the_plan_is_on_runner_02_wipes_and_passes_the_secrets_only_on_stdin(self):
         plan = gauntlet.load_plans(HERE / "plans")["restore-drill"]
-        self.assertEqual((plan["target"], plan["schedule_text"], plan["wipes"]), ("runner-02", "weekly sun 05:00", True))
+        self.assertEqual((plan["target"], plan["wipes"]), ("runner-02", True))
         target = gauntlet.parse_targets(TARGETS)["runner-02"]
         for s in plan["steps"]:
             command, stdin = gauntlet.render(s, target, SCRIPTS, SETTINGS)

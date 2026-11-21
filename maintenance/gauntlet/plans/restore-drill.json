@@ -3,7 +3,6 @@
   "title": "Restore drill",
   "description": "Downloads the newest off-site backup, restores it on a freshly installed disposable machine with restore.sh, checks health and sign-in, reports the duration, then deletes the key and wipes. Runs every week.",
   "target": "runner-02",
-  "schedule": "weekly sun 05:00",
   "wipes": true,
   "repo": "automaton",
   "steps": [
