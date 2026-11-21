@@ -257,10 +257,21 @@ class ReleaseCheck(unittest.TestCase):
         posted = [c for c in ex.calls if "gh release edit" in c[0]]
         self.assertEqual(len(posted), 1)
         self.assertIn("upgrade to 0.2.176 failed", posted[0][1])
+        self.assertNotIn("boom", posted[0][1])
         self.assertNotIn("cli-key-secret-1", posted[0][1])
         self.assertEqual(app.jobs.data["releases"]["0.2.176"]["state"], "failed")
         ex.run = run
         self.assertEqual(self.now(app)[0], 202)
+
+    def test_a_release_left_running_by_a_stopped_app_may_be_tried_again(self):
+        clock = [1000.0]
+        app, ex = make_app(**self.ENV)
+        app.jobs.now = lambda: clock[0]
+        self.assertTrue(app.jobs.claim_release("0.2.176"))
+        clock[0] += 60
+        self.assertFalse(app.jobs.claim_release("0.2.176"))
+        clock[0] += 30 * 60
+        self.assertTrue(app.jobs.claim_release("0.2.176"))
 
     def test_bad_version_and_missing_setup(self):
         app, ex = make_app(**self.ENV)

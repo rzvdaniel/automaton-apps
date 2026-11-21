@@ -24,6 +24,7 @@ JOBS = {
     "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, skipping needs-shape; nothing outside its hours or when AGENT_BOARDS is empty",
 }
 COLUMN = "Ready for agents"
+RELEASE_STALE = 25 * 60
 VERSION_RE = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}$")
 DEFAULT_LESSONS = "Follow .agents/skills/automaton-lessons-learned/SKILL.md end to end on the lessons inbox (the open issue labelled lessons). Reply on the inbox."
 
@@ -247,7 +248,9 @@ class Jobs:
     def claim_release(self, version: str) -> bool:
         """True once per version: a second call, even while the first runs, gets False. A failed one may be tried again."""
         with self.lock:
-            if self.data["releases"].get(version, {}).get("state", "failed") != "failed":
+            old = self.data["releases"].get(version, {})
+            stale = old.get("state") == "running" and self.now() - old.get("at", 0) > RELEASE_STALE  # the app stopped during the upgrade
+            if old.get("state", "failed") != "failed" and not stale:
                 return False
             self.data["releases"][version] = {"state": "running", "at": self.now()}
             self.data["releases"] = dict(list(self.data["releases"].items())[-50:])

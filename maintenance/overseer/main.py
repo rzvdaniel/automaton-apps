@@ -15,8 +15,8 @@ from __future__ import annotations
 import hmac
 import io
 import json
-import shlex
 import os
+import shlex
 import sys
 import threading
 import time
@@ -253,7 +253,7 @@ class App:
         text = overseer.redact(text, self.secrets)
         self.jobs.finish_release(version, ok, text)
         if not ok:
-            self.report_failure(version, text)
+            self.report_failure(version, text.split(": ")[0])  # the release notes are public: no output of the command
 
     def upgrade_and_queue(self, version: str) -> tuple[bool, str]:
         # the key travels on standard input, so it is not in the command line or the process list
