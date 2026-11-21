@@ -24,6 +24,7 @@ JOBS = {
     "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, skipping needs-shape; nothing outside its hours or when AGENT_BOARDS is empty",
 }
 COLUMN = "Ready for agents"
+VERSION_RE = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}$")
 DEFAULT_LESSONS = "Follow .agents/skills/automaton-lessons-learned/SKILL.md end to end on the lessons inbox (the open issue labelled lessons). Reply on the inbox."
 
 
@@ -208,6 +209,15 @@ def pick_prompt(item: dict) -> str:
             "do not release, upgrade or deploy. Write the handoff on the issue.")
 
 
+def release_prompt(version: str, repo: str) -> str:
+    return (f"Run the release check for server-v{version} of {repo}. The test server was just upgraded to it. Follow "
+            ".agents/skills/automaton-verify-release/SKILL.md: list the pull requests merged since the previous release, then check each "
+            "one's \"Check after release\" list as real users, one pass per pull request. Do each pass in a subagent on Haiku at low effort, "
+            "with no docs walk. Label each issue verified or verification-failed and attach the proof as the skill says. Then post one table "
+            f"(pull request, issue, result, what was not checked) on the release: gh release edit server-v{version} -R {repo} appending it "
+            "under a heading \"Release check\" to the notes. Never release, deploy or touch production.")
+
+
 class Jobs:
     """What each scheduled job did last, and which issues Pick-up already queued, and what it skipped or could not read. Kept in one JSON file."""
 
@@ -220,6 +230,7 @@ class Jobs:
             self.data = {}
         self.data.setdefault("jobs", {})
         self.data.setdefault("queued", [])
+        self.data.setdefault("releases", {})
         self.data.setdefault("pickup", {"skipped": [], "problems": []})
 
     def save(self) -> None:
@@ -231,6 +242,21 @@ class Jobs:
     def record(self, job: str, ok: bool, text: str, trigger: str) -> None:
         with self.lock:
             self.data["jobs"][job] = {"at": self.now(), "ok": ok, "text": text, "trigger": trigger}
+            self.save()
+
+    def claim_release(self, version: str) -> bool:
+        """True once per version: a second call, even while the first runs, gets False. A failed one may be tried again."""
+        with self.lock:
+            if self.data["releases"].get(version, {}).get("state", "failed") != "failed":
+                return False
+            self.data["releases"][version] = {"state": "running", "at": self.now()}
+            self.data["releases"] = dict(list(self.data["releases"].items())[-50:])
+            self.save()
+            return True
+
+    def finish_release(self, version: str, ok: bool, text: str) -> None:
+        with self.lock:
+            self.data["releases"][version] = {"state": "queued" if ok else "failed", "at": self.now(), "text": text}
             self.save()
 
     def mark_queued(self, url: str) -> None:

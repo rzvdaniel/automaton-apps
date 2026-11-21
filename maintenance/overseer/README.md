@@ -25,6 +25,12 @@ The schedule is the one in Studio's Schedules tab: `0 22 * * *` (default) is onc
 
 There is no token budget and no daily task limit: when the Claude usage limit is hit the queue waits for the reset and continues. The queue machine needs the current `orchestrator.sh` (older copies still pause at 12 tasks a day). Only `STALL_MINUTES` bounds a task. **Only put issues you trust in the column**, and keep the queue host free of production credentials: tasks run unattended with that machine's access. Every task is told to stop at the merged pull request and never release or deploy.
 
+## Release check
+
+A new server release upgrades the test server and starts its check with nobody starting anything. The **Release check** Action (`actions/release-check`, input `{"version":"0.2.176"}`) calls the app, which runs `automaton server update --version server-v0.2.176 --wait` on the queue machine and then queues the task `release-check-0-2-176` (the agent runs each merged pull request's "Check after release" list, one pass per pull request on Haiku at low effort with no docs walk, labels the issues and appends its table to the release notes). Set `CLI_SERVER`, the secret `CLI_API_KEY` (an administrator API key for that server, made for Overseer; it travels on standard input, never in a command line) and `RELEASE_REPO`; `gh` must be signed in on the queue machine.
+
+Start it from the server-release workflow: in Studio, **Actions**, **Release check**, **Add webhook**, and store the URL and secret as GitHub secrets for the workflow's last step (`curl -X POST -H "Authorization: Bearer $SECRET" -d '{"version":"0.2.176"}' $URL`). A second call for the same version answers "already started" and does nothing. If the upgrade fails, nothing is queued, the error is appended to the release notes and `EMAIL_TO` is emailed (needs `notify:email`); calling again for that version tries again. It never deploys to production.
+
 ## Install on an Automaton server
 
 1. On the machine where the agents run (a Linux user with `agent-queue`, `orchestrator.sh` and `claude-task` in `~/bin`, Claude Code signed in), make a key for Overseer and allow it: `ssh-keygen -t ed25519 -N '' -f overseer_key`, then add `overseer_key.pub` to that user's `~/.ssh/authorized_keys`. The app must be able to reach the machine's SSH port from the Runner. The first host key it sees is remembered and must match afterwards.
@@ -67,6 +73,7 @@ Without Automaton there are no scheduled actions: call a job from cron or a time
 | `STALL_MINUTES` | minutes without log output before a task counts as stalled (default 120) |
 | `ISSUE_REPO` | `owner/name` for linking a task named like `fix-login-344` to its issue |
 | `AGENT_BOARDS`, `PAUSE_BETWEEN`, `GITHUB_TOKEN` | Pick-up (see above) |
+| `CLI_SERVER`, `CLI_API_KEY`, `RELEASE_REPO`, `EMAIL_TO` | Release check (see above); `CLI_API_KEY` is a secret |
 | `LESSONS_PROMPT` | the lessons job's prompt |
 | `AUTOMATON_APP_DATA_DIR` | data folder: the job history and the remembered host key |
 
