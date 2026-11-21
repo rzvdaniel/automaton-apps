@@ -33,6 +33,6 @@ Each plan is an Action with a schedule (UTC). Change, pause or run them in Studi
 2. Open the failed run. Each step shows its result, time, error and output.
 3. The first red step is the cause: a failed step stops the plan, and the steps after it did not run.
 4. A step fails when its exit status is not the expected one or its output lacks the expected text. Read the output for the real error.
-5. A failure also sends one email and opens one GitHub issue with the failed steps and logs. The same plan failing at the same step comments "Failed again" on the open issue; a later pass comments "Passing again".
+5. A failure also sends one email and opens one GitHub issue labelled `gauntlet` (a board auto-add can filter on `label:gauntlet`) with the failed steps and logs. The same plan failing at the same step comments "Failed again" on the open issue; a later pass comments "Passing again".
 
 Logs are scrubbed of keys, tokens and passwords. More detail is in the app's `README.md`.

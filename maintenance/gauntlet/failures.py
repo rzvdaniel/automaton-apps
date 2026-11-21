@@ -15,6 +15,7 @@ import gauntlet
 
 USER_AGENT = "automaton-gauntlet"
 MAX_BODY = 60000
+LABEL = "gauntlet"
 
 
 def log(text: str) -> None:
@@ -43,7 +44,7 @@ class GitHub:
     """The few GitHub calls Gauntlet needs. The token is only ever sent to api.github.com and never logged."""
 
     def __init__(self, token: str, opener=urlopen):
-        self.token, self.opener = token, opener
+        self.token, self.opener, self.labelled = token, opener, set()
 
     def call(self, method: str, path: str, body: dict | None = None):
         request = Request("https://api.github.com" + path, method=method, data=json.dumps(body).encode() if body is not None else None,
@@ -53,8 +54,22 @@ class GitHub:
             raw = response.read(1 << 20)
         return json.loads(raw) if raw else None
 
+    def ensure_label(self, repo: str, name: str = LABEL) -> None:
+        """Creates the label once per repository; GitHub only creates one on issue create for users with push. 422: it exists."""
+        if repo in self.labelled:
+            return
+        try:
+            self.call("POST", f"/repos/{repo}/labels", {"name": name, "color": "5319e7", "description": "Opened by Gauntlet"})
+        except HTTPError as error:
+            if error.code != 422:
+                log(f"label {name} was not created in {repo}: HTTP {error.code}")
+        except (URLError, OSError, ValueError) as error:
+            log(f"label {name} was not created in {repo}: {type(error).__name__}")
+        self.labelled.add(repo)
+
     def create_issue(self, repo: str, title: str, body: str) -> dict:
-        return self.call("POST", f"/repos/{repo}/issues", {"title": title[:200], "body": body[:MAX_BODY]})
+        self.ensure_label(repo)
+        return self.call("POST", f"/repos/{repo}/issues", {"title": title[:200], "body": body[:MAX_BODY], "labels": [LABEL]})
 
     def comment(self, repo: str, number: int, body: str) -> None:
         self.call("POST", f"/repos/{repo}/issues/{number}/comments", {"body": body[:MAX_BODY]})
