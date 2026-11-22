@@ -13,6 +13,8 @@ The app page shows the **Queue** (running, pending, finished; add, cancel, pause
 | `lessons` | 03:00 | Queues a lessons task with `LESSONS_PROMPT`. |
 | `pick-up` | 22:00 | Queues the open issues in the Ready for agents column of each board in `AGENT_BOARDS`, moving back, with one comment, cards whose issue has `needs-shape` or no Done when. |
 
+**Set up machine** is an Action (**Run now**, no schedule): it installs or updates Overseer's agent-machine scripts, the worker service and the cron entries on the queue machine and reports whether `claude`, `gh` and `git` are signed in. Pick-up runs it first when the installed scripts are older than the app's. Details are in the app's README.
+
 **Release check** is an Action, started by a webhook from the server-release workflow with `{"version":"0.2.176"}`. It updates the test server, then queues the task that runs each merged pull request's "Check after release" list. A second call for the same version does nothing.
 
 ## Settings

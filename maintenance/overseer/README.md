@@ -5,7 +5,7 @@ Runs and shows the work queue of your coding agents (Claude Code) and its schedu
 The page shows:
 
 - **Queue**: running, pending and the last finished tasks. Open a task to read its log and see the issue and pull request it mentions. Add a task, cancel one, pause or resume the queue.
-- **Schedules**: the four jobs, when each last ran and what it did, and a **Run now** button. Each job is its own Action (Pick-up, Stall check, Morning report, Lessons; Release check is the fifth) with its own **Run now**, schedule and webhook, and no input. The schedules are ordinary Automaton scheduled actions (the **Schedules** tab of the app in Studio), so you pause or change them there.
+- **Schedules**: the jobs (Set up machine is the fifth), when each last ran and what it did, and a **Run now** button. Each job is its own Action (Pick-up, Stall check, Morning report, Lessons; Release check is the fifth) with its own **Run now**, schedule and webhook, and no input. The schedules are ordinary Automaton scheduled actions (the **Schedules** tab of the app in Studio), so you pause or change them there.
 - **Latest morning report**.
 
 | Job | Default schedule (UTC) | What it runs |
@@ -33,12 +33,25 @@ A new server release upgrades the test server and starts its check with nobody s
 
 Start it from the server-release workflow: in Studio, **Actions**, **Release check**, **Add webhook**, and store the URL and secret as GitHub secrets for the workflow's last step (`curl -X POST -H "Authorization: Bearer $SECRET" -d '{"version":"0.2.176"}' $URL`). A second call for the same version answers "already started" and does nothing. If the upgrade fails, nothing is queued, the error is appended to the release notes and `EMAIL_TO` is emailed (needs `notify:email`); calling again for that version tries again. It never deploys to production.
 
+## Set up machine
+
+The scripts Overseer wraps live in this app's `agent-machine/` folder (`agent-queue`, `claude-task`, `orchestrator.sh`, `agent-cleanup`, the worker's systemd unit and `install.sh`, with an offline `test.sh`). The **Set up machine** Action (`setup-machine`, no input, **Run now** on the page) copies them to the queue machine over the same SSH connection and runs `install.sh --systemd` there:
+
+- installs or updates the scripts in `QUEUE_BIN` (a changed file is saved as `<name>.bak-YYYYMMDD` first);
+- runs the worker as the systemd user service `agent-queue-worker` (`Restart=always`) and drops the `@reboot` cron line; it needs `loginctl enable-linger <user>` once, and without a systemd user session it keeps the `@reboot` line and says so;
+- sets the cron entries for the stall check, morning report, lessons and cleanup (other crontab lines are kept);
+- checks `claude`, `gh` and `git` and reports, for example, `claude: logged in, gh: logged in as rzvdaniel-bot, git: found, worker: running`. A missing tool or sign-in fails the run with that line. It never logs in for you.
+
+Running it again changes nothing. A running task is never killed: the worker is restarted only when no task runs; otherwise a marker is left and the next run restarts it. **Pick-up checks the installed scripts' version** (`~/bin/.agent-machine-version`) before it queues anything and runs the setup first when it differs from the app's copy or a worker restart is waiting, so an Overseer update that changes a script needs no manual step; if that setup fails, Pick-up queues nothing and says why.
+
 ## Install on an Automaton server
 
-1. On the machine where the agents run (a Linux user with `agent-queue`, `orchestrator.sh` and `claude-task` in `~/bin`, Claude Code signed in), make a key for Overseer and allow it: `ssh-keygen -t ed25519 -N '' -f overseer_key`, then add `overseer_key.pub` to that user's `~/.ssh/authorized_keys`. The app must be able to reach the machine's SSH port from the Runner. The first host key it sees is remembered and must match afterwards.
-2. Install Overseer from the catalog. Fill in `QUEUE_HOST` (`user@address`), the secret `SSH_KEY` (the private key), a secret `ADMIN_TOKEN` of at least 16 characters (the schedules use it to call the app) and, for Pick-up, the board settings and `GITHUB_TOKEN`. Keep the schedules you want.
-3. An administrator approves `apps:read-status` (it only lets the page show the next scheduled run).
-4. Switch over from cron: look at the app's page, press **Run now** on each job, and when the schedules have run once, remove the `agent-queue`, `orchestrator.sh` and lessons lines from that user's crontab. Keep the `@reboot agent-queue worker` line: the worker is the long-running process and stays on the machine.
+A fresh machine takes four steps:
+
+1. **Machine**: a Linux user with Claude Code, `gh` and `git` installed and signed in (`claude` once, `gh auth login`), the Claude config in `~/.claude-second` (or set `CLAUDE_CONFIG_DIR` for the worker), `loginctl enable-linger <user>` (as root, once), and your repositories cloned where `claude-task` expects them (`~/automaton`, or `AGENT_WORKDIR`). Make a key for Overseer and allow it: `ssh-keygen -t ed25519 -N '' -f overseer_key`, then add `overseer_key.pub` to that user's `~/.ssh/authorized_keys`. The app must be able to reach the machine's SSH port from the Runner. The first host key it sees is remembered and must match afterwards.
+2. **Install Overseer** from the catalog. Fill in `QUEUE_HOST` (`user@address`; `localhost` style addresses work when Overseer runs on that machine), the secret `SSH_KEY` (the private key), a secret `ADMIN_TOKEN` of at least 16 characters (the schedules use it to call the app) and, for Pick-up, the board settings and `GITHUB_TOKEN`. Keep the schedules you want.
+3. **Approve** `apps:read-status` as an administrator (it only lets the page show the next scheduled run).
+4. **Set up machine**: press **Run now** on the Set up machine job (Actions tab in Studio, or the page) and read the result line; fix what it says is missing and run it again. Then press **Run now** on each other job. If the machine used cron before, the setup replaces the `agent-queue`, `orchestrator.sh` and lessons lines (and the `@reboot` worker line) with its own.
 
 Setting up Claude accounts and keys stays on each server, and Overseer gives agents no access to production.
 

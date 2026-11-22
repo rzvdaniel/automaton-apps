@@ -23,12 +23,26 @@ JOBS = {
     "stall-check": "Stall check: requeues a task that stopped writing output, stops one that stalled twice",
     "report": "Morning report: starts a task that writes the report of merged PRs, blocked tasks and the latest release",
     "lessons": "Lessons: queues the task that works through the lessons inbox",
+    "setup-machine": "Set up machine: installs or updates the agent-machine scripts, the worker service and the cron entries on the queue machine, and checks that claude, gh and git are signed in",
     "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, moving back (with one comment) the cards whose issue has needs-shape or no Done when; nothing outside its hours or when AGENT_BOARDS is empty",
 }
 COLUMN = "Ready for agents"
 RELEASE_STALE = 25 * 60
 VERSION_RE = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}$")
 DEFAULT_LESSONS = "Follow .agents/skills/automaton-lessons-learned/SKILL.md end to end on the lessons inbox (the open issue labelled lessons). Reply on the inbox."
+
+
+MACHINE_FILES = ("agent-queue", "claude-task", "orchestrator.sh", "agent-cleanup", "agent-queue-worker.service", "install.sh")
+MACHINE_HASHED = MACHINE_FILES[:5]  # what install.sh hashes into .agent-machine-version, in this order
+
+
+def machine_version(folder: str) -> str:
+    """The version of the app's copy of the agent-machine scripts; install.sh writes the same value on the machine."""
+    digest = hashlib.sha256()
+    for name in MACHINE_HASHED:
+        with open(os.path.join(folder, name), "rb") as handle:
+            digest.update(handle.read())
+    return digest.hexdigest()[:16]
 
 
 class InvalidConfig(Exception):
@@ -89,6 +103,7 @@ class Queue:
         if queue_home:
             self.env += f" AGENT_QUEUE_HOME={shlex.quote(queue_home)}"
         self.stall_minutes = stall_minutes
+        self.bin = bin_dir
         self.home = '"${AGENT_QUEUE_HOME:-$HOME/agent-queue}"'
 
     def run(self, command: str, timeout: int = 60, stdin: str | None = None) -> tuple[int | None, str]:
@@ -133,6 +148,27 @@ class Queue:
     def report(self) -> str:
         code, out = self.run(f'cat {self.home}/orchestrator/morning-report.md')
         return out if code == 0 else ""
+
+    def machine_current(self, version: str) -> bool:
+        """Whether the scripts on the machine are this version and no worker restart is waiting."""
+        code, out = self.run(f'cat {self.bin}/.agent-machine-version 2>/dev/null; test -e {self.home}/RESTART_WORKER && echo restart')
+        return code == 0 and out.split() == [version]
+
+    def setup(self, folder: str) -> tuple[bool, str]:
+        """Uploads the agent-machine files and runs install.sh --systemd there. It never signs in to anything."""
+        staging = '"$HOME/.cache/overseer-agent-machine"'
+        for name in MACHINE_FILES:
+            with open(os.path.join(folder, name), encoding="utf-8") as handle:
+                text = handle.read()
+            code, out = self.run(f"mkdir -p {staging} && cat > {staging}/{name}.new && mv -f {staging}/{name}.new {staging}/{name}", stdin=text)
+            if code != 0:
+                return False, "could not copy " + name + ": " + (out.strip().splitlines() or ["no answer"])[-1][:150]
+        code, out = self.run(f"bash {staging}/install.sh {self.bin} --systemd", 120)
+        last = (out.strip().splitlines() or ["no answer"])[-1][:300]
+        if code != 0:
+            return False, "setup failed: " + last
+        problems = [w for w in ("missing", "not logged in") if w in last]
+        return not problems, last + ("" if not problems else " (log in or install what is missing on the machine; Overseer never logs in for you)")
 
     def orchestrate(self, report: bool) -> tuple[bool, str]:
         extra = "ORCH_REPORT=1 " if report else ""

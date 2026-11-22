@@ -30,9 +30,15 @@ IDLE = "worker: running\npaused: no\nrunning:\npending:\n"
 class FakeExecutor:
     def __init__(self, status=STATUS):
         self.calls, self.status = [], status
+        self.version = overseer.machine_version(main.os.path.join(main.os.path.dirname(main.__file__), "agent-machine")) + "\n"
+        self.setup_out = "installed to /h/bin\nsetup: changed agent-queue; claude: logged in, gh: logged in as bot, git: found, worker: running\n"
 
     def run(self, command, timeout, stdin=None):
         self.calls.append((command, stdin))
+        if ".agent-machine-version" in command:
+            return 0, self.version
+        if command.startswith("export") and "bash " in command and "install.sh" in command and "cat >" not in command:
+            return 0, self.setup_out
         if command.endswith("agent-queue status"):
             return 0, self.status
         if "tail -n" in command:
@@ -212,6 +218,67 @@ def make_app(board=None, status=STATUS, **env):
                    find_pull=lambda t, i, since: (app.pulls.get(i["number"], ""), None))
     app.moved, app.commented, app.move_error, app.set_to, app.set_error, app.pulls = [], [], None, [], None, {}
     return app, ex
+
+
+class SetupMachine(unittest.TestCase):
+    def test_uploads_every_file_then_installs_and_reports(self):
+        app, ex = make_app(status=IDLE)
+        ok, text = app.run_job("setup-machine", "manual")
+        self.assertTrue(ok)
+        self.assertIn("claude: logged in, gh: logged in as bot", text)
+        uploads = [c for c, _ in ex.calls if "cat >" in c]
+        self.assertEqual(len(uploads), len(overseer.MACHINE_FILES))
+        self.assertTrue(any("agent-queue-worker.service" in c for c in uploads))
+        self.assertTrue(ex.calls[-1][0].endswith('install.sh "$HOME/bin" --systemd'))
+        sent = {c.split("/")[-1].split(".new")[0].split()[0]: t for c, t in ex.calls if "cat >" in c}
+        self.assertIn("Restart=always", sent["agent-queue-worker.service"])
+
+    def test_missing_login_fails_and_never_logs_in(self):
+        app, ex = make_app(status=IDLE)
+        ex.setup_out = "setup: nothing changed; claude: not logged in, gh: missing, git: found, worker: running\n"
+        ok, text = app.run_job("setup-machine", "manual")
+        self.assertFalse(ok)
+        self.assertIn("never logs in", text)
+        self.assertFalse(any(" login" in c for c, _ in ex.calls))
+
+    def test_install_failure_is_reported(self):
+        app, ex = make_app(status=IDLE)
+        run = ex.run
+        ex.run = lambda c, t, stdin=None: (1, "boom\n") if "bash " in c and "install.sh" in c else run(c, t, stdin)
+        ok, text = app.run_job("setup-machine", "manual")
+        self.assertFalse(ok)
+        self.assertIn("setup failed: boom", text)
+
+    def test_version_matches_what_install_sh_hashes(self):
+        import hashlib, subprocess, os
+        folder = os.path.join(os.path.dirname(main.__file__), "agent-machine")
+        out = subprocess.run(["bash", "-c", "cd %s && cat agent-queue claude-task orchestrator.sh agent-cleanup agent-queue-worker.service | sha256sum | cut -c1-16" % folder],
+                             capture_output=True, text=True).stdout.strip()
+        self.assertEqual(overseer.machine_version(folder), out)
+
+    def test_pick_up_leaves_current_scripts_alone(self):
+        app, ex = make_app(status=IDLE)
+        app.run_job("pick-up", "schedule")
+        self.assertFalse(any("install.sh" in c for c, _ in ex.calls))
+
+    def test_pick_up_runs_the_setup_when_the_scripts_are_older_or_a_restart_waits(self):
+        for stale in ("0123456789abcdef\n", ex_current := None):
+            app, ex = make_app(status=IDLE)
+            ex.version = stale if stale else ex.version.strip() + "\nrestart\n"
+            app.run_job("pick-up", "schedule")
+            self.assertTrue(any("install.sh" in c for c, _ in ex.calls), stale)
+            self.assertEqual(app.jobs.data["jobs"]["setup-machine"]["trigger"], "pick-up")
+
+    def test_pick_up_stops_when_the_setup_fails(self):
+        app, ex = make_app(status=IDLE, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="t")
+        ex.version = "old\n"
+        ex.setup_out = "x\n"
+        run = ex.run
+        ex.run = lambda c, t, stdin=None: (1, "boom\n") if "bash " in c and "install.sh" in c else run(c, t, stdin)
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertIn("setup failed", text)
+        self.assertEqual(ex.added(), [])
 
 
 class Jobs(unittest.TestCase):

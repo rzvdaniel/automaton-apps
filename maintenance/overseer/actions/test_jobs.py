@@ -7,7 +7,7 @@ from unittest import mock
 from urllib.error import HTTPError
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-JOBS = ("pick-up", "stall-check", "report", "lessons")
+JOBS = ("pick-up", "stall-check", "report", "lessons", "setup-machine")
 
 
 def load_helper(job):

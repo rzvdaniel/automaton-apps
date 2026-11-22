@@ -118,7 +118,7 @@ class SshExecutor:
 
 
 class App:
-    def __init__(self, env=None, now=time.time, executor=None, fetch_board=None, move_card=None, comment=None, set_card=None, find_pull=None):
+    def __init__(self, env=None, now=time.time, executor=None, fetch_board=None, move_card=None, comment=None, set_card=None, find_pull=None, machine_dir=None):
         env = os.environ if env is None else env
         self.now = now
         self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())
@@ -137,6 +137,11 @@ class App:
         self.queue = overseer.Queue(executor, env.get("QUEUE_BIN", "").strip(), env.get("QUEUE_HOME", "").strip(),
                                     env.get("RUNNER", "").strip() or "claude-task", self.number(env, "STALL_MINUTES", 120))
         self.jobs = overseer.Jobs(os.path.join(data, "overseer.json"), now)
+        self.machine_dir = machine_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent-machine")
+        try:
+            self.machine_version = overseer.machine_version(self.machine_dir)
+        except OSError:
+            self.machine_version = ""
         self.repo = env.get("ISSUE_REPO", "").strip()
         self.env = env  # AGENT_BOARDS and PAUSE_BETWEEN are read at each run, so a change applies from the next one
         self.lessons = env.get("LESSONS_PROMPT", "").strip() or overseer.DEFAULT_LESSONS
@@ -199,8 +204,16 @@ class App:
         why = self.queue.add(name, self.lessons)
         return (False, why) if why else (True, f"queued {name}")
 
+    def job_setup_machine(self) -> tuple[bool, str]:
+        return self.queue.setup(self.machine_dir)
+
     def job_pick_up(self) -> tuple[bool, str]:
-        """Moves the cards of the tasks that ended, then queues the next ones."""
+        """Moves the cards of the tasks that ended, then queues the next ones. Sets the machine up first when its scripts are older than the app's."""
+        if self.machine_version and not self.queue.machine_current(self.machine_version):
+            ok, text = self.queue.setup(self.machine_dir)
+            self.jobs.record("setup-machine", ok, text, "pick-up")
+            if not ok and ("could not" in text or "setup failed" in text):
+                return False, text
         problems = self.settle_picks() if self.github_token else []
         ok, text = self.pick_up()
         if problems:
