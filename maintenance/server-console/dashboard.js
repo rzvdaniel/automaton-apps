@@ -629,7 +629,12 @@
   var cleanupOp = null;   // { error } after Run now on the cleanup
   var cleanupEdit = false;
   var backupOp = null;    // { since, state: "waiting" | "done" | "failed", text, needsApproval }
-  var osOp = null;        // { asking, typed, state: "waiting" | "done" | "failed", text, restartRequired } installing the OS updates
+  var osStatus = null;    // the server's own record of the last OS update run (GET api/tasks/os-updates): the state lives there, not in this page
+  var osLost = false;     // no answer while an update runs: updating Docker restarts every app, this one too
+  var osForm = null;      // the open confirm panel: { scope, typed, error }
+  var osRunner = null;    // { state: "running" | "done" | "failed", text } a Runner machine's security update, which this page waits for
+  var osSeen = false;     // this page watched an update run, so its result stays shown
+  var osTimer = null;
   var restartOp = null;   // { asking, at, typed, state: "waiting" | "scheduled" | "done" | "failed", text, started, needsApproval } restarting the server
   var restartInfo = null; // the server's answer: { lastRestartedAtUtc, restartAtUtc, state }
   var upgradeOp = null;   // { items: [{ runnerId, name, state, text }], busy }
@@ -717,20 +722,133 @@
       isAdmin ? '<button class="a-btn" type="button" id="upgrade-run"' + (busy || !ready.length ? " disabled" : "") + ">" + (busy ? "Upgrading…" : old.length ? "Upgrade now" : "All current") + "</button>" : "", [lacking, progress]);
   }
 
+  // --- OS updates. The server writes how far an update got; this page only reads it, so a reload shows a running update again. ---
+
+  var KERNEL = /^linux-(image|generic|headers|modules|signed)/;
+
+  function osActive() { return !!osStatus && (osStatus.state === "requested" || osStatus.state === "running"); }
+  function osRecent(iso) { var t = Date.parse(iso); return isFinite(t) && Date.now() - t < 24 * 3600000; }
+  function isServerMachine() { return !lastData || !lastData.serverMachine || lastData.serverMachine === lastData.machine; }
+  function osHost() { var h = lastData && lastData.health; return (h && h.host) || {}; }
+  function osBusy() { return osActive() || osLost || (osRunner && osRunner.state === "running"); }
+
+  // What waits on this machine, with the packages the last run held back taken out once the figures are newer than that run.
+  function osCounts() {
+    var host = osHost();
+    var pending = typeof host.updatesPending === "number" ? host.updatesPending : 0;
+    var security = typeof host.securityUpdates === "number" ? host.securityUpdates : 0;
+    var held = isServerMachine() && osStatus && osStatus.state === "succeeded" && osStatus.heldBack ? osStatus.heldBack : [];
+    var measured = Date.parse(host.measuredAtUtc), finished = Date.parse(osStatus && osStatus.finishedAtUtc);
+    var stale = held.length && isFinite(finished) && !(measured > finished); // the Runner has not measured since that run
+    if (stale) { pending = held.length; security = 0; }
+    return { pending: pending, security: security, held: held, installable: Math.max(0, pending - held.length) };
+  }
+
+  // The button shows only when an install could change something (owner, 2026-11-22).
+  function osCanInstall() {
+    var c = osCounts();
+    return isServerMachine() ? c.security > 0 || c.installable > 0 : c.security > 0;
+  }
+
+  function osDuration() {
+    var minutes = Math.max(1, Math.round((Date.parse(osStatus.finishedAtUtc) - Date.parse(osStatus.requestedAtUtc)) / 60000));
+    return isFinite(minutes) ? " in " + plural(minutes, "minute") : "";
+  }
+
+  function osLastRun() {
+    var s = osStatus;
+    if (osRunner && osRunner.state === "running") return "running · started just now";
+    if (s && osActive()) return "running · started " + when(s.requestedAtUtc);
+    if (s && s.state === "succeeded" && s.finishedAtUtc) return when(s.finishedAtUtc) + " · installed " + (s.upgradedCount || 0);
+    if (s && s.state === "failed") return when(s.finishedAtUtc) + " · failed" + (typeof s.progressCount === "number" ? " after " + s.progressCount : "");
+    if (s && (s.state === "refused" || s.state === "unsupported")) return when(s.finishedAtUtc || s.requestedAtUtc) + " · " + s.state;
+    return lastRun("OS updates");
+  }
+
+  function osPanel(name) {
+    var s = osStatus || {}, c = osCounts();
+    var log = s.logTail ? '<details class="os-log"><summary>Full log</summary><pre class="a-mono">' + esc(s.logTail) + "</pre></details>" : "";
+    if (osLost) {
+      return '<div class="os-panel os-panel--wait" role="status"><div class="os-panel__head"><b>Docker is restarting. This page lost its connection.</b><span class="muted">trying again in 5 s</span></div>' +
+        '<div class="a-meter os-meter--idle" aria-hidden="true"><span style="--value:100%"></span></div>' +
+        '<div>This is expected: updating Docker restarts every app for a minute, Server Keeper too. The update keeps running on the server; this row picks it up again when the app is back.</div></div>';
+    }
+    if (osActive()) {
+      var total = s.totalCount, done = s.progressCount, known = typeof total === "number" && total > 0 && typeof done === "number";
+      var percent = known ? Math.min(100, Math.round(100 * done / total)) : 0;
+      return '<div class="os-panel os-panel--wait" role="status" id="os-running"><div class="os-panel__head"><b>' + (known ? "Installing " + plural(total, "package") : "Installing updates") + "</b><span class=\"muted\">started " + when(s.requestedAtUtc) + (known ? " · " + done + " of " + total : "") + "</span></div>" +
+        (known ? '<div class="a-meter" role="progressbar" aria-label="Installing updates" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + done + '"><span style="--value:' + percent + '%"></span></div>' : "") +
+        '<div class="a-mono os-current">' + (s.currentPackage ? esc(s.currentPackage) : s.state === "requested" ? "Waiting for the server to start it…" : "Preparing…") + "</div></div>";
+    }
+    if (osRunner && osRunner.state === "running") return '<div class="os-panel os-panel--wait" role="status"><b>' + esc(osRunner.text) + '</b><div class="muted">This can take several minutes. Progress is not kept if you reload this page.</div></div>';
+    if (osForm && isAdmin) {
+      var server = isServerMachine(), all = osForm.scope === "all";
+      var scopes = server ? [["security", "Security updates only", c.security > 0 ? plural(c.security, "package") + " Ubuntu marks as security." : "0 waiting now, so nothing would be installed.", c.security > 0],
+        ["all", "All updates", plural(c.installable, "package") + ". " + (c.held.length ? "Packages apt holds back (" + c.held.join(", ") + ") wait for a full upgrade." : "A new kernel is held back until a full upgrade."), true]]
+        : [["security", "Security updates only", plural(c.security, "package") + " Ubuntu marks as security. Runners install nothing else yet.", true]];
+      var label = all ? "Install " + plural(c.installable, "update") : "Install security updates";
+      return '<div id="os-confirm" class="os-panel os-panel--ask"><fieldset class="os-scopes"><legend>What to install</legend><div class="os-scopes__grid">' +
+        scopes.map(function (x) { return '<button type="button" class="os-scope" data-scope="' + x[0] + '" aria-pressed="' + (osForm.scope === x[0]) + '"' + (x[3] ? "" : " disabled") + '><span class="os-scope__title">' + x[1] + '</span><span class="os-scope__desc">' + esc(x[2]) + "</span></button>"; }).join("") +
+        '</div></fieldset><ul class="os-facts"><li>Takes a few minutes. Apps keep running; Docker restarts briefly if it is updated.</li><li>Config files you changed are kept.</li><li>' +
+        (all ? "If it needs a restart afterwards, Restart server shows it." : "Installs only what Ubuntu marks as security.") + "</li></ul>" +
+        '<div class="os-ask"><label class="os-ask__name"><span>Type <strong>' + esc(name) + '</strong> to confirm</span><input class="a-input" id="os-typed" autocomplete="off" spellcheck="false" placeholder="' + esc(name) + '" value="' + esc(osForm.typed || "") + '"></label>' +
+        '<button class="a-btn" type="button" id="os-cancel">Cancel</button><button class="a-btn a-btn--primary" type="button" id="os-go"' + (osForm.typed === name ? "" : " disabled") + ">" + label + "</button></div>" +
+        (osForm.error ? '<div class="a-note a-note--warning" id="os-error">' + osForm.error + "</div>" : "") + "</div>";
+    }
+    if (osRunner && !isServerMachine()) return '<div class="os-panel' + (osRunner.state === "failed" ? " os-panel--failed" : "") + '" role="status" id="os-result"><b>' + esc(osRunner.text) + "</b></div>";
+    if (!isServerMachine()) return "";
+    if (s.state === "failed" || ((s.state === "refused" || s.state === "unsupported") && osRecent(s.finishedAtUtc || s.requestedAtUtc))) {
+      if (!osRecent(s.finishedAtUtc || s.requestedAtUtc)) return "";
+      var failed = s.state === "failed";
+      var head = failed ? "Stopped" + (typeof s.progressCount === "number" ? " after " + s.progressCount + (s.totalCount ? " of " + s.totalCount : "") : "") : s.message || "The update was not started.";
+      return '<div class="os-panel os-panel--failed" role="alert" id="os-result"><div class="os-panel__text"><b class="tone--bad">' + esc(head) + "</b>" +
+        (failed && s.errorLine ? '<span class="a-mono muted">' + esc(s.errorLine) + "</span>" : "") +
+        (failed ? "<span>Nothing was rolled back. Apps are running. Try again, or fix it as root with <code class=\"a-mono\">dpkg --configure -a</code>.</span>" : "") + "</div>" +
+        (isAdmin && s.state !== "unsupported" && osCanInstall() ? '<button class="a-btn" type="button" id="os-again">Try again…</button>' : "") + log + "</div>";
+    }
+    if (s.state === "succeeded" && osRecent(s.finishedAtUtc) && (osSeen || s.restartRequired || (s.heldBack || []).length)) {
+      var held = s.heldBack || [], kernel = held.filter(function (n) { return KERNEL.test(n); })[0];
+      var heldText = held.length ? plural(held.length, "package") + " held back" + (kernel ? ": the new kernel (" + kernel + ") needs a full upgrade as root. " : ": apt keeps it back until a full upgrade as root. ") : "";
+      return '<div class="os-panel os-panel--done" role="status" id="os-result"><div class="os-panel__text"><b>Installed ' + plural(s.upgradedCount || 0, "update") + esc(osDuration()) + "</b><span>" + esc(heldText) + (s.restartRequired ? "A restart is needed to finish the update." : "No restart is needed.") + "</span></div>" + log +
+        (isAdmin && s.restartRequired ? '<button class="a-btn" type="button" id="os-restart-tonight">Restart tonight 03:00</button><button class="a-btn a-btn--primary" type="button" id="os-restart-now">Restart now…</button>' : "") + "</div>";
+    }
+    return "";
+  }
+
   function updatesRow() {
-    var h = lastData && lastData.health, a = lastData && lastData.assessment;
+    var h = lastData && lastData.health;
     var host = (h && h.host) || {};
     var does = "Ubuntu packages; security first";
     if (typeof host.updatesPending !== "number") return row("updates", "OS updates", does, "unknown", "update counts need Ubuntu's update notifier on the server", "-", "", []);
-    var next = host.updatesPending ? '<span class="tone--attn">' + esc(host.updatesPending + " waiting" + (typeof host.securityUpdates === "number" ? ", " + host.securityUpdates + " security" : "")) + "</span>" + (host.rebootRequired ? " · restart needed" : "") : "none waiting" + (host.rebootRequired ? " · restart needed" : "");
-    var name = chosenName();
-    var busy = osOp && osOp.state === "waiting";
-    var ask = osOp && osOp.asking ? '<div id="os-confirm" class="confirm"><span class="a-note a-note--warning">Installs the pending security updates on this server. It can take several minutes, and no app is stopped. Type <strong>' + esc(name) + '</strong> to confirm.</span> ' +
-      '<input class="a-input" id="os-typed" autocomplete="off" spellcheck="false" aria-label="Type the server name" value="' + esc(osOp.typed || "") + '"> ' +
-      '<button class="a-btn a-btn--primary" type="button" id="os-go"' + (osOp.typed === name ? "" : " disabled") + '>Install updates</button> <button class="a-btn" type="button" id="os-cancel">Cancel</button></div>' : "";
-    var note = !osOp || osOp.asking ? "" : osOp.needsApproval ? esc(APPROVAL) : '<span class="a-note' + (osOp.state === "failed" ? " a-note--warning" : "") + '" id="os-result">' + esc(osOp.text) + "</span>";
-    return row("updates", "OS updates", does, "ok", lastRun("OS updates"), next,
-      isAdmin && name ? '<button class="a-btn' + (host.updatesPending > 0 ? " a-btn--primary" : "") + '" type="button" id="os-run"' + (busy || (osOp && osOp.asking) ? " disabled" : "") + ">" + (busy ? "Installing…" : "Install…") + "</button>" : "", [note, ask]);
+    var c = osCounts(), name = chosenName(), server = isServerMachine();
+    var kernel = c.held.filter(function (n) { return KERNEL.test(n); }).length > 0;
+    var next, extra = "";
+    if (!c.pending) next = "Up to date" + (host.rebootRequired ? " · restart needed" : "");
+    else if (c.held.length && !c.installable && !c.security) next = '<span class="tone--attn">' + esc(c.held.length + " held back" + (kernel ? " (kernel)" : "")) + "</span>";
+    else next = '<span class="tone--attn">' + esc(plural(c.pending, "update") + " · " + c.security + " security") + "</span>" + (host.rebootRequired ? " · restart needed" : "");
+    if (c.held.length) extra = kernel ? "New kernel waiting: needs a full upgrade as root and a restart" : "Held back by apt: needs a full upgrade as root";
+    var why = "";
+    if (!server && c.pending && !c.security) why = "Runners other than the server install security updates only, and none is waiting here.";
+    else if (!server && c.security && !approvedRunner(name)) why = APPROVAL;
+    var button = "";
+    if (isAdmin && name && (osBusy() || (osCanInstall() && (server || approvedRunner(name))))) {
+      var open = !!osForm;
+      button = osBusy() ? '<button class="a-btn" type="button" id="os-run" disabled>Installing…</button>'
+        : '<button class="a-btn' + (open ? "" : " a-btn--primary") + '" type="button" id="os-run" aria-expanded="' + open + '">' + (open ? "Close" : server ? "Install…" : "Install security updates…") + "</button>";
+    }
+    var failed = server && osStatus && osStatus.state === "failed" && osRecent(osStatus.finishedAtUtc);
+    var panel = osPanel(name);
+    var notes = (extra ? '<div class="t-sub">' + esc(extra) + "</div>" : "") + (why ? '<div class="t-sub">' + (why === APPROVAL ? esc(why) : esc(why)) + "</div>" : "");
+    return row("updates", "OS updates", does, failed ? "critical" : "ok", osLastRun(), next + notes, button, []) +
+      (panel ? '<tr class="t-detail"><td colspan="4">' + panel + "</td></tr>" : "");
+  }
+
+  function updateOsBanner() {
+    var box = document.getElementById("os-banner");
+    if (!box) return;
+    var on = osActive() || osLost;
+    box.hidden = !on;
+    box.innerHTML = on ? '<div class="a-banner a-banner--warning" role="status"><div class="a-banner__title">OS updates are installing on ' + esc((lastData && lastData.serverMachine) || chosenName() || "this server") + '.</div><span>Shown on every tab until it finishes. Leaving this page does not stop it.</span></div>' : "";
   }
 
   function tonight() {
@@ -759,9 +877,10 @@
 
   function paintTasks() {
     if (!lastData) return;
+    updateOsBanner();
     // Do not redraw under someone typing in the settings form.
     if (cleanupEdit && document.activeElement && /^cs-/.test(document.activeElement.id || "")) return;
-    if (osOp && osOp.asking && document.activeElement && document.activeElement.id === "os-typed") return;
+    if (osForm && document.activeElement && document.activeElement.id === "os-typed") return;
     if (restartOp && restartOp.asking && document.activeElement && document.activeElement.id === "restart-typed") return;
     tasksBox.hidden = false;
     tasksBox.innerHTML = '<section class="a-card mtbox" id="maintenance"><table class="mt"><thead><tr><th>Task</th><th>Last run</th><th>Next</th><th><span class="a-sr">Actions</span></th></tr></thead><tbody>' +
@@ -777,33 +896,64 @@
     again(); setTimeout(again, 60000);
   }
 
-  function pollOsUpdates() {
-    if (!osOp || osOp.state !== "waiting") return;
-    fetch("api/tasks/os-updates", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
-      var s = (data.status === "ok" && data.data) || {};
-      if (s.state === "succeeded" || s.state === "failed" || s.state === "refused" || s.state === "unsupported") {
-        osOp = s.state === "succeeded"
-          ? { state: "done", text: "Installed " + (s.upgradedCount || 0) + " update(s)." + (s.restartRequired ? " A restart is now needed." : " No restart is needed.") }
-          : { state: "failed", text: s.message || "The updates were not installed." };
-        reread(); return paintTasks();
-      }
-      if (Date.now() - osOp.started > 3 * 3600000) { osOp = { state: "failed", text: "Still not finished after 3 hours. Check the server." }; return paintTasks(); }
-      setTimeout(pollOsUpdates, 5000);
-    }).catch(function () { setTimeout(pollOsUpdates, 5000); });
+  // Reads the server's record of the OS update. While one runs (or this page lost its connection) it asks again every 5 s,
+  // otherwise once a minute. A failed read while an update runs means "reconnecting", never "failed".
+  function readOsStatus() {
+    clearTimeout(osTimer);
+    return fetch("api/tasks/os-updates", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
+      var watching = osActive() || osLost;
+      if (data.status === "ok" && data.data) {
+        if (osLost) loadAdmin(); // the app was away: read who the viewer is again
+        osStatus = data.data; osLost = false;
+        if (watching && !osActive()) { osSeen = true; reread(); }
+      } else if (watching) osLost = true;
+    }).catch(function () { if (osActive() || osLost) osLost = true; }).then(function () {
+      paintTasks();
+      osTimer = setTimeout(readOsStatus, osActive() || osLost ? 5000 : 60000);
+    });
+  }
+
+  function openOsPanel() {
+    if (!isAdmin || osBusy() || !osCanInstall()) return;
+    var c = osCounts();
+    osForm = { scope: isServerMachine() && c.security === 0 ? "all" : "security", typed: "" };
+    paintTasks();
+    var box = document.getElementById("os-typed"); if (box) box.focus();
+  }
+
+  function runRunnerUpdates() {
+    var item = approvedRunner(chosenName()), name = chosenName(), typed = osForm.typed;
+    if (!item) { osForm.error = esc(APPROVAL); return paintTasks(); }
+    osForm = null;
+    osRunner = { state: "running", text: "Installing security updates on " + name + "…" };
+    paintTasks();
+    fetch("api/maintenance/os-update?runner=" + encodeURIComponent(item.runnerId), { method: "POST", cache: "no-store",
+      headers: { "X-Server-Console": "1", "X-Confirm-Machine": encodeURIComponent(typed), "Content-Type": "application/json" }, body: JSON.stringify({ confirm: typed }) })
+      .then(function (r) { return r.json(); }).then(function (data) {
+        osRunner = data.status === "ok" ? { state: "done", text: "Security updates were installed on " + name + "." }
+          : { state: "failed", text: data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can do this, on a machine approved for this app." : data.message || "The updates were not installed." };
+        reread(); paintTasks();
+      }).catch(function () { osRunner = { state: "failed", text: "The app could not be reached. Check the machine before trying again." }; paintTasks(); });
   }
 
   function runOsUpdates() {
     var name = chosenName();
-    if (!osOp || osOp.typed !== name) return;
-    osOp = { state: "waiting", text: "Installing...", started: Date.now() };
-    paintTasks();
-    post("api/tasks/os-updates").then(function (data) {
-      if (data.status === "ok") return setTimeout(pollOsUpdates, 5000);
-      osOp = data.status === "forbidden" || data.status === "not_approved" ? { state: "failed", needsApproval: true }
-        : data.status === "not_found" ? { state: "failed", text: "This server cannot install updates from Studio yet. Update Automaton, or run sudo apt upgrade on the server." }
-        : { state: "failed", text: data.message || "The updates could not be started." };
+    if (!osForm || osForm.typed !== name) return;
+    if (!isServerMachine()) return runRunnerUpdates();
+    var scope = osForm.scope;
+    osForm.error = null;
+    post("api/tasks/os-updates", { scope: scope }).then(function (data) {
+      if (data.status === "ok") {
+        osForm = null; osSeen = true; osLost = false;
+        osStatus = { state: "requested", scope: scope, requestedAtUtc: new Date().toISOString() };
+        paintTasks();
+        return setTimeout(readOsStatus, 3000);
+      }
+      osForm.error = data.status === "forbidden" || data.status === "not_approved" ? esc(APPROVAL)
+        : data.status === "not_found" ? "This server cannot install updates from Studio yet. Update Automaton, or run sudo apt upgrade on the server."
+        : esc(data.message || "The updates could not be started.");
       paintTasks();
-    }).catch(function () { osOp = { state: "failed", text: "The app could not be reached." }; paintTasks(); });
+    }).catch(function () { if (osForm) osForm.error = "The app could not be reached."; paintTasks(); });
   }
 
   function loadRestart() {
@@ -929,9 +1079,15 @@
     else if (id === "cleanup-cancel") { cleanupEdit = false; cleanupOp = null; paintTasks(); }
     else if (id === "cleanup-save") saveCleanup();
     else if (id === "backup-run") runBackupNow();
-    else if (id === "os-run") { osOp = { asking: true, typed: "" }; paintTasks(); var box = document.getElementById("os-typed"); if (box) box.focus(); }
-    else if (id === "os-cancel") { osOp = null; paintTasks(); }
+    else if (id === "os-run") { if (osForm) { osForm = null; paintTasks(); } else openOsPanel(); }
+    else if (id === "os-again") openOsPanel();
+    else if (id === "os-cancel") { osForm = null; paintTasks(); }
     else if (id === "os-go") runOsUpdates();
+    else if (event.target.closest("[data-scope]")) { var pick = event.target.closest("[data-scope]"); if (osForm && !pick.disabled) { osForm.scope = pick.getAttribute("data-scope"); paintTasks(); } }
+    else if (id === "os-restart-now" || id === "os-restart-tonight") {
+      restartOp = { asking: true, typed: "", at: id === "os-restart-tonight" ? tonight().toISOString() : null }; paintTasks();
+      var target = document.getElementById("restart-typed"); if (target) { target.scrollIntoView({ block: "center" }); target.focus(); }
+    }
     else if (id === "restart-now" || id === "restart-tonight") {
       restartOp = { asking: true, typed: "", at: id === "restart-tonight" ? tonight().toISOString() : null }; paintTasks();
       var rbox = document.getElementById("restart-typed"); if (rbox) rbox.focus();
@@ -948,14 +1104,18 @@
       if (rgo) rgo.disabled = restartOp.typed !== chosenName();
       return;
     }
-    if (event.target.id !== "os-typed" || !osOp) return;
-    osOp.typed = event.target.value;
+    if (event.target.id !== "os-typed" || !osForm) return;
+    osForm.typed = event.target.value;
     var go = document.getElementById("os-go");
-    if (go) go.disabled = osOp.typed !== chosenName();
+    if (go) go.disabled = osForm.typed !== chosenName();
   });
 
-  fetch("api/tasks", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) { isAdmin = data.admin === true; paintTasks(); paintAppParts(); }).catch(function () { /* read-only */ });
+  function loadAdmin() {
+    return fetch("api/tasks", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) { isAdmin = data.admin === true; paintTasks(); paintAppParts(); }).catch(function () { /* read-only */ });
+  }
+  loadAdmin();
   loadRestart().then(paintTasks).catch(function () { /* older server */ });
+  readOsStatus();
 
   // Buttons on the Overview, the Apps tab and the tab strip.
   document.addEventListener("click", function (event) {
@@ -968,7 +1128,7 @@
     if (act === "app-logs" || act === "app-restart") { var name = selectedName(); return name ? runTool(act === "app-logs" ? "logs" : "restart", name) : undefined; }
     if (act === "go-maintenance") return showTab("maintenance");
     showTab("maintenance");
-    if (act === "os-install") { osOp = { asking: true, typed: "" }; paintTasks(); var box = document.getElementById("os-typed"); if (box) box.focus(); }
+    if (act === "os-install") openOsPanel();
     else if (act === "cleanup-run") runCleanupNow();
     else if (act === "backup-run") runBackupNow();
   });

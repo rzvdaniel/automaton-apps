@@ -223,6 +223,23 @@ class PageTests(unittest.TestCase):
         for tab in ("Overview", "Maintenance", "Apps on this machine"):
             self.assertIn(tab, page)
 
+    def test_the_os_update_panel_is_full_width_never_floats_and_has_every_state(self):
+        here = Path(__file__).parent
+        script, css, page = (here / "dashboard.js").read_text(), (here / "console.css").read_text(), (here / "index.html").read_text()
+        self.assertIn('<tr class="t-detail"><td colspan="4">', script)  # the result is a row of its own, never a box over the row
+        for needle in ('id="os-confirm"', 'id="os-running"', "Docker is restarting", "Stopped", "Try again…", "Restart tonight 03:00", "Restart now…",
+                       "New kernel waiting: needs a full upgrade as root and a restart", "Up to date", "Shown on every tab until it finishes", "Security updates only", "All updates"):
+            self.assertIn(needle, script)
+        self.assertIn("setTimeout(readOsStatus, osActive() || osLost ? 5000 : 60000)", script)  # retries every 5 s while running or reconnecting
+        self.assertIn('{ scope: scope }', script)
+        self.assertIn('id="os-banner"', page)
+        self.assertNotIn("position: absolute", css[css.index(".os-panel"):css.index(".os-log")])
+
+    def test_the_install_button_shows_only_when_something_can_be_installed(self):
+        script = (Path(__file__).parent / "dashboard.js").read_text()
+        self.assertIn("c.security > 0 || c.installable > 0 : c.security > 0", script)
+        self.assertIn("Runners other than the server install security updates only", script)
+
     def test_no_green_anywhere_in_the_page_styles_or_script(self):
         here = Path(__file__).parent
         for name in ("console.css", "dashboard.js", "index.html"):
@@ -422,6 +439,9 @@ class MachineTests(unittest.TestCase):
         self.assertEqual([m["online"] for m in shot["machines"]], [True, True, False])
         self.assertEqual(shot["machine"], "Production")
         self.assertEqual(self.snapshot("nobody")["machine"], "Production")
+
+    def test_the_server_machine_stays_the_default_while_another_one_is_looked_at(self):
+        self.assertEqual((self.snapshot("Runner-01")["serverMachine"], self.snapshot()["serverMachine"]), ("Production", "Production"))
 
     def test_an_offline_machine_shows_no_figures_and_says_so(self):
         shot = self.snapshot("Renamed Twice")
@@ -890,6 +910,14 @@ class TaskCallTests(unittest.TestCase):
         console.os_updates_status(settings(), opener=opener)
         self.assertEqual((opener.requests[0].method, opener.requests[0].full_url), ("GET", "https://api.example.com/api/install/os-updates"))
         self.assertIsNone(opener.requests[0].get_header("X-automaton-viewer-token"))
+
+    def test_installing_all_updates_sends_the_scope_and_an_unknown_scope_is_refused_before_any_call(self):
+        opener = self.Opener(body=b"{}")
+        self.assertEqual(console.os_updates_run(settings(), "vt", "all", opener=opener)[0], "ok")
+        self.assertEqual(json.loads(opener.requests[0].data), {"scope": "all"})
+        opener = self.Opener(body=b"{}")
+        self.assertEqual(console.os_updates_run(settings(), "vt", "dist-upgrade", opener=opener)[0], "error")
+        self.assertEqual(opener.requests, [])
 
     def test_a_server_without_the_endpoint_or_with_a_busy_host_is_named(self):
         self.assertEqual(console.os_updates_run(settings(), "vt", opener=self.Opener(404))[0], "not_found")

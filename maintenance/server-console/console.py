@@ -297,10 +297,16 @@ def backup_run(settings: Settings, viewer_token: str | None, **kwargs):
     return maintain_call(settings, "POST", "/api/Install/backups/run", viewer_token, **kwargs)
 
 
-def os_updates_run(settings: Settings, viewer_token: str | None, **kwargs):
-    """Installs the server's OS security updates (permission server:update-os, a system administrator's viewer token).
+OS_UPDATE_SCOPES = ("security", "all")
+
+
+def os_updates_run(settings: Settings, viewer_token: str | None, scope: str = "security", **kwargs):
+    """Installs the server's OS updates (permission server:update-os, a system administrator's viewer token): "security"
+    (the default) or "all" (every update `apt-get upgrade` installs; a new kernel stays held back).
     The server refuses with 409 while a backup, deploy, update, restart or another OS update runs."""
-    return maintain_call(settings, "POST", "/api/Install/os-updates/run", viewer_token, timeout=40, body={"scope": "security"}, **kwargs)
+    if scope not in OS_UPDATE_SCOPES:
+        return "error", None, "Choose security updates or all updates."
+    return maintain_call(settings, "POST", "/api/Install/os-updates/run", viewer_token, timeout=40, body={"scope": scope}, **kwargs)
 
 
 def os_updates_status(settings: Settings, **kwargs):
@@ -824,6 +830,7 @@ def snapshot(state: dict, settings: Settings, now: float, machine: str | None = 
             "now": int(now), "failedAt": state.get("failedAt") if status != "ok" else None, "health": health, "assessment": assess(health, local, settings, now),
             "attention": items,
             "machines": machine_list(health) if health else [], "machine": chosen,
+            "serverMachine": default_machine(state.get("health")) if shown and state.get("health") else None,
             "reclaim": reclaimable((health or {}).get("host") or {}), "appDisk": app_disk(runner),
             "history": local.get("history", []) if shown else [], "alerts": {k: dict(v, advice=ADVICE.get(k, "")) for k, v in state.get("alerts", {}).items()} if shown else {},
             "fail2ban": state.get("fail2ban") if shown else None,

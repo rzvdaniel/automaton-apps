@@ -217,7 +217,12 @@ def make_handler(app: Console):
             if name == "backup":
                 return self.maintain(console.backup_run, token, task="Backup")
             if name == "os-updates":
-                return self.maintain(console.os_updates_run, token, task="OS updates")
+                try:
+                    body = json.loads(self.read_body(2000).decode("utf-8") or "null")
+                except (ValueError, UnicodeDecodeError):
+                    body = None
+                scope = body.get("scope") if isinstance(body, dict) else "security"
+                return self.maintain(console.os_updates_run, token, scope, task="OS updates")
             if name == "restart":
                 try:
                     body = json.loads(self.read_body(2000).decode("utf-8") or "null")
