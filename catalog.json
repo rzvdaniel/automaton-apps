@@ -110,22 +110,6 @@
       }
     },
     {
-      "id": "overseer",
-      "name": "Overseer",
-      "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
-      "category": "Maintenance",
-      "folder": "maintenance/overseer",
-      "commit": "a91a7a26bf5b2d300fc16086f87d6d26bac482f1",
-      "minServerVersion": "0.2.173",
-      "permissions": [
-        "apps:read-status",
-        "notify:email"
-      ],
-      "publisher": {
-        "name": "Automaton"
-      }
-    },
-    {
       "id": "gauntlet",
       "name": "Gauntlet",
       "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
