@@ -1,3 +1,4 @@
+import ast
 import io
 import json
 import tempfile
@@ -158,6 +159,22 @@ class _Resp(io.BytesIO):
 
     def __exit__(self, *a):
         return False
+
+
+class GraphQL(unittest.TestCase):
+    def test_every_query_string_has_balanced_braces(self):
+        tree = ast.parse(open(overseer.__file__, encoding="utf-8").read())
+        queries = [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                   and n.value.lstrip().startswith(("query", "mutation"))]
+        self.assertGreaterEqual(len(queries), 2)
+        for q in queries:
+            self.assertEqual(q.count("{"), q.count("}"), q[:60])
+            self.assertEqual(q.count("("), q.count(")"), q[:60])
+
+    def test_errors_response_reports_the_rejected_query(self):
+        body = json.dumps({"errors": [{"message": "Parse error on EOF"}], "data": None}).encode()
+        got = overseer.fetch_column("t", "o/1", "Ready for agents", lambda request, timeout: _Resp(body))
+        self.assertEqual(got["problem"], "Board o/1: GitHub rejected the query: Parse error on EOF")
 
 
 def make_app(board=None, status=STATUS, **env):

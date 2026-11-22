@@ -180,7 +180,7 @@ def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
              "items(first:100,after:$after,orderBy:{field:POSITION,direction:ASC}){pageInfo{hasNextPage endCursor}nodes{"
              "id status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}"
              "content{... on Issue{number title url state body repository{nameWithOwner} labels(first:30){nodes{name}} comments(last:1){nodes{body}}"
-             "timelineItems(last:10,itemTypes:[PROJECT_V2_ITEM_STATUS_CHANGED_EVENT]){nodes{... on ProjectV2ItemStatusChangedEvent{previousStatus status}}}}}}}}}}")
+             "timelineItems(last:10,itemTypes:[PROJECT_V2_ITEM_STATUS_CHANGED_EVENT]){nodes{... on ProjectV2ItemStatusChangedEvent{previousStatus status}}}}}}}}}}}")
     found, cursor = [], None
     for _ in range(MAX_PAGES):
         body = json.dumps({"query": query, "variables": {"o": owner, "n": int(number), "after": cursor}}).encode()
@@ -191,6 +191,10 @@ def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
                 data = json.loads(response.read())
         except (HTTPError, URLError, ValueError, OSError) as error:
             return {"items": [], "problem": f"Board {board}: could not read it ({type(error).__name__})"}
+        if data.get("errors"):
+            first = data["errors"][0]
+            message = first.get("message") if isinstance(first, dict) else first
+            return {"items": [], "problem": f"Board {board}: GitHub rejected the query: {message}"}
         project = (((data.get("data") or {}).get("repositoryOwner") or {}).get("projectV2") or {})
         if not project:
             return {"items": [], "problem": f"Board {board}: not found or the token cannot read it"}
