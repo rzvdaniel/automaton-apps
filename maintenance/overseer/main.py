@@ -204,9 +204,19 @@ class App:
             return True, f"paused ({pause} UTC): nothing queued"
         if not self.github_token:
             return False, "GITHUB_TOKEN is not set: AGENT_BOARDS is set, so Pick-up needs a token with read:project; nothing queued"
+        mode = self.env.get("PICKUP_MODE", "").strip().lower() or "one"
+        if mode not in ("one", "all"):
+            return False, f'PICKUP_MODE is "{mode[:20]}": use one or all; nothing queued'
+        if mode == "one":
+            status = self.queue.status()
+            busy = status["running"] + status["pending"]
+            if busy:
+                return True, f"the queue is not free ({len(status['running'])} running, {len(status['pending'])} pending): nothing queued"
         boards = overseer.parse_boards(spec)
         queued, skipped, problems = [], [], []
         for board, column in boards:
+            if mode == "one" and queued:
+                break
             result = self.fetch_board(self.github_token, board, column)
             if result["problem"]:
                 problems.append(result["problem"])
@@ -226,6 +236,8 @@ class App:
                         return False, f"could not queue {item['url']}: {why}"
                 self.jobs.mark_queued(item["url"])
                 queued.append(f"#{item['number']}")
+                if mode == "one":
+                    break
         self.jobs.set_pickup(skipped, problems)
         text = ("queued " + ", ".join(queued)) if queued else "nothing new: nothing queued"
         if skipped:

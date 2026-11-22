@@ -86,6 +86,11 @@
         "description": "Pick-up queues nothing in this UTC window, HH:MM-HH:MM (for example 08:00-18:00). Empty: never paused"
       },
       {
+        "name": "PICKUP_MODE",
+        "optional": true,
+        "description": "one (default): Pick-up queues the top Ready card only when the queue has nothing running or pending, so the board's order decides what runs next. all: it queues every Ready card at once"
+      },
+      {
         "name": "CLI_SERVER",
         "optional": true,
         "description": "Address of the test server (https://...) for the release check: the upgrade runs as automaton server update on the queue machine. Empty: no release check"
@@ -156,7 +161,7 @@
       {
         "name": "Pick-up",
         "action": "run-job",
-        "cron": "0 22 * * *",
+        "cron": "*/15 * * * *",
         "timeZone": "Etc/UTC",
         "input": {
           "job": "pick-up"
