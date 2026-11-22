@@ -775,6 +775,7 @@
     }
     if (osActive()) {
       var total = s.totalCount, done = s.progressCount, known = typeof total === "number" && total > 0 && typeof done === "number";
+      if (known) done = Math.min(done, total); // a security update can pull in dependencies the total did not count
       var percent = known ? Math.min(100, Math.round(100 * done / total)) : 0;
       return '<div class="os-panel os-panel--wait" role="status" id="os-running"><div class="os-panel__head"><b>' + (known ? "Installing " + plural(total, "package") : "Installing updates") + "</b><span class=\"muted\">started " + when(s.requestedAtUtc) + (known ? " · " + done + " of " + total : "") + "</span></div>" +
         (known ? '<div class="a-meter" role="progressbar" aria-label="Installing updates" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + done + '"><span style="--value:' + percent + '%"></span></div>' : "") +
@@ -788,7 +789,7 @@
         : [["security", "Security updates only", plural(c.security, "package") + " Ubuntu marks as security. Runners install nothing else yet.", true]];
       var label = all ? "Install " + plural(c.installable, "update") : "Install security updates";
       return '<div id="os-confirm" class="os-panel os-panel--ask"><fieldset class="os-scopes"><legend>What to install</legend><div class="os-scopes__grid">' +
-        scopes.map(function (x) { return '<button type="button" class="os-scope" data-scope="' + x[0] + '" aria-pressed="' + (osForm.scope === x[0]) + '"' + (x[3] ? "" : " disabled") + '><span class="os-scope__title">' + x[1] + '</span><span class="os-scope__desc">' + esc(x[2]) + "</span></button>"; }).join("") +
+        scopes.map(function (x) { return '<button type="button" class="os-scope" data-scope="' + esc(x[0]) + '" aria-pressed="' + (osForm.scope === x[0]) + '"' + (x[3] ? "" : " disabled") + '><span class="os-scope__title">' + esc(x[1]) + '</span><span class="os-scope__desc">' + esc(x[2]) + "</span></button>"; }).join("") +
         '</div></fieldset><ul class="os-facts"><li>Takes a few minutes. Apps keep running; Docker restarts briefly if it is updated.</li><li>Config files you changed are kept.</li><li>' +
         (all ? "If it needs a restart afterwards, Restart server shows it." : "Installs only what Ubuntu marks as security.") + "</li></ul>" +
         '<div class="os-ask"><label class="os-ask__name"><span>Type <strong>' + esc(name) + '</strong> to confirm</span><input class="a-input" id="os-typed" autocomplete="off" spellcheck="false" placeholder="' + esc(name) + '" value="' + esc(osForm.typed || "") + '"></label>' +
@@ -838,7 +839,7 @@
     }
     var failed = server && osStatus && osStatus.state === "failed" && osRecent(osStatus.finishedAtUtc);
     var panel = osPanel(name);
-    var notes = (extra ? '<div class="t-sub">' + esc(extra) + "</div>" : "") + (why ? '<div class="t-sub">' + (why === APPROVAL ? esc(why) : esc(why)) + "</div>" : "");
+    var notes = (extra ? '<div class="t-sub">' + esc(extra) + "</div>" : "") + (why ? '<div class="t-sub">' + esc(why) + "</div>" : "");
     return row("updates", "OS updates", does, failed ? "critical" : "ok", osLastRun(), next + notes, button, []) +
       (panel ? '<tr class="t-detail"><td colspan="4">' + panel + "</td></tr>" : "");
   }
