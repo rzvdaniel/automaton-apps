@@ -460,24 +460,46 @@
 
   // --- Recent runs (beside the Maintenance table) --------------------------------------------------------------------
 
+  document.getElementById("runs-box").addEventListener("click", function (event) {
+    var b = event.target.closest && event.target.closest("[data-run-filter]");
+    if (!b) return;
+    runFilter = b.getAttribute("data-run-filter");
+    paintRuns();
+  });
+
+  var runFilter = "all";
+  var RUN_KIND = { "Cleanup": "cleanup", "Backup": "backup", "OS updates": "updates", "Upgrade Runners": "updates", "Restart server": "updates" };
+  var RUN_CHIPS = [["all", "All"], ["cleanup", "Cleanup"], ["backup", "Backup"], ["updates", "Updates"]];
+
+  // "4 min", "6 h", "3 d": the box is narrow, and the full time is in the tooltip.
+  function shortAge(at) {
+    var s = Math.max(0, Date.now() / 1000 - at);
+    return s < 60 ? "now" : s < 3600 ? Math.floor(s / 60) + " min" : s < 86400 ? Math.floor(s / 3600) + " h" : Math.floor(s / 86400) + " d";
+  }
+
   function paintRuns() {
     var box = document.getElementById("runs-box");
     if (!lastData) return;
     var items = (lastData.runs || []).map(function (r) {
-      var text = r.result === "started" ? r.task + " started" : r.task + (r.result === "refused" ? " refused" : " failed") + (r.detail ? ": " + r.detail : "");
-      return { at: r.at, text: text, bad: r.result !== "started" };
+      var result = r.result === "started" ? "started" : r.result === "refused" ? "refused" : "failed" + (r.detail ? ": " + r.detail : "");
+      return { at: r.at, task: r.task === "Restart server" ? "Restart" : r.task, kind: RUN_KIND[r.task] || "updates", result: result, bad: r.result !== "started" };
     });
     if (cleanupInfo && !cleanupInfo.needsApproval) (cleanupInfo.runs || []).forEach(function (r) {
       var at = Date.parse(r.startedAtUtc) / 1000;
       if (!isFinite(at)) return;
-      var text = r.result === "succeeded" ? "Cleanup on " + (r.runnerName || "the server") + " freed " + bytes(r.bytesFreed) : r.result === "failed" ? "Cleanup on " + (r.runnerName || "the server") + " failed" + (r.message ? ": " + r.message : "") : "Cleanup on " + (r.runnerName || "the server") + " " + r.result;
-      items.push({ at: at, text: text, bad: r.result === "failed" });
+      var result = r.result === "succeeded" ? "freed " + bytes(r.bytesFreed) : r.result === "failed" ? "failed" + (r.message ? ": " + r.message : "") : r.result;
+      items.push({ at: at, task: "Cleanup", kind: "cleanup", result: result, bad: r.result === "failed" });
     });
     items.sort(function (x, y) { return y.at - x.at; });
-    box.innerHTML = '<section class="a-card lst"><h2 class="lst__title">Recent runs</h2>' + (items.length ? '<ol class="runs">' + items.slice(0, 15).map(function (i) {
-      return "<li>" + dot(i.bad ? "critical" : "ok") + "<div><div>" + esc(i.text) + '</div><div class="ln__sub"><time datetime="' + esc(new Date(i.at * 1000).toISOString()) + '" data-rel></time></div></div></li>';
-    }).join("") + "</ol>" : '<div class="a-empty" style="padding:20px 8px"><div class="a-empty__title">No runs yet</div>Maintenance started from here is listed in this box.</div>') + "</section>";
-    UI.updateRelativeTimes(box);
+    var shown = items.filter(function (i) { return runFilter === "all" || i.kind === runFilter; });
+    var chips = '<div class="chips" role="group" aria-label="Filter runs">' + RUN_CHIPS.map(function (c) {
+      return '<button type="button" class="chip" data-run-filter="' + c[0] + '" aria-pressed="' + (runFilter === c[0]) + '">' + c[1] + "</button>";
+    }).join("") + "</div>";
+    var list = shown.length ? '<ol class="runs">' + shown.slice(0, 15).map(function (i) {
+      return '<li>' + dot(i.bad ? "critical" : "ok") + '<span class="runs__what"><b>' + esc(i.task) + "</b> " + esc(i.result) + '</span><time class="runs__age" datetime="' + esc(new Date(i.at * 1000).toISOString()) + '" title="' + esc(new Date(i.at * 1000).toLocaleString()) + '">' + shortAge(i.at) + "</time></li>";
+    }).join("") + "</ol>" : '<div class="a-empty" style="padding:20px 8px"><div class="a-empty__title">No runs yet</div>' + (items.length ? "None of this kind." : "Maintenance started from here is listed in this box.") + "</div>";
+    var more = lastData.studioBase ? '<a class="runs__all" target="_blank" rel="noopener" href="' + esc(lastData.studioBase + "/admin/app-activity") + '">All runs in Activity</a>' : "";
+    box.innerHTML = '<section class="a-card lst runsbox" aria-labelledby="runs-title"><h2 class="lst__title" id="runs-title">Recent runs</h2>' + chips + list + more + "</section>";
   }
 
   function waiting(title, lead, steps) {
@@ -650,13 +672,17 @@
     return data.status === "forbidden" || data.status === "not_approved" ? "Only a system administrator can do this, and the app needs the permission approved." : data.message || fallback;
   }
 
-  // One row of the Maintenance table: task and what it does, last run, next, actions. Plain text; a problem is orange or red text.
-  function row(id, name, does, status, last, next, actions, notes) {
+  // One task card of the Maintenance tab: name and what it does, Last run with a status dot, a labelled Next/Status/Waiting/Planned
+  // column, and the actions on the right. Plain text; a problem is orange or red text.
+  var NEXT_LABEL = { cleanup: "Next", backup: "Next", upgrade: "Status", updates: "Waiting", restart: "Planned" };
+
+  function row(id, name, does, status, last, next, actions, notes, detail) {
     var tone = status === "warning" ? " tone--attn" : status === "critical" ? " tone--bad" : "";
-    return '<tr id="task-' + id + '" class="t-row"><td data-label="Task"><div class="t-name">' + esc(name) + '</div><div class="t-does">' + esc(does) + "</div></td>" +
-      '<td class="t-last' + tone + '" data-label="Last run">' + last + "</td>" +
-      '<td class="t-next" data-label="Next">' + next + '</td><td class="t-acts" data-label="Actions"><div class="t-act">' + (actions || "") + "</div>" +
-      notes.filter(Boolean).map(function (n) { return '<div class="t-note">' + n + "</div>"; }).join("") + "</td></tr>";
+    var idle = last === "not run from here" || last === "never run" || last === "never";
+    return '<section class="task" id="task-' + id + '" aria-labelledby="task-' + id + '-name"><div class="task__row"><div class="task__who"><h2 class="task__name" id="task-' + id + '-name">' + esc(name) + '</h2><span class="task__does">' + esc(does) + "</span></div>" +
+      '<div class="task__col t-last' + tone + '"><span class="task__label">Last run</span><span class="task__val">' + dot(idle ? "unknown" : status) + "<span>" + last + "</span></span></div>" +
+      '<div class="task__col t-next"><span class="task__label">' + (NEXT_LABEL[id] || "Next") + '</span><span class="task__val task__val--next">' + next + '</span></div><div class="task__acts"><div class="t-act">' + (actions || "") + "</div></div></div>" +
+      notes.filter(Boolean).map(function (n) { return '<div class="t-note">' + n + "</div>"; }).join("") + (detail ? '<div class="task__detail">' + detail + "</div>" : "") + "</section>";
   }
 
   // The newest time this app started the task, as "3 days ago · started"; "not run from here" without one.
@@ -715,7 +741,7 @@
     var old = upgradeTargets();
     var ready = old.filter(function (r) { return approvedRunner(r.name); });
     var busy = upgradeOp && upgradeOp.busy;
-    var next = old.length ? esc(old.length + (old.length === 1 ? " Runner is" : " Runners are") + " old: " + old.map(function (r) { return r.name; }).join(", ")) : "when a Runner is old";
+    var next = old.length ? esc(old.length + (old.length === 1 ? " Runner is" : " Runners are") + " old: " + old.map(function (r) { return r.name; }).join(", ")) : "All Runners current";
     var lacking = old.length && !ready.length ? esc(APPROVAL) : old.length > ready.length ? "Needs approval for: " + old.filter(function (r) { return !approvedRunner(r.name); }).map(function (r) { return esc(r.name); }).join(", ") + "." : "";
     var progress = upgradeOp ? upgradeOp.items.map(function (i) { return '<span class="a-note' + (i.state === "failed" ? " a-note--warning" : "") + '" id="upgrade-' + esc(i.runnerId) + '">' + esc(i.name) + ": " + esc(i.text) + "</span>"; }).join("<br>") : "";
     return row("upgrade", "Upgrade Runners", does, old.length ? "warning" : "ok", lastRun("Upgrade Runners"), next,
@@ -840,8 +866,7 @@
     var failed = server && osStatus && osStatus.state === "failed" && osRecent(osStatus.finishedAtUtc);
     var panel = osPanel(name);
     var notes = (extra ? '<div class="t-sub">' + esc(extra) + "</div>" : "") + (why ? '<div class="t-sub">' + esc(why) + "</div>" : "");
-    return row("updates", "OS updates", does, failed ? "critical" : "ok", osLastRun(), next + notes, button, []) +
-      (panel ? '<tr class="t-detail"><td colspan="4">' + panel + "</td></tr>" : "");
+    return row("updates", "OS updates", does, failed ? "critical" : "ok", osLastRun(), next + notes, button, [], panel);
   }
 
   function updateOsBanner() {
@@ -884,8 +909,8 @@
     if (osForm && document.activeElement && document.activeElement.id === "os-typed") return;
     if (restartOp && restartOp.asking && document.activeElement && document.activeElement.id === "restart-typed") return;
     tasksBox.hidden = false;
-    tasksBox.innerHTML = '<section class="a-card mtbox" id="maintenance"><table class="mt"><thead><tr><th>Task</th><th>Last run</th><th>Next</th><th><span class="a-sr">Actions</span></th></tr></thead><tbody>' +
-      cleanupRow() + backupRow() + upgradeRow() + updatesRow() + restartRow() + "</tbody></table></section>";
+    tasksBox.innerHTML = '<div class="tasks" id="maintenance">' +
+      cleanupRow() + backupRow() + upgradeRow() + updatesRow() + restartRow() + "</div>";
     UI.updateRelativeTimes(tasksBox);
     paintRuns();
     refreshOverview();

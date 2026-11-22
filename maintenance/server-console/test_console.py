@@ -223,10 +223,23 @@ class PageTests(unittest.TestCase):
         for tab in ("Overview", "Maintenance", "Apps on this machine"):
             self.assertIn(tab, page)
 
+    def test_every_section_of_the_maintenance_mockup_is_built(self):
+        """Issue 428 failed its release check because whole mockup sections were missing. Each section of the mockup must stay."""
+        here = Path(__file__).parent
+        script, css = (here / "dashboard.js").read_text(), (here / "console.css").read_text()
+        for needle in ('class="task"', "task__name", "Last run", "NEXT_LABEL", 'waiting', "Planned", "Status",   # task cards with the labelled column
+                       "runs__what", "shortAge",                                                               # short Recent runs rows
+                       "data-run-filter", "aria-pressed", '["updates", "Updates"]', '["backup", "Backup"]', '["cleanup", "Cleanup"]',  # filter chips
+                       "All runs in Activity"):
+            self.assertIn(needle, script)
+        self.assertIn(".task__row", css)
+        for task in ("Cleanup", "Backup", "Upgrade Runners", "OS updates", "Restart server"):
+            self.assertIn('"' + task + '"', script)
+
     def test_the_os_update_panel_is_full_width_never_floats_and_has_every_state(self):
         here = Path(__file__).parent
         script, css, page = (here / "dashboard.js").read_text(), (here / "console.css").read_text(), (here / "index.html").read_text()
-        self.assertIn('<tr class="t-detail"><td colspan="4">', script)  # the result is a row of its own, never a box over the row
+        self.assertIn('<div class="task__detail">', script)  # the result is a block of its own inside the card, never a box over the row
         for needle in ('id="os-confirm"', 'id="os-running"', "Docker is restarting", "Stopped", "Try again…", "Restart tonight 03:00", "Restart now…",
                        "New kernel waiting: needs a full upgrade as root and a restart", "Up to date", "Shown on every tab until it finishes", "Security updates only", "All updates"):
             self.assertIn(needle, script)
@@ -254,7 +267,7 @@ class PageTests(unittest.TestCase):
         self.assertIn("@media (min-width: 761px)", css)
         self.assertIn("overflow: hidden", css)
         self.assertIn("@media (max-width: 760px)", css)
-        self.assertIn(".mt thead { display: none; }", css)
+        self.assertIn(".task__row { grid-template-columns: minmax(0, 1fr); gap: 10px; }", css)
 
 
 class RunHistoryTests(unittest.TestCase):
