@@ -23,6 +23,9 @@ finished (last 5):
 """
 
 
+IDLE = "worker: running\npaused: no\nrunning:\npending:\n"
+
+
 class FakeExecutor:
     def __init__(self, status=STATUS):
         self.calls, self.status = [], status
@@ -157,8 +160,8 @@ class _Resp(io.BytesIO):
         return False
 
 
-def make_app(board=None, **env):
-    ex = FakeExecutor()
+def make_app(board=None, status=STATUS, **env):
+    ex = FakeExecutor(status)
     base = {"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20}
     base.update(env)
     return main.App(base, executor=ex, fetch_board=board), ex
@@ -171,15 +174,18 @@ class Jobs(unittest.TestCase):
     def boards(self, mapping):
         return lambda token, board, column: mapping[board]
 
+    def make(self, mapping, **env):
+        return make_app(self.boards(mapping), IDLE, **env)
+
     def test_pick_up_empty_boards_queues_nothing(self):
-        app, ex = make_app(self.boards({}), GITHUB_TOKEN="gh-token-1")
+        app, ex = self.make({}, GITHUB_TOKEN="gh-token-1")
         ok, text = app.run_job("pick-up", "manual")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), [])
         self.assertIn("AGENT_BOARDS is empty", text)
 
     def test_pick_up_without_a_token_fails_and_says_why(self):
-        app, ex = make_app(self.boards({}), AGENT_BOARDS="o/1: Ready for agents")
+        app, ex = self.make({}, AGENT_BOARDS="o/1: Ready for agents")
         ok, text = app.run_job("pick-up", "schedule")
         self.assertFalse(ok)
         self.assertIn("GITHUB_TOKEN is not set", text)
@@ -188,12 +194,12 @@ class Jobs(unittest.TestCase):
         self.assertIn("read:project", state["pickup"]["warning"])
 
     def test_no_warning_with_token_or_without_boards(self):
-        self.assertEqual(make_app(self.boards({}), AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")[0].state()["pickup"]["warning"], "")
+        self.assertEqual(self.make({}, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")[0].state()["pickup"]["warning"], "")
         self.assertEqual(make_app(self.boards({}))[0].state()["pickup"]["warning"], "")
 
     def test_pick_up_two_boards_in_board_then_card_order_once(self):
         mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}, "o/2": {"items": [self.item(3, "o/apps")], "problem": None}}
-        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="all")
         app.run_job("pick-up", "schedule")
         self.assertEqual(ex.added(), ["pick-r-5", "pick-r-8", "pick-apps-3"])
         ok, text = app.run_job("pick-up", "schedule")
@@ -202,7 +208,7 @@ class Jobs(unittest.TestCase):
 
     def test_pick_up_skips_needs_shape_and_reports_it(self):
         mapping = {"o/1": {"items": [self.item(5), self.item(6, labels=["needs-shape"]), self.item(7)], "problem": None}}
-        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="all")
         ok, text = app.run_job("pick-up", "schedule")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), ["pick-r-5", "pick-r-7"])
@@ -211,7 +217,7 @@ class Jobs(unittest.TestCase):
 
     def test_pick_up_wrong_column_shows_in_state_and_report(self):
         mapping = {"o/1": {"items": [self.item(5)], "problem": None}, "o/2": {"items": [], "problem": "Board o/2 has no column 'Ready for agents'"}}
-        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="all")
         ok, text = app.run_job("pick-up", "schedule")
         self.assertFalse(ok)
         self.assertEqual(ex.added(), ["pick-r-5"])
@@ -221,7 +227,7 @@ class Jobs(unittest.TestCase):
 
     def test_pick_up_pause_window_queues_nothing(self):
         mapping = {"o/1": {"items": [self.item(5)], "problem": None}}
-        app, ex = make_app(self.boards(mapping), AGENT_BOARDS="o/1: Ready for agents", PAUSE_BETWEEN="00:00-23:59", GITHUB_TOKEN="gh-token-1")
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", PAUSE_BETWEEN="00:00-23:59", GITHUB_TOKEN="gh-token-1")
         ok, text = app.run_job("pick-up", "schedule")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), [])
@@ -232,10 +238,48 @@ class Jobs(unittest.TestCase):
         mapping = {"o/1": {"items": [self.item(n) for n in (5, 8, 9)], "problem": None}}
         ex = FakeExecutor(status)
         app = main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20, "AGENT_BOARDS": "o/1: Ready for agents",
-                        "GITHUB_TOKEN": "gh-token-1"}, executor=ex, fetch_board=self.boards(mapping))
+                        "GITHUB_TOKEN": "gh-token-1", "PICKUP_MODE": "all"}, executor=ex, fetch_board=self.boards(mapping))
         ok, _ = app.run_job("pick-up", "schedule")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), ["pick-r-9"])
+
+    def test_pick_up_one_queues_only_the_top_card(self):
+        mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}, "o/2": {"items": [self.item(3, "o/apps")], "problem": None}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertTrue(ok)
+        self.assertEqual(ex.added(), ["pick-r-5"])
+        self.assertIn("queued #5", text)
+
+    def test_pick_up_one_waits_while_the_queue_is_busy(self):
+        for status in ("worker: running\npaused: no\nrunning:\n  manual-1 (log idle 10s)\npending:\n",
+                       "worker: running\npaused: no\nrunning:\npending:\n  manual-2\n"):
+            mapping = {"o/1": {"items": [self.item(5)], "problem": None}}
+            ex = FakeExecutor(status)
+            app = main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20, "AGENT_BOARDS": "o/1: Ready for agents",
+                            "GITHUB_TOKEN": "gh-token-1"}, executor=ex, fetch_board=self.boards(mapping))
+            ok, text = app.run_job("pick-up", "schedule")
+            self.assertTrue(ok)
+            self.assertEqual(ex.added(), [])
+            self.assertIn("queue is not free", text)
+
+    def test_pick_up_one_next_run_takes_the_card_now_on_top(self):
+        mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.run_job("pick-up", "schedule")
+        mapping["o/1"] = {"items": [self.item(30), self.item(8)], "problem": None}  # #5 left the column, #30 was dragged to the top
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(ex.added(), ["pick-r-5", "pick-r-30"])
+
+    def test_pick_up_all_queues_every_card_and_bad_mode_fails(self):
+        mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="all")
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(ex.added(), ["pick-r-5", "pick-r-8"])
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="some")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertIn("PICKUP_MODE", text)
 
     def test_lessons_and_unknown_job(self):
         app, ex = make_app()
