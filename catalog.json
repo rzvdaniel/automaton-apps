@@ -115,7 +115,7 @@
       "summary": "Runs and shows your coding agents' work queue and its schedules: tasks, logs, the morning report and a Pick-up job from your agent boards.",
       "category": "Maintenance",
       "folder": "maintenance/overseer",
-      "commit": "7ab18cdd7d6e9514b5e8d71b1883b492e344f483",
+      "commit": "e38c0787d74c5b08dfc521ba0ca94bfad5b94bc4",
       "minServerVersion": "0.2.173",
       "permissions": [
         "apps:read-status",
