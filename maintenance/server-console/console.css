@@ -134,6 +134,30 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 .mt .t-note { margin-top: 6px; white-space: normal; text-align: right; }
 .task__form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-top: 6px; justify-content: flex-end; }
 .task__form label { display: grid; gap: 2px; font-size: 12px; }
+.mt .t-sub { font-size: 12px; margin-top: 3px; white-space: normal; }
+.mt tr.t-detail td { padding: 0 0 16px; border-top: 0; }
+.os-panel { display: grid; gap: 10px; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); font-size: 14px; }
+.os-panel--ask { background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 35%, var(--border)); gap: 16px; }
+.os-panel--failed { background: color-mix(in srgb, var(--critical) 6%, var(--surface)); border-color: color-mix(in srgb, var(--critical) 35%, var(--border)); }
+.os-panel--failed, .os-panel--done { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.os-panel__text { display: grid; gap: 4px; min-width: 0; flex: 1 1 420px; }
+.os-panel__head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.os-current { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.os-meter--idle > span { background: var(--neutral); }
+.os-scopes { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.os-scopes legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
+.os-scopes__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.os-scope { text-align: left; display: grid; gap: 3px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.os-scope[aria-pressed="true"] { border: 2px solid var(--text); padding: 11px 13px; }
+.os-scope[disabled] { opacity: 0.6; cursor: not-allowed; }
+.os-scope__title { font-weight: 600; }
+.os-scope__desc { font-size: 13px; color: var(--muted); }
+.os-facts { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.os-ask { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.os-ask__name { display: grid; gap: 6px; flex: 1 1 320px; font-weight: 500; }
+.os-ask .a-btn { min-height: 44px; }
+.os-log[open] { flex: 1 1 100%; order: 9; }
+.os-log pre { margin: 8px 0 0; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
 .runs { list-style: none; margin: 0; padding: 0; }
 .runs li { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 14px; }
@@ -210,6 +234,9 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 
 /* Phones: the page scrolls normally, everything stacks. */
 @media (max-width: 760px) {
+  .os-scopes__grid { grid-template-columns: minmax(0, 1fr); }
+  .os-panel--failed .a-btn, .os-panel--done .a-btn { flex: 1 1 100%; }
+  .os-ask .a-btn { flex: 1 1 100%; }
   .mt .t-act { flex-wrap: wrap; }
   .sk-top, .a-topbar { padding: 0 12px; }
   .a-page.sk { padding: 16px 12px 24px; }
