@@ -11,7 +11,7 @@ The app page shows the **Queue** (running, pending, finished; add, cancel, pause
 | `stall-check` | every 30 minutes | Requeues a stalled task and stops one that stalled twice. |
 | `report` | 06:00 | Queues the task that writes the morning report. |
 | `lessons` | 03:00 | Queues a lessons task with `LESSONS_PROMPT`. |
-| `pick-up` | 22:00 | Queues the open issues in the Ready for agents column of each board in `AGENT_BOARDS`, skipping `needs-shape`. |
+| `pick-up` | 22:00 | Queues the open issues in the Ready for agents column of each board in `AGENT_BOARDS`, moving back, with one comment, cards whose issue has `needs-shape` or no Done when. |
 
 **Release check** is an Action, started by a webhook from the server-release workflow with `{"version":"0.2.176"}`. It updates the test server, then queues the task that runs each merged pull request's "Check after release" list. A second call for the same version does nothing.
 
@@ -22,7 +22,7 @@ The app page shows the **Queue** (running, pending, finished; add, cancel, pause
 | `QUEUE_HOST` | `user@address` of the queue machine (required). |
 | `SSH_KEY` (secret) | Private key for that user. |
 | `ADMIN_TOKEN` (secret) | At least 16 characters; the schedules use it. |
-| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `PICKUP_MODE`, `GITHUB_TOKEN` (secret) | Pick-up: boards and columns, a UTC window with no queuing, `one` (default: the top card, only when the queue is free) or `all` (every card at once), a classic token with `read:project`. Empty `AGENT_BOARDS` queues nothing; with `AGENT_BOARDS` set and no token the run fails and the page warns. |
+| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `PICKUP_MODE`, `GITHUB_TOKEN` (secret) | Pick-up: boards and columns, a UTC window with no queuing, `one` (default: the top card, only when the queue is free) or `all` (every card at once), a classic token with `read:project`, plus `project` and `repo` so Pick-up can move a card back and comment. Empty `AGENT_BOARDS` queues nothing; with `AGENT_BOARDS` set and no token the run fails and the page warns. |
 | `CLI_SERVER`, `CLI_API_KEY` (secret), `RELEASE_REPO`, `EMAIL_TO` | Release check. |
 | `STALL_MINUTES`, `ISSUE_REPO`, `LESSONS_PROMPT`, `QUEUE_BIN`, `QUEUE_HOME`, `RUNNER` | Stall limit (default 120), issue links, lessons prompt, script locations, task command. |
 

@@ -6,6 +6,7 @@ a task name that matched NAME_RE and the prompt on standard input.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -21,7 +22,7 @@ JOBS = {
     "stall-check": "Stall check: requeues a task that stopped writing output, stops one that stalled twice",
     "report": "Morning report: starts a task that writes the report of merged PRs, blocked tasks and the latest release",
     "lessons": "Lessons: queues the task that works through the lessons inbox",
-    "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, skipping needs-shape; nothing outside its hours or when AGENT_BOARDS is empty",
+    "pick-up": "Pick-up: queues the issues in the Ready for agents column of each board in AGENT_BOARDS, in order, moving back (with one comment) the cards whose issue has needs-shape or no Done when; nothing outside its hours or when AGENT_BOARDS is empty",
 }
 COLUMN = "Ready for agents"
 RELEASE_STALE = 25 * 60
@@ -175,10 +176,11 @@ def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
     Returns {"items": [...], "problem": text or None}; items carry their labels and the last comment's first line."""
     owner, _, number = board.partition("/")
     query = ("query($o:String!,$n:Int!,$after:String){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){"
-             "field(name:\"Status\"){... on ProjectV2SingleSelectField{options{name}}}"
+             "id field(name:\"Status\"){... on ProjectV2SingleSelectField{id options{id name}}}"
              "items(first:100,after:$after,orderBy:{field:POSITION,direction:ASC}){pageInfo{hasNextPage endCursor}nodes{"
-             "status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}"
-             "content{... on Issue{number title url state repository{nameWithOwner} labels(first:30){nodes{name}} comments(last:1){nodes{body}}}}}}}}}}")
+             "id status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}"
+             "content{... on Issue{number title url state body repository{nameWithOwner} labels(first:30){nodes{name}} comments(last:1){nodes{body}}"
+             "timelineItems(last:10,itemTypes:[PROJECT_V2_ITEM_STATUS_CHANGED_EVENT]){nodes{... on ProjectV2ItemStatusChangedEvent{previousStatus status}}}}}}}}}}")
     found, cursor = [], None
     for _ in range(MAX_PAGES):
         body = json.dumps({"query": query, "variables": {"o": owner, "n": int(number), "after": cursor}}).encode()
@@ -192,7 +194,9 @@ def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
         project = (((data.get("data") or {}).get("repositoryOwner") or {}).get("projectV2") or {})
         if not project:
             return {"items": [], "problem": f"Board {board}: not found or the token cannot read it"}
-        options = [o.get("name") for o in ((project.get("field") or {}).get("options") or [])]
+        field = project.get("field") or {}
+        options = [o.get("name") for o in (field.get("options") or [])]
+        board_info = {"id": project.get("id"), "field": field.get("id"), "options": {o.get("name"): o.get("id") for o in (field.get("options") or [])}}
         if column not in options:
             return {"items": [], "problem": f"Board {board} has no column '{column}'"}
         page = project["items"]
@@ -201,13 +205,72 @@ def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
             if (node.get("status") or {}).get("name") == column and content.get("url") and content.get("state") == "OPEN":
                 comments = (content.get("comments") or {}).get("nodes") or []
                 reason = next((l.strip() for l in (comments[-1].get("body") or "").splitlines() if l.strip()), "") if comments else ""
-                found.append({"repo": content["repository"]["nameWithOwner"], "number": content["number"], "title": content["title"], "url": content["url"],
+                events = [e for e in ((content.get("timelineItems") or {}).get("nodes") or []) if e.get("status") == column and e.get("previousStatus")]
+                found.append({"item": node.get("id"), "body": content.get("body") or "", "previous": events[-1]["previousStatus"] if events else "",
+                              "repo": content["repository"]["nameWithOwner"], "number": content["number"], "title": content["title"], "url": content["url"],
                               "labels": [l["name"] for l in (content.get("labels") or {}).get("nodes") or []], "reason": reason[:160]})
         info = page.get("pageInfo") or {}
         cursor = info.get("endCursor")
         if not info.get("hasNextPage") or not cursor:
-            return {"items": found, "problem": None}
+            return {"items": found, "problem": None, "board": board_info}
     return {"items": [], "problem": f"Board {board}: more than {MAX_PAGES * 100} cards, not read"}
+
+
+DONE_WHEN_RE = re.compile(r"(^|\n)\W*Done when", re.I)  # the same check as agent-queue add
+FALLBACK_COLUMN = "Backlog"
+
+
+def shape_problem(item: dict) -> str:
+    """Why an issue is not ready for an agent, or "" when it is: the needs-shape label, or no Done when section."""
+    if "needs-shape" in item["labels"]:
+        return "it has the needs-shape label"
+    if not DONE_WHEN_RE.search(item.get("body") or ""):
+        return "it has no Done when section"
+    return ""
+
+
+def shape_fingerprint(item: dict) -> str:
+    return hashlib.sha256(json.dumps([sorted(item["labels"]), item.get("body") or ""]).encode()).hexdigest()[:16]
+
+
+def shape_comment(problem: str) -> str:
+    return f"Not queued: {problem}. Add a **Done when** section and remove `needs-shape`, then move the card back to Ready for agents."
+
+
+def graphql(token: str, query: str, variables: dict, opener=urlopen) -> dict:
+    request = Request("https://api.github.com/graphql", json.dumps({"query": query, "variables": variables}).encode(),
+                      {"Authorization": "Bearer " + token, "Content-Type": "application/json", "User-Agent": "Automaton-Overseer/1.0"})
+    with opener(request, timeout=20) as response:
+        data = json.loads(response.read())
+    if data.get("errors"):
+        raise RuntimeError("GitHub refused: " + str(data["errors"][0].get("message", ""))[:120])
+    return data
+
+
+def move_card(token: str, board: dict, item: dict, column: str, opener=urlopen) -> str | None:
+    """Sets the card's Status to column (the column it came from, else Backlog, else the first other one). None on success, else why not."""
+    options = board.get("options") or {}
+    target = next((c for c in (item.get("previous"), FALLBACK_COLUMN) if c in options and c != column), None) \
+        or next((c for c in options if c != column), None)
+    if not target or not board.get("id") or not board.get("field") or not item.get("item"):
+        return "no column to move it to"
+    try:
+        graphql(token, "mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,"
+                       "value:{singleSelectOptionId:$o}}){projectV2Item{id}}}",
+                {"p": board["id"], "i": item["item"], "f": board["field"], "o": options[target]}, opener)
+    except (HTTPError, URLError, ValueError, OSError, RuntimeError) as error:
+        return f"could not move it ({type(error).__name__}; the token needs the project scope)"
+    return None
+
+
+def comment_issue(token: str, item: dict, text: str, opener=urlopen) -> str | None:
+    request = Request(f"https://api.github.com/repos/{item['repo']}/issues/{item['number']}/comments", json.dumps({"body": text}).encode(),
+                      {"Authorization": "Bearer " + token, "Content-Type": "application/json", "User-Agent": "Automaton-Overseer/1.0"})
+    try:
+        with opener(request, timeout=20):
+            return None
+    except (HTTPError, URLError, OSError) as error:
+        return f"could not comment ({type(error).__name__}; the token needs repo access)"
 
 
 def pick_name(item: dict) -> str:
@@ -242,6 +305,7 @@ class Jobs:
         self.data.setdefault("queued", [])
         self.data.setdefault("releases", {})
         self.data.setdefault("pickup", {"skipped": [], "problems": []})
+        self.data.setdefault("notified", {})
 
     def save(self) -> None:
         tmp = self.path + ".tmp"
@@ -278,6 +342,16 @@ class Jobs:
 
     def was_queued(self, url: str) -> bool:
         return url in self.data["queued"]
+
+    def notify_once(self, url: str, fingerprint: str) -> bool:
+        """True the first time this issue is rejected in this state; False while it is unchanged since the last comment."""
+        with self.lock:
+            if self.data["notified"].get(url) == fingerprint:
+                return False
+            self.data["notified"][url] = fingerprint
+            self.data["notified"] = dict(list(self.data["notified"].items())[-500:])
+            self.save()
+            return True
 
     def set_pickup(self, skipped: list[dict], problems: list[str]) -> None:
         with self.lock:

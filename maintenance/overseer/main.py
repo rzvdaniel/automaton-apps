@@ -118,7 +118,7 @@ class SshExecutor:
 
 
 class App:
-    def __init__(self, env=None, now=time.time, executor=None, fetch_board=None):
+    def __init__(self, env=None, now=time.time, executor=None, fetch_board=None, move_card=None, comment=None):
         env = os.environ if env is None else env
         self.now = now
         self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())
@@ -144,6 +144,7 @@ class App:
         self.release_repo, self.email_to = env.get("RELEASE_REPO", "").strip(), env.get("EMAIL_TO", "").strip()
         self.secrets += [self.cli_key] if self.cli_key else []
         self.fetch_board = fetch_board or overseer.fetch_column
+        self.move_card, self.comment = move_card or overseer.move_card, comment or overseer.comment_issue
         self.job_lock = threading.Lock()
         self.status_cache: tuple[float, dict | None] = (0.0, None)
 
@@ -222,9 +223,10 @@ class App:
                 problems.append(result["problem"])
                 continue
             for item in result["items"]:
-                if "needs-shape" in item["labels"]:
-                    skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"],
-                                    "reason": "needs shape" + (": " + item["reason"] if item["reason"] else "")})
+                problem = overseer.shape_problem(item)
+                if problem:
+                    skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"], "reason": "not ready: " + problem})
+                    problems += self.send_back(item, column, result.get("board") or {}, problem)
                     continue
                 if self.jobs.was_queued(item["url"]):
                     continue
@@ -241,8 +243,20 @@ class App:
         self.jobs.set_pickup(skipped, problems)
         text = ("queued " + ", ".join(queued)) if queued else "nothing new: nothing queued"
         if skipped:
-            text += "; skipped " + ", ".join(f"#{s['number']}" for s in skipped) + " (needs shape)"
+            text += "; skipped " + ", ".join(f"#{s['number']}" for s in skipped) + " (not ready, moved back)"
         return not problems, "; ".join([text] + problems)
+
+    def send_back(self, item: dict, column: str, board: dict, problem: str) -> list[str]:
+        """Moves a card whose issue is not ready out of the column and says so on the issue once (again only after the issue changes).
+        Returns what went wrong. A card that could not be moved is left alone and not commented, so the next run tries again."""
+        why = self.move_card(self.github_token, board, item, column)
+        if why:
+            return [f"{item['repo']}#{item['number']}: {why}"]
+        if self.jobs.notify_once(item["url"], overseer.shape_fingerprint(item)):
+            why = self.comment(self.github_token, item, overseer.shape_comment(problem))
+            if why:
+                return [f"{item['repo']}#{item['number']}: {why}"]
+        return []
 
     # --- release check --------------------------------------------------------------------------------------
     def start_release_check(self, version: str, spawn=None) -> tuple[int, str]:
