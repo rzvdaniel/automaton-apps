@@ -248,6 +248,7 @@ class Jobs(unittest.TestCase):
     def test_pick_up_two_boards_in_board_then_card_order_once(self):
         mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}, "o/2": {"items": [self.item(3, "o/apps")], "problem": None}}
         app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents, o/2: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="all")
+        app.pulls.update({5: "u", 8: "u", 3: "u"})  # the queued tasks ended with merged pull requests
         app.run_job("pick-up", "schedule")
         self.assertEqual(ex.added(), ["pick-r-5", "pick-r-8", "pick-apps-3"])
         ok, text = app.run_job("pick-up", "schedule")
@@ -412,6 +413,17 @@ class Jobs(unittest.TestCase):
         self.assertIn("pull/9", app.commented[0][1])
         app.run_job("pick-up", "schedule")
         self.assertEqual(len(app.commented), 1)
+        # the card is back in Ready with Pick-up's comment last: not queued again; a newer comment lets it run again
+        again = self.item(5)
+        again["reason"] = app.commented[0][1].splitlines()[0][:160]
+        mapping["o/1"]["items"] = [again]
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertEqual(ex.added(), ["pick-r-5"])
+        self.assertIn("skipped #5", text)
+        again["reason"] = "fixed, try again"
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(app.set_to[-1], (5, "Running"))
+        self.assertEqual(len(app.jobs.data["picks"]), 1)
 
     def test_a_failed_move_is_tried_again(self):
         mapping = {"o/1": {"items": [self.item(5)], "problem": None, "board": {"options": {"Ready for agents": "a", "Running": "b", "In review": "c"}}}}

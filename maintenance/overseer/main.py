@@ -232,6 +232,7 @@ class App:
                 if not why:
                     text = overseer.redact(overseer.failed_comment(name, pick["column"], self.queue.log(name) or ""), self.secrets)
                     why = self.comment(self.github_token, item, text)
+                    self.jobs.unmark_queued(item["url"])
             if why:
                 problems.append(f"{item['repo']}#{item['number']}: {why}")  # kept, so the next run tries again
                 continue
@@ -274,6 +275,10 @@ class App:
                 if problem:
                     skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"], "reason": "not ready: " + problem})
                     problems += self.send_back(item, column, result.get("board") or {}, problem)
+                    continue
+                if item.get("reason", "").startswith(overseer.FAILED_PREFIX):
+                    skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"],
+                                    "reason": "its last task ended without a merged pull request; a newer comment on the issue queues it again"})
                     continue
                 if self.jobs.was_queued(item["url"]):
                     continue

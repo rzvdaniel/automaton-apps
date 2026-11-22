@@ -300,10 +300,13 @@ def iso_time(text: str | None) -> float:
         return 0.0
 
 
+FAILED_PREFIX = "Pick-up task `"
+
+
 def failed_comment(name: str, column: str, log: str) -> str:
     lines = [l.rstrip() for l in log.splitlines() if l.strip()][-8:]
     tail = "\n".join(lines)[-1500:] or "(no log)"
-    return f"Pick-up task `{name}` ended without a merged pull request, so the card went back to {column}. Last log lines:\n\n```\n{tail}\n```"
+    return f"{FAILED_PREFIX}{name}` ended without a merged pull request, so the card went back to {column}. Pick-up will not queue it again until the issue has a newer comment (say what was fixed). Last log lines:\n\n```\n{tail}\n```"
 
 
 def comment_issue(token: str, item: dict, text: str, opener=urlopen) -> str | None:
@@ -394,6 +397,11 @@ class Jobs:
     def drop_pick(self, name: str) -> None:
         with self.lock:
             self.data["picks"].pop(name, None)
+            self.save()
+
+    def unmark_queued(self, url: str) -> None:
+        with self.lock:
+            self.data["queued"] = [u for u in self.data["queued"] if u != url]
             self.save()
 
     def add_problems(self, problems: list[str]) -> None:
