@@ -122,7 +122,7 @@
       {
         "name": "GITHUB_TOKEN",
         "optional": true,
-        "description": "Read access to the boards named in AGENT_BOARDS and to their repos' issues. Empty: no Pick-up"
+        "description": "Required for Pick-up when AGENT_BOARDS is set: a classic token with `read:project` (fine-grained tokens cannot read user-owned boards). Empty: Pick-up does nothing."
       }
     ],
     "schedules": [

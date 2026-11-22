@@ -49,6 +49,7 @@ async function load() {
     $('schedule').textContent = (s.schedule && s.schedule.next ? 'Next scheduled run: ' + s.schedule.next.replace('T', ' ').slice(0, 16) + ' UTC. ' : '') +
       'Pause or change a schedule in Studio, on this app\'s Schedules tab. ' +
       (s.pickup.ready ? 'Pick-up pulls from ' + s.pickup.boards + (s.pickup.pause ? ' (paused ' + s.pickup.pause + ' UTC)' : '') + '.' : 'Pick-up is off until AGENT_BOARDS and GITHUB_TOKEN are set.') +
+      (s.pickup.warning ? ' Warning: ' + s.pickup.warning : '') +
       (s.pickup.problems.length ? ' ' + s.pickup.problems.join('. ') + '.' : '') +
       (s.pickup.skipped.length ? ' Skipped: ' + s.pickup.skipped.map(x => '#' + x.number).join(', ') + ' (needs shape).' : '');
     $('report').textContent = s.report || 'No morning report yet.';

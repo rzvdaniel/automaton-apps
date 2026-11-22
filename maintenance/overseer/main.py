@@ -203,7 +203,7 @@ class App:
         if overseer.in_pause(pause, self.now()):
             return True, f"paused ({pause} UTC): nothing queued"
         if not self.github_token:
-            return True, "GITHUB_TOKEN is not set: nothing queued"
+            return False, "GITHUB_TOKEN is not set: AGENT_BOARDS is set, so Pick-up needs a token with read:project; nothing queued"
         boards = overseer.parse_boards(spec)
         queued, skipped, problems = [], [], []
         for board, column in boards:
@@ -319,6 +319,7 @@ class App:
         return {"queue": queue, "problem": problem, "jobs": jobs, "schedule": self.schedule_info(), "report": report[-20000:],
                 "pickup": {"boards": self.env.get("AGENT_BOARDS", "").strip(), "pause": self.env.get("PAUSE_BETWEEN", "").strip(),
                            "ready": bool(self.env.get("AGENT_BOARDS", "").strip() and self.github_token),
+                           "warning": "AGENT_BOARDS is set but GITHUB_TOKEN is empty: Pick-up fails until a classic token with read:project is added." if self.env.get("AGENT_BOARDS", "").strip() and not self.github_token else "",
                            "skipped": pickup["skipped"], "problems": pickup["problems"]}}
 
     def task(self, name: str) -> dict | None:

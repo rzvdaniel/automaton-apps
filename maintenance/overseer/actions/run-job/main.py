@@ -43,6 +43,8 @@ def main() -> int:
         data = json.load(sys.stdin)
         result = run_job(os.environ.get("AUTOMATON_APP_INTERNAL_URL", ""), os.environ.get("ADMIN_TOKEN", "").strip(),
                          str(data.get("job", "")) if isinstance(data, dict) else "")
+        if isinstance(result, dict) and result.get("text"):
+            print(f"{data['job']}: {result['text']}", file=sys.stderr)
         print(json.dumps(result, separators=(",", ":")))
         return 0
     except (ValueError, RuntimeError) as error:
