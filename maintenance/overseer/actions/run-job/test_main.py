@@ -24,6 +24,19 @@ class RunJob(unittest.TestCase):
         self.assertEqual(main.run_job("http://10.0.0.5:3000/", "t" * 16, "report", opener)["ok"], True)
         self.assertEqual(seen, {"url": "http://10.0.0.5:3000/api/jobs/report", "auth": "Bearer " + "t" * 16})
 
+    def test_main_logs_the_job_text(self):
+        import contextlib, os, sys
+        out, err = io.StringIO(), io.StringIO()
+        old = main.run_job
+        main.run_job = lambda *a, **k: {"ok": True, "text": "queued #807, #1086"}
+        sys.stdin = io.StringIO('{"job":"pick-up"}')
+        try:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(main.main(), 0)
+        finally:
+            main.run_job, sys.stdin = old, sys.__stdin__
+        self.assertIn("queued #807, #1086", err.getvalue())
+
     def test_bad_input(self):
         for args in (("ftp://x", "t" * 16, "report"), ("http://x", "t" * 16, "rm"), ("http://x", "short", "report")):
             with self.assertRaises(ValueError):

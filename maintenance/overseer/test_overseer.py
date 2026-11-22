@@ -106,6 +106,24 @@ class Board(unittest.TestCase):
         overseer.fetch_column("t", "o/1", "Ready for agents", opener)
         self.assertIn("orderBy:{field:POSITION,direction:ASC}", sent[0])
 
+    def test_reads_every_page_of_the_board(self):
+        def node(n):
+            return {"status": {"name": "Ready for agents"}, "content": {"number": n, "title": "t", "url": f"https://github.com/o/r/issues/{n}", "state": "OPEN",
+                    "repository": {"nameWithOwner": "o/r"}, "labels": {"nodes": []}, "comments": {"nodes": []}}}
+        pages = {None: ([node(1), node(2)], "c1"), "c1": ([node(3)], "c2"), "c2": ([node(4)], None)}
+        sent = []
+        def opener(request, timeout):
+            after = json.loads(request.data)["variables"]["after"]
+            sent.append(after)
+            nodes, nxt = pages[after]
+            body = {"data": {"repositoryOwner": {"projectV2": {"field": {"options": [{"name": "Ready for agents"}]},
+                    "items": {"pageInfo": {"hasNextPage": nxt is not None, "endCursor": nxt}, "nodes": nodes}}}}}
+            return _Resp(json.dumps(body).encode())
+        got = overseer.fetch_column("t", "o/1", "Ready for agents", opener)
+        self.assertEqual([i["number"] for i in got["items"]], [1, 2, 3, 4])
+        self.assertEqual(sent, [None, "c1", "c2"])
+        self.assertIsNone(got["problem"])
+
     def test_missing_column_and_board_are_reported(self):
         got = overseer.fetch_column("t", "o/2", "Ready for agents", self.reply([], options=("Todo",)))
         self.assertEqual(got["problem"], "Board o/2 has no column 'Ready for agents'")
@@ -159,6 +177,19 @@ class Jobs(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(ex.added(), [])
         self.assertIn("AGENT_BOARDS is empty", text)
+
+    def test_pick_up_without_a_token_fails_and_says_why(self):
+        app, ex = make_app(self.boards({}), AGENT_BOARDS="o/1: Ready for agents")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertIn("GITHUB_TOKEN is not set", text)
+        self.assertFalse(app.jobs.data["jobs"]["pick-up"]["ok"])
+        state = app.state()
+        self.assertIn("read:project", state["pickup"]["warning"])
+
+    def test_no_warning_with_token_or_without_boards(self):
+        self.assertEqual(make_app(self.boards({}), AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")[0].state()["pickup"]["warning"], "")
+        self.assertEqual(make_app(self.boards({}))[0].state()["pickup"]["warning"], "")
 
     def test_pick_up_two_boards_in_board_then_card_order_once(self):
         mapping = {"o/1": {"items": [self.item(5), self.item(8)], "problem": None}, "o/2": {"items": [self.item(3, "o/apps")], "problem": None}}

@@ -167,38 +167,47 @@ def in_pause(spec: str, now: float) -> bool:
     return start <= minute < end if start < end else minute >= start or minute < end
 
 
+MAX_PAGES = 100  # 100 cards each
+
+
 def fetch_column(token: str, board: str, column: str, opener=urlopen) -> dict:
-    """One Status column of a GitHub project, cards top to bottom. board is "owner/number".
+    """One Status column of a GitHub project, cards top to bottom, read page by page until the board has no more. board is "owner/number".
     Returns {"items": [...], "problem": text or None}; items carry their labels and the last comment's first line."""
     owner, _, number = board.partition("/")
-    query = ("query($o:String!,$n:Int!){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){"
+    query = ("query($o:String!,$n:Int!,$after:String){repositoryOwner(login:$o){... on ProjectV2Owner{projectV2(number:$n){"
              "field(name:\"Status\"){... on ProjectV2SingleSelectField{options{name}}}"
-             "items(first:100,orderBy:{field:POSITION,direction:ASC}){nodes{"
+             "items(first:100,after:$after,orderBy:{field:POSITION,direction:ASC}){pageInfo{hasNextPage endCursor}nodes{"
              "status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}"
              "content{... on Issue{number title url state repository{nameWithOwner} labels(first:30){nodes{name}} comments(last:1){nodes{body}}}}}}}}}}")
-    body = json.dumps({"query": query, "variables": {"o": owner, "n": int(number)}}).encode()
-    request = Request("https://api.github.com/graphql", body, {"Authorization": "Bearer " + token, "Content-Type": "application/json",
-                                                              "User-Agent": "Automaton-Overseer/1.0"})
-    try:
-        with opener(request, timeout=20) as response:
-            data = json.loads(response.read())
-    except (HTTPError, URLError, ValueError, OSError) as error:
-        return {"items": [], "problem": f"Board {board}: could not read it ({type(error).__name__})"}
-    project = (((data.get("data") or {}).get("repositoryOwner") or {}).get("projectV2") or {})
-    if not project:
-        return {"items": [], "problem": f"Board {board}: not found or the token cannot read it"}
-    options = [o.get("name") for o in ((project.get("field") or {}).get("options") or [])]
-    if column not in options:
-        return {"items": [], "problem": f"Board {board} has no column '{column}'"}
-    found = []
-    for node in project["items"]["nodes"]:
-        content = node.get("content") or {}
-        if (node.get("status") or {}).get("name") == column and content.get("url") and content.get("state") == "OPEN":
-            comments = (content.get("comments") or {}).get("nodes") or []
-            reason = next((l.strip() for l in (comments[-1].get("body") or "").splitlines() if l.strip()), "") if comments else ""
-            found.append({"repo": content["repository"]["nameWithOwner"], "number": content["number"], "title": content["title"], "url": content["url"],
-                          "labels": [l["name"] for l in (content.get("labels") or {}).get("nodes") or []], "reason": reason[:160]})
-    return {"items": found, "problem": None}
+    found, cursor = [], None
+    for _ in range(MAX_PAGES):
+        body = json.dumps({"query": query, "variables": {"o": owner, "n": int(number), "after": cursor}}).encode()
+        request = Request("https://api.github.com/graphql", body, {"Authorization": "Bearer " + token, "Content-Type": "application/json",
+                                                                  "User-Agent": "Automaton-Overseer/1.0"})
+        try:
+            with opener(request, timeout=20) as response:
+                data = json.loads(response.read())
+        except (HTTPError, URLError, ValueError, OSError) as error:
+            return {"items": [], "problem": f"Board {board}: could not read it ({type(error).__name__})"}
+        project = (((data.get("data") or {}).get("repositoryOwner") or {}).get("projectV2") or {})
+        if not project:
+            return {"items": [], "problem": f"Board {board}: not found or the token cannot read it"}
+        options = [o.get("name") for o in ((project.get("field") or {}).get("options") or [])]
+        if column not in options:
+            return {"items": [], "problem": f"Board {board} has no column '{column}'"}
+        page = project["items"]
+        for node in page["nodes"]:
+            content = node.get("content") or {}
+            if (node.get("status") or {}).get("name") == column and content.get("url") and content.get("state") == "OPEN":
+                comments = (content.get("comments") or {}).get("nodes") or []
+                reason = next((l.strip() for l in (comments[-1].get("body") or "").splitlines() if l.strip()), "") if comments else ""
+                found.append({"repo": content["repository"]["nameWithOwner"], "number": content["number"], "title": content["title"], "url": content["url"],
+                              "labels": [l["name"] for l in (content.get("labels") or {}).get("nodes") or []], "reason": reason[:160]})
+        info = page.get("pageInfo") or {}
+        cursor = info.get("endCursor")
+        if not info.get("hasNextPage") or not cursor:
+            return {"items": found, "problem": None}
+    return {"items": [], "problem": f"Board {board}: more than {MAX_PAGES * 100} cards, not read"}
 
 
 def pick_name(item: dict) -> str:

@@ -22,7 +22,7 @@ The app page shows the **Queue** (running, pending, finished; add, cancel, pause
 | `QUEUE_HOST` | `user@address` of the queue machine (required). |
 | `SSH_KEY` (secret) | Private key for that user. |
 | `ADMIN_TOKEN` (secret) | At least 16 characters; the schedules use it. |
-| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `GITHUB_TOKEN` (secret) | Pick-up: boards and columns, a UTC window with no queuing, read access. Empty `AGENT_BOARDS` queues nothing. |
+| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `GITHUB_TOKEN` (secret) | Pick-up: boards and columns, a UTC window with no queuing, a classic token with `read:project`. Empty `AGENT_BOARDS` queues nothing; with `AGENT_BOARDS` set and no token the run fails and the page warns. |
 | `CLI_SERVER`, `CLI_API_KEY` (secret), `RELEASE_REPO`, `EMAIL_TO` | Release check. |
 | `STALL_MINUTES`, `ISSUE_REPO`, `LESSONS_PROMPT`, `QUEUE_BIN`, `QUEUE_HOME`, `RUNNER` | Stall limit (default 120), issue links, lessons prompt, script locations, task command. |
 
