@@ -161,6 +161,31 @@ class _Resp(io.BytesIO):
         return False
 
 
+class CardMoves(unittest.TestCase):
+    def reply(self, body):
+        return lambda request, timeout: _Resp(json.dumps(body).encode())
+
+    def test_merged_pull_needs_a_merge_after_the_task_was_queued(self):
+        node = lambda url, merged, at: {"source": {"url": url, "merged": merged, "mergedAt": at}}
+        nodes = [node("https://x/pull/1", True, "2026-01-01T00:00:00Z"), node("https://x/pull/2", False, None), {"source": {}}, node("https://x/pull/3", True, "2026-11-22T10:00:00Z")]
+        body = {"data": {"repository": {"issue": {"timelineItems": {"nodes": nodes}}}}}
+        item = {"repo": "o/r", "number": 5}
+        since = overseer.iso_time("2026-11-22T09:00:00Z")
+        self.assertEqual(overseer.merged_pull("t", item, since, self.reply(body)), ("https://x/pull/3", None))
+        self.assertEqual(overseer.merged_pull("t", item, overseer.iso_time("2026-11-23T00:00:00Z"), self.reply(body)), ("", None))
+        self.assertIn("could not read", overseer.merged_pull("t", item, 0, self.reply({"errors": [{"message": "x"}]}))[1])
+
+    def test_set_card_picks_the_named_column(self):
+        sent = []
+        def opener(request, timeout):
+            sent.append(json.loads(request.data)["variables"])
+            return _Resp(b'{"data": {}}')
+        board = {"id": "P", "field": "F", "options": {"Running": "o1", "Ready": "o2"}}
+        self.assertIsNone(overseer.set_card("t", board, {"item": "I"}, "Running", opener))
+        self.assertEqual(sent[0]["o"], "o1")
+        self.assertIn("no column 'Gone'", overseer.set_card("t", board, {"item": "I"}, "Gone", opener))
+
+
 class GraphQL(unittest.TestCase):
     def test_every_query_string_has_balanced_braces(self):
         tree = ast.parse(open(overseer.__file__, encoding="utf-8").read())
@@ -182,8 +207,10 @@ def make_app(board=None, status=STATUS, **env):
     base = {"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20}
     base.update(env)
     app = main.App(base, executor=ex, fetch_board=board, move_card=lambda t, b, i, c: app.moved.append((i["number"], c)) or app.move_error,
-                   comment=lambda t, i, text: app.commented.append((i["number"], text)) or None)
-    app.moved, app.commented, app.move_error = [], [], None
+                   comment=lambda t, i, text: app.commented.append((i["number"], text)) or None,
+                   set_card=lambda t, b, i, c: app.set_to.append((i["number"], c)) or app.set_error,
+                   find_pull=lambda t, i, since: (app.pulls.get(i["number"], ""), None))
+    app.moved, app.commented, app.move_error, app.set_to, app.set_error, app.pulls = [], [], None, [], None, {}
     return app, ex
 
 
@@ -243,6 +270,7 @@ class Jobs(unittest.TestCase):
         ok, text = app.run_job("pick-up", "schedule")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), ["pick-r-7", "pick-r-8"])
+        app.pulls.update({7: "u", 8: "u"})  # the two queued tasks end with merged pull requests
         self.assertEqual(app.moved, [(5, "Ready for agents"), (6, "Ready for agents")])
         self.assertEqual([n for n, _ in app.commented], [5, 6])
         self.assertIn("needs-shape", app.commented[0][1])
@@ -310,7 +338,8 @@ class Jobs(unittest.TestCase):
         mapping = {"o/1": {"items": [self.item(n) for n in (5, 8, 9)], "problem": None}}
         ex = FakeExecutor(status)
         app = main.App({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20, "AGENT_BOARDS": "o/1: Ready for agents",
-                        "GITHUB_TOKEN": "gh-token-1", "PICKUP_MODE": "all"}, executor=ex, fetch_board=self.boards(mapping))
+                        "GITHUB_TOKEN": "gh-token-1", "PICKUP_MODE": "all"}, executor=ex, fetch_board=self.boards(mapping),
+                        set_card=lambda t, b, i, c: None)
         ok, _ = app.run_job("pick-up", "schedule")
         self.assertTrue(ok)
         self.assertEqual(ex.added(), ["pick-r-9"])
@@ -352,6 +381,66 @@ class Jobs(unittest.TestCase):
         ok, text = app.run_job("pick-up", "schedule")
         self.assertFalse(ok)
         self.assertIn("PICKUP_MODE", text)
+
+    def test_card_goes_to_running_then_review_after_a_merged_pr(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None, "board": {"options": {"Ready for agents": "a", "Running": "b", "In review": "c"}}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(app.set_to, [(5, "Running")])
+        ex.status = "worker: running\npaused: no\nrunning:\n  pick-r-5 (log idle 1s)\npending:\n"
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(app.set_to, [(5, "Running")])  # still running: nothing moves
+        ex.status = IDLE
+        app.pulls[5] = "https://github.com/o/r/pull/9"
+        ok, _ = app.run_job("pick-up", "schedule")
+        self.assertEqual(app.set_to[-1], (5, "In review"))
+        self.assertEqual(app.commented, [])
+        n = len(app.set_to)
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(len(app.set_to), n)  # settled once
+
+    def test_card_goes_back_with_one_comment_when_no_pr_merged(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None, "board": {"options": {"Ready for agents": "a", "Running": "b", "In review": "c"}}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.run_job("pick-up", "schedule")
+        app.set_error = None
+        mapping["o/1"]["items"] = []
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(app.set_to, [(5, "Running"), (5, "Ready for agents")])
+        self.assertEqual(len(app.commented), 1)
+        self.assertIn("without a merged pull request", app.commented[0][1])
+        self.assertIn("pull/9", app.commented[0][1])
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(len(app.commented), 1)
+
+    def test_a_failed_move_is_tried_again(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None, "board": {"options": {"Ready for agents": "a", "Running": "b", "In review": "c"}}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.run_job("pick-up", "schedule")
+        mapping["o/1"]["items"] = []
+        app.pulls[5] = "https://github.com/o/r/pull/9"
+        app.set_error = "could not move it"
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertIn("o/r#5: could not move it", text)
+        app.set_error = None
+        ok, _ = app.run_job("pick-up", "schedule")
+        self.assertTrue(ok)
+        self.assertEqual(app.set_to[-1], (5, "In review"))
+
+    def test_missing_running_or_review_column_fails_the_run_and_queues_nothing(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None, "board": {"options": {"Ready for agents": "a", "Running": "b"}}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertIn("Board o/1 has no column 'In review'", text)
+        self.assertEqual(ex.added(), [])
+
+    def test_column_names_come_from_settings(self):
+        mapping = {"o/1": {"items": [self.item(5)], "problem": None, "board": {"options": {"Ready for agents": "a", "Doing": "b", "Review": "c"}}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1", RUNNING_COLUMN="Doing", REVIEW_COLUMN="Review")
+        app.run_job("pick-up", "schedule")
+        self.assertEqual(app.set_to, [(5, "Doing")])
 
     def test_lessons_and_unknown_job(self):
         app, ex = make_app()

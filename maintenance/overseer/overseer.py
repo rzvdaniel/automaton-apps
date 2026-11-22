@@ -13,6 +13,7 @@ import re
 import shlex
 import threading
 import time
+from datetime import datetime
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -251,20 +252,58 @@ def graphql(token: str, query: str, variables: dict, opener=urlopen) -> dict:
     return data
 
 
-def move_card(token: str, board: dict, item: dict, column: str, opener=urlopen) -> str | None:
-    """Sets the card's Status to column (the column it came from, else Backlog, else the first other one). None on success, else why not."""
+def set_card(token: str, board: dict, item: dict, column: str, opener=urlopen) -> str | None:
+    """Sets the card's Status to the column of that name. None on success, else why not."""
     options = board.get("options") or {}
-    target = next((c for c in (item.get("previous"), FALLBACK_COLUMN) if c in options and c != column), None) \
-        or next((c for c in options if c != column), None)
-    if not target or not board.get("id") or not board.get("field") or not item.get("item"):
-        return "no column to move it to"
+    if column not in options or not board.get("id") or not board.get("field") or not item.get("item"):
+        return f"no column '{column}' to move it to"
     try:
         graphql(token, "mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,"
                        "value:{singleSelectOptionId:$o}}){projectV2Item{id}}}",
-                {"p": board["id"], "i": item["item"], "f": board["field"], "o": options[target]}, opener)
+                {"p": board["id"], "i": item["item"], "f": board["field"], "o": options[column]}, opener)
     except (HTTPError, URLError, ValueError, OSError, RuntimeError) as error:
         return f"could not move it ({type(error).__name__}; the token needs the project scope)"
     return None
+
+
+def move_card(token: str, board: dict, item: dict, column: str, opener=urlopen) -> str | None:
+    """Moves the card out of column: to the column it came from, else Backlog, else the first other one. None on success, else why not."""
+    options = board.get("options") or {}
+    target = next((c for c in (item.get("previous"), FALLBACK_COLUMN) if c in options and c != column), None) \
+        or next((c for c in options if c != column), None)
+    if not target:
+        return "no column to move it to"
+    return set_card(token, board, item, target, opener)
+
+
+def merged_pull(token: str, item: dict, since: float, opener=urlopen) -> tuple[str, str | None]:
+    """The address of a pull request that names the issue and was merged after `since` (epoch seconds), else "". Second value: what went wrong."""
+    owner, _, name = item["repo"].partition("/")
+    query = ("query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){timelineItems(last:50,itemTypes:[CROSS_REFERENCED_EVENT]){"
+             "nodes{... on CrossReferencedEvent{source{... on PullRequest{url merged mergedAt}}}}}}}}")
+    try:
+        data = graphql(token, query, {"o": owner, "r": name, "n": item["number"]}, opener)
+    except (HTTPError, URLError, ValueError, OSError, RuntimeError) as error:
+        return "", f"{item['repo']}#{item['number']}: could not read its pull requests ({type(error).__name__})"
+    nodes = ((((data.get("data") or {}).get("repository") or {}).get("issue") or {}).get("timelineItems") or {}).get("nodes") or []
+    for node in nodes:
+        source = (node or {}).get("source") or {}
+        if source.get("merged") and source.get("url") and iso_time(source.get("mergedAt")) >= since:
+            return source["url"], None
+    return "", None
+
+
+def iso_time(text: str | None) -> float:
+    try:
+        return datetime.fromisoformat((text or "").replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def failed_comment(name: str, column: str, log: str) -> str:
+    lines = [l.rstrip() for l in log.splitlines() if l.strip()][-8:]
+    tail = "\n".join(lines)[-1500:] or "(no log)"
+    return f"Pick-up task `{name}` ended without a merged pull request, so the card went back to {column}. Last log lines:\n\n```\n{tail}\n```"
 
 
 def comment_issue(token: str, item: dict, text: str, opener=urlopen) -> str | None:
@@ -310,6 +349,7 @@ class Jobs:
         self.data.setdefault("releases", {})
         self.data.setdefault("pickup", {"skipped": [], "problems": []})
         self.data.setdefault("notified", {})
+        self.data.setdefault("picks", {})
 
     def save(self) -> None:
         tmp = self.path + ".tmp"
@@ -342,6 +382,23 @@ class Jobs:
     def mark_queued(self, url: str) -> None:
         with self.lock:
             self.data["queued"] = (self.data["queued"] + [url])[-500:]
+            self.save()
+
+    def add_pick(self, name: str, pick: dict) -> None:
+        """A task Pick-up queued and moved its card for: kept until the task ends and the card has moved on."""
+        with self.lock:
+            self.data["picks"][name] = pick
+            self.data["picks"] = dict(list(self.data["picks"].items())[-100:])
+            self.save()
+
+    def drop_pick(self, name: str) -> None:
+        with self.lock:
+            self.data["picks"].pop(name, None)
+            self.save()
+
+    def add_problems(self, problems: list[str]) -> None:
+        with self.lock:
+            self.data["pickup"]["problems"] = self.data["pickup"].get("problems", []) + problems
             self.save()
 
     def was_queued(self, url: str) -> bool:

@@ -22,7 +22,7 @@ The app page shows the **Queue** (running, pending, finished; add, cancel, pause
 | `QUEUE_HOST` | `user@address` of the queue machine (required). |
 | `SSH_KEY` (secret) | Private key for that user. |
 | `ADMIN_TOKEN` (secret) | At least 16 characters; the schedules use it. |
-| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `PICKUP_MODE`, `GITHUB_TOKEN` (secret) | Pick-up: boards and columns, a UTC window with no queuing, `one` (default: the top card, only when the queue is free) or `all` (every card at once), a classic token with `read:project`, plus `project` and `repo` so Pick-up can move a card back and comment. Empty `AGENT_BOARDS` queues nothing; with `AGENT_BOARDS` set and no token the run fails and the page warns. |
+| `AGENT_BOARDS`, `PAUSE_BETWEEN`, `PICKUP_MODE`, `RUNNING_COLUMN`, `REVIEW_COLUMN`, `GITHUB_TOKEN` (secret) | Pick-up: boards and columns, a UTC window with no queuing, `one` (default: the top card, only when the queue is free) or `all` (every card at once), a classic token with `read:project`, plus `project` and `repo` so Pick-up can move a card back and comment. `RUNNING_COLUMN` (default Running) and `REVIEW_COLUMN` (default In review) are where a card goes when its task is queued and when it ended with a merged pull request; a task that ended without one sends the card back with a comment. Both columns must exist on each board. Empty `AGENT_BOARDS` queues nothing; with `AGENT_BOARDS` set and no token the run fails and the page warns. |
 | `CLI_SERVER`, `CLI_API_KEY` (secret), `RELEASE_REPO`, `EMAIL_TO` | Release check. |
 | `STALL_MINUTES`, `ISSUE_REPO`, `LESSONS_PROMPT`, `QUEUE_BIN`, `QUEUE_HOME`, `RUNNER` | Stall limit (default 120), issue links, lessons prompt, script locations, task command. |
 
