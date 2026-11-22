@@ -118,7 +118,7 @@ class SshExecutor:
 
 
 class App:
-    def __init__(self, env=None, now=time.time, executor=None, fetch_board=None, move_card=None, comment=None):
+    def __init__(self, env=None, now=time.time, executor=None, fetch_board=None, move_card=None, comment=None, set_card=None, find_pull=None):
         env = os.environ if env is None else env
         self.now = now
         self.managed = bool(env.get("AUTOMATON_APP_ID", "").strip())
@@ -145,6 +145,9 @@ class App:
         self.secrets += [self.cli_key] if self.cli_key else []
         self.fetch_board = fetch_board or overseer.fetch_column
         self.move_card, self.comment = move_card or overseer.move_card, comment or overseer.comment_issue
+        self.set_card, self.find_pull = set_card or overseer.set_card, find_pull or overseer.merged_pull
+        self.running_column = env.get("RUNNING_COLUMN", "").strip() or "Running"
+        self.review_column = env.get("REVIEW_COLUMN", "").strip() or "In review"
         self.job_lock = threading.Lock()
         self.status_cache: tuple[float, dict | None] = (0.0, None)
 
@@ -197,6 +200,46 @@ class App:
         return (False, why) if why else (True, f"queued {name}")
 
     def job_pick_up(self) -> tuple[bool, str]:
+        """Moves the cards of the tasks that ended, then queues the next ones."""
+        problems = self.settle_picks() if self.github_token else []
+        ok, text = self.pick_up()
+        if problems:
+            self.jobs.add_problems(problems)
+            return False, "; ".join([text] + problems)
+        return ok, text
+
+    def settle_picks(self) -> list[str]:
+        """For each task Pick-up queued that is no longer waiting or running: the card goes to the review column when a pull request that
+        names the issue was merged since, else back to the column it came from with one comment (the task's last log lines)."""
+        picks = dict(self.jobs.data["picks"])
+        if not picks:
+            return []
+        status = self.queue.status()
+        active = {t["name"] for t in status["pending"] + status["running"]}
+        problems = []
+        for name, pick in picks.items():
+            if name in active:
+                continue
+            item = pick["item"]
+            pull, problem = self.find_pull(self.github_token, item, pick["at"])
+            if problem:
+                problems.append(problem)
+                continue
+            if pull:
+                why = self.set_card(self.github_token, pick["board"], item, self.review_column)
+            else:
+                why = self.set_card(self.github_token, pick["board"], item, pick["column"])
+                if not why:
+                    text = overseer.redact(overseer.failed_comment(name, pick["column"], self.queue.log(name) or ""), self.secrets)
+                    why = self.comment(self.github_token, item, text)
+                    self.jobs.unmark_queued(item["url"])
+            if why:
+                problems.append(f"{item['repo']}#{item['number']}: {why}")  # kept, so the next run tries again
+                continue
+            self.jobs.drop_pick(name)
+        return problems
+
+    def pick_up(self) -> tuple[bool, str]:
         spec, pause = self.env.get("AGENT_BOARDS", "").strip(), self.env.get("PAUSE_BETWEEN", "").strip()
         if not spec:
             self.jobs.set_pickup([], [])
@@ -222,11 +265,20 @@ class App:
             if result["problem"]:
                 problems.append(result["problem"])
                 continue
+            info = result.get("board") or {}
+            missing = [c for c in (self.running_column, self.review_column) if "options" in info and c not in info["options"]]
+            if missing:
+                problems.append(f"Board {board} has no column '{missing[0]}'")
+                continue
             for item in result["items"]:
                 problem = overseer.shape_problem(item)
                 if problem:
                     skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"], "reason": "not ready: " + problem})
                     problems += self.send_back(item, column, result.get("board") or {}, problem)
+                    continue
+                if item.get("reason", "").startswith(overseer.FAILED_PREFIX):
+                    skipped.append({"url": item["url"], "number": item["number"], "repo": item["repo"],
+                                    "reason": "its last task ended without a merged pull request; a newer comment on the issue queues it again"})
                     continue
                 if self.jobs.was_queued(item["url"]):
                     continue
@@ -236,6 +288,10 @@ class App:
                     if why:
                         self.jobs.set_pickup(skipped, problems)
                         return False, f"could not queue {item['url']}: {why}"
+                    self.jobs.add_pick(name, {"item": {k: item[k] for k in ("repo", "number", "url", "item")}, "board": info, "column": column, "at": self.now()})
+                    why = self.set_card(self.github_token, info, item, self.running_column)
+                    if why:
+                        problems.append(f"{item['repo']}#{item['number']}: {why}")
                 self.jobs.mark_queued(item["url"])
                 queued.append(f"#{item['number']}")
                 if mode == "one":

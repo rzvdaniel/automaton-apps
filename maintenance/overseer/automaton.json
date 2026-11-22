@@ -91,6 +91,16 @@
         "description": "one (default): Pick-up queues the top Ready card only when the queue has nothing running or pending, so the board's order decides what runs next. all: it queues every Ready card at once"
       },
       {
+        "name": "RUNNING_COLUMN",
+        "optional": true,
+        "description": "Column Pick-up moves a card to when it queues its task (default: Running). The column must exist on each board in AGENT_BOARDS, or the run fails"
+      },
+      {
+        "name": "REVIEW_COLUMN",
+        "optional": true,
+        "description": "Column Pick-up moves a card to when its task ended with a merged pull request naming the issue (default: In review). The column must exist on each board in AGENT_BOARDS, or the run fails"
+      },
+      {
         "name": "CLI_SERVER",
         "optional": true,
         "description": "Address of the test server (https://...) for the release check: the upgrade runs as automaton server update on the queue machine. Empty: no release check"
