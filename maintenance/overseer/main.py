@@ -252,10 +252,13 @@ class App:
         why = self.move_card(self.github_token, board, item, column)
         if why:
             return [f"{item['repo']}#{item['number']}: {why}"]
-        if self.jobs.notify_once(item["url"], overseer.shape_fingerprint(item)):
-            why = self.comment(self.github_token, item, overseer.shape_comment(problem))
-            if why:
-                return [f"{item['repo']}#{item['number']}: {why}"]
+        fingerprint = overseer.shape_fingerprint(item)
+        if self.jobs.was_notified(item["url"], fingerprint):
+            return []
+        why = self.comment(self.github_token, item, overseer.shape_comment(problem))
+        if why:
+            return [f"{item['repo']}#{item['number']}: {why}"]  # not recorded, so the next run comments again
+        self.jobs.mark_notified(item["url"], fingerprint)
         return []
 
     # --- release check --------------------------------------------------------------------------------------

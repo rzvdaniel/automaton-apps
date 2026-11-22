@@ -246,6 +246,17 @@ class Jobs(unittest.TestCase):
         self.assertEqual(app.commented, [])
         self.assertEqual(ex.added(), [])
 
+    def test_a_failed_comment_is_tried_again_on_the_next_run(self):
+        mapping = {"o/1": {"items": [self.item(5, labels=["needs-shape"])], "problem": None, "board": {}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.comment = lambda t, i, text: "could not comment"
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        app.comment = lambda t, i, text: app.commented.append((i["number"], text)) or None
+        app.run_job("pick-up", "schedule")
+        app.run_job("pick-up", "schedule")
+        self.assertEqual([n for n, _ in app.commented], [5])
+
     def test_shape_check_and_move_target(self):
         self.assertEqual(overseer.shape_problem(self.item(1)), "")
         self.assertEqual(overseer.shape_problem(self.item(1, body="  **Done when**\nx")), "")

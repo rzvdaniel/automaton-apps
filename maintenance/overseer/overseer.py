@@ -234,7 +234,7 @@ def shape_fingerprint(item: dict) -> str:
 
 
 def shape_comment(problem: str) -> str:
-    return f"Not queued: {problem}. Add a **Done when** section and remove `needs-shape`, then move the card back to Ready for agents."
+    return f"Not queued: {problem}. Fix that (add a **Done when** section; the issue check removes `needs-shape` once it passes), then move the card back to Ready for agents."
 
 
 def graphql(token: str, query: str, variables: dict, opener=urlopen) -> dict:
@@ -343,15 +343,15 @@ class Jobs:
     def was_queued(self, url: str) -> bool:
         return url in self.data["queued"]
 
-    def notify_once(self, url: str, fingerprint: str) -> bool:
-        """True the first time this issue is rejected in this state; False while it is unchanged since the last comment."""
+    def was_notified(self, url: str, fingerprint: str) -> bool:
+        """Whether the issue was already commented on in this state (labels and text unchanged since)."""
+        return self.data["notified"].get(url) == fingerprint
+
+    def mark_notified(self, url: str, fingerprint: str) -> None:
         with self.lock:
-            if self.data["notified"].get(url) == fingerprint:
-                return False
             self.data["notified"][url] = fingerprint
             self.data["notified"] = dict(list(self.data["notified"].items())[-500:])
             self.save()
-            return True
 
     def set_pickup(self, skipped: list[dict], problems: list[str]) -> None:
         with self.lock:
