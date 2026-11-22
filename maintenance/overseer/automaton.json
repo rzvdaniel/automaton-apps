@@ -133,39 +133,27 @@
     "schedules": [
       {
         "name": "Stall check",
-        "action": "run-job",
+        "action": "stall-check",
         "cron": "*/30 * * * *",
-        "timeZone": "Etc/UTC",
-        "input": {
-          "job": "stall-check"
-        }
+        "timeZone": "Etc/UTC"
       },
       {
         "name": "Morning report",
-        "action": "run-job",
+        "action": "report",
         "cron": "0 6 * * *",
-        "timeZone": "Etc/UTC",
-        "input": {
-          "job": "report"
-        }
+        "timeZone": "Etc/UTC"
       },
       {
         "name": "Lessons",
-        "action": "run-job",
+        "action": "lessons",
         "cron": "0 3 * * *",
-        "timeZone": "Etc/UTC",
-        "input": {
-          "job": "lessons"
-        }
+        "timeZone": "Etc/UTC"
       },
       {
         "name": "Pick-up",
-        "action": "run-job",
+        "action": "pick-up",
         "cron": "*/15 * * * *",
-        "timeZone": "Etc/UTC",
-        "input": {
-          "job": "pick-up"
-        }
+        "timeZone": "Etc/UTC"
       }
     ]
   }

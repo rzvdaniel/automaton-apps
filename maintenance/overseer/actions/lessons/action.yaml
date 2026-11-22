@@ -1,9 +1,9 @@
 apiVersion: automaton.dev/v1
 kind: Action
 metadata:
-  name: Run job
-  key: run-job
-  description: Runs one of Overseer's jobs (stall-check, report, lessons, pick-up) in the app.
+  name: Lessons
+  key: lessons
+  description: Queues a task that works through the lessons inbox.
 spec:
   runtime: python
   entrypoint: main.py
@@ -12,13 +12,6 @@ spec:
   allowedExecutionScopes:
     - AppRunner
   defaultConcurrencyPolicy: SkipIfRunning
-  input:
-    type: object
-    required:
-      - job
-    properties:
-      job:
-        type: string
   output:
     type: object
     properties:

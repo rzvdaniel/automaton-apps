@@ -5,7 +5,7 @@ Runs and shows the work queue of your coding agents (Claude Code) and its schedu
 The page shows:
 
 - **Queue**: running, pending and the last finished tasks. Open a task to read its log and see the issue and pull request it mentions. Add a task, cancel one, pause or resume the queue.
-- **Schedules**: the four jobs, when each last ran and what it did, and a **Run now** button. The schedules themselves are ordinary Automaton scheduled actions (the **Schedules** tab of the app in Studio), so you pause or change them there.
+- **Schedules**: the four jobs, when each last ran and what it did, and a **Run now** button. Each job is its own Action (Pick-up, Stall check, Morning report, Lessons; Release check is the fifth) with its own **Run now**, schedule and webhook, and no input. The schedules are ordinary Automaton scheduled actions (the **Schedules** tab of the app in Studio), so you pause or change them there.
 - **Latest morning report**.
 
 | Job | Default schedule (UTC) | What it runs |
@@ -81,4 +81,8 @@ The data volume holds `overseer.json` (last result of each job, issues Pick-up q
 
 ## Tests
 
-`python -m unittest discover -p 'test_*.py'` here, and the same with `-s actions/run-job`.
+`python -m unittest discover -p 'test_*.py'` here, and the same with `-s actions` and `-s actions/release-check`.
+
+## Upgrading from the single Run job Action
+
+Before this change the four jobs were one `run-job` Action with the input `{"job":"..."}`. An install made earlier keeps four schedules on `run-job`, which no longer exists after the update. Delete them and create one schedule per new Action (`DELETE /api/action-schedules/{id}`, then `POST /api/action-schedules` with `applicationId`, `actionKey`, `name`, `scheduleType` `Cron`, `cronExpression`, `timeZone` `Etc/UTC`, `input` `{}`). Pick-up `pick-up` `*/15 * * * *`, Stall check `stall-check` `*/30 * * * *`, Morning report `report` `0 6 * * *`, Lessons `lessons` `0 3 * * *`.
