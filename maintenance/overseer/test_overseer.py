@@ -164,12 +164,16 @@ def make_app(board=None, status=STATUS, **env):
     ex = FakeExecutor(status)
     base = {"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp(), "ADMIN_TOKEN": "a" * 20}
     base.update(env)
-    return main.App(base, executor=ex, fetch_board=board), ex
+    app = main.App(base, executor=ex, fetch_board=board, move_card=lambda t, b, i, c: app.moved.append((i["number"], c)) or app.move_error,
+                   comment=lambda t, i, text: app.commented.append((i["number"], text)) or None)
+    app.moved, app.commented, app.move_error = [], [], None
+    return app, ex
 
 
 class Jobs(unittest.TestCase):
-    def item(self, n, repo="o/r", labels=()):
-        return {"repo": repo, "number": n, "title": f"t{n}", "url": f"https://github.com/{repo}/issues/{n}", "labels": list(labels), "reason": "missing Done when"}
+    def item(self, n, repo="o/r", labels=(), body="**Goal**\nx\n\n**Done when**\nit works"):
+        return {"repo": repo, "number": n, "title": f"t{n}", "url": f"https://github.com/{repo}/issues/{n}", "labels": list(labels), "reason": "missing Done when",
+                "body": body, "item": f"PVTI_{n}", "previous": "Inbox"}
 
     def boards(self, mapping):
         return lambda token, board, column: mapping[board]
@@ -213,7 +217,58 @@ class Jobs(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(ex.added(), ["pick-r-5", "pick-r-7"])
         self.assertIn("skipped #6", text)
-        self.assertIn("Skipped: o/r#6 needs shape: missing Done when", app.state()["report"])
+        self.assertIn("Skipped: o/r#6 not ready: it has the needs-shape label", app.state()["report"])
+
+    def test_pick_up_moves_back_unshaped_cards_with_one_comment_each_and_no_repeat(self):
+        mapping = {"o/1": {"items": [self.item(5, labels=["needs-shape"]), self.item(6, body="**Goal**\nno section"), self.item(7), self.item(8, body="Done when: x")],
+                           "problem": None, "board": {}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1", PICKUP_MODE="all")
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertTrue(ok)
+        self.assertEqual(ex.added(), ["pick-r-7", "pick-r-8"])
+        self.assertEqual(app.moved, [(5, "Ready for agents"), (6, "Ready for agents")])
+        self.assertEqual([n for n, _ in app.commented], [5, 6])
+        self.assertIn("needs-shape", app.commented[0][1])
+        self.assertIn("no Done when", app.commented[1][1])
+        app.run_job("pick-up", "schedule")  # the owner moved them back unchanged
+        self.assertEqual(len(app.moved), 4)
+        self.assertEqual(len(app.commented), 2)
+        mapping["o/1"]["items"][1] = self.item(6, body="**Goal**\nstill nothing, edited")  # the issue changed and is still wrong
+        app.run_job("pick-up", "schedule")
+        self.assertEqual([n for n, _ in app.commented], [5, 6, 6])
+
+    def test_pick_up_leaves_a_card_it_cannot_move_and_does_not_comment(self):
+        mapping = {"o/1": {"items": [self.item(5, labels=["needs-shape"])], "problem": None, "board": {}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.move_error = "could not move it"
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        self.assertEqual(app.commented, [])
+        self.assertEqual(ex.added(), [])
+
+    def test_a_failed_comment_is_tried_again_on_the_next_run(self):
+        mapping = {"o/1": {"items": [self.item(5, labels=["needs-shape"])], "problem": None, "board": {}}}
+        app, ex = self.make(mapping, AGENT_BOARDS="o/1: Ready for agents", GITHUB_TOKEN="gh-token-1")
+        app.comment = lambda t, i, text: "could not comment"
+        ok, text = app.run_job("pick-up", "schedule")
+        self.assertFalse(ok)
+        app.comment = lambda t, i, text: app.commented.append((i["number"], text)) or None
+        app.run_job("pick-up", "schedule")
+        app.run_job("pick-up", "schedule")
+        self.assertEqual([n for n, _ in app.commented], [5])
+
+    def test_shape_check_and_move_target(self):
+        self.assertEqual(overseer.shape_problem(self.item(1)), "")
+        self.assertEqual(overseer.shape_problem(self.item(1, body="  **Done when**\nx")), "")
+        self.assertIn("no Done when", overseer.shape_problem(self.item(1, body="We are done when it works")))
+        calls = []
+        def opener(request, timeout=0):
+            calls.append(json.loads(request.data)["variables"])
+            return _Resp(b'{"data":{}}')
+        board = {"id": "P", "field": "F", "options": {"Inbox": "o1", "Backlog": "o2", "Ready for agents": "o3"}}
+        self.assertIsNone(overseer.move_card("t", board, {"item": "I", "previous": "Inbox"}, "Ready for agents", opener))
+        self.assertIsNone(overseer.move_card("t", board, {"item": "I", "previous": ""}, "Ready for agents", opener))
+        self.assertEqual([c["o"] for c in calls], ["o1", "o2"])
 
     def test_pick_up_wrong_column_shows_in_state_and_report(self):
         mapping = {"o/1": {"items": [self.item(5)], "problem": None}, "o/2": {"items": [], "problem": "Board o/2 has no column 'Ready for agents'"}}
