@@ -8,6 +8,7 @@
     { "folder": "maintenance/gate-keeper", "category": "Monitoring", "minServerVersion": "0.2.167", "recommended": true, "recommendedOrder": 3 },
     { "folder": "maintenance/heartbeat", "category": "Monitoring", "minServerVersion": "0.2.31" },
     { "folder": "maintenance/gauntlet", "category": "Monitoring", "minServerVersion": "0.2.173" },
+    { "folder": "maintenance/agent-keeper", "category": "Maintenance", "minServerVersion": "0.2.180" },
     { "folder": "publishing/ghost", "category": "Publishing", "minServerVersion": "0.2.149" }
   ]
 }
