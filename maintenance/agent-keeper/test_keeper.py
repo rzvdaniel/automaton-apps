@@ -94,11 +94,11 @@ class ScriptTests(unittest.TestCase):
 
 
 class BusyProbeTests(unittest.TestCase):
-    def test_busy_probe_does_not_match_its_own_script(self):
-        # The Runner runs the whole script as `bash -c <script>`, so the script's own text must not count as a worker.
-        script = "AK_USER=nosuchuser_ak\nAK_URL=x\nAK_NAME=x\nAK_LABELS=agent\n" + keeper.read_script("status")
-        out = subprocess.run(["bash", "--noprofile", "--norc", "-c", script], capture_output=True, text=True).stdout
-        self.assertIn("busy=no", out)
+    def test_busy_probe_matches_the_process_name_only(self):
+        # The Runner runs the whole script as `bash -c <script>`: `pgrep -f` would match that command line and always say busy.
+        script = keeper.read_script("status")
+        self.assertIn("pgrep -x Runner.Worker", script)
+        self.assertNotIn("pgrep -f", script)
 
 
 class ParseTests(unittest.TestCase):
