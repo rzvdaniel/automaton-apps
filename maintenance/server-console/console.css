@@ -16,9 +16,6 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 /* Header: the dark rail with the name, the tabs and the check time. */
 .sk-top, .a-topbar { padding: 0; }
 .a-topbar__inner { max-width: 1344px; padding: 12px 32px; gap: 12px 24px; justify-content: flex-start; }
-.a-header__brand { display: flex; gap: 12px; align-items: center; }
-.a-header__brand .a-brand, .a-topbar .a-brand { flex: none; width: 32px; height: 32px; border-radius: 8px; font-size: 13px; background: var(--orange); color: var(--rail); box-shadow: none; }
-.a-topbar .a-header__title { font: 600 16px/1.2 var(--font); }
 .a-topbar .tabs { flex: 1 1 auto; min-width: 0; }
 .a-topbar .a-header__actions { margin-left: auto; flex: none; flex-wrap: nowrap; }
 .a-topbar .a-header__sub { margin: 0; font-size: 13px; color: var(--rail-muted); white-space: nowrap; }

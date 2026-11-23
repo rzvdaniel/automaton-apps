@@ -46,22 +46,22 @@
     if (!runs.length) return "";
     var x = runs[0], run = x.run;
     var result = run.status !== "ok" ? run.message || run.status : run.timedOut ? "timed out" : run.exitCode === 0 ? "succeeded" : "failed (exit " + run.exitCode + ")";
-    return '<details class="a-card last-run"><summary class="a-card__head"><h2 class="a-card__title">Last run: ' + esc(LABELS[x.action].toLowerCase()) + '</h2><span class="a-pill ' +
-      (result === "succeeded" ? "a-pill--ok" : "a-pill--warning") + '">' + esc(result) + '</span><span class="a-hint">' + esc(when(run.at)) + "</span></summary>" +
-      (run.output ? '<pre class="log">' + esc(run.output) + "</pre>" : '<p class="a-hint">No output.</p>') + "</details>";
+    return '<div class="a-card last-run"><div class="a-card__head"><h2 class="a-card__title">Last run: ' + esc(LABELS[x.action].toLowerCase()) + '</h2><span class="a-pill ' +
+      (result === "succeeded" ? "a-pill--ok" : "a-pill--warning") + '">' + esc(result) + '</span><span class="a-hint">' + esc(when(run.at)) + "</span></div>" +
+      (run.output ? '<pre class="log">' + esc(run.output) + "</pre>" : '<p class="a-hint">No output.</p>') + "</div>";
   }
 
   function tokenForm(action, title, hint, optional) {
     var disabled = state.running || !state.admin ? " disabled" : "";
-    return '<form class="a-card a-form" data-action="' + action + '"><div class="a-card__head"><h2 class="a-card__title">' + esc(title) + '</h2></div>' +
-      '<div class="a-field"><label class="a-label" for="t-' + action + '">GitHub token' + (optional ? " (only the first time)" : "") + '</label>' +
-      '<input class="a-input" id="t-' + action + '" type="password" autocomplete="off" spellcheck="false"' + (optional ? "" : " required") + disabled + '>' +
-      '<p class="a-hint">' + esc(hint) + " It is used once and never saved.</p></div>" +
-      '<div class="card-actions"><button class="a-btn ' + (action === "remove" ? "a-btn--danger" : "a-btn--primary") + '" type="submit"' + disabled + ">" + esc(LABELS[action]) + "</button></div></form>";
+    return '<form class="a-form" data-action="' + action + '"><h3 class="a-card__title">' + esc(title) + '</h3>' +
+      '<div class="token-row"><label class="a-label" for="t-' + action + '">GitHub token' + (optional ? " (first time only)" : "") + '</label>' +
+      '<input class="a-input" id="t-' + action + '" type="password" autocomplete="off" spellcheck="false"' + (optional ? "" : " required") + disabled + ">" +
+      '<button class="a-btn ' + (action === "remove" ? "a-btn--danger" : "a-btn--primary") + '" type="submit"' + disabled + ">" + esc(LABELS[action]) + "</button></div>" +
+      '<p class="a-hint">' + esc(hint) + " It is used once and never saved.</p></form>";
   }
 
   function render() {
-    var wasOpen = !!view.querySelector(".last-run[open]");
+    var wasOpen = !!view.querySelector(".set-up[open]");
     var parsed = state.status && state.status.parsed;
     subtitle.textContent = state.config.repo ? "Runner for " + state.config.repo : "Not configured";
     if (state.missing) {
@@ -76,36 +76,35 @@
     var html = "";
     if (message) html += '<div class="a-note a-note--warning" role="alert">' + esc(message) + "</div>";
     if (!state.admin) html += '<div class="a-note">Only a system administrator can run these. You can read the last results.</div>';
+    var locked = state.running || !state.admin ? " disabled" : "";
+    var repo = (parsed && parsed.url || state.config.repo || "").replace(/^https?:\/\/github\.com\//, "");
     html += '<div class="a-grid a-grid--two">';
-    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">GitHub runner</h2>' +
-      (state.config.docker ? '<span class="a-pill a-pill--warning">Jobs can become root</span>' : "") + "</div>";
+    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">GitHub runner</h2><button class="a-btn" type="button" id="refresh"' + locked + ">Refresh status</button></div>";
     if (parsed) {
-      html += '<dl class="a-kv"><dt>State</dt><dd>' + esc(parsed.state) + "</dd><dt>Name</dt><dd>" + esc(parsed.runnerName || state.config.name) + "</dd>" +
-        "<dt>Repository</dt><dd>" + esc(parsed.url || state.config.repo) + "</dd>" + (parsed.job ? "<dt>Job</dt><dd>" + esc(parsed.job) + "</dd>" : "") + "</dl>";
+      html += '<dl class="a-kv"><dt>State</dt><dd>' + esc(parsed.state) + (state.config.docker ? ' <span class="a-pill a-pill--warning">Jobs can become root</span>' : "") + "</dd><dt>Name</dt><dd>" + esc(parsed.runnerName || state.config.name) + "</dd>" +
+        "<dt>Repository</dt><dd>" + esc(repo) + "</dd>" + (parsed.job ? "<dt>Job</dt><dd>" + esc(parsed.job) + "</dd>" : "");
       if (parsed.diskTotal) {
         var pct = Math.round(100 * parsed.diskUsed / parsed.diskTotal);
-        html += '<div class="a-meter' + (pct > 90 ? " a-meter--critical" : pct > 80 ? " a-meter--warning" : "") + '" style="--value:' + pct + '%"></div><p class="a-hint">Disk ' +
-          esc(AutomatonUI.formatBytes(parsed.diskUsed)) + " of " + esc(AutomatonUI.formatBytes(parsed.diskTotal)) + " used</p>";
+        html += "<dt>Disk</dt><dd>" + esc(AutomatonUI.formatBytes(parsed.diskUsed)) + " of " + esc(AutomatonUI.formatBytes(parsed.diskTotal)) + " used" +
+          '<div class="a-meter' + (pct > 90 ? " a-meter--critical" : pct > 80 ? " a-meter--warning" : "") + '" style="--value:' + pct + '%"><span></span></div></dd>';
       }
-      html += '<p class="a-hint">Read ' + esc(when(state.status.at)) + ". State comes from the machine's runner service.</p>";
+      html += '</dl><p class="a-hint">Read ' + esc(when(state.status.at)) + ". State comes from the machine's runner service.</p>";
     } else if (state.status && state.status.status !== "ok") {
       html += '<p class="a-note a-note--warning">' + esc(state.status.message || "The status could not be read.") + "</p>";
     } else {
       html += '<p class="a-empty">No status yet.</p>';
     }
-    html += '<div class="card-actions"><button class="a-btn" type="button" id="refresh"' + (state.running || !state.admin ? " disabled" : "") + ">Refresh status</button></div></div>";
-    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Tools</h2></div>' + tools(parsed) + "</div>";
     html += "</div>";
-    html += '<div class="a-grid a-grid--three form-gap">';
-    html += tokenForm("setup", "Set up", "Copy a registration token from the repository's Settings, Actions, Runners, New self-hosted runner.", true);
-    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Update tools</h2></div><p class="a-hint">Upgrades gh, git, Docker and Claude Code. Needs no token.</p>' +
-      '<div class="card-actions"><button class="a-btn" type="button" id="update"' + (state.running || !state.admin ? " disabled" : "") + ">Update tools</button></div></div>";
-    html += tokenForm("remove", "Remove", "Copy a removal token from the runner's page on GitHub.");
+    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Tools</h2><button class="a-btn" type="button" id="update"' + locked + ">Update tools</button></div>" + tools(parsed) +
+      '<p class="a-hint">Upgrades gh, git, Docker and Claude Code. Needs no token.</p></div>';
     html += "</div>";
     html += '<div class="form-gap">' + lastLog() + "</div>";
+    html += '<details class="a-card form-gap set-up"><summary>Set up again or remove this runner</summary><div class="a-grid a-grid--two form-gap">' +
+      tokenForm("setup", "Set up", "Copy a registration token from the repository's Settings, Actions, Runners, New self-hosted runner.", true) +
+      tokenForm("remove", "Remove", "Copy a removal token from the runner's page on GitHub.") + "</div></details>";
     view.innerHTML = html;
-    var lr = view.querySelector(".last-run");
-    if (lr && wasOpen) lr.open = true;
+    var again = view.querySelector(".set-up");
+    if (again && wasOpen) again.open = true;
     var refresh = document.getElementById("refresh");
     if (refresh) refresh.addEventListener("click", function () { start("status"); });
     var update = document.getElementById("update");
