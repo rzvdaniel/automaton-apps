@@ -125,6 +125,21 @@
       }
     },
     {
+      "id": "agent-keeper",
+      "name": "Agent Keeper",
+      "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
+      "category": "Maintenance",
+      "folder": "maintenance/agent-keeper",
+      "commit": "5be94b732fe883f4cf3a194bc172d7d84ec24018",
+      "minServerVersion": "0.2.180",
+      "permissions": [
+        "runner:host-exec"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
       "id": "ghost",
       "name": "Ghost",
       "summary": "Publish a blog and send a newsletter from your own server.",
