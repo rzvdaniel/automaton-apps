@@ -26,6 +26,12 @@ Anyone who can change this app's code or settings controls that machine. A new d
 
 An administrator starts every run on the page, because the platform requires the viewer token of the system administrator who starts a host command. For the same reason there are no Actions and no schedule: a timer has no administrator to vouch for it. Press **Update tools** now and then.
 
+## What to know before you use it
+
+- **Pinned downloads.** Set up installs a runner version and Claude Code version pinned in `scripts/setup.sh`, with the runner's SHA-256 pinned per CPU type (x64, arm64), so a changed release on GitHub is not installed unnoticed. Newer versions are a pull request that changes those lines. Claude Code's installer script itself is still fetched from claude.ai over TLS and verifies the pinned version's own checksum. The runner updates itself later as GitHub requires.
+- **`--replace`.** Set up registers with `--replace`, so it takes over an existing runner with the same name in that repository or organisation. Use a unique `AGENT_RUNNER_NAME`.
+- **What Remove leaves behind.** Remove unregisters the runner (its credentials are deleted) and removes the service. It keeps the runner folder `~<user>/actions-runner`, including `_work` with checked-out code and job leftovers, the user, and the installed tools. Delete those by hand if you want them gone.
+
 ## No secrets stored
 
 - The registration or removal token is typed into the page, travels to the script on standard input (never in the script text, arguments or logs of this app), is used once and is never saved. The platform masks any output line that repeats it, and the app removes it from the output it keeps.
@@ -41,6 +47,7 @@ An administrator starts every run on the page, because the platform requires the
 | `AGENT_RUNNER_NAME` | setting | The runner's name on GitHub, default `agent-keeper`. |
 | `AGENT_RUNNER_LABELS` | setting | Comma-separated labels, default `agent`. |
 | `AGENT_RUNNER_USER` | setting | The unprivileged user that runs the service, default `agent`; created if it does not exist. |
+| `AGENT_DOCKER_ACCESS` | setting | Default `false`. `true` adds the runner user to the `docker` group. **Warning: membership in the docker group is root on the host** (a container can mount `/` and run privileged), and the runner runs jobs from any branch or pull request that targets it. Leave it off unless you accept that; otherwise use rootless Docker. Turning it off later does not remove an existing membership. |
 
 The runner's state on the page comes from the machine's runner service. GitHub's own view is under the repository's **Settings -> Actions -> Runners**.
 

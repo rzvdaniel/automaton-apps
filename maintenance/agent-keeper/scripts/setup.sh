@@ -2,6 +2,12 @@
 # Line 1 of stdin is the runner registration token; it is needed only while the runner is not registered yet.
 IFS= read -r AK_TOKEN || AK_TOKEN=""
 
+# Pinned versions: change them in a pull request. Runner checksums are from the GitHub release page of actions/runner.
+RUNNER_VERSION=2.338.2
+RUNNER_SHA_X64=baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40
+RUNNER_SHA_ARM64=670adb2f268fe21dcbb58b3db0e0aa9d5b3bddfe2c651481336e561ff86de945
+CLAUDE_CODE_VERSION=2.1.330
+
 log "packages"
 missing=""
 for p in git curl jq ca-certificates build-essential unzip python3 sudo; do
@@ -22,19 +28,22 @@ log "user $AK_USER"
 id -u "$AK_USER" >/dev/null 2>&1 || useradd -m -s /bin/bash "$AK_USER"
 AK_HOME="$(getent passwd "$AK_USER" | cut -d: -f6)"
 RUNNER_DIR="$AK_HOME/actions-runner"
-if getent group docker >/dev/null 2>&1; then usermod -aG docker "$AK_USER"; fi
+# Membership in the docker group is root on this machine (a container can mount / and run privileged), and the runner runs
+# jobs from any branch or PR that targets it. So it is added only when the setting AGENT_DOCKER_ACCESS is "true".
+if [ "${AK_DOCKER:-false}" = "true" ]; then
+  if getent group docker >/dev/null 2>&1; then usermod -aG docker "$AK_USER"; echo "WARNING: $AK_USER is in the docker group: its jobs can become root on this machine"; fi
+else
+  echo "docker access for $AK_USER: off"
+fi
 
 log "Claude Code"
-if [ ! -x "$AK_HOME/.local/bin/claude" ]; then as_user 'curl -fsSL https://claude.ai/install.sh | bash'; fi
+if [ ! -x "$AK_HOME/.local/bin/claude" ]; then as_user "curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION"; fi
 
 log "runner software"
 if [ ! -x "$RUNNER_DIR/config.sh" ]; then
   case "$(uname -m)" in x86_64) arch=x64 ;; aarch64) arch=arm64 ;; *) echo "ERROR: unsupported CPU $(uname -m)"; exit 2 ;; esac
-  release="$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest)"
-  version="$(printf '%s' "$release" | jq -r .tag_name | sed 's/^v//')"
-  sha="$(printf '%s' "$release" | jq -r --arg n "actions-runner-linux-$arch-$version.tar.gz" '.assets[] | select(.name == $n) | .digest // empty' | sed 's/^sha256://')"
-  [ -n "$sha" ] || sha="$(printf '%s' "$release" | jq -r .body | sed -n "s/.*BEGIN SHA linux-$arch -->\\([0-9a-f]\\{64\\}\\)<!-- END.*/\\1/p" | head -1)"
-  [ -n "$sha" ] || { echo "ERROR: could not read the runner checksum"; exit 2; }
+  version="$RUNNER_VERSION"
+  case "$arch" in x64) sha="$RUNNER_SHA_X64" ;; arm64) sha="$RUNNER_SHA_ARM64" ;; esac
   tmp="$(mktemp -d)"
   curl -fsSL -o "$tmp/runner.tar.gz" "https://github.com/actions/runner/releases/download/v$version/actions-runner-linux-$arch-$version.tar.gz"
   echo "$sha  $tmp/runner.tar.gz" | sha256sum -c - >/dev/null || { echo "ERROR: runner checksum does not match"; rm -rf "$tmp"; exit 2; }

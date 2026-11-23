@@ -26,6 +26,19 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual((s.name, s.labels, s.user, s.github_url), ("agent-keeper", "agent", "agent", "https://github.com/acme/widgets"))
         self.assertIsNone(s.missing())
 
+    def test_docker_access_is_off_unless_true(self):
+        self.assertFalse(settings().docker)
+        self.assertFalse(settings(AGENT_DOCKER_ACCESS="yes").docker)
+        self.assertTrue(settings(AGENT_DOCKER_ACCESS="true").docker)
+        self.assertNotIn("AK_DOCKER=true", keeper.build_request(settings(), "setup", None)["script"])
+        self.assertIn("AK_DOCKER=true\n", keeper.build_request(settings(AGENT_DOCKER_ACCESS="true"), "setup", None)["script"])
+
+    def test_setup_pins_downloads(self):
+        text = keeper.read_script("setup")
+        self.assertNotIn("releases/latest", text)
+        self.assertRegex(text, r"RUNNER_SHA_X64=[0-9a-f]{64}")
+        self.assertRegex(text, r"RUNNER_SHA_ARM64=[0-9a-f]{64}")
+
     def test_repo_url_form_and_org(self):
         self.assertEqual(settings(AGENT_REPO="https://github.com/acme/widgets/").repo, "acme/widgets")
         self.assertEqual(settings(AGENT_REPO="acme").github_url, "https://github.com/acme")
@@ -48,7 +61,7 @@ class BuildTests(unittest.TestCase):
 
     def test_settings_are_quoted_into_header(self):
         body = keeper.build_request(settings(AGENT_RUNNER_LABELS="agent,gpu"), "status", None)
-        self.assertTrue(body["script"].startswith("AK_USER=agent\nAK_URL=https://github.com/acme/widgets\nAK_NAME=agent-keeper\nAK_LABELS=agent,gpu\n"))
+        self.assertTrue(body["script"].startswith("AK_USER=agent\nAK_URL=https://github.com/acme/widgets\nAK_NAME=agent-keeper\nAK_LABELS=agent,gpu\nAK_DOCKER=false\n"))
         self.assertIsNone(body["stdin"])
 
     def test_remove_needs_a_token_and_setup_does_not(self):

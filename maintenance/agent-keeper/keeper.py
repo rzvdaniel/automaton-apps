@@ -45,6 +45,7 @@ class Settings:
         self.repo = repo
         self.name = env.get("AGENT_RUNNER_NAME", "").strip() or "agent-keeper"
         self.labels = env.get("AGENT_RUNNER_LABELS", "").strip().replace(" ", "") or "agent"
+        self.docker = env.get("AGENT_DOCKER_ACCESS", "").strip().lower() == "true"
         self.user = env.get("AGENT_RUNNER_USER", "").strip() or "agent"
         for value, pattern, label in ((self.name, NAME, "AGENT_RUNNER_NAME"), (self.labels, LABELS, "AGENT_RUNNER_LABELS"), (self.user, USER, "AGENT_RUNNER_USER")):
             if not pattern.match(value):
@@ -80,7 +81,8 @@ def build_request(settings: Settings, action: str, token: str | None) -> dict:
     if token and not TOKEN.match(token):
         raise ValueError("That does not look like a runner token (letters, digits, - and _ only).")
     header = "".join(f"{key}={shlex.quote(value)}\n" for key, value in
-                     (("AK_USER", settings.user), ("AK_URL", settings.github_url), ("AK_NAME", settings.name), ("AK_LABELS", settings.labels)))
+                     (("AK_USER", settings.user), ("AK_URL", settings.github_url), ("AK_NAME", settings.name), ("AK_LABELS", settings.labels),
+                      ("AK_DOCKER", "true" if settings.docker else "false")))
     stdin = (token + "\n") if token and action in ("setup", "remove") else None
     return {"script": header + read_script(action), "stdin": stdin, "timeoutSeconds": TIMEOUTS[action]}
 
