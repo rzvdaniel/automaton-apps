@@ -81,7 +81,10 @@ class Keeper:
 
     def run(self, action: str, body: dict, token: str | None, viewer: str | None) -> None:
         started = time.time()
-        status, data, message = keeper.host_exec(self.settings, body, viewer, keeper.TIMEOUTS[action] + 240)
+        try:
+            status, data, message = keeper.host_exec(self.settings, body, viewer, keeper.TIMEOUTS[action] + 240)
+        except Exception as error:  # a bug must never leave the app stuck on "running"
+            status, data, message = "error", None, f"The run failed: {type(error).__name__}."
         result = {"at": started, "endedAt": time.time(), "status": status, "message": message, "exitCode": None, "timedOut": False, "output": ""}
         if status == "ok" and isinstance(data, dict):
             result.update(exitCode=data.get("exitCode"), timedOut=bool(data.get("timedOut")),

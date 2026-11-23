@@ -12,7 +12,7 @@ import keeper
 import main
 
 RUNNER = "11111111-2222-3333-4444-555555555555"
-BASE = {"AUTOMATON_API_URL": "http://api.test", "APP_AUTOMATON_API_KEY": "key", "RUNNER_ID": RUNNER, "GITHUB_REPO": "acme/widgets"}
+BASE = {"AUTOMATON_API_URL": "http://api.test", "APP_AUTOMATON_API_KEY": "key", "AGENT_MACHINE_ID": RUNNER, "AGENT_REPO": "acme/widgets"}
 SECRET = "AABBCCDDEE1234567890"
 
 
@@ -27,15 +27,15 @@ class SettingsTests(unittest.TestCase):
         self.assertIsNone(s.missing())
 
     def test_repo_url_form_and_org(self):
-        self.assertEqual(settings(GITHUB_REPO="https://github.com/acme/widgets/").repo, "acme/widgets")
-        self.assertEqual(settings(GITHUB_REPO="acme").github_url, "https://github.com/acme")
+        self.assertEqual(settings(AGENT_REPO="https://github.com/acme/widgets/").repo, "acme/widgets")
+        self.assertEqual(settings(AGENT_REPO="acme").github_url, "https://github.com/acme")
 
     def test_missing(self):
-        self.assertIn("RUNNER_ID", keeper.Settings({}).missing())
-        self.assertIn("GITHUB_REPO", keeper.Settings({"RUNNER_ID": RUNNER}).missing())
+        self.assertIn("AGENT_MACHINE_ID", keeper.Settings({}).missing())
+        self.assertIn("AGENT_REPO", keeper.Settings({"AGENT_MACHINE_ID": RUNNER}).missing())
 
     def test_rejects_bad_values(self):
-        for key, value in (("RUNNER_ID", "nope"), ("GITHUB_REPO", "a b"), ("RUNNER_NAME", "x;rm"), ("RUNNER_LABELS", "a,$(id)"), ("RUNNER_USER", "Root x")):
+        for key, value in (("AGENT_MACHINE_ID", "nope"), ("AGENT_REPO", "a b"), ("AGENT_RUNNER_NAME", "x;rm"), ("AGENT_RUNNER_LABELS", "a,$(id)"), ("AGENT_RUNNER_USER", "Root x")):
             with self.assertRaises(keeper.ConfigError, msg=key):
                 settings(**{key: value})
 
@@ -47,7 +47,7 @@ class BuildTests(unittest.TestCase):
         self.assertNotIn(SECRET, json.dumps({k: v for k, v in body.items() if k != "stdin"}))
 
     def test_settings_are_quoted_into_header(self):
-        body = keeper.build_request(settings(RUNNER_LABELS="agent,gpu"), "status", None)
+        body = keeper.build_request(settings(AGENT_RUNNER_LABELS="agent,gpu"), "status", None)
         self.assertTrue(body["script"].startswith("AK_USER=agent\nAK_URL=https://github.com/acme/widgets\nAK_NAME=agent-keeper\nAK_LABELS=agent,gpu\n"))
         self.assertIsNone(body["stdin"])
 
@@ -91,6 +91,14 @@ class ScriptTests(unittest.TestCase):
         self.assertIn("registered=no", result.stdout)
         self.assertIn("service=none", result.stdout)
         self.assertEqual(keeper.parse_status(result.stdout)["state"], "not set up")
+
+
+class BusyProbeTests(unittest.TestCase):
+    def test_busy_probe_does_not_match_its_own_script(self):
+        # The Runner runs the whole script as `bash -c <script>`, so the script's own text must not count as a worker.
+        script = "AK_USER=nosuchuser_ak\nAK_URL=x\nAK_NAME=x\nAK_LABELS=agent\n" + keeper.read_script("status")
+        out = subprocess.run(["bash", "--noprofile", "--norc", "-c", script], capture_output=True, text=True).stdout
+        self.assertIn("busy=no", out)
 
 
 class ParseTests(unittest.TestCase):

@@ -30,11 +30,11 @@
     "storage": { "dataDirectory": "data", "mounts": [] },
     "settings": [
       { "name": "API_BASE_URL", "description": "Optional. Base URL of this Automaton server's API; normally the server provides it, so leave empty" },
-      { "name": "RUNNER_ID", "description": "The machine to set up: its id (a GUID) from Studio, Runners. It must be a Machine Management Runner an administrator approved this app for", "required": true },
-      { "name": "GITHUB_REPO", "description": "Where the runner is registered: owner/repo, or an organisation name", "required": true },
-      { "name": "RUNNER_NAME", "description": "The runner's name on GitHub", "default": "agent-keeper" },
-      { "name": "RUNNER_LABELS", "description": "Labels for the runner, separated by commas", "default": "agent" },
-      { "name": "RUNNER_USER", "description": "The unprivileged user on the machine that runs the runner service (created if missing)", "default": "agent" }
+      { "name": "AGENT_MACHINE_ID", "description": "The machine to set up: its id (a GUID) from Studio, Runners. It must be a Machine Management Runner an administrator approved this app for", "required": true },
+      { "name": "AGENT_REPO", "description": "Where the runner is registered: owner/repo, or an organisation name", "required": true },
+      { "name": "AGENT_RUNNER_NAME", "description": "The runner's name on GitHub", "default": "agent-keeper" },
+      { "name": "AGENT_RUNNER_LABELS", "description": "Labels for the runner, separated by commas", "default": "agent" },
+      { "name": "AGENT_RUNNER_USER", "description": "The unprivileged user on the machine that runs the runner service (created if missing)", "default": "agent" }
     ]
   }
 }

@@ -11,13 +11,13 @@ fi
 svc="$(service_name)"
 if [ -n "$svc" ]; then
   echo "service=$(systemctl is-active "$svc" 2>/dev/null || true)"
-  recent="$(journalctl -u "$svc" -n 200 --no-pager 2>/dev/null || true)"
+  recent="$(journalctl -u "$svc" -n 1000 --no-pager 2>/dev/null || true)"
   echo "listening=$(printf '%s' "$recent" | grep -c -E 'Listening for Jobs|Running job' || true)"
   echo "job=$(printf '%s' "$recent" | grep -E 'Running job:' | tail -1 | sed 's/.*Running job: //' | cut -c1-120)"
 else
   echo "service=none"
 fi
-echo "busy=$(pgrep -f 'Runner.Worker' >/dev/null 2>&1 && echo yes || echo no)"
+echo "busy=$(pgrep -x Runner.Worker >/dev/null 2>&1 && echo yes || echo no)"
 echo "tool_claude=$(as_user 'claude --version' 2>/dev/null | head -1 || true)"
 echo "tool_gh=$(gh --version 2>/dev/null | head -1 | cut -d' ' -f3 || true)"
 echo "tool_git=$(git --version 2>/dev/null | cut -d' ' -f3 || true)"

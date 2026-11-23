@@ -36,17 +36,17 @@ class Settings:
         env = os.environ if env is None else env
         self.api_base_url = (env.get("AUTOMATON_API_URL", "").strip() or env.get("API_BASE_URL", "").strip()).rstrip("/")
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
-        self.runner_id = env.get("RUNNER_ID", "").strip()
+        self.runner_id = env.get("AGENT_MACHINE_ID", "").strip()
         if self.runner_id and not GUID.match(self.runner_id):
-            raise ConfigError("RUNNER_ID must be the machine's id (a GUID shown in Studio under Runners)")
-        repo = env.get("GITHUB_REPO", "").strip().removeprefix("https://github.com/").strip("/")
+            raise ConfigError("AGENT_MACHINE_ID must be the machine's id (a GUID shown in Studio under Runners)")
+        repo = env.get("AGENT_REPO", "").strip().removeprefix("https://github.com/").strip("/")
         if repo and not REPO.match(repo):
-            raise ConfigError("GITHUB_REPO must be owner/repo, or just an organisation name")
+            raise ConfigError("AGENT_REPO must be owner/repo, or just an organisation name")
         self.repo = repo
-        self.name = env.get("RUNNER_NAME", "").strip() or "agent-keeper"
-        self.labels = env.get("RUNNER_LABELS", "").strip().replace(" ", "") or "agent"
-        self.user = env.get("RUNNER_USER", "").strip() or "agent"
-        for value, pattern, label in ((self.name, NAME, "RUNNER_NAME"), (self.labels, LABELS, "RUNNER_LABELS"), (self.user, USER, "RUNNER_USER")):
+        self.name = env.get("AGENT_RUNNER_NAME", "").strip() or "agent-keeper"
+        self.labels = env.get("AGENT_RUNNER_LABELS", "").strip().replace(" ", "") or "agent"
+        self.user = env.get("AGENT_RUNNER_USER", "").strip() or "agent"
+        for value, pattern, label in ((self.name, NAME, "AGENT_RUNNER_NAME"), (self.labels, LABELS, "AGENT_RUNNER_LABELS"), (self.user, USER, "AGENT_RUNNER_USER")):
             if not pattern.match(value):
                 raise ConfigError(f"{label} has characters that are not allowed")
 
@@ -57,9 +57,9 @@ class Settings:
     def missing(self) -> str | None:
         """What must be set before a host script can run, or None."""
         if not self.runner_id:
-            return "Set RUNNER_ID to the machine this app manages."
+            return "Set AGENT_MACHINE_ID to the machine this app manages."
         if not self.repo:
-            return "Set GITHUB_REPO to the repository (owner/repo) or organisation the runner belongs to."
+            return "Set AGENT_REPO to the repository (owner/repo) or organisation the runner belongs to."
         return None
 
 

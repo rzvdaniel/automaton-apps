@@ -13,7 +13,7 @@ Anyone who can change this app's code or settings controls that machine. A new d
 ## Install and set up
 
 1. Install the Machine Management Runner on the machine (that is the only command you ever run by hand there).
-2. Install **Agent Keeper** from **Apps -> Catalog** and fill in the settings below (`RUNNER_ID` is the machine's id in Studio, Runners).
+2. Install **Agent Keeper** from **Apps -> Catalog** and fill in the settings below (`AGENT_MACHINE_ID` is the machine's id in Studio, Runners).
 3. A system administrator approves `runner:host-exec` for that machine (above).
 4. Open the app's page. In GitHub open the repository's **Settings -> Actions -> Runners -> New self-hosted runner** and copy the registration token. Paste it into **Set up** and press the button. The token is valid for one hour.
 
@@ -36,11 +36,11 @@ An administrator starts every run on the page, because the platform requires the
 | --- | --- | --- |
 | `AUTOMATON_API_URL` | provided by the server | Address of this server's API; nothing to enter. |
 | `API_BASE_URL` | setting, optional | Older override, used only when `AUTOMATON_API_URL` is not set. |
-| `RUNNER_ID` | setting, required | The machine's id (GUID) from Studio, Runners. |
-| `GITHUB_REPO` | setting, required | `owner/repo` (or an organisation name) the runner registers to. |
-| `RUNNER_NAME` | setting | The runner's name on GitHub, default `agent-keeper`. |
-| `RUNNER_LABELS` | setting | Comma-separated labels, default `agent`. |
-| `RUNNER_USER` | setting | The unprivileged user that runs the service, default `agent`; created if it does not exist. |
+| `AGENT_MACHINE_ID` | setting, required | The machine's id (GUID) from Studio, Runners. |
+| `AGENT_REPO` | setting, required | `owner/repo` (or an organisation name) the runner registers to. |
+| `AGENT_RUNNER_NAME` | setting | The runner's name on GitHub, default `agent-keeper`. |
+| `AGENT_RUNNER_LABELS` | setting | Comma-separated labels, default `agent`. |
+| `AGENT_RUNNER_USER` | setting | The unprivileged user that runs the service, default `agent`; created if it does not exist. |
 
 The runner's state on the page comes from the machine's runner service. GitHub's own view is under the repository's **Settings -> Actions -> Runners**.
 
