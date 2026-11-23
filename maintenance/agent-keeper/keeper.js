@@ -40,13 +40,15 @@
     return '<dl class="a-kv">' + names.map(function (n) { return "<dt>" + esc(n) + "</dt><dd>" + esc(parsed.tools[n]) + "</dd>"; }).join("") + "</dl>";
   }
 
-  function lastLog(action) {
-    var run = state.last && state.last[action];
-    if (!run) return "";
+  function lastLog() {
+    var runs = ["setup", "update-tools", "remove"].map(function (action) { return { action: action, run: state.last && state.last[action] }; })
+      .filter(function (x) { return x.run; }).sort(function (p, q) { return q.run.at - p.run.at; });
+    if (!runs.length) return "";
+    var x = runs[0], run = x.run;
     var result = run.status !== "ok" ? run.message || run.status : run.timedOut ? "timed out" : run.exitCode === 0 ? "succeeded" : "failed (exit " + run.exitCode + ")";
-    return '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Last ' + esc(LABELS[action].toLowerCase()) + '</h2><span class="a-pill ' +
-      (result === "succeeded" ? "a-pill--ok" : "a-pill--warning") + '">' + esc(result) + '</span></div><p class="a-hint">' + esc(when(run.at)) + "</p>" +
-      (run.output ? '<pre class="log">' + esc(run.output) + "</pre>" : "") + "</div>";
+    return '<details class="a-card last-run"><summary class="a-card__head"><h2 class="a-card__title">Last run: ' + esc(LABELS[x.action].toLowerCase()) + '</h2><span class="a-pill ' +
+      (result === "succeeded" ? "a-pill--ok" : "a-pill--warning") + '">' + esc(result) + '</span><span class="a-hint">' + esc(when(run.at)) + "</span></summary>" +
+      (run.output ? '<pre class="log">' + esc(run.output) + "</pre>" : '<p class="a-hint">No output.</p>') + "</details>";
   }
 
   function tokenForm(action, title, hint, optional) {
@@ -55,10 +57,11 @@
       '<div class="a-field"><label class="a-label" for="t-' + action + '">GitHub token' + (optional ? " (only the first time)" : "") + '</label>' +
       '<input class="a-input" id="t-' + action + '" type="password" autocomplete="off" spellcheck="false"' + (optional ? "" : " required") + disabled + '>' +
       '<p class="a-hint">' + esc(hint) + " It is used once and never saved.</p></div>" +
-      '<button class="a-btn ' + (action === "remove" ? "a-btn--danger" : "a-btn--primary") + '" type="submit"' + disabled + ">" + esc(LABELS[action]) + "</button></form>";
+      '<div class="card-actions"><button class="a-btn ' + (action === "remove" ? "a-btn--danger" : "a-btn--primary") + '" type="submit"' + disabled + ">" + esc(LABELS[action]) + "</button></div></form>";
   }
 
   function render() {
+    var wasOpen = !!view.querySelector(".last-run[open]");
     var parsed = state.status && state.status.parsed;
     subtitle.textContent = state.config.repo ? "Runner for " + state.config.repo : "Not configured";
     if (state.missing) {
@@ -73,8 +76,9 @@
     var html = "";
     if (message) html += '<div class="a-note a-note--warning" role="alert">' + esc(message) + "</div>";
     if (!state.admin) html += '<div class="a-note">Only a system administrator can run these. You can read the last results.</div>';
-    html += '<div class="a-columns">';
-    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">GitHub runner</h2></div>';
+    html += '<div class="a-grid a-grid--two">';
+    html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">GitHub runner</h2>' +
+      (state.config.docker ? '<span class="a-pill a-pill--warning">Jobs can become root</span>' : "") + "</div>";
     if (parsed) {
       html += '<dl class="a-kv"><dt>State</dt><dd>' + esc(parsed.state) + "</dd><dt>Name</dt><dd>" + esc(parsed.runnerName || state.config.name) + "</dd>" +
         "<dt>Repository</dt><dd>" + esc(parsed.url || state.config.repo) + "</dd>" + (parsed.job ? "<dt>Job</dt><dd>" + esc(parsed.job) + "</dd>" : "") + "</dl>";
@@ -83,23 +87,25 @@
         html += '<div class="a-meter' + (pct > 90 ? " a-meter--critical" : pct > 80 ? " a-meter--warning" : "") + '" style="--value:' + pct + '%"></div><p class="a-hint">Disk ' +
           esc(AutomatonUI.formatBytes(parsed.diskUsed)) + " of " + esc(AutomatonUI.formatBytes(parsed.diskTotal)) + " used</p>";
       }
-      html += '<p class="a-hint">Read ' + esc(when(state.status.at)) + ". State comes from the machine's runner service; GitHub shows the same under Settings, Actions, Runners.</p>";
+      html += '<p class="a-hint">Read ' + esc(when(state.status.at)) + ". State comes from the machine's runner service.</p>";
     } else if (state.status && state.status.status !== "ok") {
       html += '<p class="a-note a-note--warning">' + esc(state.status.message || "The status could not be read.") + "</p>";
     } else {
       html += '<p class="a-empty">No status yet.</p>';
     }
-    html += '<button class="a-btn" type="button" id="refresh"' + (state.running || !state.admin ? " disabled" : "") + ">Refresh status</button></div>";
+    html += '<div class="card-actions"><button class="a-btn" type="button" id="refresh"' + (state.running || !state.admin ? " disabled" : "") + ">Refresh status</button></div></div>";
     html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Tools</h2></div>' + tools(parsed) + "</div>";
     html += "</div>";
-    html += '<div class="a-columns form-gap">';
+    html += '<div class="a-grid a-grid--three form-gap">';
     html += tokenForm("setup", "Set up", "Copy a registration token from the repository's Settings, Actions, Runners, New self-hosted runner.", true);
-    html += tokenForm("remove", "Remove", "Copy a removal token from the runner's page on GitHub.");
     html += '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Update tools</h2></div><p class="a-hint">Upgrades gh, git, Docker and Claude Code. Needs no token.</p>' +
-      '<button class="a-btn" type="button" id="update"' + (state.running || !state.admin ? " disabled" : "") + ">Update tools</button></div>";
+      '<div class="card-actions"><button class="a-btn" type="button" id="update"' + (state.running || !state.admin ? " disabled" : "") + ">Update tools</button></div></div>";
+    html += tokenForm("remove", "Remove", "Copy a removal token from the runner's page on GitHub.");
     html += "</div>";
-    html += lastLog("setup") + lastLog("remove") + lastLog("update-tools");
+    html += '<div class="form-gap">' + lastLog() + "</div>";
     view.innerHTML = html;
+    var lr = view.querySelector(".last-run");
+    if (lr && wasOpen) lr.open = true;
     var refresh = document.getElementById("refresh");
     if (refresh) refresh.addEventListener("click", function () { start("status"); });
     var update = document.getElementById("update");

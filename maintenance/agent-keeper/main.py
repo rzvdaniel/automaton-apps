@@ -57,7 +57,7 @@ class Keeper:
             last = {k: v for k, v in (self.state.get("last") or {}).items() if k in keeper.ACTIONS}
             return {"admin": admin, "missing": self.settings.missing(), "running": self.running, "last": last,
                     "status": self.state.get("status"),
-                    "config": {"repo": self.settings.repo, "name": self.settings.name, "labels": self.settings.labels, "user": self.settings.user}}
+                    "config": {"repo": self.settings.repo, "name": self.settings.name, "labels": self.settings.labels, "user": self.settings.user, "docker": self.settings.docker}}
 
     def start(self, action: str, token: str | None, viewer: str | None) -> tuple[int, dict]:
         """Validates and starts one run. Status runs in the request; the others in a thread (they take minutes)."""
