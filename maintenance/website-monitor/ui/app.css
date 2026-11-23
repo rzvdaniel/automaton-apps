@@ -132,11 +132,10 @@ a { color: var(--orange-ink); text-underline-offset: 2px; }
 .a-page { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
 
 .a-header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 4px 0 22px; }
-.a-brand {
-  display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 11px;
-  background: var(--ink); color: var(--orange); font: 700 16px/1 var(--mono); letter-spacing: -0.5px;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
-}
+.a-brand { display: block; flex: none; width: 32px; height: 32px; }
+.a-brand rect { fill: #f26a1b; }
+.a-brand path { fill: none; stroke: #17181c; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.a-header__brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
 .a-header__text { flex: 1 1 200px; min-width: 0; }
 .a-header__title { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
 .a-header__sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
@@ -275,10 +274,9 @@ a { color: var(--orange-ink); text-underline-offset: 2px; }
 /* Top bar (optional): the dark Studio rail above a-page */
 
 .a-topbar { background: var(--rail); color: var(--rail-text); padding: 0 16px; }
-.a-topbar__inner { max-width: 1280px; margin: 0 auto; min-height: 60px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
-.a-topbar .a-header__title { font-size: 18px; }
+.a-topbar__inner { max-width: 1280px; margin: 0 auto; min-height: 64px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.a-topbar .a-header__title { font-size: 18px; font-weight: 600; color: #fff; white-space: nowrap; }
 .a-topbar .a-header__sub { color: var(--rail-muted); }
-.a-topbar .a-brand { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%); }
 .a-topbar .a-btn { background: transparent; color: var(--rail-text); border-color: rgb(255 255 255 / 18%); }
 
 /* Columns of cards with no holes: cards of any height flow top to bottom, then into the next column */

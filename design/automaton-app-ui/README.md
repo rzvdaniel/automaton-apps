@@ -7,7 +7,7 @@ One set of components for every app in this catalog, light and dark from the vis
 | Look | For | How |
 | --- | --- | --- |
 | **app** (default) | Tools, productivity, anything people build | Neutral colours, system fonts, your accent: `:root { --accent: #0f766e; }` in the app's own CSS. Use your own mark, not `>_`. |
-| **system** | Only official apps that run the server: Server Keeper, backups, monitors | `<html data-look="system">`: the Automaton Studio look (paper and ink, orange, Bricolage Grotesque and IBM Plex, the `>_` mark, `a-topbar`). |
+| **system** | Only official apps that run the server: Server Keeper, backups, monitors | `<html data-look="system">`: the Automaton Studio look (paper and ink, orange, Bricolage Grotesque and IBM Plex, the `>_<` mark (`mark.svg`, inline in the page; `mark-small.svg` for 16px and favicons), `a-topbar`). |
 
 Keep the Studio look for system apps so people can tell Automaton from the apps on it, and an app never passes for an Automaton screen. Games bring their own style; at most they use the base reset.
 
@@ -48,7 +48,7 @@ Build the page only from the classes below (all start with `a-`). Add app-specif
 | Class | Use it for |
 | --- | --- |
 | `a-page` | The centred page wrapper (max 1120 px, 16 px side gutter). |
-| `a-header`, `a-brand`, `a-header__title`, `a-header__sub`, `a-header__actions` | Top of every page: the `>_` mark, app name, one line of context, an overall status pill and the theme button. |
+| `a-header`, `a-brand`, `a-header__title`, `a-header__sub`, `a-header__actions` | Top of every page: the `>_<` mark (`mark.svg`, inline in the page; `mark-small.svg` for 16px and favicons), app name, one line of context, an overall status pill and the theme button. |
 | `a-columns` | Cards of different heights, flowing into up to three columns with no holes (one on a phone). Use it for dashboards. |
 | `a-grid`, `a-grid--wide`, `a-stack` | Rows of cards of the same height; `a-stack` stacks things vertically. |
 | `a-topbar`, `a-topbar__inner` | System look: the dark Studio bar above `a-page`, holding the header parts. |

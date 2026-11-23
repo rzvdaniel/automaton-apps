@@ -1,12 +1,13 @@
 .log { max-height: 22rem; overflow: auto; margin: 12px 0 0; padding: 0.75rem; font: 0.8rem/1.4 var(--font-mono, monospace); white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line); border-radius: 8px; }
 .form-gap { margin-top: 16px; }
 .a-grid--two { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-.a-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }
-.a-grid--two > .a-card, .a-grid--three > .a-card { display: flex; flex-direction: column; margin: 0; }
+.a-grid--two > .a-card { display: flex; flex-direction: column; margin: 0; }
 .card-actions { margin-top: auto; padding-top: 12px; }
-.last-run > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; list-style: none; }
-.last-run > summary::-webkit-details-marker { display: none; }
-.last-run > summary::before { content: "\25B8"; color: var(--muted); }
-.last-run[open] > summary::before { content: "\25BE"; }
+.last-run .a-card__head { flex-wrap: wrap; }
 .last-run .a-hint { margin: 0 0 0 auto; }
-@media (max-width: 760px) { .a-grid--two, .a-grid--three { grid-template-columns: 1fr; } }
+.set-up > summary { cursor: pointer; font-weight: 600; }
+.token-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.token-row .a-label { flex: none; margin: 0; }
+.token-row .a-input { flex: 1 1 10rem; min-width: 0; }
+.a-kv .a-meter { margin-top: 6px; }
+@media (max-width: 760px) { .a-grid--two { grid-template-columns: 1fr; } }

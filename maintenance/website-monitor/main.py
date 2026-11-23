@@ -255,7 +255,7 @@ def render(snapshot: dict, error: str = "", standalone: bool = False) -> str:
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="ui/app.css"><script src="ui/app.js"></script></head>
-<body><header class="a-topbar"><div class="a-topbar__inner"><div style="display:flex;gap:12px;align-items:center"><div class="a-brand" aria-hidden="true">&gt;_</div>
+<body><header class="a-topbar"><div class="a-topbar__inner"><div style="display:flex;gap:12px;align-items:center"><svg class="a-brand" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10"/><path d="M10 15l5 4-5 4M30 15l-5 4 5 4M17 27h6"/></svg>
 <div><h1 class="a-header__title">Website Monitor</h1><p class="a-header__sub">Last run: {last}</p></div></div>
 <div class="a-header__actions"><span class="a-pill a-pill--large {f'a-pill--{overall}' if overall else ''}">{label}</span>
 <button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div></div></header>
