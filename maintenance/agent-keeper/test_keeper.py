@@ -193,6 +193,21 @@ class ServerTests(unittest.TestCase):
         with urlopen(self.url + "/api/state") as r:
             self.assertNotIn(SECRET, r.read().decode())
 
+    def test_status_is_read_again_after_a_change(self):
+        Fake.reply = (200, {"exitCode": 0, "timedOut": False, "output": "registered=yes\nservice=active\nbusy=no\nlistening=2", "error": ""})
+        self.post("/api/run/update-tools")
+        self.wait()
+        self.assertEqual(len(Fake.calls), 2)
+        self.assertEqual(self.app.state["status"]["parsed"]["state"], "online, idle")
+
+    def test_failed_change_leaves_no_old_status(self):
+        self.post("/api/run/status")
+        Fake.reply = (200, {"exitCode": 1, "timedOut": False, "output": "ERROR", "error": ""})
+        self.post("/api/run/update-tools")
+        self.wait()
+        self.assertIsNone(self.app.state["status"])
+        self.assertEqual(len(Fake.calls), 2)
+
     def test_server_refusal_is_saved_with_its_message(self):
         Fake.reply = (403, {"error": "Host access is turned off."})
         self.post("/api/run/status")

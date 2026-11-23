@@ -1,7 +1,7 @@
 # Shared by every script: the settings the app puts in front (AK_USER, AK_URL, AK_NAME, AK_LABELS) and small helpers.
 # Never print the token or turn on shell tracing.
 set -eu
-export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1
 AK_HOME="$(getent passwd "$AK_USER" | cut -d: -f6 || true)"
 [ -n "$AK_HOME" ] || AK_HOME="/home/$AK_USER"
 RUNNER_DIR="$AK_HOME/actions-runner"

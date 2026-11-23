@@ -79,6 +79,18 @@ class Keeper:
         threading.Thread(target=self.run, args=(action, body, token, viewer), daemon=True).start()
         return 202, self.view(True)
 
+    def refresh_status(self, viewer: str | None) -> None:
+        """Reads the machine again after a change, so the page never shows the state from before it. A failure leaves no status."""
+        try:
+            started = time.time()
+            status, data, message = keeper.host_exec(self.settings, keeper.build_request(self.settings, "status", None), viewer, keeper.TIMEOUTS["status"] + 240)
+            if status == "ok" and isinstance(data, dict) and data.get("exitCode") == 0:
+                result = {"at": started, "endedAt": time.time(), "status": "ok", "message": None, "exitCode": 0, "timedOut": False, "output": ""}
+                with self.lock:
+                    self.state["status"] = dict(result, parsed=keeper.parse_status(data.get("output") or ""))
+        except Exception as error:  # the run itself already succeeded
+            log(f"status after run failed: {type(error).__name__}")
+
     def run(self, action: str, body: dict, token: str | None, viewer: str | None) -> None:
         started = time.time()
         try:
@@ -90,11 +102,15 @@ class Keeper:
             result.update(exitCode=data.get("exitCode"), timedOut=bool(data.get("timedOut")),
                           output=keeper.scrub("\n".join(x for x in (data.get("output"), data.get("error")) if x), token))
         with self.lock:
-            self.running = None
             if action == "status":
                 self.state["status"] = dict(result, parsed=keeper.parse_status(result["output"]) if result["exitCode"] == 0 else None, output="")
             else:
                 self.state.setdefault("last", {})[action] = result
+                self.state["status"] = None  # what it said before this run is no longer true
+        if action != "status" and status == "ok" and result["exitCode"] == 0:
+            self.refresh_status(viewer)
+        with self.lock:
+            self.running = None
         self.save()
         log(f"{action}: {status} exit={result['exitCode']}")  # never the output or the input
 

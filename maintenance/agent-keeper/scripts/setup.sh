@@ -7,15 +7,15 @@ missing=""
 for p in git curl jq ca-certificates build-essential unzip python3 sudo; do
   dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"
 done
-if [ -n "$missing" ]; then apt-get update -qq; apt-get install -y -qq $missing; fi
-if ! have docker; then apt-get update -qq; apt-get install -y -qq docker.io; fi
+if [ -n "$missing" ]; then apt-get update -qq; apt-get install -y -qq $missing >/dev/null; fi
+if ! have docker; then apt-get update -qq; apt-get install -y -qq docker.io >/dev/null; fi
 if ! have gh; then
   mkdir -p -m 755 /etc/apt/keyrings
   curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
   chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
   apt-get update -qq
-  apt-get install -y -qq gh
+  apt-get install -y -qq gh >/dev/null
 fi
 
 log "user $AK_USER"
@@ -32,7 +32,8 @@ if [ ! -x "$RUNNER_DIR/config.sh" ]; then
   case "$(uname -m)" in x86_64) arch=x64 ;; aarch64) arch=arm64 ;; *) echo "ERROR: unsupported CPU $(uname -m)"; exit 2 ;; esac
   release="$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest)"
   version="$(printf '%s' "$release" | jq -r .tag_name | sed 's/^v//')"
-  sha="$(printf '%s' "$release" | jq -r .body | sed -n "s/.*BEGIN SHA linux $arch -->\\([0-9a-f]\\{64\\}\\)<!-- END.*/\\1/p" | head -1)"
+  sha="$(printf '%s' "$release" | jq -r --arg n "actions-runner-linux-$arch-$version.tar.gz" '.assets[] | select(.name == $n) | .digest // empty' | sed 's/^sha256://')"
+  [ -n "$sha" ] || sha="$(printf '%s' "$release" | jq -r .body | sed -n "s/.*BEGIN SHA linux-$arch -->\\([0-9a-f]\\{64\\}\\)<!-- END.*/\\1/p" | head -1)"
   [ -n "$sha" ] || { echo "ERROR: could not read the runner checksum"; exit 2; }
   tmp="$(mktemp -d)"
   curl -fsSL -o "$tmp/runner.tar.gz" "https://github.com/actions/runner/releases/download/v$version/actions-runner-linux-$arch-$version.tar.gz"
