@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server Keeper: Needs you card</title>
+<style>
+:root{--bg:#f3f2ee;--surface:#fdfdfb;--text:#17181c;--muted:#55565e;--border:#e2e0da;--accent:#f26a1b;--orange-ink:#a23d05;--rail:#17181c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "IBM Plex Sans",ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+.top{background:var(--rail);color:#f1f0eb;display:flex;align-items:center;gap:22px;padding:12px 18px}
+.top b{font-size:16px}
+.tab{color:#a9aab1;font-size:14px;padding:6px 12px;border-radius:9px}.tab.on{background:#f1f0eb;color:var(--text)}
+.grow{flex:1}.top small{color:#a9aab1;font-size:13px}
+main{max-width:1240px;margin:0 auto;padding:24px 18px}
+h1{margin:0;font-size:28px}
+.sub{color:var(--muted);font-size:14px;margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-top:18px}
+.card h2{margin:0 0 6px;font-size:16px;display:flex;align-items:center;gap:10px}
+.n{font-size:12px;font-weight:600;color:var(--orange-ink);border:1px solid #fdba74;background:#fff7ed;border-radius:999px;padding:1px 9px}
+.row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--border)}
+.row:first-of-type{border-top:0}
+.d{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
+.t{flex:1;min-width:0}.t b{font-weight:600}.t span{display:block;font-size:13px;color:var(--muted)}
+.btn{font:600 14px inherit;font-family:inherit;min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;height:150px;color:var(--muted);font-size:13px}
+.tile b{display:block;color:var(--text);font-size:30px;margin-top:6px}
+.note{font-size:13px;color:var(--muted);margin:14px 2px 0}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}
+.old{background:#ffe6d6;border:1px solid #fdba74;border-radius:14px;padding:14px 18px;margin-top:8px;display:flex;gap:12px;align-items:center;font-size:14px}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="top"><b>Server Keeper</b><span class="tab on">Overview</span><span class="tab">Maintenance</span><span class="tab">Apps on this machine</span><span class="grow"></span><small>Checked 1 minute ago</small></div>
+<main>
+  <h1>2 things need you</h1>
+  <div class="sub">automaton.monster · Automaton 0.2.182 · Ubuntu 24.04.4 LTS · up 4 d 4 h</div>
+
+  <section class="card" aria-label="Needs you">
+    <h2>Needs you <span class="n">2</span></h2>
+    <div class="row"><span class="d" aria-hidden="true"></span><div class="t"><b>Install 87 OS updates</b><span>None is urgent. Studio installs only the security updates; the rest need <code>sudo apt upgrade</code> on the server.</span></div><button class="btn ghost">Later</button><button class="btn primary">Install updates…</button></div>
+    <div class="row"><span class="d" aria-hidden="true"></span><div class="t"><b>Update Automaton to 0.2.185</b><span>This server runs 0.2.182. Updates run from Studio.</span></div><button class="btn">Open in Studio</button></div>
+  </section>
+
+  <div class="grid">
+    <div class="tile">CPU · 2 cores<b>6.1%</b></div>
+    <div class="tile">Memory · 3.7 GiB<b>48.5%</b></div>
+    <div class="tile">Disk · 11.7 GiB free of 37.2<b>68.7%</b></div>
+  </div>
+  <p class="note">When nothing needs you, the card is not shown and the title reads "All good".</p>
+
+  <div class="cmp">
+    <div><div class="lbl">Today</div><div class="old">⚠ <div><b>Install 87 updates.</b><br><span style="font-size:13px">Many updates are waiting; none is urgent…</span></div></div><div class="old">⚠ <div><b>Update Automaton.</b><br><span style="font-size:13px">A newer release is available.</span></div></div></div>
+    <div><div class="lbl">Proposed</div><p class="note" style="margin-top:8px">One white card, one row per item: orange dot, what to do in words, one button. Only the most important row gets the orange button. No warning icons, no filled orange boxes. Same as the Home notification card in Studio.</p></div>
+  </div>
+</main>
+</body>
+</html>

@@ -49,6 +49,12 @@ runs and its log says Y", "the alert email arrives within a minute". Say so when
 
 Keep it short; link issues and PRs by number. No credentials, server addresses or customer data.
 
+## UI changes: attach the mock
+
+Agents cannot open private claude.ai artifacts. For any issue that changes a screen, commit the mock to the repo and
+link it from **Example**: the HTML under `design/mocks/<slug>.html` and a screenshot of each main state next to it
+(`<slug>-<state>.png`). The issue text still describes every state, so it stands without the mock.
+
 ## Board
 
 Add it to the App catalog board (project 2) and, if one fits, under a parent issue:
