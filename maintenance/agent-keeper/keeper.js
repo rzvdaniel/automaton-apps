@@ -61,6 +61,7 @@
   }
 
   function render() {
+    var wasOpen = !!view.querySelector(".last-run[open]");
     var parsed = state.status && state.status.parsed;
     subtitle.textContent = state.config.repo ? "Runner for " + state.config.repo : "Not configured";
     if (state.missing) {
@@ -103,6 +104,8 @@
     html += "</div>";
     html += '<div class="form-gap">' + lastLog() + "</div>";
     view.innerHTML = html;
+    var lr = view.querySelector(".last-run");
+    if (lr && wasOpen) lr.open = true;
     var refresh = document.getElementById("refresh");
     if (refresh) refresh.addEventListener("click", function () { start("status"); });
     var update = document.getElementById("update");

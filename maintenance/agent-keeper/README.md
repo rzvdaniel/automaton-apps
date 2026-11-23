@@ -36,7 +36,7 @@ An administrator starts every run on the page, because the platform requires the
 
 - The registration or removal token is typed into the page, travels to the script on standard input (never in the script text, arguments or logs of this app), is used once and is never saved. The platform masks any output line that repeats it, and the app removes it from the output it keeps.
 - `CLAUDE_CODE_OAUTH_TOKEN` and `AGENT_GH_TOKEN` live only in the repository's GitHub secrets, which you add once under **Settings -> Secrets and variables -> Actions**. This app never reads them.
-- The app keeps only the last log of each action and the last status in its data folder.
+- The app keeps only the last log of each action and the last status in its data folder. The page shows the most recent of them, collapsed to one status line that opens on click.
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
