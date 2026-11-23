@@ -8,6 +8,8 @@ license: Apache-2.0
 
 Every app page is built from `design/automaton-app-ui/` and nothing else: no other CSS framework, no CDN, no web fonts. Read `design/automaton-app-ui/README.md` for the component list.
 
+Colours, status rules and the mark: `design/THEME.md` (open `design/theme.html` for swatches). Apps keep the UI kit's own fonts.
+
 ## Rules
 
 1. **Vendor, do not link.** An app is installed from its own folder, so copy `app.css` and `app.js` from the kit into the app's `ui/` folder, unchanged, and serve them from the app.
