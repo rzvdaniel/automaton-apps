@@ -8,6 +8,8 @@
 # What the catalog publishes, and the workflows that build and check it
 /.github/workflows/                                            @rzvdaniel
 /tools/                                                        @rzvdaniel
+# The merge gate and the other checks every pull request runs
+/.agents/                                                      @rzvdaniel
 # --- security pass ---
 # Below this marker: medium tier, but the review must include a security pass (a "Security:" section).
 # Apps that hold credentials, reach outside the server or manage the server itself.

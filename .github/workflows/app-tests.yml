@@ -1,0 +1,58 @@
+name: App tests
+
+# One job per changed app folder: runs the app's own test.sh. Replaces the per-app tests workflows.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  changed:
+    runs-on: ubuntu-24.04
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - id: apps
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$BASE" ] && git cat-file -e "$BASE" 2>/dev/null; then
+            echo "apps=$(python3 tools/changed_apps.py --base "$BASE")" >> "$GITHUB_OUTPUT"
+          else
+            echo "apps=$(python3 tools/changed_apps.py)" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: changed
+    if: needs.changed.outputs.apps != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.changed.outputs.apps) }}
+    name: test ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run the app's test.sh
+        env:
+          APP: ${{ matrix.app }}
+        run: sh "$APP/test.sh"
+
+  # One stable name for branch protection: green when every changed app passed or none changed.
+  app-tests:
+    needs: [changed, test]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          [ "${{ needs.changed.result }}" = success ] && { [ "${{ needs.test.result }}" = success ] || [ "${{ needs.test.result }}" = skipped ]; }
