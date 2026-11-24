@@ -5,6 +5,7 @@
   "category": "Publishing",
   "application": {
     "kind": "web",
+    "permissions": [],
     "description": "Publish a blog and send a newsletter from your own server.",
     "pages": [{ "path": "/", "label": "Blog" }, { "path": "/ghost/", "label": "Admin" }],
     "build": {

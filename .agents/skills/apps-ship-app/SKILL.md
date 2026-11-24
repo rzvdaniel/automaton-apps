@@ -19,7 +19,8 @@ Find the issue, or write one ([apps-write-issue](../apps-write-issue/SKILL.md)).
 All must pass; no Docker needed. Keep the output for the PR.
 
 ```bash
-<the app's tests, as its .github/workflows/<app>-tests.yml runs them>
+sh <category>/<app>/test.sh        # the app's own tests
+python tools/check_manifests.py
 (cd <category>/<app> && automaton validate)
 python tools/check_vendored_ui.py
 python tools/validate_apps.py --changed-since origin/main
@@ -38,7 +39,7 @@ not representative. Screenshots and frame rates come from the test server in ste
   `Security:` line when the change touches permissions, secrets, outbound calls or a path under the security marker
   in `.github/CODEOWNERS`. Fix Important findings; at most two rounds. A new commit needs a new review.
 - Merge only through the gate, never `gh pr merge`:
-  `python C:\Work\automaton\.agents\tools\merge-gate.py <N> --repo rzvdaniel/automaton-apps --merge`.
+  `python .agents/tools/merge-gate.py <N> --repo rzvdaniel/automaton-apps --merge`.
 
 ## 4. Catalog pin
 

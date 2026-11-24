@@ -16,7 +16,7 @@ Agent workflow skills in `.agents/skills/`: `apps-write-issue`, `apps-write-pr`,
 1. Create `<category>/<app>/` with `automaton.json` (a `name` and `summary` are required), source, tests and a `README.md`. Copy the shape of `maintenance/website-monitor`.
 2. If it has a page, vendor the UI kit into its `ui/` folder (see the skill).
 3. Add the folder to `catalog-apps.json` and the app to the table in `README.md`.
-4. Add a `.github/workflows/<app>-tests.yml` that runs the app's tests.
+4. Add a `test.sh` in the app folder that runs the app's tests (any language; it runs from the app folder, Python 3.12 is installed). `app-tests.yml` finds the changed app folders and runs it; no per-app workflow.
 
 ## Rules for our own apps
 
@@ -26,6 +26,6 @@ Agent workflow skills in `.agents/skills/`: `apps-write-issue`, `apps-write-pr`,
 
 ## CI
 
-`Catalog` runs the tool tests, `python tools/validate_apps.py` (the server's own `automaton validate` contract check on changed apps; needs the CLI), `python tools/check_vendored_ui.py` (a copy of the kit that differs from `design/automaton-app-ui/` fails) and `python tools/generate_catalog.py --validate` (warns when a declared setting or secret has no description). Each app has its own tests workflow. Run the same commands locally before opening a pull request.
+`Catalog` runs the tool tests, `python tools/validate_apps.py` (the server's own `automaton validate` contract check on changed apps; needs the CLI), `python tools/check_vendored_ui.py` (a copy of the kit that differs from `design/automaton-app-ui/` fails) and `python tools/generate_catalog.py --validate` (warns when a declared setting or secret has no description). `App tests` runs each changed app's `test.sh`; `Code checks` runs CodeQL, dependency review, the pinned-action check, the gate's own tests and `python tools/check_manifests.py` (valid `automaton.json` with a name, summary, declared permissions and a `test.sh`). `Merge gate` (`.agents/tools/merge-gate.py`, tiers from `.github/CODEOWNERS`) needs a main review, plus a security pass from another login for workflow, tools and CODEOWNERS changes. Run the same commands locally before opening a pull request.
 
 Documentation: <https://automaton.monster/docs/apps-repository>
