@@ -103,7 +103,7 @@
     if (item.card === "resources" && /disk/i.test(title) && data.reclaim && data.reclaim.freeable > 0 && isAdmin) return { act: "cleanup-run", label: "Free it now", primary: true };
     if (item.card === "runners") return { act: "go-maintenance", label: "Upgrade Runners" };
     if (item.card === "backups") return { act: "go-maintenance", label: "Open Maintenance" };
-    if (item.card === "server" && data.studioBase) return { href: data.studioBase + "/server", label: "Open in Studio" };
+    if (item.card === "server" && data.studioBase) return { href: data.studioBase + "/server", label: "Update in Studio" };
     return null;
   }
 
@@ -124,11 +124,14 @@
   function needs(data) {
     var items = needItems(data);
     if (!items.length) return "";
-    return '<section class="needs" aria-label="Needs you">' + items.map(function (i) {
-      var action = needAction(i, data);
-      var button = !action || (action.href === null) ? "" : action.href ? '<a class="a-btn a-btn--lg a-btn--ghost" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
-        : '<button type="button" class="a-btn a-btn--lg' + (action.primary ? " a-btn--primary" : " a-btn--ghost") + '" data-act="' + esc(action.act) + '">' + esc(action.label) + "</button>";
-      return '<div class="need' + (i.level === "critical" ? " need--critical" : "") + '">' + (ICON[i.icon] || ICON.warn) + '<div class="need__text"><strong>' + esc(i.title) + "</strong><span>" + esc(i.detail || "") +
+    var acts = items.map(function (i) { return needAction(i, data); });
+    var first = -1; // only the first primary action gets the orange button
+    acts.forEach(function (x, n) { if (first < 0 && x && x.primary) first = n; });
+    return '<section class="needs" aria-label="Needs you"><h3 class="needs__title">Needs you <span class="needs__n">' + items.length + "</span></h3>" + items.map(function (i, n) {
+      var action = acts[n];
+      var button = !action || !action.href && !action.act ? "" : action.href ? '<a class="a-btn" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
+        : '<button type="button" class="a-btn' + (n === first ? " a-btn--primary" : "") + '" data-act="' + esc(action.act) + '">' + esc(action.label) + "</button>";
+      return '<div class="need"><span class="need__dot' + (i.level === "critical" ? " need__dot--critical" : "") + '" aria-hidden="true"></span><div class="need__text"><strong>' + esc(i.title) + "</strong><span>" + esc(i.detail || "") +
         (i.command ? ' <code class="a-mono">' + esc(i.command) + "</code>" : "") + "</span></div>" + button + "</div>";
     }).join("") + "</section>";
   }
@@ -196,11 +199,11 @@
     var host = h.host || {};
     var s = h.server || {};
     var count = needItems(data).length;
-    var text = count ? (count === 1 ? "1 thing needs you" : count + " things need you") : a.overall === "ok" ? "Everything is healthy" : a.overall === "unknown" ? "Some figures unknown" : "Needs attention";
+    var text = count ? (count === 1 ? "1 thing needs you" : count + " things need you") : a.overall === "ok" ? "All good" : a.overall === "unknown" ? "Some figures unknown" : "Needs attention";
     var meta = [data.host || data.machine, s.version ? "Automaton " + s.version + (s.updateAvailable === false ? " (latest)" : s.updateAvailable === true ? " (update available)" : "") : "", host.osName,
       typeof host.uptimeSeconds === "number" ? "up " + UI.formatDuration(host.uptimeSeconds) : ""].filter(Boolean).map(esc).join(" · ");
     var next = !count && cleanupInfo && !cleanupInfo.needsApproval && cleanupInfo.settings ? "Nothing needs you. Next: cleanup at " + cleanupInfo.settings.timeUtc + " UTC." : !count ? "Nothing needs you." : "";
-    return '<div class="head"><div><div class="head__row">' + (count ? "" : ICON.ok) + '<h2 class="head__title">' + esc(text) + '</h2></div><p class="head__meta">' + meta + '</p></div>' + (next ? '<p class="head__next">' + esc(next) + "</p>" : "") + "</div>";
+    return '<div class="head"><div><div class="head__row">' + '<h2 class="head__title">' + esc(text) + '</h2></div><p class="head__meta">' + meta + '</p></div>' + (next ? '<p class="head__next">' + esc(next) + "</p>" : "") + "</div>";
   }
 
   // --- Machine picker: one button per Runner; the choice is remembered in this browser. ------------------------------

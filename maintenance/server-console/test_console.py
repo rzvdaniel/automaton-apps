@@ -218,7 +218,7 @@ class PageTests(unittest.TestCase):
         for needle in ('data-look="system"', 'class="a-topbar sk-top"', "fonts.googleapis.com/css2?family=Bricolage+Grotesque", 'href="console.css"'):
             self.assertIn(needle, page)
         script = open(os.path.join(here, "dashboard.js"), encoding="utf-8").read()
-        for needle in ('class="needs"', "Everything is healthy", 'class="tiles"', 'class="lists"', "Install updates", "Free it now", "Left by deleted apps"):
+        for needle in ('class="needs"', "All good", 'class="tiles"', 'class="lists"', "Install updates", "Free it now", "Left by deleted apps"):
             self.assertIn(needle, script)
         for tab in ("Overview", "Maintenance", "Apps on this machine"):
             self.assertIn(tab, page)
