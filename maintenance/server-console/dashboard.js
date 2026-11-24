@@ -103,7 +103,7 @@
     if (item.card === "resources" && /disk/i.test(title) && data.reclaim && data.reclaim.freeable > 0 && isAdmin) return { act: "cleanup-run", label: "Free it now", primary: true };
     if (item.card === "runners") return { act: "go-maintenance", label: "Upgrade Runners" };
     if (item.card === "backups") return { act: "go-maintenance", label: "Open Maintenance" };
-    if (item.card === "server" && data.studioBase) return { href: data.studioBase + "/server", label: "Update in Studio" };
+    if (item.card === "server" && data.studioBase) return { href: data.studioBase + "/server", label: "Update in Studio", primary: true };
     return null;
   }
 
@@ -129,7 +129,7 @@
     acts.forEach(function (x, n) { if (first < 0 && x && x.primary) first = n; });
     return '<section class="needs" aria-label="Needs you"><h3 class="needs__title">Needs you <span class="needs__n">' + items.length + "</span></h3>" + items.map(function (i, n) {
       var action = acts[n];
-      var button = !action || !action.href && !action.act ? "" : action.href ? '<a class="a-btn" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
+      var button = !action || !action.href && !action.act ? "" : action.href ? '<a class="a-btn' + (n === first ? " a-btn--primary" : "") + '" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
         : '<button type="button" class="a-btn' + (n === first ? " a-btn--primary" : "") + '" data-act="' + esc(action.act) + '">' + esc(action.label) + "</button>";
       return '<div class="need"><span class="need__dot" aria-hidden="true"></span><div class="need__text"><strong>' + esc(i.title) + "</strong><span>" + esc(i.detail || "") +
         (i.command ? ' <code class="a-mono">' + esc(i.command) + "</code>" : "") + "</span></div>" + button + "</div>";
