@@ -64,7 +64,6 @@ code.a-mono { background: var(--surface-2); border: 1px solid var(--border); bor
 .need { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); min-width: 0; }
 .need:first-of-type { border-top: 0; }
 .need__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex: none; }
-.need__dot--critical { background: var(--critical); }
 .need__text { min-width: 200px; flex: 1 1 240px; display: grid; gap: 2px; }
 .need__text strong { font-size: 15px; font-weight: 600; }
 .need__text span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }

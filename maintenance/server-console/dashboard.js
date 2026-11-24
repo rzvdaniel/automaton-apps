@@ -131,7 +131,7 @@
       var action = acts[n];
       var button = !action || !action.href && !action.act ? "" : action.href ? '<a class="a-btn" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
         : '<button type="button" class="a-btn' + (n === first ? " a-btn--primary" : "") + '" data-act="' + esc(action.act) + '">' + esc(action.label) + "</button>";
-      return '<div class="need"><span class="need__dot' + (i.level === "critical" ? " need__dot--critical" : "") + '" aria-hidden="true"></span><div class="need__text"><strong>' + esc(i.title) + "</strong><span>" + esc(i.detail || "") +
+      return '<div class="need"><span class="need__dot" aria-hidden="true"></span><div class="need__text"><strong>' + esc(i.title) + "</strong><span>" + esc(i.detail || "") +
         (i.command ? ' <code class="a-mono">' + esc(i.command) + "</code>" : "") + "</span></div>" + button + "</div>";
     }).join("") + "</section>";
   }
