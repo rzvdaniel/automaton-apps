@@ -18,6 +18,9 @@ SCHEMA_VERSION = 1
 ROOT = Path(__file__).resolve().parent.parent
 SHA = re.compile(r"^[0-9a-f]{40}$")
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+ASSET = re.compile(r"^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\.(png|jpe?g|webp|svg)$", re.IGNORECASE)
+MAX_ASSET_BYTES = 512 * 1024
+MAX_SCREENSHOTS = 8
 FOLDER = re.compile(r"^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$")  # the same rule servers apply
 
 
@@ -44,6 +47,10 @@ def build() -> dict:
             "minServerVersion": item["minServerVersion"],
             "permissions": manifest.get("application", {}).get("permissions", []),
         }
+        if manifest.get("icon") is not None:  # paths inside the app folder; clients load them from the pinned commit
+            entry["icon"] = manifest["icon"]
+        if manifest.get("screenshots") is not None:
+            entry["screenshots"] = manifest["screenshots"]
         publisher = item.get("publisher", default_publisher)
         if publisher:  # Studio shows "by <name>" and a small logo; the server alone decides who is verified
             entry["publisher"] = publisher
@@ -55,6 +62,29 @@ def build() -> dict:
             entry["movedFrom"] = item["movedFrom"]
         apps.append(entry)
     return {"schemaVersion": SCHEMA_VERSION, "repo": repo, "apps": apps}
+
+
+def asset_problems(app: dict) -> list:
+    """An icon and screenshots are image files inside the app folder (type, size and path are checked)."""
+    found = []
+    paths = []
+    if "icon" in app:
+        paths.append(("icon", app["icon"]))
+    shots = app.get("screenshots", [])
+    if not isinstance(shots, list) or len(shots) > MAX_SCREENSHOTS:
+        found.append(f"{app['id']}: screenshots must be a list of at most {MAX_SCREENSHOTS} image paths")
+    else:
+        paths += [("screenshot", shot) for shot in shots]
+    for kind, path in paths:
+        if not isinstance(path, str) or not ASSET.fullmatch(path) or {".", ".."} & set(path.split("/")):
+            found.append(f"{app['id']}: {kind} must be a png, jpg, webp or svg path inside the app folder")
+            continue
+        file = ROOT / app["folder"] / path
+        if not file.is_file():
+            found.append(f"{app['id']}: {kind} {path} does not exist")
+        elif file.stat().st_size > MAX_ASSET_BYTES:
+            found.append(f"{app['id']}: {kind} {path} is larger than {MAX_ASSET_BYTES // 1024} KB")
+    return found
 
 
 def problems(catalog: dict) -> list:
@@ -81,6 +111,7 @@ def problems(catalog: dict) -> list:
                 found.append(f"{app['id']}: publisher needs a name of at most 80 characters")
             if logo is not None and not (isinstance(logo, str) and (logo.startswith("https://") or logo.startswith("/") and not logo.startswith("//"))):
                 found.append(f"{app['id']}: publisher logo must be an https:// address or a path")
+        found += asset_problems(app)
         for field in ("name", "summary", "category"):
             if not app[field].strip():
                 found.append(f"{app['id']}: {field} is empty")

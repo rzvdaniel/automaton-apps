@@ -49,6 +49,33 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(len(g.problems({"apps": [dict(entry, publisher="Automaton")]})), 1)
         self.assertEqual(len(g.problems({"apps": [dict(entry, publisher={"name": "Acme", "logo": "javascript:alert(1)"})]})), 1)
 
+    def test_icon_and_screenshots_are_listed_as_paths(self):
+        apps = {a["id"]: a for a in g.build()["apps"]}
+        self.assertEqual(apps["ghost"]["icon"], "icon.svg")
+        self.assertEqual(apps["ghost"]["screenshots"], ["screenshots/01-blog.png"])
+        self.assertEqual(apps["server-console"]["icon"], "icon.svg")
+        self.assertNotIn("icon", apps["heartbeat"])
+
+    def test_icon_and_screenshot_paths_are_checked(self):
+        entry = {"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "publishing/ghost", "commit": "a" * 40, "minServerVersion": "1.2.3"}
+        ok = lambda **extra: g.problems({"apps": [dict(entry, **extra)]})
+        self.assertEqual(ok(icon="icon.svg", screenshots=["screenshots/01-blog.png"]), [])
+        self.assertEqual(len(ok(icon="../icon.svg")), 1)
+        self.assertEqual(len(ok(icon="icon.exe")), 1)
+        self.assertEqual(len(ok(icon="missing.svg")), 1)
+        self.assertEqual(len(ok(icon="https://e.com/i.png")), 1)
+        self.assertEqual(len(ok(screenshots=["screenshots/01-blog.png"] * 9)), 1)
+        self.assertEqual(len(ok(screenshots="a.png")), 1)
+
+    def test_oversized_images_are_rejected(self):
+        original = g.MAX_ASSET_BYTES
+        g.MAX_ASSET_BYTES = 10
+        try:
+            entry = {"id": "x", "name": "X", "summary": "s", "category": "C", "folder": "publishing/ghost", "commit": "a" * 40, "minServerVersion": "1.2.3", "icon": "icon.svg"}
+            self.assertEqual(len(g.problems({"apps": [entry]})), 1)
+        finally:
+            g.MAX_ASSET_BYTES = original
+
     def test_problems_report_bad_entries(self):
         bad = {"apps": [{"id": "x", "name": "X", "summary": "", "category": "C", "folder": "a/b", "commit": "abc", "minServerVersion": "1"}]}
         self.assertEqual(len(g.problems(bad)), 3)
