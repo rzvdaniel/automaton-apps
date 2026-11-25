@@ -40,7 +40,7 @@
       "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "commit": "6d33f9f7bf2dee77f1baf323848fd8d8eea6cd22",
       "minServerVersion": "0.2.173",
       "permissions": [
         "server:read",
@@ -54,6 +54,7 @@
         "server:restart",
         "security:read"
       ],
+      "icon": "icon.svg",
       "publisher": {
         "name": "Automaton"
       },
@@ -145,9 +146,13 @@
       "summary": "Publish a blog and send a newsletter from your own server.",
       "category": "Publishing",
       "folder": "publishing/ghost",
-      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "commit": "6d33f9f7bf2dee77f1baf323848fd8d8eea6cd22",
       "minServerVersion": "0.2.149",
       "permissions": [],
+      "icon": "icon.svg",
+      "screenshots": [
+        "screenshots/01-blog.png"
+      ],
       "publisher": {
         "name": "Automaton"
       }
