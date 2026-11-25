@@ -1,6 +1,8 @@
 {
   "name": "Ghost",
   "summary": "Publish a blog and send a newsletter from your own server.",
+  "icon": "icon.svg",
+  "screenshots": ["screenshots/01-blog.png"],
   "description": "The MIT-licensed Ghost publishing platform, packaged from its upstream container image. Posts, images and the SQLite database live in Automaton's durable app directory. Newsletters stay off until the optional Mailgun settings are filled in.",
   "category": "Publishing",
   "application": {
