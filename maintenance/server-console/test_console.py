@@ -1105,6 +1105,28 @@ class MaintenanceServerTests(unittest.TestCase):
         self.assertEqual(self.post("/api/maintenance", {"X-Server-Console": "1"}), 404)
 
 
+class RetryScheduleTests(unittest.TestCase):
+    def test_a_failed_read_retries_after_15_30_60_seconds_then_the_normal_interval(self):
+        app = main.Console({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp()})
+        waits = []
+        app.state["status"] = "error"
+        for _ in range(5):
+            now = time.time()
+            app.schedule_next()
+            waits.append(round(app.next_read - now))
+        self.assertEqual(waits, [15, 30, 60, app.settings.interval, 15])
+        app.state["status"] = "ok"
+        app.schedule_next()
+        self.assertIsNone(app.next_retry())
+        self.assertEqual(app.view()["retryIn"], None)
+
+    def test_the_view_says_when_the_retry_comes(self):
+        app = main.Console({"AUTOMATON_APP_DATA_DIR": tempfile.mkdtemp()})
+        app.state["status"] = "error"
+        app.schedule_next()
+        self.assertIn(app.view()["retryIn"], range(14, 16))
+
+
 class BuildTests(unittest.TestCase):
     def test_the_build_copies_every_file_the_server_serves(self):
         here = os.path.dirname(os.path.abspath(__file__))

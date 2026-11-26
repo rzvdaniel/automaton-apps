@@ -149,6 +149,9 @@
   }
 
   function banner(data) {
+    if (data.status !== "ok" && data.status !== "starting" && data.retryIn != null) {
+      return '<div class="a-note a-note--warning" style="margin:0" role="status">Server restarting or unreachable; trying again in ' + data.retryIn + " s. Showing figures from " + (data.fetchedAt ? clock(data.fetchedAt) : "an earlier check") + ".</div>";
+    }
     return data.status !== "ok" && data.status !== "starting" ? '<div class="a-note a-note--warning" style="margin:0">Last read failed' + (data.failedAt ? " at " + clock(data.failedAt) : "") + ": " + esc(data.message || "no reason was reported (status " + (data.status || "unknown") + ")") +
       ". Showing figures from " + (data.fetchedAt ? clock(data.fetchedAt) : "an earlier check") + ".</div>" : "";
   }
@@ -552,10 +555,24 @@
   }
   document.getElementById("session-signin").addEventListener("click", function (e) { e.preventDefault(); location.reload(); });
 
+  // Opening the page asks for a fresh read once when the figures are older than the interval or the last read failed
+  // (the app reads at most once every 20 seconds however often this is asked), then shows the result.
+  var askedFresh = false;
+  var failPoll = null;
+  function askFresh(data) {
+    if (askedFresh) return;
+    askedFresh = true;
+    var stale = data.status !== "ok" && data.status !== "starting" || !data.fetchedAt || (data.now - data.fetchedAt) > ((data.settings && data.settings.intervalSeconds) || 300);
+    if (stale) post("api/tasks/refresh").then(function () { setTimeout(load, 3000); }, function () {});
+  }
   function load() {
     fetch("api/state" + (chosen ? "?machine=" + encodeURIComponent(chosen) : ""), { cache: "no-store" }).then(function (response) {
       if (response.status === 401) return sessionEnded(true);
       return response.json().then(function (data) {
+        askFresh(data);
+        // While a read keeps failing, look every 5 seconds so a recovery or the countdown shows without a reload.
+        clearTimeout(failPoll);
+        if (data.status && data.status !== "ok" && data.status !== "starting" && data.status !== "no_key" && data.status !== "not_approved") failPoll = setTimeout(load, 5000);
         if (data.status === 401 || data.status === "401") return sessionEnded(true);
         sessionEnded(false);
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);
