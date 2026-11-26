@@ -35,8 +35,7 @@ The Studio Home language. It applies to the system look (`data-look="system"`); 
   first (the last 10, then "Show older"). Never one list that mixes items. The last 10 also show as small bars in the
   item's row; clicking a bar opens that run.
 - Details open in place (expandable rows), not in a side panel, so several can be open at once.
-- References: the Studio Home mosaic (`https://claude.ai/artifact/K7rrcK35wWQoimNfPazJvH`) and the Gauntlet page
-  (`https://claude.ai/artifact/6CNziUipLBEQVRWSxuMWBx`), both private; their rules are the ones above.
+- Reference: the Studio Home mosaic (`https://claude.ai/artifact/K7rrcK35wWQoimNfPazJvH`), private; its rules are the ones above.
 
 ## Checks
 
