@@ -81,6 +81,23 @@ class PickTests(unittest.TestCase):
         self.assertIn(("move", "I3", "o-Inbox"), gh.calls)
         self.assertNotIn(("move", "I1", "o-Running"), gh.calls)
 
+    def test_unshaped_card_that_cannot_move_is_not_commented(self):
+        class Stuck(Fake):
+            def graphql(self, query, variables):
+                if "updateProjectV2ItemFieldValue" in query and variables["i"] == "I2":
+                    raise BoardError("move refused")
+                return super().graphql(query, variables)
+        gh = Stuck([card(2, labels=["needs-shape"]), card(4)])
+        self.assertEqual(board.pick_up(gh, cfg())["picked"], "rzvdaniel/automaton#4")
+        self.assertFalse([c for c in gh.calls if c[0] == "POST" and "/issues/2/comments" in c[1]])
+
+    def test_unshaped_card_already_told_is_moved_without_a_new_comment(self):
+        told = {"author": {"login": "bot"}, "body": board.NOT_SHAPED_COMMENT, "createdAt": "2026-11-26T10:00:00Z", "url": "u"}
+        gh = Fake([card(2, labels=["needs-shape"], comments=[told])])
+        board.pick_up(gh, cfg())
+        self.assertIn(("move", "I2", "o-Inbox"), gh.calls)
+        self.assertFalse([c for c in gh.calls if c[0] == "POST" and "/issues/2/comments" in c[1]])
+
     def test_skips_while_the_runner_is_not_set_up(self):
         gh = Fake([card(1)], runners={"runners": []})
         out = board.pick_up(gh, cfg(runner_repo="rzvdaniel/automaton"))

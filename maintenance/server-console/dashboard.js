@@ -574,7 +574,6 @@
         // While a read keeps failing, look every 5 seconds so a recovery or the countdown shows without a reload.
         clearTimeout(failPoll);
         if (data.status && data.status !== "ok" && data.status !== "starting" && data.status !== "no_key" && data.status !== "not_approved") failPoll = setTimeout(load, 5000);
-        if (data.status === 401 || data.status === "401") return sessionEnded(true);
         sessionEnded(false);
         if (data.status === "no_key" || data.status === "not_approved") return needApproval(data.status);
         if (!data.health) return problem(data);
