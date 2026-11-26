@@ -324,14 +324,14 @@ body{background:var(--bg)}
 .note{font-size:13px;color:var(--muted);margin:0}
 .small{font-size:13px}
 .task{padding:0;overflow:hidden}
-.task__row{display:grid;grid-template-columns:minmax(200px,1.4fr) minmax(160px,1fr) minmax(150px,1fr) 150px 250px;gap:12px 20px;align-items:center;padding:16px 20px}
+.task__row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) 230px;gap:12px 20px;align-items:center;padding:16px 20px}
 .task h3{margin:0 0 2px;font-size:16px}
 .task p{margin:0;font-size:13px;color:var(--muted)}
 .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
 .val{font-size:14px;font-variant-numeric:tabular-nums}
 .val--warn{color:var(--orange-ink)}
 .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.runs{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.runs{display:flex;align-items:center;gap:10px;margin-top:8px}
 .bars{display:flex;gap:3px;align-items:flex-end;height:22px}
 .bars button{appearance:none;border:0;padding:0;width:9px;height:22px;border-radius:2px;background:var(--bar);cursor:pointer}
 .bars button.f{background:var(--orange)}
@@ -383,10 +383,9 @@ body{background:var(--bg)}
       var older=(!showAll[t.id]&&t.runs.length>10)?'<button class="a-btn older" type="button" data-older="'+t.id+'">Show older ('+(t.runs.length-10)+')</button>':'';
       var acts=t.acts.map(function(a){return '<button class="a-btn" type="button">'+esc(a)+'</button>';}).join('')||(t.done?'<span class="a-muted small">'+esc(t.done)+'</span>':'');
       return '<section class="a-card task" aria-labelledby="h-'+t.id+'"><div class="task__row">'+
-        '<div><h3 id="h-'+t.id+'">'+esc(t.name)+'</h3><p>'+esc(t.desc)+'</p></div>'+
+        '<div><h3 id="h-'+t.id+'">'+esc(t.name)+'</h3><p>'+esc(t.desc)+'</p>'+'<div class="runs"><div class="bars" aria-label="Last runs">'+bars+'</div><button class="toggle" type="button" data-open="'+t.id+'" aria-expanded="'+(!!open[t.id])+'">'+(open[t.id]?'Hide history':'History ('+t.runs.length+')')+'</button></div>'+'</div>'+
         '<div><div class="lbl">Last run</div><div class="val'+(t.lastWarn?' val--warn':'')+'">'+esc(t.last)+'</div></div>'+
         '<div><div class="lbl">'+esc(t.nl)+'</div><div class="val">'+esc(t.next)+'</div>'+(t.hint?'<div class="small" style="font-weight:600">'+esc(t.hint)+'</div>':'')+'</div>'+
-        '<div class="runs"><div class="lbl">Last '+Math.min(10,t.runs.length)+' runs</div><div class="bars">'+bars+'</div><button class="toggle" type="button" data-open="'+t.id+'" aria-expanded="'+(!!open[t.id])+'">'+(open[t.id]?'Hide history':'History')+'</button></div>'+
         '<div class="acts">'+acts+'</div></div>'+
         (open[t.id]?'<div class="hist">'+list+older+'</div>':'')+'</section>';
     }).join('');
