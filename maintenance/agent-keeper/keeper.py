@@ -35,6 +35,7 @@ class Settings:
     def __init__(self, env=None):
         env = os.environ if env is None else env
         self.api_base_url = (env.get("AUTOMATON_API_URL", "").strip() or env.get("API_BASE_URL", "").strip()).rstrip("/")
+        self.in_automaton = bool(env.get("AUTOMATON_API_URL", "").strip())  # only then are the viewer headers the platform's
         self.api_key = env.get("APP_AUTOMATON_API_KEY", "").strip()
         self.runner_id = env.get("AGENT_MACHINE_ID", "").strip()
         if self.runner_id and not GUID.match(self.runner_id):
@@ -47,6 +48,12 @@ class Settings:
         self.labels = env.get("AGENT_RUNNER_LABELS", "").strip().replace(" ", "") or "agent"
         self.docker = env.get("AGENT_DOCKER_ACCESS", "").strip().lower() == "true"
         self.user = env.get("AGENT_RUNNER_USER", "").strip() or "agent"
+        self.parallel = (env.get("AGENT_PARALLEL", "").strip() or "1")
+        if self.parallel not in ("1", "2"):
+            raise ConfigError("AGENT_PARALLEL must be 1 or 2")
+        self.gh_token = env.get("AGENT_GH_TOKEN", "").strip()
+        self.board = (env.get("AGENT_BOARD", "").strip() or "rzvdaniel/17")
+        self.repos = (env.get("AGENT_REPOS", "").strip() or "automaton automaton-apps automaton-monster")
         for value, pattern, label in ((self.name, NAME, "AGENT_RUNNER_NAME"), (self.labels, LABELS, "AGENT_RUNNER_LABELS"), (self.user, USER, "AGENT_RUNNER_USER")):
             if not pattern.match(value):
                 raise ConfigError(f"{label} has characters that are not allowed")
@@ -82,7 +89,7 @@ def build_request(settings: Settings, action: str, token: str | None) -> dict:
         raise ValueError("That does not look like a runner token (letters, digits, - and _ only).")
     header = "".join(f"{key}={shlex.quote(value)}\n" for key, value in
                      (("AK_USER", settings.user), ("AK_URL", settings.github_url), ("AK_NAME", settings.name), ("AK_LABELS", settings.labels),
-                      ("AK_DOCKER", "true" if settings.docker else "false")))
+                      ("AK_DOCKER", "true" if settings.docker else "false"), ("AK_PARALLEL", settings.parallel)))
     stdin = (token + "\n") if token and action in ("setup", "remove") else None
     return {"script": header + read_script(action), "stdin": stdin, "timeoutSeconds": TIMEOUTS[action]}
 
@@ -158,4 +165,33 @@ def parse_status(output: str) -> dict:
         "runnerName": values.get("runner_name") or None, "job": values.get("job") or None,
         "tools": {key[5:]: values[key] for key in sorted(values) if key.startswith("tool_") and values[key]},
         "diskTotal": number("disk_total"), "diskUsed": number("disk_used"),
+        "dockerPath": values.get("docker_path") or None, "dockerTotal": number("docker_total"), "dockerUsed": number("docker_used"),
+        "runners": number("runner_count"),
     }
+
+
+LATEST = {
+    "claude": ("https://registry.npmjs.org/@anthropic-ai/claude-code/latest", lambda d: d.get("version")),
+    "gh": ("https://api.github.com/repos/cli/cli/releases/latest", lambda d: (d.get("tag_name") or "").lstrip("v")),
+    "runner": ("https://api.github.com/repos/actions/runner/releases/latest", lambda d: (d.get("tag_name") or "").lstrip("v")),
+}
+
+
+def latest_versions(opener=None) -> dict:
+    """Newest released version of the tools that have a public release feed. A tool that cannot be read is left out."""
+    found = {}
+    for key, (url, pick) in LATEST.items():
+        try:
+            request = Request(url, headers={"Accept": "application/json", "User-Agent": USER_AGENT})
+            with (opener or build_opener(_NoRedirect())).open(request, timeout=10) as response:
+                version = pick(json.loads(response.read(1_000_000).decode("utf-8")))
+            if isinstance(version, str) and re.match(r"^[0-9][0-9A-Za-z.\-]{0,30}$", version):
+                found[key] = version
+        except (URLError, OSError, ValueError, AttributeError):
+            continue
+    return found
+
+
+def version_of(text: str) -> str:
+    match = re.search(r"[0-9]+(\.[0-9]+)+", text or "")
+    return match.group(0) if match else ""

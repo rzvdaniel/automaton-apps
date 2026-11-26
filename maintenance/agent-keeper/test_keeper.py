@@ -133,6 +133,29 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(len(keeper.scrub("x" * 50000, None)), keeper.OUTPUT_LIMIT)
 
 
+class DiskAndLatestTests(unittest.TestCase):
+    def test_two_disks_when_docker_has_its_own(self):
+        p = keeper.parse_status("registered=yes\nservice=active\ndisk_total=100\ndisk_used=40\ndocker_path=/mnt/d\ndocker_total=400\ndocker_used=60\nrunner_count=2")
+        self.assertEqual((p["diskTotal"], p["diskUsed"], p["dockerPath"], p["dockerTotal"], p["dockerUsed"], p["runners"]), (100, 40, "/mnt/d", 400, 60, 2))
+        self.assertIsNone(keeper.parse_status("registered=yes\ndisk_total=1")["dockerTotal"])
+
+    def test_latest_versions_ignore_junk_and_failures(self):
+        class Opener:
+            def open(self, request, timeout):
+                if "claude-code" in request.full_url:
+                    raise OSError("down")
+                import io
+                body = {"tag_name": "v2.105.0"} if "cli/cli" in request.full_url else {"tag_name": "<script>"}
+                return io.BytesIO(json.dumps(body).encode())
+        self.assertEqual(keeper.latest_versions(Opener()), {"gh": "2.105.0"})
+
+    def test_parallel_setting(self):
+        self.assertEqual(settings().parallel, "1")
+        with self.assertRaises(keeper.ConfigError):
+            settings(AGENT_PARALLEL="3")
+        self.assertIn("AK_PARALLEL=2", keeper.build_request(settings(AGENT_PARALLEL="2"), "setup", None)["script"])
+
+
 class Fake(BaseHTTPRequestHandler):
     calls = []
     reply = (200, {"exitCode": 0, "timedOut": False, "output": "== done\nregistered=no", "error": ""})
@@ -250,6 +273,21 @@ class ServerTests(unittest.TestCase):
         self.assertTrue(state("Administrator"))
         self.assertFalse(state("viewer"))
         self.assertFalse(state(None))
+
+    def test_run_again_needs_an_administrator_and_the_header(self):
+        self.assertEqual(self.post("/api/retry", {"repo": "a/b", "number": 1})[0], 403)
+        self.assertEqual(self.post("/api/retry", {"repo": "a/b", "number": 1}, {"X-Automaton-Viewer-Role": "administrator", "X-Agent-Keeper": "0"})[0], 404)
+
+    def test_run_again_without_the_github_secret_says_so(self):
+        code, body = self.post("/api/retry", {"repo": "a/b", "number": 1}, {"X-Automaton-Viewer-Role": "administrator"})
+        self.assertEqual(code, 400)
+        self.assertIn("AGENT_GH_TOKEN", body["message"])
+
+    def test_queue_without_the_secret_is_a_message_not_an_error(self):
+        with urlopen(self.url + "/api/queue") as r:
+            body = json.loads(r.read())
+        self.assertFalse(body["ok"])
+        self.assertIn("AGENT_GH_TOKEN", body["message"])
 
     def test_static_files_and_health(self):
         for path in ("/", "/health", "/keeper.js", "/keeper.css", "/ui/app.css", "/ui/app.js"):
