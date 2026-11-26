@@ -40,7 +40,7 @@
       "summary": "Live stats, alerts and one-click maintenance for this server.",
       "category": "Monitoring",
       "folder": "maintenance/server-console",
-      "commit": "cb5b3bae3c8134bb845922d9582bed21f2eebd4b",
+      "commit": "e298e07efa33e602d30ba0f0a5a6dc1de0dcaf56",
       "minServerVersion": "0.2.173",
       "permissions": [
         "server:read",
@@ -116,7 +116,7 @@
       "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
       "category": "Maintenance",
       "folder": "maintenance/agent-keeper",
-      "commit": "1f2d559057e5c093c66ed804da574aded1e032e5",
+      "commit": "e298e07efa33e602d30ba0f0a5a6dc1de0dcaf56",
       "minServerVersion": "0.2.180",
       "permissions": [
         "runner:host-exec"
