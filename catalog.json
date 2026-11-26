@@ -116,7 +116,7 @@
       "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
       "category": "Maintenance",
       "folder": "maintenance/agent-keeper",
-      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "commit": "1f2d559057e5c093c66ed804da574aded1e032e5",
       "minServerVersion": "0.2.180",
       "permissions": [
         "runner:host-exec"
