@@ -14,7 +14,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 API = "https://api.github.com"
 USER_AGENT = "Automaton-Agent-Keeper/1.0"
-READY, RUNNING, REVIEW, INBOX = "Ready for agents", "Running", "In review", "Inbox"
+READY, RUNNING, REVIEW, INBOX = "Ready for agents", "Running", "Verify", "Inbox"
 DEFAULT_REPOS = "automaton automaton-apps automaton-monster"
 DEFAULT_BOARD = "rzvdaniel/17"
 HOME_REPO = "automaton"  # agent-issue.yml and the runner live here; agent:go starts a run only here
@@ -215,7 +215,7 @@ def retry(gh: GitHub, config: Config, repo: str, number: int) -> str:
 
 
 def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
-    """One pass: card whose run opened a pull request -> In review; shape check -> Inbox; then start the top Ready card if a slot is free."""
+    """One pass: card whose run opened a pull request -> Verify; shape check -> Inbox; then start the top Ready card if a slot is free."""
     result = {"picked": "", "message": "", "moved": []}
     runner_ok = runner_ok or runner_registered
     board = load_board(gh, config)
@@ -238,11 +238,13 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
         if card["status"] != READY or card["short"] not in config.repos or not card["open"]:
             continue
         if not shaped(card):
-            gh.request("POST", f"/repos/{card['repo']}/issues/{card['number']}/comments", {"body": NOT_SHAPED_COMMENT})
+            # Move first and comment only once: a card that cannot be moved is skipped, not commented on every pass.
             try:
                 move(gh, board, card, INBOX)
             except BoardError:
-                pass
+                continue
+            if not any((c.get("body") or "") == NOT_SHAPED_COMMENT for c in card["comments"][-1:]):
+                gh.request("POST", f"/repos/{card['repo']}/issues/{card['number']}/comments", {"body": NOT_SHAPED_COMMENT})
             result["moved"].append(f"{card['repo']}#{card['number']} to {INBOX}")
             continue
         if "agent:failed" in card["labels"]:

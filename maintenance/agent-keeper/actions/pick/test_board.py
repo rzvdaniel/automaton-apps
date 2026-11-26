@@ -31,7 +31,7 @@ class Fake:
         if "updateProjectV2ItemFieldValue" in query:
             self.calls.append(("move", variables["i"], variables["o"]))
             return {}
-        return {"repositoryOwner": {"projectV2": {"id": "P", "field": {"id": "F", "options": [{"id": "o-" + n, "name": n} for n in ("Inbox", "Ready for agents", "Running", "In review")]},
+        return {"repositoryOwner": {"projectV2": {"id": "P", "field": {"id": "F", "options": [{"id": "o-" + n, "name": n} for n in ("Inbox", "Ready for agents", "Running", "Verify")]},
                 "items": {"nodes": [{"id": c["item"], "status": {"name": c["status"]}, "content": {
                     "number": c["number"], "title": c["title"], "state": "OPEN", "body": c["body"], "url": c["url"], "repository": {"nameWithOwner": c["repo"]},
                     "labels": {"nodes": [{"name": n} for n in c["labels"]]}, "comments": {"nodes": c["comments"]},
@@ -81,6 +81,23 @@ class PickTests(unittest.TestCase):
         self.assertIn(("move", "I3", "o-Inbox"), gh.calls)
         self.assertNotIn(("move", "I1", "o-Running"), gh.calls)
 
+    def test_unshaped_card_that_cannot_move_is_not_commented(self):
+        class Stuck(Fake):
+            def graphql(self, query, variables):
+                if "updateProjectV2ItemFieldValue" in query and variables["i"] == "I2":
+                    raise BoardError("move refused")
+                return super().graphql(query, variables)
+        gh = Stuck([card(2, labels=["needs-shape"]), card(4)])
+        self.assertEqual(board.pick_up(gh, cfg())["picked"], "rzvdaniel/automaton#4")
+        self.assertFalse([c for c in gh.calls if c[0] == "POST" and "/issues/2/comments" in c[1]])
+
+    def test_unshaped_card_already_told_is_moved_without_a_new_comment(self):
+        told = {"author": {"login": "bot"}, "body": board.NOT_SHAPED_COMMENT, "createdAt": "2026-11-26T10:00:00Z", "url": "u"}
+        gh = Fake([card(2, labels=["needs-shape"], comments=[told])])
+        board.pick_up(gh, cfg())
+        self.assertIn(("move", "I2", "o-Inbox"), gh.calls)
+        self.assertFalse([c for c in gh.calls if c[0] == "POST" and "/issues/2/comments" in c[1]])
+
     def test_skips_while_the_runner_is_not_set_up(self):
         gh = Fake([card(1)], runners={"runners": []})
         out = board.pick_up(gh, cfg(runner_repo="rzvdaniel/automaton"))
@@ -96,9 +113,9 @@ class PickTests(unittest.TestCase):
         pr = {"number": 469, "url": "p", "state": "OPEN"}
         gh = Fake([card(467, status="Running", repo="rzvdaniel/automaton-apps", prs=[pr]), card(7, status="Running", repo="rzvdaniel/automaton-monster")])
         out = board.pick_up(gh, cfg())
-        self.assertIn(("move", "I467", "o-In review"), gh.calls)
-        self.assertNotIn(("move", "I7", "o-In review"), gh.calls)
-        self.assertEqual(out["moved"], ["rzvdaniel/automaton-apps#467 to In review"])
+        self.assertIn(("move", "I467", "o-Verify"), gh.calls)
+        self.assertNotIn(("move", "I7", "o-Verify"), gh.calls)
+        self.assertEqual(out["moved"], ["rzvdaniel/automaton-apps#467 to Verify"])
 
     def test_second_run_only_in_another_area(self):
         running = card(9, status="Running", labels=["area:studio"])

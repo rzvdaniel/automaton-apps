@@ -93,6 +93,8 @@ class Console:
         self.lock = threading.Lock()
         self.state = console.load_state(self.path)
         self.settings = console.Settings(self.env)
+        self.retries = 0
+        self.next_read = 0.0
 
     def send(self, event: str, condition: str, text: str) -> bool:
         log(text)
@@ -136,7 +138,7 @@ class Console:
             if self.state.get("status") in ("ok", "no_key", "not_approved"):
                 self.retries = 0
             else:
-                self.retries = getattr(self, "retries", 0) + 1
+                self.retries = self.retries + 1
             wait = RETRY_SECONDS[self.retries - 1] if 0 < self.retries <= len(RETRY_SECONDS) else self.settings.interval
             if self.retries > len(RETRY_SECONDS):
                 self.retries = 0
@@ -151,9 +153,9 @@ class Console:
 
     def next_retry(self) -> int | None:
         """Seconds until the next read while the last one failed and a quick retry is pending."""
-        if self.state.get("status") in ("ok", "starting", "no_key", "not_approved") or not getattr(self, "retries", 0):
+        if self.state.get("status") in ("ok", "starting", "no_key", "not_approved") or not self.retries:
             return None
-        return max(0, int(getattr(self, "next_read", 0) - time.time() + 0.5))
+        return max(0, int(self.next_read - time.time() + 0.5))
 
     def log_run(self, task: str, status: str, message: str | None) -> None:
         result = "started" if status == "ok" else "refused" if status in ("forbidden", "not_approved", "no_key") else "failed"

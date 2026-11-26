@@ -108,7 +108,7 @@
       {
         "name": "Pick up",
         "action": "pick",
-        "description": "Start the next agent issue and move cards whose run opened a pull request to In review",
+        "description": "Start the next agent issue and move cards whose run opened a pull request to Verify",
         "cron": "*/10 * * * *",
         "timeZone": "Etc/UTC",
         "input": {}
