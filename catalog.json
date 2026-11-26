@@ -111,21 +111,6 @@
       }
     },
     {
-      "id": "gauntlet",
-      "name": "Gauntlet",
-      "summary": "Installs, uses, uninstalls and reinstalls Automaton on your test machines on a schedule and reports failures.",
-      "category": "Monitoring",
-      "folder": "maintenance/gauntlet",
-      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
-      "minServerVersion": "0.2.173",
-      "permissions": [
-        "notify:email"
-      ],
-      "publisher": {
-        "name": "Automaton"
-      }
-    },
-    {
       "id": "agent-keeper",
       "name": "Agent Keeper",
       "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
