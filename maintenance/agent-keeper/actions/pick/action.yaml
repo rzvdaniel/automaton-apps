@@ -3,7 +3,7 @@ kind: Action
 metadata:
   name: Pick up
   key: pick
-  description: Start the top card of Ready for agents on the agent board when no agent issue is running, and move cards whose run opened a pull request to In review.
+  description: Start the top card of Ready for agents on the agent board when no agent issue is running, and move cards whose run opened a pull request to Verify.
 spec:
   runtime: python
   entrypoint: main.py

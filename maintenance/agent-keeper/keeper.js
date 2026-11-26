@@ -55,8 +55,8 @@
   }
 
   function phases(card) {
-    var hasPr = !!card.pr, review = card.status === "In review";
-    var names = ["Picked", "Implement", "Pull request", "Review and merge gate", "In review"];
+    var hasPr = !!card.pr, review = card.status === "Verify";
+    var names = ["Picked", "Implement", "Pull request", "Review and merge gate", "Verify"];
     var current = review ? 4 : hasPr ? 3 : 1;
     return '<ol class="phases" aria-label="Run steps">' + names.map(function (n, i) { return '<li class="' + (i < current ? "done" : i === current ? "on" : "") + '">' + esc(n) + "</li>"; }).join("") + "</ol>";
   }
@@ -91,7 +91,7 @@
       html += '<div class="row"><span class="dot dot--warn" aria-hidden="true"></span><div class="row__main"><div>' + issue(c) + '</div><div class="a-muted small">' + esc(c.short) +
         (c.at ? " · failed " + esc(when(c.at)) : "") + (c.reason ? " · " + esc(c.reason) : "") + '</div></div><div class="row__act">' +
         (c.readUrl ? link(c.readUrl, "Read run", "a-btn") : "") +
-        '<button class="a-btn a-btn--primary" type="button" data-again="' + esc(c.repo) + "#" + c.number + '"' + locked + ">Run again</button></div></div>";
+        '<button class="a-btn a-btn--primary" type="button" data-again="' + esc(c.repo) + "#" + esc(c.number) + '"' + locked + ">Run again</button></div></div>";
     });
     if (failed.length) html += '<p class="a-hint">A failed card stays here, out of the line below, until you run it again or move it back to Inbox.' + (state.admin ? "" : " Only a system administrator can run it again.") + "</p>";
     html += "</div>";

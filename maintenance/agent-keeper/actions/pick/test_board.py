@@ -31,7 +31,7 @@ class Fake:
         if "updateProjectV2ItemFieldValue" in query:
             self.calls.append(("move", variables["i"], variables["o"]))
             return {}
-        return {"repositoryOwner": {"projectV2": {"id": "P", "field": {"id": "F", "options": [{"id": "o-" + n, "name": n} for n in ("Inbox", "Ready for agents", "Running", "In review")]},
+        return {"repositoryOwner": {"projectV2": {"id": "P", "field": {"id": "F", "options": [{"id": "o-" + n, "name": n} for n in ("Inbox", "Ready for agents", "Running", "Verify")]},
                 "items": {"nodes": [{"id": c["item"], "status": {"name": c["status"]}, "content": {
                     "number": c["number"], "title": c["title"], "state": "OPEN", "body": c["body"], "url": c["url"], "repository": {"nameWithOwner": c["repo"]},
                     "labels": {"nodes": [{"name": n} for n in c["labels"]]}, "comments": {"nodes": c["comments"]},
@@ -96,9 +96,9 @@ class PickTests(unittest.TestCase):
         pr = {"number": 469, "url": "p", "state": "OPEN"}
         gh = Fake([card(467, status="Running", repo="rzvdaniel/automaton-apps", prs=[pr]), card(7, status="Running", repo="rzvdaniel/automaton-monster")])
         out = board.pick_up(gh, cfg())
-        self.assertIn(("move", "I467", "o-In review"), gh.calls)
-        self.assertNotIn(("move", "I7", "o-In review"), gh.calls)
-        self.assertEqual(out["moved"], ["rzvdaniel/automaton-apps#467 to In review"])
+        self.assertIn(("move", "I467", "o-Verify"), gh.calls)
+        self.assertNotIn(("move", "I7", "o-Verify"), gh.calls)
+        self.assertEqual(out["moved"], ["rzvdaniel/automaton-apps#467 to Verify"])
 
     def test_second_run_only_in_another_area(self):
         running = card(9, status="Running", labels=["area:studio"])

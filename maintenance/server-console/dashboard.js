@@ -569,6 +569,7 @@
     fetch("api/state" + (chosen ? "?machine=" + encodeURIComponent(chosen) : ""), { cache: "no-store" }).then(function (response) {
       if (response.status === 401) return sessionEnded(true);
       return response.json().then(function (data) {
+        if (data.status === 401 || data.status === "401") return sessionEnded(true);
         askFresh(data);
         // While a read keeps failing, look every 5 seconds so a recovery or the countdown shows without a reload.
         clearTimeout(failPoll);
