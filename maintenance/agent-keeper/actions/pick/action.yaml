@@ -1,0 +1,25 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Pick up
+  key: pick
+  description: Start the top card of Ready for agents on the agent board when no agent issue is running, and move cards whose run opened a pull request to In review.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 300
+  schedulable: true
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  output:
+    type: object
+    properties:
+      picked:
+        type: string
+      message:
+        type: string
+      moved:
+        type: array
+        items:
+          type: string

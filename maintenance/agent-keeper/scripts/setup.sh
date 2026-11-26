@@ -61,7 +61,7 @@ else
   [ -n "$AK_TOKEN" ] || { echo "ERROR: this machine is not registered yet; enter a runner registration token"; exit 2; }
   export ACTIONS_RUNNER_INPUT_TOKEN="$AK_TOKEN"
   (cd "$RUNNER_DIR" && runuser -u "$AK_USER" -- env HOME="$AK_HOME" ./config.sh --unattended --url "$AK_URL" --name "$AK_NAME" --labels "$AK_LABELS" --replace) >/dev/null
-  unset ACTIONS_RUNNER_INPUT_TOKEN AK_TOKEN
+  unset ACTIONS_RUNNER_INPUT_TOKEN
   echo "registered"
 fi
 
@@ -69,4 +69,28 @@ log "service"
 if [ -z "$(service_name)" ]; then (cd "$RUNNER_DIR" && ./svc.sh install "$AK_USER") >/dev/null; fi
 svc="$(service_name)"
 if systemctl is-active --quiet "$svc"; then echo "running"; else (cd "$RUNNER_DIR" && ./svc.sh start) >/dev/null; echo "started"; fi
+
+# "Runs at once" 2: a second runner service with its own work folder, so two agent issues can run side by side.
+if [ "${AK_PARALLEL:-1}" = "2" ]; then
+  log "second runner"
+  RUNNER_DIR2="$AK_HOME/actions-runner-2"
+  if [ ! -x "$RUNNER_DIR2/config.sh" ]; then
+    mkdir -p "$RUNNER_DIR2"
+    (cd "$RUNNER_DIR" && tar -cf - --exclude=./.runner --exclude=./.credentials --exclude=./.credentials_rsaparams --exclude=./.service --exclude=./_work --exclude=./_diag .) | tar -xf - -C "$RUNNER_DIR2"
+    chown -R "$AK_USER:$AK_USER" "$RUNNER_DIR2"
+  fi
+  if [ -f "$RUNNER_DIR2/.runner" ]; then
+    echo "already registered"
+  else
+    [ -n "$AK_TOKEN" ] || { echo "ERROR: the second runner is not registered yet; enter a runner registration token"; exit 2; }
+    export ACTIONS_RUNNER_INPUT_TOKEN="$AK_TOKEN"
+    (cd "$RUNNER_DIR2" && runuser -u "$AK_USER" -- env HOME="$AK_HOME" ./config.sh --unattended --url "$AK_URL" --name "$AK_NAME-2" --labels "$AK_LABELS" --replace) >/dev/null
+    unset ACTIONS_RUNNER_INPUT_TOKEN
+    echo "registered"
+  fi
+  if [ ! -f "$RUNNER_DIR2/.service" ]; then (cd "$RUNNER_DIR2" && ./svc.sh install "$AK_USER") >/dev/null; fi
+  svc2="$(tr -d '\r\n' < "$RUNNER_DIR2/.service")"
+  if systemctl is-active --quiet "$svc2"; then echo "running"; else (cd "$RUNNER_DIR2" && ./svc.sh start) >/dev/null; echo "started"; fi
+fi
+unset AK_TOKEN
 echo "done"

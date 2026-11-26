@@ -1,19 +1,26 @@
 {
   "name": "Agent Keeper",
   "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
-  "description": "Agent Keeper installs Claude Code, gh, git, Docker and the build tools on a machine, registers it as a self-hosted GitHub Actions runner with the agent label and runs it as a service. Set up can be run again safely and changes nothing that is already done; Remove unregisters the runner and removes the service; Update tools upgrades the tools. The page shows the runner's state, the tool versions, the disk and the last log of each run. It runs its scripts as root on the machine through runner:host-exec, so it works only when a system administrator has turned on host access for the server, owns the app and has approved it for that machine. A runner registration or removal token is typed on the page for each run, goes to the script once and is never saved or logged; the app stores no token and reads none of your GitHub secrets.",
+  "description": "Agent Keeper starts the next agent issue from the board every 10 minutes (the Pick up Action), shows the queue, the machine and its disks, and installs Claude Code, gh, git, Docker and the build tools on a machine, registers it as a self-hosted GitHub Actions runner with the agent label and runs it as a service. Set up can be run again safely and changes nothing that is already done; Remove unregisters the runner and removes the service; Update tools upgrades the tools. The page shows the runner's state, the tool versions, the disk and the last log of each run. It runs its scripts as root on the machine through runner:host-exec, so it works only when a system administrator has turned on host access for the server, owns the app and has approved it for that machine. A runner registration or removal token is typed on the page for each run, goes to the script once and is never saved or logged; the app stores no token. The Pick up Action and the queue read the board with the secret AGENT_GH_TOKEN.",
   "application": {
     "kind": "web",
-    "description": "Turns a Runner machine into a GitHub Actions agent machine from one page.",
-    "pages": [{ "path": "/", "label": "Agent machine" }],
-    "permissions": ["runner:host-exec"],
+    "description": "Starts the next agent issue every 10 minutes, shows the queue and turns a Runner machine into a GitHub Actions agent machine from one page.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Agent queue"
+      }
+    ],
+    "permissions": [
+      "runner:host-exec"
+    ],
     "build": {
       "image": "python:3.12-slim",
       "command": {
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py keeper.py && mkdir -p dist/ui dist/scripts && cp main.py keeper.py index.html keeper.js keeper.css dist/ && cp scripts/*.sh dist/scripts/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py keeper.py actions/pick/board.py actions/pick/main.py && mkdir -p dist/ui dist/scripts && cp main.py keeper.py actions/pick/board.py index.html keeper.js keeper.css dist/ && cp scripts/*.sh dist/scripts/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },
@@ -23,19 +30,89 @@
     "runtime": {
       "image": "python:3.12-slim",
       "user": "1000:1000",
-      "command": { "executable": "python", "arguments": ["main.py"], "workingDirectory": "dist" },
+      "command": {
+        "executable": "python",
+        "arguments": [
+          "main.py"
+        ],
+        "workingDirectory": "dist"
+      },
       "port": 8080
     },
-    "health": { "path": "/health", "startupTimeoutSeconds": 60 },
-    "storage": { "dataDirectory": "data", "mounts": [] },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
     "settings": [
-      { "name": "API_BASE_URL", "description": "Optional. Base URL of this Automaton server's API; normally the server provides it, so leave empty" },
-      { "name": "AGENT_MACHINE_ID", "description": "The machine to set up: its id (a GUID) from Studio, Runners. It must be a Machine Management Runner an administrator approved this app for", "required": true },
-      { "name": "AGENT_REPO", "description": "Where the runner is registered: owner/repo, or an organisation name", "required": true },
-      { "name": "AGENT_RUNNER_NAME", "description": "The runner's name on GitHub", "default": "agent-keeper" },
-      { "name": "AGENT_RUNNER_LABELS", "description": "Labels for the runner, separated by commas", "default": "agent" },
-      { "name": "AGENT_RUNNER_USER", "description": "The unprivileged user on the machine that runs the runner service (created if missing)", "default": "agent" },
-      { "name": "AGENT_DOCKER_ACCESS", "description": "Default off. Set to true to add the runner user to the docker group. That is root on the machine for every job the runner runs", "default": "false" }
+      {
+        "name": "API_BASE_URL",
+        "description": "Optional. Base URL of this Automaton server's API; normally the server provides it, so leave empty"
+      },
+      {
+        "name": "AGENT_MACHINE_ID",
+        "description": "The machine to set up: its id (a GUID) from Studio, Runners. It must be a Machine Management Runner an administrator approved this app for",
+        "required": true
+      },
+      {
+        "name": "AGENT_REPO",
+        "description": "Where the runner is registered: owner/repo, or an organisation name",
+        "required": true
+      },
+      {
+        "name": "AGENT_RUNNER_NAME",
+        "description": "The runner's name on GitHub",
+        "default": "agent-keeper"
+      },
+      {
+        "name": "AGENT_RUNNER_LABELS",
+        "description": "Labels for the runner, separated by commas",
+        "default": "agent"
+      },
+      {
+        "name": "AGENT_RUNNER_USER",
+        "description": "The unprivileged user on the machine that runs the runner service (created if missing)",
+        "default": "agent"
+      },
+      {
+        "name": "AGENT_DOCKER_ACCESS",
+        "description": "Default off. Set to true to add the runner user to the docker group. That is root on the machine for every job the runner runs",
+        "default": "false"
+      },
+      {
+        "name": "AGENT_BOARD",
+        "description": "The GitHub project board the Pick up Action reads, as owner/number",
+        "default": "rzvdaniel/17"
+      },
+      {
+        "name": "AGENT_REPOS",
+        "description": "Repositories whose Ready cards are picked, separated by spaces",
+        "default": "automaton automaton-apps automaton-monster"
+      },
+      {
+        "name": "AGENT_PARALLEL",
+        "description": "Runs at once: 1 or 2. With 2, Set up registers a second runner service and Pick up starts a second card only in another area",
+        "default": "1"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "AGENT_GH_TOKEN",
+        "description": "GitHub token that reads and moves cards on the board, labels issues and starts agent-issue.yml. Needs the project, repo and workflow scopes"
+      }
+    ],
+    "schedules": [
+      {
+        "name": "Pick up",
+        "action": "pick",
+        "description": "Start the next agent issue and move cards whose run opened a pull request to In review",
+        "cron": "*/10 * * * *",
+        "timeZone": "Etc/UTC",
+        "input": {}
+      }
     ]
   }
 }

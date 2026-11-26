@@ -4,5 +4,6 @@ set -eu
 cd "$(dirname "$0")"
 ROOT=$(cd ../.. && pwd)
 python -m unittest discover -p 'test_*.py'
+(cd actions/pick && python -m unittest discover -p "test_*.py")
 python "$ROOT/tools/check_vendored_ui.py"
 (cd "$ROOT" && python tools/smoke_build.py maintenance/agent-keeper)

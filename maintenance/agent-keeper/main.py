@@ -14,6 +14,12 @@ from urllib.parse import urlsplit
 
 import keeper
 
+try:
+    import board
+except ImportError:  # from the source folder, before the build copies it
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "actions", "pick"))
+    import board
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"), "/index.html": ("index.html", "text/html; charset=utf-8"),
@@ -34,6 +40,8 @@ class Keeper:
         self.lock = threading.Lock()
         self.running = None  # {"action", "startedAt"} while a script runs
         self.state = self.load()
+        self.cache = {}  # name -> (time, value): the queue for 30 seconds, the newest tool versions for an hour
+        self.api = None  # replaced in tests
 
     def load(self) -> dict:
         try:
@@ -56,8 +64,48 @@ class Keeper:
         with self.lock:
             last = {k: v for k, v in (self.state.get("last") or {}).items() if k in keeper.ACTIONS}
             return {"admin": admin, "missing": self.settings.missing(), "running": self.running, "last": last,
-                    "status": self.state.get("status"),
+                    "status": self.state.get("status"), "parallel": int(self.settings.parallel), "board": self.settings.board,
                     "config": {"repo": self.settings.repo, "name": self.settings.name, "labels": self.settings.labels, "user": self.settings.user, "docker": self.settings.docker}}
+
+    def config(self):
+        return board.Config.from_env({"AGENT_GH_TOKEN": self.settings.gh_token, "AGENT_BOARD": self.settings.board, "AGENT_REPOS": self.settings.repos,
+                                      "AGENT_PARALLEL": self.settings.parallel, "AGENT_REPO": self.settings.repo})
+
+    def cached(self, name: str, ttl: float, make):
+        with self.lock:
+            hit = self.cache.get(name)
+            if hit and time.time() - hit[0] < ttl:
+                return hit[1]
+        value = make()
+        with self.lock:
+            self.cache[name] = (time.time(), value)
+        return value
+
+    def queue(self) -> dict:
+        """The Queue tab's data from GitHub, kept for 30 seconds. A failure becomes a message, never a stack trace."""
+        def make():
+            try:
+                config = self.config()
+                return {"ok": True, "data": board.snapshot(self.api or board.GitHub(config.token), config)}
+            except board.BoardError as error:
+                return {"ok": False, "message": str(error)}
+        return self.cached("queue", 30, make)
+
+    def latest(self) -> dict:
+        return self.cached("latest", 3600, keeper.latest_versions)
+
+    def run_again(self, repo: str, number) -> tuple[int, dict]:
+        if not isinstance(number, int) or not isinstance(repo, str):
+            return 400, {"status": "invalid", "message": "Say which card."}
+        try:
+            config = self.config()
+            message = board.retry(self.api or board.GitHub(config.token), config, repo, number)
+        except board.BoardError as error:
+            return 400, {"status": "invalid", "message": str(error)}
+        with self.lock:
+            self.cache.pop("queue", None)
+        log(f"run again {repo}#{number}")
+        return 200, {"status": "ok", "message": message}
 
     def start(self, action: str, token: str | None, viewer: str | None) -> tuple[int, dict]:
         """Validates and starts one run. Status runs in the request; the others in a thread (they take minutes)."""
@@ -136,17 +184,24 @@ def make_handler(app: Keeper):
             self.send_body(status, json.dumps(payload).encode(), "application/json")
 
         def admin(self) -> bool:  # display only; the server checks the viewer token on every host command
-            return (self.headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"
+            return app.settings.in_automaton and (self.headers.get("X-Automaton-Viewer-Role") or "").lower() == "administrator"
 
         def do_POST(self):  # noqa: N802
             path = urlsplit(self.path).path
-            if not path.startswith("/api/run/") or self.headers.get("X-Agent-Keeper") != "1":
+            if not path.startswith("/api/") or self.headers.get("X-Agent-Keeper") != "1":
                 return self.json(404, {"error": "Not found"})
             try:
                 length = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(max(0, min(length, 4000))).decode("utf-8") or "{}")
             except (ValueError, UnicodeDecodeError):
                 body = {}
+            if path == "/api/retry":  # the GitHub token acts here, so the platform's administrator role is required
+                if not self.admin():
+                    return self.json(403, {"status": "forbidden", "message": "Only a system administrator can run a card again."})
+                body = body if isinstance(body, dict) else {}
+                return self.json(*app.run_again(body.get("repo"), body.get("number")))
+            if not path.startswith("/api/run/"):
+                return self.json(404, {"error": "Not found"})
             token = body.get("token") if isinstance(body, dict) and isinstance(body.get("token"), str) else None
             code, payload = app.start(path[len("/api/run/"):], (token or "").strip() or None, self.headers.get("X-Automaton-Viewer-Token"))
             self.json(code, payload)
@@ -155,6 +210,10 @@ def make_handler(app: Keeper):
             path = urlsplit(self.path).path
             if path == "/health":
                 return self.send_body(200, b"ok", "text/plain")
+            if path == "/api/queue":
+                return self.json(200, app.queue())
+            if path == "/api/latest":
+                return self.json(200, app.latest())
             if path == "/api/state":
                 return self.json(200, app.view(self.admin()))
             entry = STATIC.get(path)
