@@ -31,6 +31,9 @@ STATIC = {
 }
 
 
+RETRY_SECONDS = (15, 30, 60)
+
+
 def log(text: str) -> None:
     print(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), text, flush=True)
 
@@ -127,10 +130,30 @@ class Console:
                 self.state["failedAt"] = int(time.time())
             log(f"check failed: {self.state['message']}")
 
+    def schedule_next(self) -> None:
+        """After a failed read try again in 15, 30 and 60 seconds, then wait the normal interval."""
+        with self.lock:
+            if self.state.get("status") in ("ok", "no_key", "not_approved"):
+                self.retries = 0
+            else:
+                self.retries = getattr(self, "retries", 0) + 1
+            wait = RETRY_SECONDS[self.retries - 1] if 0 < self.retries <= len(RETRY_SECONDS) else self.settings.interval
+            if self.retries > len(RETRY_SECONDS):
+                self.retries = 0
+            self.next_read = time.time() + wait
+
     def loop(self) -> None:
         while True:
             self.run_once()
-            time.sleep(self.settings.interval)
+            self.schedule_next()
+            while time.time() < self.next_read:  # a read the page asked for moves next_read, so check again
+                time.sleep(max(0.2, min(1.0, self.next_read - time.time())))
+
+    def next_retry(self) -> int | None:
+        """Seconds until the next read while the last one failed and a quick retry is pending."""
+        if self.state.get("status") in ("ok", "starting", "no_key", "not_approved") or not getattr(self, "retries", 0):
+            return None
+        return max(0, int(getattr(self, "next_read", 0) - time.time() + 0.5))
 
     def log_run(self, task: str, status: str, message: str | None) -> None:
         result = "started" if status == "ok" else "refused" if status in ("forbidden", "not_approved", "no_key") else "failed"
@@ -140,7 +163,9 @@ class Console:
 
     def view(self, machine: str | None = None) -> dict:
         with self.lock:
-            return console.snapshot(self.state, self.settings, time.time(), machine)
+            data = console.snapshot(self.state, self.settings, time.time(), machine)
+            data["retryIn"] = self.next_retry()
+            return data
 
 
 CLEANUP_STATUS = {"ok": 200, "not_approved": 403, "unavailable": 404, "no_key": 403, "not_configured": 404}
@@ -210,7 +235,7 @@ def make_handler(app: Console):
                     if due:
                         app.refreshed = time.time()
                 if due:
-                    threading.Thread(target=app.run_once, daemon=True).start()
+                    threading.Thread(target=lambda: (app.run_once(), app.schedule_next()), daemon=True).start()
                 return self.json(200, {"status": "ok"})
             if name == "cleanup-run":
                 return self.maintain(console.server_cleanup_run, token, task="Cleanup")
