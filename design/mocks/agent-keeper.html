@@ -1,0 +1,549 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Keeper Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script>document.documentElement.dataset.look="system";</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Automaton app UI kit 2.1.0 - https://github.com/rzvdaniel/automaton-apps/tree/main/design/automaton-app-ui
+   Copied into each app as ui/app.css. Do not edit a copy: change the kit and copy it again. */
+
+/* Two looks.
+   Default ("app"): neutral colours and system fonts, accent from --accent. For tools, productivity and anything people build.
+   <html data-look="system">: the Automaton Studio look. Only for official apps that run the server (Server Console, backups, monitors).
+   Light and dark follow the visitor's system; data-theme="light|dark" on <html> forces one. */
+
+:root {
+  color-scheme: light dark;
+  --accent: #2f5bd3;
+  --ink: #17181c;
+  --orange: var(--accent);
+  --orange-ink: color-mix(in srgb, var(--accent) 80%, black);
+  --orange-soft: color-mix(in srgb, var(--accent) 12%, white);
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f8f9fa;
+  --text: #1b1d22;
+  --muted: #5d626c;
+  --border: #e1e3e8;
+  /* Status (Studio Home): normal is quiet ink, attention and failure are the same orange, red is only --danger. */
+  --ok: #55565e;
+  --bar: #17181c;
+  --warn: #b84a08;
+  --critical: #b84a08;
+  --danger: #b42318;
+  --neutral: #5d626c;
+  --focus: var(--accent);
+  --rail: #1b1d22;
+  --rail-text: #f2f3f5;
+  --rail-muted: #a3a7b1;
+  --shadow: 0 1px 2px rgb(23 24 28 / 5%);
+  --radius: 12px;
+  --display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+:root[data-look="system"] {
+  --accent: #f26a1b;
+  --orange-ink: #a23d05;
+  --orange-soft: #ffe6d6;
+  --bg: #f3f2ee;
+  --surface: #fdfdfb;
+  --surface-2: #f7f6f2;
+  --text: #17181c;
+  --muted: #55565e;
+  --border: #e2e0da;
+  --neutral: #55565e;
+  --rail: #17181c;
+  --rail-text: #f1f0eb;
+  --rail-muted: #a9aab1;
+  --shadow: none;
+  --radius: 16px;
+  --display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317;
+    --surface: #191b20;
+    --surface-2: #1f2127;
+    --text: #ececf0;
+    --muted: #a3a7b1;
+    --border: #2c2f36;
+    --ok: #a3a7b1;
+    --bar: #ececf0;
+    --warn: #ff9a5c;
+    --critical: #ff9a5c;
+    --danger: #ff7262;
+    --neutral: #a3a7b1;
+    --orange-ink: color-mix(in srgb, var(--accent) 65%, white);
+    --orange-soft: color-mix(in srgb, var(--accent) 18%, black);
+    --rail: #0b0c0e;
+    --shadow: none;
+  }
+  :root[data-look="system"]:not([data-theme="light"]) { --bg: #101114; --surface: #18191d; --surface-2: #1e2025; --border: #2c2e35; --orange-ink: #ff9a5c; --orange-soft: #3a2416; }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111317;
+  --surface: #191b20;
+  --surface-2: #1f2127;
+  --text: #ececf0;
+  --muted: #a3a7b1;
+  --border: #2c2f36;
+  --ok: #a3a7b1;
+  --bar: #ececf0;
+  --warn: #ff9a5c;
+  --critical: #ff9a5c;
+  --danger: #ff7262;
+  --neutral: #a3a7b1;
+  --orange-ink: color-mix(in srgb, var(--accent) 65%, white);
+  --orange-soft: color-mix(in srgb, var(--accent) 18%, black);
+  --rail: #0b0c0e;
+  --shadow: none;
+}
+:root[data-look="system"][data-theme="dark"] { --bg: #101114; --surface: #18191d; --surface-2: #1e2025; --border: #2c2e35; --orange-ink: #ff9a5c; --orange-soft: #3a2416; }
+:root[data-theme="light"] { color-scheme: light; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] { display: none !important; }
+
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--display); }
+
+a { color: var(--orange-ink); text-underline-offset: 2px; }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+
+.a-mono { font-family: var(--mono); font-size: 0.92em; }
+.a-muted { color: var(--muted); }
+.a-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Page and header */
+
+.a-page { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+
+.a-header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 4px 0 22px; }
+.a-brand { display: block; flex: none; width: 32px; height: 32px; }
+.a-brand rect { fill: #f26a1b; }
+.a-brand path { fill: none; stroke: #17181c; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.a-header__brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.a-header__text { flex: 1 1 200px; min-width: 0; }
+.a-header__title { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.a-header__sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.a-header__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Cards and grids */
+
+.a-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.a-grid--wide { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.a-stack { display: grid; gap: 16px; }
+
+.a-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px 18px 16px; min-width: 0;
+}
+.a-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.a-card__title { font: 700 17px/1.3 var(--display); color: var(--text); }
+.a-card__foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+
+/* Status pills */
+
+.a-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: 999px;
+  font: 500 12px/1.5 var(--mono); white-space: nowrap;
+  color: var(--neutral); border: 1px solid color-mix(in srgb, currentColor 45%, transparent); background: transparent;
+}
+.a-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.a-pill--ok { color: var(--ok); }
+.a-pill--warning { color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.a-pill--critical { color: var(--critical); background: color-mix(in srgb, var(--critical) 8%, transparent); }
+.a-pill--critical { font-weight: 600; }
+.a-pill--running { color: var(--warn); background: transparent; }
+.a-pill--running::before { background: transparent; border: 1.5px solid currentColor; }
+.a-pill--large { font-size: 14px; padding: 5px 14px 5px 11px; }
+
+/* Stat tiles and key/value rows */
+
+.a-stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.a-stat { min-width: 0; }
+.a-stat__label { color: var(--muted); font-size: 12px; }
+.a-stat__value { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.a-stat__value small { font-size: 14px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.a-stat__hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.a-stat--ok .a-stat__value { color: var(--ok); }
+.a-stat--warning .a-stat__value { color: var(--warn); }
+.a-stat--critical .a-stat__value { color: var(--critical); }
+
+.a-kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; }
+.a-kv dt { color: var(--muted); }
+.a-kv dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+
+/* Meter (use for a percentage of something) */
+
+.a-meter { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--neutral) 18%, transparent); overflow: hidden; }
+.a-meter > span { display: block; height: 100%; width: var(--value, 0%); border-radius: inherit; background: var(--bar); transition: width 0.4s ease; }
+.a-meter--warning > span { background: var(--warn); }
+.a-meter--critical > span { background: var(--critical); }
+
+.a-metric { display: grid; gap: 6px; padding: 12px 0; border-top: 1px solid var(--border); }
+.a-metric:first-child { border-top: 0; padding-top: 0; }
+.a-metric__row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.a-metric__name { font-weight: 600; }
+.a-metric__value { font-variant-numeric: tabular-nums; }
+.a-metric__spark { display: flex; align-items: center; gap: 10px; }
+.a-metric__spark .a-spark { flex: 1; }
+
+/* Sparkline: build with AutomatonUI.sparkline() */
+
+.a-spark { display: block; width: 100%; height: 34px; color: var(--ok); overflow: visible; }
+.a-spark--warning { color: var(--warn); }
+.a-spark--critical { color: var(--critical); }
+.a-spark__line { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.a-spark__area { fill: currentColor; opacity: 0.12; stroke: none; }
+.a-spark__empty { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+
+/* Tables */
+
+.a-table-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+.a-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.a-table th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 600; padding: 0 12px 8px 0; white-space: nowrap; }
+.a-table td { padding: 10px 12px 10px 0; border-top: 1px solid var(--border); vertical-align: middle; }
+.a-table th:last-child, .a-table td:last-child { padding-right: 0; text-align: right; }
+.a-table .a-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Buttons and forms */
+
+.a-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font: 600 14px/1 var(--font); cursor: pointer; text-decoration: none;
+}
+.a-btn:hover { background: var(--surface-2); }
+.a-btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
+:root[data-look="system"] .a-btn--primary { color: #17181c; }
+.a-btn--primary:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+
+.a-btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.a-btn--icon { width: 36px; padding: 0; }
+.a-btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+.a-form { display: grid; gap: 12px; }
+.a-field { display: grid; gap: 6px; }
+.a-label { font-size: 13px; font-weight: 600; }
+.a-hint { font-size: 12px; color: var(--muted); }
+.a-input {
+  min-height: 40px; width: 100%; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font: 15px var(--font);
+}
+.a-input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* Empty and waiting states */
+
+.a-empty { text-align: center; padding: 36px 16px; color: var(--muted); }
+.a-empty__title { color: var(--text); font-size: 17px; font-weight: 650; margin-bottom: 6px; }
+
+.a-waiting {
+  display: grid; gap: 14px; padding: 22px; border-radius: var(--radius); background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--orange) 45%, var(--border)); box-shadow: var(--shadow);
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--orange) 9%, transparent), transparent 55%);
+}
+.a-waiting__title { font-size: 18px; font-weight: 650; }
+.a-steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.a-steps li::marker { color: var(--orange-ink); font-weight: 700; }
+
+.a-note { padding: 10px 12px; border-radius: 10px; font-size: 13px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+.a-note--warning { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); }
+.a-note--critical { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 40%, var(--border)); background: color-mix(in srgb, var(--critical) 8%, var(--surface)); }
+
+.a-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.a-list > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); min-width: 0; }
+.a-list > li:first-child { border-top: 0; padding-top: 0; }
+.a-list > li > :first-child { min-width: 0; overflow-wrap: anywhere; }
+
+.a-footer { margin-top: 28px; text-align: center; color: var(--muted); font-size: 12px; }
+
+/* Top bar (optional): the dark Studio rail above a-page */
+
+.a-topbar { background: var(--rail); color: var(--rail-text); padding: 0 16px; }
+.a-topbar__inner { max-width: 1280px; margin: 0 auto; min-height: 64px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.a-topbar .a-header__title { font-size: 18px; font-weight: 600; color: #fff; white-space: nowrap; }
+.a-topbar .a-header__sub { color: var(--rail-muted); }
+.a-topbar .a-btn { background: transparent; color: var(--rail-text); border-color: rgb(255 255 255 / 18%); }
+
+/* Columns of cards with no holes: cards of any height flow top to bottom, then into the next column */
+
+.a-columns { columns: 3 340px; column-gap: 16px; }
+.a-columns > * { break-inside: avoid; margin-bottom: 16px; }
+
+/* Page-level banner: what needs the reader now, above everything else */
+
+.a-banner { display: grid; gap: 6px; padding: 14px 18px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); margin-bottom: 16px; }
+.a-banner__title { font: 700 16px/1.3 var(--display); }
+.a-banner ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.a-banner--warning { border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); background: color-mix(in srgb, var(--warn) 7%, var(--surface)); }
+.a-banner--critical { border-color: color-mix(in srgb, var(--critical) 40%, var(--border)); background: color-mix(in srgb, var(--critical) 6%, var(--surface)); }
+
+/* Phone width */
+
+@media (max-width: 640px) {
+  .a-page { padding: 14px 12px 40px; }
+  .a-grid, .a-grid--wide { grid-template-columns: 1fr; }
+  .a-header__actions { width: 100%; justify-content: space-between; }
+  .a-card { padding: 16px 14px 14px; }
+  .a-stat__value { font-size: 23px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .a-meter > span { transition: none; }
+}
+/* Agent Keeper (app-specific, kit tokens only) */
+body{background:var(--bg)}
+.a-topbar__inner{gap:12px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.a-page{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tabs{display:flex;gap:4px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
+.tab{flex:none;appearance:none;background:none;border:0;border-radius:8px;padding:8px 14px;font:400 14px/1.2 var(--font);color:var(--rail-muted);cursor:pointer;min-height:36px}
+.tab:hover{color:var(--rail-text)}.tab.is-on{color:var(--rail);background:var(--rail-text);font-weight:500}
+.tab-n{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;background:var(--orange);color:var(--rail);font-size:12px;font-weight:600}
+.a-topbar .a-header__actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+.a-topbar .a-header__sub{color:var(--rail-muted);margin:0;font-size:13px}
+.mocknote{font-size:13px;color:var(--muted);margin:0 0 14px}
+.panel{display:flex;flex-direction:column;gap:16px}
+.small{font-size:13px}.tn{font-variant-numeric:tabular-nums}
+.job{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.job__main{min-width:0;flex:1 1 320px}.job__title{font-weight:600;color:var(--text);text-decoration:none}
+.job__act,.row__act{display:flex;gap:8px;flex-wrap:wrap}
+.phases{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0}
+.phases li{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+.phases li.done{background:var(--surface-2);color:var(--text)}
+.phases li.on{border-color:var(--orange);color:var(--orange-ink)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap}
+.a-card__head+.row{border-top:0}
+.row__main{flex:1 1 260px;min-width:0}
+.num{width:22px;height:22px;flex:none;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;font:500 12px var(--mono,monospace);color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none;vertical-align:middle;margin-right:4px}
+.dot--warn{background:var(--orange)}
+.bars{display:flex;gap:3px;align-items:flex-end}.bars i{width:6px;height:18px;border-radius:2px;background:var(--bar)}.bars i.f{background:var(--orange)}
+.a-metric{margin-bottom:14px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}.seg label{display:flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer}
+details.again{border-top:1px solid var(--border);padding-top:10px}details.again summary{cursor:pointer;color:var(--orange-ink)}
+details.again{margin-top:14px;padding-top:14px}
+details.again[open]{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.mockstate{align-items:center}.a-steps li.ok{color:var(--muted)}.a-steps .a-pill{margin-left:6px}
+.a-form.pad{gap:16px;margin-top:12px}.a-form.pad p{margin:0}details.again>*{margin:0}details.again .a-field{align-self:stretch}
+.a-field{display:flex;flex-direction:column;gap:6px}
+.danger{border-color:color-mix(in srgb,var(--danger) 35%,var(--border));display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.danger>*{margin:0}.danger .a-card__head,.danger .a-field{align-self:stretch}
+.danger .a-field{display:flex;flex-direction:column;gap:6px}
+@media (max-width:640px){.a-topbar .a-header__sub{display:none}}
+</style>
+<header class="a-topbar">
+  <div class="a-topbar__inner">
+    <div class="a-header__brand">
+      <svg class="a-brand" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10"/><path d="M10 15l5 4-5 4M30 15l-5 4 5 4M17 27h6"/></svg>
+      <h1 class="a-header__title">Agent Keeper</h1>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Agent Keeper">
+      <button type="button" class="tab" role="tab" id="tab-queue" data-tab="queue">Queue <span class="tab-n">1</span></button>
+      <button type="button" class="tab" role="tab" id="tab-machine" data-tab="machine">Machine</button>
+      <button type="button" class="tab" role="tab" id="tab-setup" data-tab="setup">Setup</button>
+    </div>
+    <div class="a-header__actions">
+      <span class="a-header__sub">runner-01 · rzvdaniel/automaton</span>
+      <span class="a-pill a-pill--running">busy</span>
+      <button class="a-btn a-btn--icon" type="button" id="theme" aria-label="Switch light or dark theme">&#9680;</button>
+    </div>
+  </div>
+</header>
+
+<main class="a-page">
+  <p class="mocknote">Design mock with example data. The pick-up is the app's "Pick up" Action (every 10 minutes), turned on, off or run from the Actions tab in Studio like any other Action; the page only shows its last and next run.</p>
+
+  <!-- QUEUE -->
+  <section class="panel" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue">
+    <div class="a-banner a-banner--warning">
+      <div class="a-banner__title">1 card needs you</div>
+      <div>#1748 "Backup Warden lists restore points by app": the last run ended without a pull request. Read the run, then press <b>Run again</b>.</div>
+    </div>
+
+    <div class="a-stats">
+      <div class="a-stat"><div class="a-stat__label">Pick-up</div><div class="a-stat__value">On</div><div class="a-stat__hint">Pick up action, every 10 min · last 14:50 · next 15:00</div></div>
+      <div class="a-stat"><div class="a-stat__label">Ready for agents</div><div class="a-stat__value">3</div><div class="a-stat__hint">automaton, automaton-apps, automaton-monster</div></div>
+      <div class="a-stat"><div class="a-stat__label">Done today</div><div class="a-stat__value">7</div><div class="a-stat__hint">pull requests opened by the agent</div></div>
+      <div class="a-stat a-stat--warning"><div class="a-stat__label">Needs you</div><div class="a-stat__value">1</div><div class="a-stat__hint">failed run waiting for you</div></div>
+    </div>
+
+    <div class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Running now</h2><span class="a-pill a-pill--running">running 24 min</span></div>
+      <div class="job">
+        <div class="job__main">
+          <a href="#queue" class="job__title">#1746 Settings is split into Account, Connect your AI, API keys and Email</a>
+          <div class="a-muted small">automaton · started 14:25 by the pick-up · pull request <a href="#queue">#1754</a> opened, waiting for checks</div>
+        </div>
+        <div class="job__act"><button class="a-btn" type="button">Open run on GitHub</button><button class="a-btn" type="button">Stop</button></div>
+      </div>
+      <ol class="phases" aria-label="Run steps">
+        <li class="done">Picked</li><li class="done">Implement</li><li class="done">Pull request</li><li class="on">Review and merge gate</li><li>In review</li>
+      </ol>
+    </div>
+
+    <div class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Needs you</h2><span class="a-pill a-pill--warning">1 failed</span></div>
+      <div class="row">
+        <span class="dot dot--warn" aria-hidden="true"></span>
+        <div class="row__main"><div><b>#1748</b> Backup Warden lists restore points by app</div><div class="a-muted small">automaton-apps · failed 13:44 · "Agent run ended without a pull request"</div></div>
+        <div class="row__act"><button class="a-btn" type="button">Read run</button><button class="a-btn a-btn--primary" type="button">Run again</button></div>
+      </div>
+      <p class="a-hint">A failed card stays here, out of the line below, until you run it again or move it back to Inbox.</p>
+    </div>
+
+    <div class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Next up</h2><span class="a-muted small">order of Ready for agents on board 17</span></div>
+      <div class="row"><span class="num">1</span><div class="row__main"><div><b>#1752</b> Server Keeper and Studio show the main disk and the Docker disk separately</div><div class="a-muted small">automaton · bug</div></div><span class="a-pill">next</span></div>
+      <div class="row"><span class="num">2</span><div class="row__main"><div><b>#1753</b> An agent run finishes its work before it ends, and a failed card leaves Ready for agents</div><div class="a-muted small">automaton · bug</div></div><span class="a-pill">queued</span></div>
+      <div class="row"><span class="num">3</span><div class="row__main"><div><b>#1663</b> Merge gate trusts GitHub's latest check results instead of reading every run</div><div class="a-muted small">automaton</div></div><span class="a-pill">queued</span></div>
+      <div class="row"><span class="num">!</span><div class="row__main"><div><b>apps#480</b> Gate Keeper shows the last login per user</div><div class="a-muted small">automaton-apps · no "Done when"</div></div><span class="a-pill a-pill--warning">sent to Inbox</span></div>
+    </div>
+
+    <div class="a-card">
+      <div class="a-card__head"><h2 class="a-card__title">Recent runs</h2><div class="bars" aria-label="Last 10 runs: 8 opened a pull request, 2 failed"><i></i><i></i><i class="f"></i><i></i><i></i><i></i><i></i><i class="f"></i><i></i><i></i></div></div>
+      <div class="a-table-wrap"><table class="a-table">
+        <thead><tr><th>Issue</th><th>Result</th><th class="a-num">Took</th><th>Ended</th></tr></thead>
+        <tbody>
+          <tr><td>#1744 Install Backup Warden opens its install form</td><td><span class="dot"></span> PR #1745</td><td class="a-num">8 min</td><td>11:55</td></tr>
+          <tr><td>#1737 Release recap reads the release notes</td><td><span class="dot"></span> PR #1751</td><td class="a-num">38 min</td><td>13:33</td></tr>
+          <tr><td>#1748 Backup Warden lists restore points by app</td><td><span class="dot dot--warn"></span> failed, no pull request</td><td class="a-num">10 min</td><td>13:44</td></tr>
+          <tr><td>#1740 Each release is checked on a throwaway server</td><td><span class="dot"></span> PR #1742</td><td class="a-num">16 min</td><td>10:30</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- MACHINE -->
+  <section class="panel" id="panel-machine" role="tabpanel" aria-labelledby="tab-machine" hidden>
+    <div class="a-columns">
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">GitHub runner</h2><span class="a-pill a-pill--running">busy</span></div>
+        <dl class="a-kv">
+          <dt>Name</dt><dd>agent-keeper</dd>
+          <dt>Repository</dt><dd>rzvdaniel/automaton</dd>
+          <dt>Current job</dt><dd>Agent issue #1746</dd>
+          <dt>Service</dt><dd>running since 23 Nov</dd>
+        </dl>
+        <div class="a-note a-note--warning">Jobs on this machine can become root. Only the agent workflows may use it.</div>
+        <div class="a-card__foot">Read 1 min ago, refreshed every 5 minutes.</div>
+      </div>
+
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">Disk</h2><span class="a-pill a-pill--ok">ok</span></div>
+        <div class="a-metric">
+          <div class="a-metric__row"><span><b>Main disk</b> <span class="a-muted small">/ · system, agent's work folder, swap</span></span><span class="tn">21 of 38 GB</span></div>
+          <div class="a-meter" style="--value:55%"></div>
+          <div class="a-muted small">17 GB free</div>
+        </div>
+        <div class="a-metric">
+          <div class="a-metric__row"><span><b>Docker volume</b> <span class="a-muted small">/mnt/docker-data · images and containers</span></span><span class="tn">6 of 40 GB</span></div>
+          <div class="a-meter" style="--value:15%"></div>
+          <div class="a-muted small">34 GB free</div>
+        </div>
+        <div class="a-card__foot">Each disk is measured on its own. A warning shows below 15% free.</div>
+      </div>
+
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">Tools</h2><span class="a-pill a-pill--warning">1 update</span></div>
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Tool</th><th>Installed</th><th>Latest</th></tr></thead>
+          <tbody>
+            <tr><td>Claude Code</td><td class="tn">2.1.330</td><td><span class="dot dot--warn"></span> 2.1.342</td></tr>
+            <tr><td>Docker</td><td class="tn">29.10.0</td><td><span class="dot"></span> up to date</td></tr>
+            <tr><td>gh</td><td class="tn">2.105.0</td><td><span class="dot"></span> up to date</td></tr>
+            <tr><td>git</td><td class="tn">2.53.0</td><td><span class="dot"></span> up to date</td></tr>
+            <tr><td>Actions runner</td><td class="tn">2.338.2</td><td><span class="dot"></span> updates itself</td></tr>
+          </tbody>
+        </table></div>
+        <div class="a-card__foot"><button class="a-btn a-btn--primary" type="button">Update tools</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section class="panel" id="panel-setup" role="tabpanel" aria-labelledby="tab-setup" hidden>
+    <div class="seg mockstate" role="radiogroup" aria-label="Mock state"><span class="a-muted small">Mock state:</span>
+      <label><input type="radio" name="st" id="st-done" checked> Set up</label>
+      <label><input type="radio" name="st" id="st-new"> Before set up</label>
+    </div>
+
+    <div id="setup-new" hidden>
+      <div class="a-card first">
+        <div class="a-card__head"><h2 class="a-card__title">Set up this machine</h2><span class="a-pill a-pill--warning">not set up</span></div>
+        <div class="a-waiting">
+          <p>This machine has an Automaton Runner but is not a GitHub agent machine yet. Set up installs Claude Code, gh, git, Docker and the build tools, registers the machine as a self-hosted runner with the <b>agent</b> label and starts it as a service. It takes about 5 minutes.</p>
+          <ol class="a-steps">
+            <li class="ok">Host access is on for this server <span class="a-pill a-pill--ok">done</span></li>
+            <li class="ok">An administrator approved <code>runner:host-exec</code> for runner-01 <span class="a-pill a-pill--ok">done</span></li>
+            <li>In GitHub open <b>rzvdaniel/automaton</b>, Settings, Actions, Runners, <b>New self-hosted runner</b>, and copy the registration token. It is valid for one hour.</li>
+            <li>Paste it below and press <b>Set up</b>.</li>
+          </ol>
+        </div>
+        <div class="a-form pad">
+          <div class="a-field"><label class="a-label" for="reg-new">Registration token</label><input class="a-input" id="reg-new" type="password" autocomplete="off" placeholder="paste the token from GitHub"><span class="a-hint">Used once and never saved.</span></div>
+          <div><button class="a-btn a-btn--primary" type="button">Set up</button></div>
+        </div>
+      </div>
+      <p class="a-muted small">Before set up, Queue and Machine show the same "Set up this machine" note with a link here; the Pick up Action skips its runs until the runner exists.</p>
+    </div>
+
+    <div class="a-columns" id="setup-done">
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">This machine</h2><span class="a-pill a-pill--ok">set up</span></div>
+        <p>Set up on 23 Nov 2026, 12:03. Tools installed, runner registered as <b>agent-keeper</b> and running as a service.</p>
+        <details class="again">
+          <summary>Set up again or register with a new token</summary>
+          <div class="a-form pad">
+          <p class="a-hint">Running it again is safe: it only adds what is missing. A token is needed only when the runner is not registered any more.</p>
+          <div class="a-field"><label class="a-label" for="reg">Registration token (optional)</label><input class="a-input" id="reg" type="password" autocomplete="off" placeholder="from Settings, Actions, Runners, New self-hosted runner"></div>
+          <div><button class="a-btn" type="button">Run set up again</button></div>
+          </div>
+        </details>
+        <div class="a-card__foot">Last run: set up, succeeded, 23 Nov 12:03 · <a href="#setup">show log</a></div>
+      </div>
+
+      <div class="a-card danger">
+        <div class="a-card__head"><h2 class="a-card__title">Remove from GitHub</h2></div>
+        <div class="a-form pad">
+        <p class="a-hint">Stops the service and unregisters the runner. The tools and the work folder stay; Set up brings it back.</p>
+        <div class="a-field"><label class="a-label" for="rm">Removal token</label><input class="a-input" id="rm" type="password" autocomplete="off" placeholder="from the runner's page on GitHub"></div>
+        <div><button class="a-btn a-btn--danger" type="button">Remove runner</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+(function(){
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  function show(n){if(!document.getElementById('panel-'+n))n='queue';
+    tabs.forEach(function(t){var on=t.dataset.tab===n;t.classList.toggle('is-on',on);t.setAttribute('aria-selected',on);document.getElementById('panel-'+t.dataset.tab).hidden=!on;});}
+  tabs.forEach(function(t){t.addEventListener('click',function(){location.hash=t.dataset.tab;show(t.dataset.tab);});});
+  window.addEventListener('hashchange',function(){show(location.hash.slice(1));});
+  show(location.hash.slice(1));
+  function st(){var n=document.getElementById('st-new').checked;document.getElementById('setup-new').hidden=!n;document.getElementById('setup-done').hidden=n;}
+  if(location.hash==='#setup-new'){show('setup');document.getElementById('st-new').checked=true;st();}
+  document.getElementById('st-new').addEventListener('change',st);document.getElementById('st-done').addEventListener('change',st);
+  document.getElementById('theme').addEventListener('click',function(){var r=document.documentElement,d=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=d==='dark'?'light':'dark';});
+})();
+</script>
