@@ -469,55 +469,59 @@
     view.innerHTML = '<div class="ov">' + banner(data) + headline(h, a, data) + needs(data) +
       (offline ? offlineCard(data) : tiles(h, a, history, data) + '<div class="lists">' + healthList(h, a, data) + maintenanceList(h, a, data) + "</div>") + "</div>";
     subtitle.innerHTML = "Checked " + (data.fetchedAt ? '<time datetime="' + new Date(data.fetchedAt * 1000).toISOString() + '" data-rel></time>' : "never");
-    paintRuns();
     if (tabNow === "apps") paintApps();
     UI.updateRelativeTimes(document);
   }
 
   function refreshOverview() { if (lastData && lastData.health) dashboard(lastData); }
 
-  // --- Recent runs (beside the Maintenance table) --------------------------------------------------------------------
+  // --- Run history: each task keeps its own last runs, shown as bars in its row and as a list under it -----------------------
 
-  document.getElementById("runs-box").addEventListener("click", function (event) {
-    var b = event.target.closest && event.target.closest("[data-run-filter]");
-    if (!b) return;
-    runFilter = b.getAttribute("data-run-filter");
-    paintRuns();
-  });
+  var histOpen = {}, histAll = {};
+  var TASK_NAME = { cleanup: "Cleanup", backup: "Backup", upgrade: "Upgrade Runners", updates: "OS updates", restart: "Restart server" };
 
-  var runFilter = "all";
-  var RUN_KIND = { "Cleanup": "cleanup", "Backup": "backup", "OS updates": "updates", "Upgrade Runners": "updates", "Restart server": "updates" };
-  var RUN_CHIPS = [["all", "All"], ["cleanup", "Cleanup"], ["backup", "Backup"], ["updates", "Updates"]];
-
-  // "4 min", "6 h", "3 d": the box is narrow, and the full time is in the tooltip.
-  function shortAge(at) {
-    var s = Math.max(0, Date.now() / 1000 - at);
-    return s < 60 ? "now" : s < 3600 ? Math.floor(s / 60) + " min" : s < 86400 ? Math.floor(s / 3600) + " h" : Math.floor(s / 86400) + " d";
+  // The runs this app knows for one task, newest first: [{at (seconds), text, bad}].
+  function taskRuns(id) {
+    var name = TASK_NAME[id], items = [];
+    if (id === "cleanup") {
+      if (cleanupInfo && !cleanupInfo.needsApproval) (cleanupInfo.runs || []).forEach(function (r) {
+        var at = Date.parse(r.startedAtUtc) / 1000;
+        if (!isFinite(at)) return;
+        items.push({ at: at, bad: r.result === "failed",
+          text: r.result === "succeeded" ? "freed " + bytes(r.bytesFreed) : r.result === "failed" ? "failed" + (r.message ? ": " + r.message : "") : r.result });
+      });
+    } else {
+      ((lastData && lastData.runs) || []).forEach(function (r) {
+        if (r.task !== name) return;
+        items.push({ at: r.at, bad: r.result !== "started",
+          text: r.result === "started" ? "started" : r.result === "refused" ? "refused" : "failed" + (r.detail ? ": " + r.detail : "") });
+      });
+    }
+    return items.sort(function (x, y) { return y.at - x.at; });
   }
 
-  function paintRuns() {
-    var box = document.getElementById("runs-box");
-    if (!lastData) return;
-    var items = (lastData.runs || []).map(function (r) {
-      var result = r.result === "started" ? "started" : r.result === "refused" ? "refused" : "failed" + (r.detail ? ": " + r.detail : "");
-      return { at: r.at, task: r.task === "Restart server" ? "Restart" : r.task, kind: RUN_KIND[r.task] || "updates", result: result, bad: r.result !== "started" };
+  function runBars(id, runs) {
+    var last = runs.slice(0, 10).reverse(), html = "";
+    for (var i = last.length; i < 10; i++) html += '<span class="bar bar--none" aria-hidden="true"></span>';
+    last.forEach(function (r) {
+      var when_ = new Date(r.at * 1000).toLocaleString();
+      html += '<button type="button" class="bar' + (r.bad ? " bar--bad" : "") + '" data-hist="' + id + '" title="' + esc(when_ + " · " + r.text) + '" aria-label="' + esc(when_ + ", " + r.text) + '"></button>';
     });
-    if (cleanupInfo && !cleanupInfo.needsApproval) (cleanupInfo.runs || []).forEach(function (r) {
-      var at = Date.parse(r.startedAtUtc) / 1000;
-      if (!isFinite(at)) return;
-      var result = r.result === "succeeded" ? "freed " + bytes(r.bytesFreed) : r.result === "failed" ? "failed" + (r.message ? ": " + r.message : "") : r.result;
-      items.push({ at: at, task: "Cleanup", kind: "cleanup", result: result, bad: r.result === "failed" });
-    });
-    items.sort(function (x, y) { return y.at - x.at; });
-    var shown = items.filter(function (i) { return runFilter === "all" || i.kind === runFilter; });
-    var chips = '<div class="chips" role="group" aria-label="Filter runs">' + RUN_CHIPS.map(function (c) {
-      return '<button type="button" class="chip" data-run-filter="' + c[0] + '" aria-pressed="' + (runFilter === c[0]) + '">' + c[1] + "</button>";
-    }).join("") + "</div>";
-    var list = shown.length ? '<ol class="runs">' + shown.slice(0, 15).map(function (i) {
-      return '<li>' + dot(i.bad ? "critical" : "ok") + '<span class="runs__what"><b>' + esc(i.task) + "</b> " + esc(i.result) + '</span><time class="runs__age" datetime="' + esc(new Date(i.at * 1000).toISOString()) + '" title="' + esc(new Date(i.at * 1000).toLocaleString()) + '">' + shortAge(i.at) + "</time></li>";
-    }).join("") + "</ol>" : '<div class="a-empty" style="padding:20px 8px"><div class="a-empty__title">No runs yet</div>' + (items.length ? "None of this kind." : "Maintenance started from here is listed in this box.") + "</div>";
-    var more = lastData.studioBase ? '<a class="runs__all" target="_blank" rel="noopener" href="' + esc(lastData.studioBase + "/admin/app-activity") + '">All runs in Activity</a>' : "";
-    box.innerHTML = '<section class="a-card lst runsbox" aria-labelledby="runs-title"><h2 class="lst__title" id="runs-title">Recent runs</h2>' + chips + list + more + "</section>";
+    return html;
+  }
+
+  function runsHead(id) {
+    var runs = taskRuns(id), open = !!histOpen[id];
+    return '<div class="runs"><div class="bars" role="group" aria-label="Last 10 runs">' + runBars(id, runs) + "</div>" +
+      (runs.length ? '<button type="button" class="linkbtn" data-hist-toggle="' + id + '" aria-expanded="' + open + '">' + (open ? "Hide history" : "History (" + runs.length + ")") + "</button>" : '<span class="muted small">no runs yet</span>') + "</div>";
+  }
+
+  function runsList(id) {
+    if (!histOpen[id]) return "";
+    var runs = taskRuns(id), shown = histAll[id] ? runs : runs.slice(0, 10);
+    return '<div class="hist" id="hist-' + id + '">' + shown.map(function (r) {
+      return '<div class="hrun">' + dot(r.bad ? "warning" : "ok") + '<time datetime="' + esc(new Date(r.at * 1000).toISOString()) + '">' + esc(new Date(r.at * 1000).toLocaleString()) + "</time><span>" + esc(r.text) + "</span></div>";
+    }).join("") + (!histAll[id] && runs.length > 10 ? '<button type="button" class="a-btn" data-hist-older="' + id + '">Show older (' + (runs.length - 10) + ")</button>" : "") + "</div>";
   }
 
   function waiting(title, lead, steps) {
@@ -711,10 +715,10 @@
   function row(id, name, does, status, last, next, actions, notes, detail) {
     var tone = status === "warning" ? " tone--attn" : status === "critical" ? " tone--bad" : "";
     var idle = last === "not run from here" || last === "never run" || last === "never";
-    return '<section class="task" id="task-' + id + '" aria-labelledby="task-' + id + '-name"><div class="task__row"><div class="task__who"><h2 class="task__name" id="task-' + id + '-name">' + esc(name) + '</h2><span class="task__does">' + esc(does) + "</span></div>" +
+    return '<section class="task" id="task-' + id + '" aria-labelledby="task-' + id + '-name"><div class="task__row"><div class="task__who"><h2 class="task__name" id="task-' + id + '-name">' + esc(name) + '</h2><span class="task__does">' + esc(does) + "</span>" + runsHead(id) + "</div>" +
       '<div class="task__col t-last' + tone + '"><span class="task__label">Last run</span><span class="task__val">' + dot(idle ? "unknown" : status) + "<span>" + last + "</span></span></div>" +
       '<div class="task__col t-next"><span class="task__label">' + (NEXT_LABEL[id] || "Next") + '</span><span class="task__val task__val--next">' + next + '</span></div><div class="task__acts"><div class="t-act">' + (actions || "") + "</div></div></div>" +
-      notes.filter(Boolean).map(function (n) { return '<div class="t-note">' + n + "</div>"; }).join("") + (detail ? '<div class="task__detail">' + detail + "</div>" : "") + "</section>";
+      notes.filter(Boolean).map(function (n) { return '<div class="t-note">' + n + "</div>"; }).join("") + (detail ? '<div class="task__detail">' + detail + "</div>" : "") + runsList(id) + "</section>";
   }
 
   // The newest time this app started the task, as "3 days ago · started"; "not run from here" without one.
@@ -944,7 +948,6 @@
     tasksBox.innerHTML = '<div class="tasks" id="maintenance">' +
       cleanupRow() + backupRow() + upgradeRow() + updatesRow() + restartRow() + "</div>";
     UI.updateRelativeTimes(tasksBox);
-    paintRuns();
     refreshOverview();
   }
 
@@ -1131,6 +1134,14 @@
   }
 
   tasksBox.addEventListener("click", function (event) {
+    var hb = event.target.closest && event.target.closest("[data-hist],[data-hist-toggle],[data-hist-older]");
+    if (hb) {
+      if (hb.hasAttribute("data-hist-older")) histAll[hb.getAttribute("data-hist-older")] = true;
+      else if (hb.hasAttribute("data-hist-toggle")) { var k = hb.getAttribute("data-hist-toggle"); histOpen[k] = !histOpen[k]; }
+      else histOpen[hb.getAttribute("data-hist")] = true;
+      paintTasks();
+      return;
+    }
     var id = event.target.id;
     if (id === "cleanup-run") runCleanupNow();
     else if (id === "cleanup-settings") { cleanupEdit = !cleanupEdit; cleanupOp = null; paintTasks(); }
