@@ -70,10 +70,10 @@
   }
   var UPDATE_NEEDS = 10 * 1024 * 1024 * 1024;
 
-  function diskRow(d, only, data, rc, warnAt) {
+  function diskRow(d, only, data, warnAt) {
     var main = d.mountPoint === "/";
     var used = d.totalBytes > 0 ? pct(100 - 100 * d.availableBytes / d.totalBytes) : null;
-    var level = used === null ? "" : used >= 100 - data.settings.diskFreePercent / 2 ? "critical" : used >= warnAt ? "warning" : "";
+    var level = used === null ? "" : used > 100 - data.settings.diskFreePercent / 2 ? "critical" : used >= warnAt ? "warning" : "";
     var what = only ? "" : main ? " · OS, Automaton, backups" : " · apps, images, app data";
     var sub = bytes(d.totalBytes - d.availableBytes) + " of " + bytes(d.totalBytes) + " · " + bytes(d.availableBytes) + " free" + what + (main && !only ? " · updates need " + bytes(UPDATE_NEEDS) + " free" : "");
     var name = only ? "Disk" : main ? "System disk" : "Docker data";
@@ -94,7 +94,7 @@
       details = '<div class="dk">' + (rc.total ? "<span>Docker images</span><span>" + esc(bytes(rc.images)) + "</span><span>Docker volumes (app data)</span><span>" + esc(bytes(rc.volumes)) + "</span><span>Build cache</span><span>" + esc(bytes(rc.buildCache)) + "</span>" : '<span class="muted">Docker disk use is not reported for this machine.</span>') + '</div><button type="button" class="link" data-tab="apps">Disk by app, in Apps</button>';
     }
     return '<div class="tile' + (a.disk === "warning" ? " tile--attn" : a.disk === "critical" ? " tile--bad" : "") + '" id="disk"><div class="tile__row"><span>' + (disks.length > 1 ? "Disks" : "Disk") + '</span><button type="button" class="link" data-act="disk-toggle" aria-expanded="' + diskOpen + '">' + (diskOpen ? "Hide details" : "Details") + "</button></div>" +
-      (disks.length ? disks.map(function (d) { return diskRow(d, disks.length === 1, data, rc, warnAt); }).join("") : '<div class="tile__value">-</div><div class="tile__sub">No disk figures</div>') +
+      (disks.length ? disks.map(function (d) { return diskRow(d, disks.length === 1, data, warnAt); }).join("") : '<div class="tile__value">-</div><div class="tile__sub">No disk figures</div>') +
       '<div class="tile__sub">' + esc(note) + "</div>" + details + "</div>";
   }
 
