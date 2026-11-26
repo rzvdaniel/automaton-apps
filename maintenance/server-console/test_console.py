@@ -246,10 +246,11 @@ class PageTests(unittest.TestCase):
         here = Path(__file__).parent
         script, css = (here / "dashboard.js").read_text(), (here / "console.css").read_text()
         for needle in ('class="task"', "task__name", "Last run", "NEXT_LABEL", 'waiting', "Planned", "Status",   # task cards with the labelled column
-                       "runs__what", "shortAge",                                                               # short Recent runs rows
-                       "data-run-filter", "aria-pressed", '["updates", "Updates"]', '["backup", "Backup"]', '["cleanup", "Cleanup"]',  # filter chips
-                       "All runs in Activity"):
+                       "taskRuns", "data-hist-toggle", "data-hist-older", "Last 10 runs",                      # each task's own run history
+                       ):
             self.assertIn(needle, script)
+        for gone in ("runs-box", "Recent runs", "All runs in Activity", "data-run-filter"):
+            self.assertNotIn(gone, script + (here / "index.html").read_text())
         self.assertIn(".task__row", css)
         for task in ("Cleanup", "Backup", "Upgrade Runners", "OS updates", "Restart server"):
             self.assertIn('"' + task + '"', script)
