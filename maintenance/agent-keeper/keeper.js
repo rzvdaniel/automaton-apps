@@ -214,7 +214,7 @@
     TABS.forEach(function (t) { var b = document.getElementById("tab-" + t); b.classList.toggle("is-on", t === tab); b.setAttribute("aria-selected", t === tab); });
     var html = message ? '<div class="a-note a-note--warning" role="alert">' + esc(message) + "</div>" : "";
     html += tab === "machine" ? renderMachine() : tab === "setup" ? renderSetup() : renderQueue();
-    view.innerHTML = '<section class="panel" role="tabpanel" aria-labelledby="tab-' + tab + '">' + html + "</section>";
+    view.innerHTML = '<section class="panel" role="tabpanel" aria-labelledby="tab-' + esc(tab) + '">' + html + "</section>";
     var again = view.querySelector(".again");
     if (again && open) again.open = true;
     bind();
