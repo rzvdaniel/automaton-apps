@@ -159,6 +159,24 @@ class AssessTests(unittest.TestCase):
         self.assertEqual(self.judge(health(disk_free_gb=21))["disk"], "ok")
         self.assertEqual(self.judge(health(disk_free_gb=8), DISK_FREE_WARN_PERCENT="10")["disk"], "warning")
 
+    def test_each_disk_is_judged_and_named(self):
+        two = [{"mountPoint": "/", "totalBytes": 38 * GB, "availableBytes": 3 * GB}, {"mountPoint": "/mnt/docker-data", "totalBytes": 40 * GB, "availableBytes": 29 * GB}]
+        host = health(disks=two)
+        self.assertEqual(self.judge(host)["disk"], "critical")
+        found = console.conditions(host, console.new_state(), settings(), NOW)
+        self.assertTrue(found["disk_low"][0])
+        self.assertIn("main disk (/)", found["disk_low"][1])
+        self.assertFalse(found["disk_docker_low"][0])
+        two[1]["availableBytes"] = 5 * GB
+        found = console.conditions(health(disks=two), console.new_state(), settings(), NOW)
+        self.assertTrue(found["disk_docker_low"][0])
+        self.assertIn("Docker's disk (/mnt/docker-data)", found["disk_docker_low"][1])
+
+    def test_the_fullest_disk_drives_the_figures(self):
+        two = [{"mountPoint": "/", "totalBytes": 100 * GB, "availableBytes": 15 * GB}, {"mountPoint": "/mnt/d", "totalBytes": 100 * GB, "availableBytes": 90 * GB}]
+        self.assertEqual(console.sample(health(disks=two), NOW)["disk"], 85.0)
+        self.assertEqual(console.disk_free_min(health(disks=[{"bad": 1}])["host"]), 60.0)  # falls back to the single disk
+
     def test_the_disk_warns_above_80_percent_used_by_default(self):
         self.assertEqual(settings().disk_free_percent, 20)
         found = console.conditions(health(disk_free_gb=19), console.new_state(), settings(), NOW)

@@ -62,24 +62,39 @@
 
   var diskOpen = false;
 
+  // The disks that matter, as the Runner reports them: the main disk (/) first, then Docker's data root when it is elsewhere.
+  function hostDisks(host) {
+    var list = (host.disks || []).filter(function (d) { return d && typeof d.mountPoint === "string" && typeof d.totalBytes === "number" && typeof d.availableBytes === "number"; });
+    if (!list.length && typeof host.diskTotalBytes === "number") list = [{ mountPoint: "/", totalBytes: host.diskTotalBytes, availableBytes: host.diskAvailableBytes }];
+    return list.sort(function (x, y) { return (x.mountPoint === "/" ? 0 : 1) - (y.mountPoint === "/" ? 0 : 1); });
+  }
+  var UPDATE_NEEDS = 10 * 1024 * 1024 * 1024;
+
+  function diskRow(d, only, data, rc, warnAt) {
+    var main = d.mountPoint === "/";
+    var used = d.totalBytes > 0 ? pct(100 - 100 * d.availableBytes / d.totalBytes) : null;
+    var level = used === null ? "" : used >= 100 - data.settings.diskFreePercent / 2 ? "critical" : used >= warnAt ? "warning" : "";
+    var what = only ? "" : main ? " · OS, Automaton, backups" : " · apps, images, app data";
+    var sub = bytes(d.totalBytes - d.availableBytes) + " of " + bytes(d.totalBytes) + " · " + bytes(d.availableBytes) + " free" + what + (main && !only ? " · updates need " + bytes(UPDATE_NEEDS) + " free" : "");
+    var name = only ? "Disk" : main ? "System disk" : "Docker data";
+    return '<div class="diskrow"><div class="tile__row"><span><b>' + esc(name) + '</b> <code>' + esc(d.mountPoint) + "</code></span>" +
+      '<span class="tile__value">' + (used === null ? "-" : esc(String(used)) + "%") + "</span></div>" +
+      '<div class="bar' + barClass(level || "ok") + '" style="--value:' + (used === null ? 0 : Math.min(100, used)) + "%;--mark:" + warnAt + '%"><span></span></div>' +
+      '<div class="tile__sub">' + esc(sub) + "</div></div>";
+  }
+
   function diskTile(h, a, history, data) {
     var host = h.host || {};
-    var used = typeof host.diskTotalBytes === "number" && host.diskTotalBytes > 0 ? 100 - 100 * host.diskAvailableBytes / host.diskTotalBytes : null;
-    var shown = pct(used);
+    var disks = hostDisks(host);
     var warnAt = 100 - data.settings.diskFreePercent;
     var rc = data.reclaim || {};
-    var free = typeof host.diskAvailableBytes === "number" && typeof host.diskTotalBytes === "number" ? bytes(host.diskAvailableBytes) + " free of " + bytes(host.diskTotalBytes).replace(/ [KMGT]?i?B$/, "") : "No disk figures";
-    var note = (shown !== null && shown >= warnAt ? "Past the " + warnAt + "% warning" : "Warning at " + warnAt + "%") + (typeof rc.freeable === "number" && rc.freeable > 0 ? " · up to " + bytes(rc.freeable) + " can be freed" : "");
+    var note = "Warning at " + warnAt + "%" + (disks.length > 1 ? " on any disk" : "") + (typeof rc.freeable === "number" && rc.freeable > 0 ? " · up to " + bytes(rc.freeable) + " can be freed" : "");
     var details = "";
     if (diskOpen) {
-      var usedBytes = typeof host.diskTotalBytes === "number" && typeof host.diskAvailableBytes === "number" ? host.diskTotalBytes - host.diskAvailableBytes : null;
-      var rest = usedBytes !== null && typeof rc.total === "number" ? Math.max(0, usedBytes - rc.total) : null;
-      details = '<div class="dk">' + (rc.total ? "<span>Docker images</span><span>" + esc(bytes(rc.images)) + "</span><span>Docker volumes (app data)</span><span>" + esc(bytes(rc.volumes)) + "</span><span>Build cache</span><span>" + esc(bytes(rc.buildCache)) + "</span>" +
-        (rest === null ? "" : "<span>System, logs and backups</span><span>" + esc(bytes(rest)) + "</span>") : '<span class="muted">Docker disk use is not reported for this machine.</span>') + '</div><button type="button" class="link" data-tab="apps">Disk by app, in Apps</button>';
+      details = '<div class="dk">' + (rc.total ? "<span>Docker images</span><span>" + esc(bytes(rc.images)) + "</span><span>Docker volumes (app data)</span><span>" + esc(bytes(rc.volumes)) + "</span><span>Build cache</span><span>" + esc(bytes(rc.buildCache)) + "</span>" : '<span class="muted">Docker disk use is not reported for this machine.</span>') + '</div><button type="button" class="link" data-tab="apps">Disk by app, in Apps</button>';
     }
-    return '<div class="tile' + (a.disk === "warning" ? " tile--attn" : a.disk === "critical" ? " tile--bad" : "") + '" id="disk"><div class="tile__row"><span>Disk · ' + esc(free) + '</span><button type="button" class="link" data-act="disk-toggle" aria-expanded="' + diskOpen + '">' + (diskOpen ? "Hide details" : "Details") + "</button></div>" +
-      '<div class="tile__value">' + (shown === null ? "-" : esc(String(shown)) + "%") + "</div>" +
-      '<div class="bar' + barClass(a.disk) + '" style="--value:' + (shown === null ? 0 : Math.min(100, shown)) + "%;--mark:" + warnAt + '%"><span></span></div>' +
+    return '<div class="tile' + (a.disk === "warning" ? " tile--attn" : a.disk === "critical" ? " tile--bad" : "") + '" id="disk"><div class="tile__row"><span>' + (disks.length > 1 ? "Disks" : "Disk") + '</span><button type="button" class="link" data-act="disk-toggle" aria-expanded="' + diskOpen + '">' + (diskOpen ? "Hide details" : "Details") + "</button></div>" +
+      (disks.length ? disks.map(function (d) { return diskRow(d, disks.length === 1, data, rc, warnAt); }).join("") : '<div class="tile__value">-</div><div class="tile__sub">No disk figures</div>') +
       '<div class="tile__sub">' + esc(note) + "</div>" + details + "</div>";
   }
 

@@ -22,10 +22,11 @@ DAY = 86400
 BACKUP_MAX_AGE = 26 * 3600  # a nightly backup is never more than 26 hours apart
 # /api/apps/status exposes no catalog slug, so the app is found by its name: the catalog name or the old one.
 OFFSITE_NAMES = ("backup warden", "off-site")
-CONDITIONS = ("disk_low", "security_overdue", "reboot_overdue", "backup_old", "backup_failed", "offsite_old", "offsite_failed")
+CONDITIONS = ("disk_low", "disk_docker_low", "security_overdue", "reboot_overdue", "backup_old", "backup_failed", "offsite_old", "offsite_failed")
 # What to do about each warning, shown on the page and in the email.
 ADVICE = {
     "disk_low": "Free some space: run `docker image prune -a` on the server (Automaton also frees unused images every night) or remove old backups and logs.",
+    "disk_docker_low": "Free some space on Docker's disk: run `docker image prune -a` on the server (Automaton also frees unused images every night) or remove apps you no longer use.",
     "security_overdue": "Install the security updates: open Server Keeper and use Install updates under Maintenance.",
     "reboot_overdue": "Restart the server at a quiet time: `sudo reboot`.",
     "backup_old": "Check the server's backup timer, then press Run now under Maintenance (needs a system administrator).",
@@ -440,10 +441,38 @@ def percent(part, total) -> float | None:
     return round(100.0 * part / total, 1)
 
 
+def disk_name(disk: dict) -> str:
+    return f"the main disk ({disk['mountPoint']})" if disk["main"] else f"Docker's disk ({disk['mountPoint']})"
+
+
+def host_disks(host: dict) -> list[dict]:
+    """The disks that matter, from the Runner's `disks` list: the host root `/` (main) and, when Docker keeps its data on
+    another disk, that one. An older Runner reports only the one disk, shown as the main disk."""
+    found = []
+    for item in host.get("disks") or []:
+        if isinstance(item, dict) and isinstance(item.get("mountPoint"), str) and all(
+                isinstance(item.get(k), (int, float)) and not isinstance(item.get(k), bool) for k in ("totalBytes", "availableBytes")):
+            free = percent(item["availableBytes"], item["totalBytes"])
+            found.append({"mountPoint": item["mountPoint"], "main": item["mountPoint"] == "/", "totalBytes": item["totalBytes"],
+                          "availableBytes": item["availableBytes"], "free": free})
+    if not found:
+        free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
+        found.append({"mountPoint": "/", "main": True, "totalBytes": host.get("diskTotalBytes"),
+                      "availableBytes": host.get("diskAvailableBytes"), "free": free})
+    found.sort(key=lambda d: not d["main"])
+    return found
+
+
+def disk_free_min(host: dict) -> float | None:
+    """Free percent of the fullest disk, None when no disk reports figures."""
+    values = [d["free"] for d in host_disks(host) if d["free"] is not None]
+    return min(values) if values else None
+
+
 def sample(health: dict, now: float) -> dict:
     host = health.get("host") or {}
     memory_free = percent(host.get("memoryAvailableBytes"), host.get("memoryTotalBytes"))
-    disk_free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
+    disk_free = disk_free_min(host)
     return {"t": int(now), "cpu": host.get("cpuPercent"),
             "mem": None if memory_free is None else round(100 - memory_free, 1),
             "disk": None if disk_free is None else round(100 - disk_free, 1)}
@@ -547,7 +576,7 @@ def assess(health: dict | None, state: dict, settings: Settings, now: float) -> 
         return {"overall": UNKNOWN}
     host = health.get("host") or {}
     server = health.get("server") or {}
-    disk_free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
+    disk_free = disk_free_min(host)
     memory_used = None if (m := percent(host.get("memoryAvailableBytes"), host.get("memoryTotalBytes"))) is None else 100 - m
     cpus = host.get("cpuCount") or 1
     load = host.get("load5")
@@ -642,11 +671,13 @@ def attention(health: dict | None, status: dict, settings: Settings, now: float)
         if level in (WARNING, CRITICAL):
             items.append({"level": level, "title": title, "detail": detail, "command": command, "card": card})
 
-    free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
-    if free is not None:
-        add(status.get("disk"), "Free disk space.",
-            f"{100 - free:g}% of the disk is used (warning above {100 - settings.disk_free_percent}%). Automaton frees unused Docker images every night; to do it now:",
-            "docker image prune -a", card="resources")
+    disks = host_disks(host)
+    for disk in disks:
+        if disk["free"] is not None and disk["free"] < settings.disk_free_percent:
+            where = "the disk" if len(disks) == 1 else disk_name(disk)
+            add(CRITICAL if disk["free"] < settings.disk_free_percent / 2 else WARNING, "Free disk space." if len(disks) == 1 else f"Free disk space on {disk_name(disk)}.",
+                f"{100 - disk['free']:g}% of {where} is used (warning above {100 - settings.disk_free_percent}%). Automaton frees unused Docker images every night; to do it now:",
+                "docker image prune -a", card="resources")
     if host.get("rebootRequired") is True:
         age = _age(host.get("rebootRequiredSinceUtc"), now)
         waited = "" if age is None else f"Updates have waited for a restart for {plural(int(age // DAY), 'day')} (warning after {settings.reboot_days}). "
@@ -726,10 +757,12 @@ def conditions(health: dict, state: dict, settings: Settings, now: float, backup
     """Each warning condition: (is it true now, the message that describes it)."""
     host = health.get("host") or {}
     result: dict[str, tuple[bool, str]] = {}
-    free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
-    if free is not None:
-        result["disk_low"] = (free < settings.disk_free_percent,
-                              f"disk space is low: {free:g}% free (warning below {settings.disk_free_percent}%)")
+    disks = host_disks(host)
+    for disk in disks:
+        if disk["free"] is not None:
+            result["disk_low" if disk["main"] else "disk_docker_low"] = (
+                disk["free"] < settings.disk_free_percent,
+                f"disk space is low{'' if len(disks) == 1 else ' on ' + disk_name(disk)}: {disk['free']:g}% free (warning below {settings.disk_free_percent}%)")
     security = host.get("securityUpdates")
     if isinstance(security, int):
         since = state.get("securitySince")

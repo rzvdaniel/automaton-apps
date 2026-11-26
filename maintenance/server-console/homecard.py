@@ -7,7 +7,7 @@ and the details stay on the app's own page (behind Automaton's sign-in) and in t
 
 from __future__ import annotations
 
-from console import percent
+from console import disk_free_min, percent
 
 DISK_WARN_AT = 85
 DISK_CRIT_AT = 95
@@ -83,7 +83,7 @@ def build_card(state: dict, now: float) -> dict:
                 "detail": "An administrator must approve server:read for this app." if waiting else "Server Keeper has not read the server yet.",
                 "blocks": [{"type": "buttons", "items": [{"label": "Open", "path": "/"}]}]}
     host = health.get("host") or {}
-    free = percent(host.get("diskAvailableBytes"), host.get("diskTotalBytes"))
+    free = disk_free_min(host)
     used = None if free is None else round(100 - free, 1)
     alerts = _alerts(health, state, used)
     worst = alerts[0]["severity"] if alerts else "info"

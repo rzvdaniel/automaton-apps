@@ -53,7 +53,7 @@ def post_webhook(url: str, payload: dict, timeout: float = 15) -> bool:
     return False
 
 
-EMAIL_SUBJECTS = {"disk_low": "Disk space is low", "security_overdue": "Security updates are overdue", "reboot_overdue": "A restart is overdue",
+EMAIL_SUBJECTS = {"disk_low": "Disk space is low", "disk_docker_low": "Docker disk space is low", "security_overdue": "Security updates are overdue", "reboot_overdue": "A restart is overdue",
                  "backup_old": "The server backup is too old", "backup_failed": "The last server backup failed",
                  "offsite_old": "The off-site backup has not run", "offsite_failed": "The last off-site backup failed"}
 
