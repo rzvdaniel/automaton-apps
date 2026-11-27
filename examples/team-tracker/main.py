@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from store import PRIORITIES, STATUSES, Invalid, Store
 
 MIN_ADMIN_TOKEN = 16
-ASSETS = ("/ui/app.css", "/ui/app.js", "/ui/tracker.css", "/ui/tracker.js")
+ASSETS = {"/ui/app.css": "ui/app.css", "/ui/app.js": "ui/app.js", "/ui/tracker.css": "ui/tracker.css", "/ui/tracker.js": "ui/tracker.js"}
 
 
 class App:
@@ -155,7 +155,7 @@ def make_handler(app: App):
                 query = {k: v[0] for k, v in parse_qs(parts.query).items()}
                 self.reply(200, "text/html; charset=utf-8", render(app, query, query.get("error", "")[:200], not app.managed).encode())
             elif parts.path in ASSETS:
-                self.reply(200, "text/css" if parts.path.endswith(".css") else "text/javascript", (Path(__file__).parent / parts.path.lstrip("/")).read_bytes())
+                self.reply(200, "text/css" if parts.path.endswith(".css") else "text/javascript", (Path(__file__).parent / ASSETS[parts.path]).read_bytes())
             else:
                 self.reply(404, "text/plain", b"not found")
 
