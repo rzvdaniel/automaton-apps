@@ -14,6 +14,7 @@ def card(number, status="Ready for agents", repo="rzvdaniel/automaton", labels=(
 class Fake:
     def __init__(self, cards, taken=(), runners=None):
         self.cards, self.taken, self.calls = cards, list(taken), []
+        self.blockers = {}
         self.runners = runners or {"runners": [{"labels": [{"name": "agent"}]}]}
 
     def get(self, path):
@@ -22,12 +23,17 @@ class Fake:
             return [{"number": n} for r, n in self.taken if r == repo]
         if "/actions/runners" in path:
             return self.runners
+        if "/dependencies/blocked_by" in path:
+            return self.blockers.get(path.split("/issues/")[1].split("/")[0], [])
         return {}
 
     def request(self, method, path, body=None):
         self.calls.append((method, path, body))
 
     def graphql(self, query, variables):
+        if "updateProjectV2ItemPosition" in query:
+            self.calls.append(("after", variables["i"], variables["a"]))
+            return {}
         if "updateProjectV2ItemFieldValue" in query:
             self.calls.append(("move", variables["i"], variables["o"]))
             return {}
@@ -51,6 +57,49 @@ class ConfigTests(unittest.TestCase):
         for env in ({}, {"AGENT_GH_TOKEN": "x", "AGENT_BOARD": "nope"}, {"AGENT_GH_TOKEN": "x", "AGENT_PARALLEL": "3"}, {"AGENT_GH_TOKEN": "x", "AGENT_REPOS": "a/b"}):
             with self.assertRaises(BoardError):
                 Config.from_env(env)
+
+
+def blocker(n, reason="completed", state="closed"):
+    return {"number": n, "state": state, "state_reason": reason if state == "closed" else None, "repository": {"full_name": "rzvdaniel/automaton"}}
+
+
+class QueueTests(unittest.TestCase):
+    def setUp(self):
+        self.cards = [card(7, "Inbox", labels=["queue-when-unblocked"]), card(8)]
+
+    def run_pick(self, blockers):
+        gh = Fake(self.cards, runners={"runners": []})
+        gh.blockers = {"7": blockers}
+        board.pick_up(gh, cfg())
+        return gh
+
+    def test_all_blockers_completed_queues_at_bottom(self):
+        gh = self.run_pick([blocker(5), blocker(6)])
+        self.assertIn(("move", "I7", "o-Ready for agents"), gh.calls)
+        self.assertIn(("after", "I7", "I8"), gh.calls)
+        self.assertIn(("POST", "/repos/rzvdaniel/automaton/issues/7/comments", {"body": "Unblocked by #5, #6; queued."}), gh.calls)
+        self.assertIn(("DELETE", "/repos/rzvdaniel/automaton/issues/7/labels/queue-when-unblocked", None), gh.calls)
+
+    def test_open_blocker_or_none_stays(self):
+        for blockers in ([blocker(5), blocker(6, state="open")], []):
+            gh = self.run_pick(blockers)
+            self.assertFalse([c for c in gh.calls if c[0] == "move"])
+
+    def test_not_planned_comments_once_and_stays(self):
+        gh = self.run_pick([blocker(5, "not_planned")])
+        self.assertFalse([c for c in gh.calls if c[0] == "move"])
+        posts = [c for c in gh.calls if c[0] == "POST" and c[1].endswith("/issues/7/comments")]
+        self.assertEqual(len(posts), 1)
+        self.cards[0]["comments"] = [{"body": posts[0][2]["body"]}]
+        gh = self.run_pick([blocker(5, "not_planned")])
+        self.assertFalse([c for c in gh.calls if c[0] == "POST"])
+
+    def test_unlabelled_or_other_column_ignored(self):
+        self.cards = [card(7, "Inbox"), card(9, "Verify", labels=["queue-when-unblocked"])]
+        gh = Fake(self.cards, runners={"runners": []})
+        gh.blockers = {"7": [blocker(5)], "9": [blocker(5)]}
+        board.pick_up(gh, cfg())
+        self.assertFalse([c for c in gh.calls if c[0] == "move"])
 
 
 class PickTests(unittest.TestCase):
