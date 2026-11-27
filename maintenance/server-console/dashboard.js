@@ -1215,5 +1215,6 @@
   setInterval(loadCleanup, 30000);
   setInterval(load, 30000);
   setInterval(function () { UI.updateRelativeTimes(document); }, 30000);
+  // Hook for test_render.js only: hands the render functions to the test.
   if (window.__serverKeeperTest) window.__serverKeeperTest({ diskTiles: diskTiles, needs: needs, headline: headline, healthList: healthList, maintenanceList: maintenanceList });
 })();
