@@ -1,0 +1,32 @@
+{
+  "name": "Head Counter",
+  "summary": "Tracks server and CLI installer downloads from public Automaton releases, excluding our own checks.",
+  "application": {
+    "kind": "web",
+    "permissions": [],
+    "description": "Keeps daily public server installer and CLI download snapshots and subtracts our reported downloads.",
+    "pages": [{ "path": "/", "label": "Adoption" }],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": ["-c", "python -m py_compile main.py && mkdir -p dist/ui && cp main.py index.html page.js dist/ && cp ui/app.css ui/app.js dist/ui/"],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": { "executable": "python", "arguments": ["main.py"], "workingDirectory": "dist" },
+      "port": 8080
+    },
+    "health": { "path": "/health", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "openPaths": ["/ours", "/summary.json"],
+    "secrets": [
+      { "name": "HEAD_COUNTER_TOKEN", "description": "Shared secret of at least 16 characters for own-download reports and summary.json." }
+    ]
+  }
+}

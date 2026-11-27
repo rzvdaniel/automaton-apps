@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-look="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Head Counter</title>
+<link rel="stylesheet" href="/ui/app.css">
+<script src="/ui/app.js" defer></script>
+<script src="/page.js" defer></script>
+</head>
+<body>
+<header class="a-topbar"><div class="a-topbar__inner">
+  <div class="a-header"><svg class="a-brand" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10"/><path d="M10 15l5 4-5 4M30 15l-5 4 5 4M17 27h6"/></svg>
+    <div><h1 class="a-header__title">Head Counter</h1><p class="a-header__sub">Public release downloads, without calling home</p></div></div>
+  <div class="a-header__actions"><button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div>
+</div></header>
+<main class="a-page a-stack">
+  <p id="message" class="a-note a-note--warning" hidden></p>
+  <section class="a-card">
+    <div class="a-card__head"><h2 class="a-card__title">This week, excluding ours</h2></div>
+    <div class="a-stats">
+      <div class="a-stat"><div class="a-stat__label">Server installs</div><div class="a-stat__value" id="server">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">CLI installs</div><div class="a-stat__value" id="cli">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">Server installs since start</div><div class="a-stat__value" id="total">—</div></div>
+    </div>
+    <p class="a-card__foot">Downloads, not confirmed running servers.</p>
+    <p class="a-card__foot" id="window">Waiting for the first snapshot.</p>
+  </section>
+  <section class="a-card">
+    <div class="a-card__head"><h2 class="a-card__title">This week by release</h2></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">Server installs</th><th class="a-num">CLI installs</th></tr></thead><tbody id="weekly"></tbody></table></div>
+  </section>
+  <section class="a-card">
+    <div class="a-card__head"><h2 class="a-card__title">GitHub totals</h2></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">Server downloads</th><th class="a-num">CLI downloads</th><th class="a-num">Others server</th><th class="a-num">Others CLI</th></tr></thead><tbody id="github"></tbody></table></div>
+    <p class="a-card__foot">Totals are cumulative on GitHub. Estimates subtract our reports and cannot identify individual people.</p>
+  </section>
+  <section class="a-card">
+    <div class="a-card__head"><h2 class="a-card__title">Record one of ours</h2></div>
+    <form id="manual" class="a-form">
+      <div class="a-field"><label class="a-label" for="version">Release</label><select class="a-input" id="version" required></select></div>
+      <div class="a-field"><label class="a-label" for="file">File downloaded</label><select class="a-input" id="file" required></select></div>
+      <button class="a-btn a-btn--primary" type="submit">+1 ours</button>
+    </form>
+  </section>
+  <section class="a-card">
+    <div class="a-card__head"><h2 class="a-card__title">Recent reports from us</h2></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Time (UTC)</th><th>Release</th><th>File</th><th>Source</th></tr></thead><tbody id="ours"></tbody></table></div>
+  </section>
+</main>
+</body>
+</html>
