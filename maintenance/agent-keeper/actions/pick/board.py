@@ -23,6 +23,8 @@ OWNER_NAME = re.compile(r"^[A-Za-z0-9_.\-]+$")
 BOARD = re.compile(r"^([A-Za-z0-9_.\-]+)/([0-9]{1,6})$")
 NOT_SHAPED_COMMENT = "Moved back to Inbox: the issue has the needs-shape label or no Done when section. Add a Done when, then move the card to Ready for agents."
 
+QUEUE_LABEL = "queue-when-unblocked"
+
 
 class BoardError(RuntimeError):
     """A failure that is safe to show: it never contains the token."""
@@ -171,6 +173,68 @@ def move(gh: GitHub, board: dict, card: dict, status: str) -> None:
     card["status"] = status
 
 
+def move_to_bottom(gh: GitHub, board: dict, card: dict) -> None:
+    """Puts a card after the last other card of its column (best effort: the order is never needed for correctness)."""
+    last = [c for c in board["cards"] if c["status"] == card["status"] and c is not card]
+    if not last:
+        return
+    mutation = ("mutation($p: ID!, $i: ID!, $a: ID!) { updateProjectV2ItemPosition(input: {projectId: $p, itemId: $i, afterId: $a}) "
+                "{ items(first: 1) { totalCount } } }")
+    try:
+        gh.graphql(mutation, {"p": board["id"], "i": card["item"], "a": last[-1]["item"]})
+    except BoardError:
+        pass
+
+
+def _ref(blocker: dict, repo: str) -> str:
+    name = (blocker.get("repository") or {}).get("full_name")
+    return f"#{blocker['number']}" if not name or name == repo else f"{name}#{blocker['number']}"
+
+
+def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
+    """Inbox cards labelled queue-when-unblocked move to Ready for agents (bottom) once every blocker (GitHub issue dependency) is
+    closed as completed. A blocker closed as not planned gets one comment and the card stays in Inbox. Returns what moved."""
+    moved = []
+    for card in list(board["cards"]):
+        if card["status"] != INBOX or QUEUE_LABEL not in card["labels"] or card["short"] not in config.repos or not card["open"]:
+            continue
+        base = f"/repos/{card['repo']}/issues/{card['number']}"
+        try:
+            blockers = gh.get(base + "/dependencies/blocked_by?per_page=100") or []
+        except BoardError:
+            continue
+        if not blockers or any(b.get("state") != "closed" for b in blockers):
+            continue
+        refs = lambda items: ", ".join(_ref(b, card["repo"]) for b in items)
+        dropped = [b for b in blockers if b.get("state_reason") == "not_planned"]
+        if dropped:
+            text = f"Not queued: {refs(dropped)} was closed as not planned. Remove the blocker or move the card yourself."
+            if not any((c.get("body") or "") == text for c in card["comments"][-1:]):
+                try:
+                    gh.request("POST", base + "/comments", {"body": text})
+                except BoardError:
+                    pass
+            continue
+        try:
+            move(gh, board, card, READY)
+        except BoardError:
+            continue
+        move_to_bottom(gh, board, card)
+        board["cards"].remove(card)
+        board["cards"].append(card)  # the pass picks in board order, so a queued card waits behind the ones already Ready
+        try:
+            gh.request("POST", base + "/comments", {"body": f"Unblocked by {refs(blockers)}; queued."})
+        except BoardError:
+            pass
+        try:
+            gh.request("DELETE", base + f"/labels/{QUEUE_LABEL}")
+        except BoardError:
+            pass
+        card["labels"].remove(QUEUE_LABEL)
+        moved.append(f"{card['repo']}#{card['number']} to {READY}")
+    return moved
+
+
 def running_issues(gh: GitHub, config: Config) -> list:
     """Open issues labelled agent:go in the picked repositories."""
     found = []
@@ -226,6 +290,7 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
                 result["moved"].append(f"{card['repo']}#{card['number']} to {REVIEW}")
             except BoardError as error:
                 result["message"] = str(error)
+    result["moved"] += queue_unblocked(gh, board, config)
     if not runner_ok(gh, config):
         result["message"] = "The runner is not set up yet; nothing picked."
         return result
