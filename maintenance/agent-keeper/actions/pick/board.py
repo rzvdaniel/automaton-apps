@@ -109,8 +109,9 @@ items(first: 100) { nodes {
     number title state body url repository { nameWithOwner }
     labels(first: 30) { nodes { name } }
     comments(last: 30) { nodes { author { login } body createdAt url } }
-    closedByPullRequestsReferences(first: 5, includeClosedPrs: true) { nodes { number url state } }
-    timelineItems(last: 20, itemTypes: [CROSS_REFERENCED_EVENT]) { nodes { ... on CrossReferencedEvent { source { ... on PullRequest { number url state } } } } }
+    closedByPullRequestsReferences(first: 5, includeClosedPrs: true) { nodes { number url state createdAt } }
+    timelineItems(last: 20, itemTypes: [CROSS_REFERENCED_EVENT]) { nodes { ... on CrossReferencedEvent { source { ... on PullRequest { number url state createdAt } } } } }
+    labelEvents: timelineItems(last: 50, itemTypes: [LABELED_EVENT]) { nodes { ... on LabeledEvent { createdAt label { name } } } }
   } }
 } }
 """
@@ -135,6 +136,8 @@ def load_board(gh: GitHub, config: Config) -> dict:
             pr = (event or {}).get("source") or {}
             if pr.get("number"):
                 prs.setdefault(pr["number"], pr)
+        started = [e.get("createdAt") for e in (issue.get("labelEvents") or {}).get("nodes") or []
+                   if e and (e.get("label") or {}).get("name") == "agent:go" and e.get("createdAt")]
         repo = issue["repository"]["nameWithOwner"]
         cards.append({
             "item": node["id"], "repo": repo, "short": repo.split("/")[-1], "number": issue["number"], "title": issue.get("title") or "",
@@ -142,9 +145,17 @@ def load_board(gh: GitHub, config: Config) -> dict:
             "body": issue.get("body") or "", "labels": [x["name"] for x in (issue.get("labels") or {}).get("nodes") or []],
             "comments": (issue.get("comments") or {}).get("nodes") or [],
             "prs": sorted(prs.values(), key=lambda p: p["number"]),
+            "started": _ts(max(started)) if started else None,  # when agent:go was last put on the issue: the start of the current run
         })
     status_field = project.get("field") or {}
     return {"id": project["id"], "field": status_field.get("id"), "options": {o["name"]: o["id"] for o in status_field.get("options") or []}, "cards": cards}
+
+
+def run_prs(card: dict) -> list:
+    """The pull requests opened by the card's current run: created at or after agent:go was last added. Older ones (earlier runs, other
+    work that mentions the issue) are ignored. When the start or a PR's creation time is unknown, the PR counts."""
+    started = card.get("started")
+    return [p for p in card["prs"] if not started or not _ts(p.get("createdAt")) or _ts(p["createdAt"]) >= started]
 
 
 def shaped(card: dict) -> bool:
@@ -319,7 +330,7 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
     runner_ok = runner_ok or runner_registered
     board = load_board(gh, config)
     for card in board["cards"]:
-        if card["status"] == RUNNING and card["short"] in config.repos and card["open"] and card["prs"]:
+        if card["status"] == RUNNING and card["short"] in config.repos and card["open"] and run_prs(card):
             try:
                 move(gh, board, card, REVIEW)
                 result["moved"].append(f"{card['repo']}#{card['number']} to {REVIEW}")
