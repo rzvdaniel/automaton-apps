@@ -1,0 +1,31 @@
+{
+  "name": "Team Tracker",
+  "summary": "Requests with status, priority, owner, due date and comments, as a board and a table, for a small team.",
+  "description": "A small request and project tracker. Each item has a title, status (New, In progress, Done), priority, owner, due date and comments. Switch between a board and a table, filter by owner and status. Team members sign in through Automaton. Example app built from a one-paragraph description; not in the catalog.",
+  "application": {
+    "kind": "web",
+    "permissions": [],
+    "description": "Requests with status, priority, owner, due date and comments, as a board and a table.",
+    "pages": [{ "path": "/", "label": "Tracker" }],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": ["-c", "python -m py_compile main.py store.py && mkdir -p dist/ui && cp main.py store.py dist/ && cp ui/app.css ui/app.js ui/tracker.css ui/tracker.js dist/ui/"],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": { "executable": "python", "arguments": ["main.py"], "workingDirectory": "dist" },
+      "port": 8080
+    },
+    "health": { "path": "/health", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] },
+    "settings": [],
+    "secrets": []
+  }
+}

@@ -1,0 +1,14 @@
+.t-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.t-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:760px){.t-board{grid-template-columns:1fr}}
+.t-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.t-card{padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.t-item summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
+.t-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.t-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.t-comments{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.t-sub{font-size:14px;margin:12px 0 4px}
+.a-input{max-width:100%}
+.t-card>.a-pill{align-self:flex-start}
+
+.a-header>.t-head{padding-top:16px;padding-bottom:8px}
