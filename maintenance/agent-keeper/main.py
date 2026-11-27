@@ -69,7 +69,8 @@ class Keeper:
 
     def config(self):
         return board.Config.from_env({"AGENT_GH_TOKEN": self.settings.gh_token, "AGENT_BOARD": self.settings.board, "AGENT_REPOS": self.settings.repos,
-                                      "AGENT_PARALLEL": self.settings.parallel, "AGENT_REPO": self.settings.repo})
+                                      "AGENT_PARALLEL": self.settings.parallel, "AGENT_REPO": self.settings.repo,
+                                      **self.settings.agent_choice})
 
     def cached(self, name: str, ttl: float, make):
         with self.lock:
