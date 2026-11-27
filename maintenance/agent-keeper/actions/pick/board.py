@@ -70,6 +70,7 @@ class GitHub:
 
     def __init__(self, token: str, timeout: float = 30):
         self.token, self.timeout = token, timeout
+        self.last_headers = None
 
     def request(self, method: str, path: str, body=None):
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/vnd.github+json", "User-Agent": USER_AGENT,
@@ -81,6 +82,7 @@ class GitHub:
         try:
             with build_opener(_NoRedirect()).open(Request(API + path, data=data, method=method, headers=headers), timeout=self.timeout) as response:
                 raw = response.read(8_000_000).decode("utf-8")
+                self.last_headers = response.headers
                 return json.loads(raw) if raw else None
         except HTTPError as error:
             raise BoardError(f"GitHub answered HTTP {error.code} for {method} {path.split('?')[0]}.") from None
@@ -355,6 +357,23 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
         return result
     result["message"] = result["message"] or "No Ready card."
     return result
+
+
+def token_scopes(gh: GitHub):
+    """The scopes of a classic token (X-OAuth-Scopes of GET /user) as a list, or None when GitHub does not say (a fine-grained token)."""
+    gh.last_headers = None
+    gh.get("/user")
+    value = gh.last_headers.get("X-OAuth-Scopes") if gh.last_headers is not None else None
+    return None if value is None else [x.strip() for x in value.split(",") if x.strip()]
+
+
+def scope_problem(scopes) -> str | None:
+    if scopes is None:
+        return None
+    missing = [s for s in ("project", "repo", "workflow") if s not in scopes]
+    if not missing:
+        return None
+    return "The AGENT_GH_TOKEN has no " + ", ".join(missing) + " scope, so Pick up cannot work. Create a token with the project, repo and workflow scopes and save it as the AGENT_GH_TOKEN secret."
 
 
 def runner_registered(gh: GitHub, config: Config) -> bool:

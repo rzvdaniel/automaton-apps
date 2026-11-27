@@ -43,6 +43,7 @@ An administrator starts every host run on the page, because the platform require
 - The registration or removal token is typed into the page, travels to the script on standard input (never in the script text, arguments or logs of this app), is used once and is never saved. The platform masks any output line that repeats it, and the app removes it from the output it keeps.
 - `CLAUDE_CODE_OAUTH_TOKEN` lives only in the repository's GitHub secrets, which you add once under **Settings -> Secrets and variables -> Actions**. This app never reads it.
 - `AGENT_GH_TOKEN` is this app's secret (Studio, the app's secrets): it reads and moves cards on the board, labels issues and starts `agent-issue.yml`. It is sent only to api.github.com and never shown or logged.
+- The Queue and Setup tabs show a red line when a classic token lacks the project, repo or workflow scope (read from GitHub's `X-OAuth-Scopes` header, once an hour) or when no token is saved. Fine-grained tokens send no such header, so they are not checked.
 - The app keeps only the last log of each action and the last status in its data folder. The page shows the most recent of them, collapsed to one status line that opens on click.
 
 | Name | Kind | Meaning |

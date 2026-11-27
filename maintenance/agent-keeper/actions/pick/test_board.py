@@ -219,5 +219,22 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual([c["number"] for c in snap["ready"]], [3, 4])
 
 
+class ScopeTests(unittest.TestCase):
+    def gh(self, header):
+        class G(board.GitHub):
+            def get(self, path):
+                self.last_headers = {} if header is None else {"X-OAuth-Scopes": header}
+                return {}
+        return G("t")
+
+    def test_missing_project(self):
+        problem = board.scope_problem(board.token_scopes(self.gh("repo, workflow")))
+        self.assertIn("no project scope", problem)
+
+    def test_complete_and_unknown(self):
+        self.assertIsNone(board.scope_problem(board.token_scopes(self.gh("project, repo, workflow"))))
+        self.assertIsNone(board.scope_problem(board.token_scopes(self.gh(None))))  # fine-grained token: no header
+
+
 if __name__ == "__main__":
     unittest.main()
