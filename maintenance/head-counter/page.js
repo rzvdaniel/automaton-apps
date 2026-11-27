@@ -17,6 +17,8 @@ async function api(path, method = 'GET', body = null, retry = true) {
   return response.json();
 }
 
+let releases = [];
+
 function rows(id, values) {
   const table = $(id);
   table.replaceChildren();
@@ -26,21 +28,32 @@ function rows(id, values) {
   }
 }
 
+function updateFiles() {
+  const previous = $('file').value;
+  const release = releases.find(r => r.version === $('version').value);
+  const files = new Set(['install-automaton.sh', 'install.sh', 'automaton-server.tar.gz']);
+  for (const file of release?.files || []) files.add(file.file);
+  $('file').replaceChildren(...Array.from(files, name => new Option(name, name)));
+  if (files.has(previous)) $('file').value = previous;
+}
+
 async function refresh() {
   try {
     const data = await api('/api/summary');
-    $('installs').textContent = data.week?.installs ?? '—';
-    $('updates').textContent = data.week?.updates ?? '—';
-    $('total').textContent = data.since_start?.installs ?? '—';
+    $('server').textContent = data.week?.server_installs ?? '—';
+    $('cli').textContent = data.week?.cli_installs ?? '—';
+    $('total').textContent = data.since_start?.server_installs ?? '—';
     $('window').textContent = data.week
       ? `${data.week.partial ? 'Partial week. ' : ''}Observed from ${data.week.from} to ${data.week.to} (UTC); snapshot refreshed hourly.`
       : (data.week_error || 'Waiting for the first snapshot.');
-    rows('weekly', (data.week?.releases || []).map(r => [r.version, r.installs, r.updates]));
-    rows('github', data.github.map(r => [r.version, r.install, r.bundle, r.others_install, r.others_updates]));
+    rows('weekly', (data.week?.releases || []).map(r => [r.version, r.server_installs, r.cli_installs]));
+    rows('github', data.github.map(r => [r.version, r.server_downloads, r.cli_downloads, r.others_server, r.others_cli]));
     rows('ours', data.ours.map(r => [r.at, r.version, r.file, r.source]));
     const previous = $('version').value;
-    $('version').replaceChildren(...data.github.map(r => new Option(r.version, r.version)));
+    releases = data.github;
+    $('version').replaceChildren(...releases.map(r => new Option(r.version, r.version)));
     if (data.github.some(r => r.version === previous)) $('version').value = previous;
+    updateFiles();
     $('message').textContent = data.error || '';
     $('message').hidden = !data.error;
   } catch (error) {
@@ -49,6 +62,7 @@ async function refresh() {
   }
 }
 
+$('version').onchange = updateFiles;
 $('manual').onsubmit = async event => {
   event.preventDefault();
   try {

@@ -4,6 +4,7 @@ import datetime as dt
 import hmac
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -12,10 +13,23 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-FILES = ("install.sh", "automaton-server.tar.gz")
+SERVER_INSTALLER = "install-automaton.sh"
+CLI_INSTALLER = "install.sh"
+BUNDLE = "automaton-server.tar.gz"
 API = "https://api.github.com/repos/rzvdaniel/automaton/releases"
 ROOT = Path(__file__).resolve().parent
 UTC = dt.timezone.utc
+
+
+def asset_kind(name):
+    if name == SERVER_INSTALLER:
+        return "server"
+    if name == CLI_INSTALLER or (isinstance(name, str) and re.fullmatch(
+            r"automaton-(?:linux|osx|win)-[a-z0-9_]+(?:\.exe)?", name)):
+        return "cli"
+    if name == BUNDLE:
+        return "bundle"
+    return None
 
 
 def timestamp():
@@ -35,9 +49,9 @@ def fetch_releases():
             tag = release["tag_name"]
             if not tag.startswith("server-v") or release.get("draft"):
                 continue
-            counts = {name: 0 for name in FILES}
+            counts = {}
             for asset in release["assets"]:
-                if asset["name"] in counts:
+                if asset_kind(asset["name"]):
                     count = asset["download_count"]
                     if not isinstance(count, int) or isinstance(count, bool) or count < 0:
                         raise ValueError("invalid download count")
@@ -63,6 +77,8 @@ class App:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS snapshots (day TEXT PRIMARY KEY, at TEXT NOT NULL, counts TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS baseline (id INTEGER PRIMARY KEY CHECK(id = 1), at TEXT NOT NULL, counts TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS snapshots_v2 (day TEXT PRIMARY KEY, at TEXT NOT NULL, counts TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS baseline_v2 (id INTEGER PRIMARY KEY CHECK(id = 1), at TEXT NOT NULL, counts TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS ours (id INTEGER PRIMARY KEY, at TEXT NOT NULL, file TEXT NOT NULL,
                                                   version TEXT NOT NULL, source TEXT NOT NULL);
             """)
@@ -83,8 +99,8 @@ class App:
     def snapshot(self, counts, at=None):
         at = at or timestamp()
         with self.lock, self.connect() as db:
-            db.execute("INSERT OR IGNORE INTO baseline VALUES (1, ?, ?)", (at, json.dumps(counts)))
-            db.execute("INSERT OR REPLACE INTO snapshots VALUES (?, ?, ?)", (at[:10], at, json.dumps(counts)))
+            db.execute("INSERT OR IGNORE INTO baseline_v2 VALUES (1, ?, ?)", (at, json.dumps(counts)))
+            db.execute("INSERT OR REPLACE INTO snapshots_v2 VALUES (?, ?, ?)", (at[:10], at, json.dumps(counts)))
             self.error = None
 
     def refresh(self):
@@ -105,8 +121,8 @@ class App:
         if not isinstance(body, dict):
             raise ValueError("send a JSON object")
         file, version, source = (body.get(k) for k in ("file", "version", "source"))
-        if file not in FILES or not isinstance(version, str) or not isinstance(source, str):
-            raise ValueError("file must be install.sh or automaton-server.tar.gz; version and source are required")
+        if not asset_kind(file) or not isinstance(version, str) or not isinstance(source, str):
+            raise ValueError("file must be a server installer, CLI installer, server bundle, or CLI binary; version and source are required")
         version = version.strip().removeprefix("server-v").removeprefix("v")
         source = source.strip()
         if not version or len(version) > 100 or not source or len(source) > 200:
@@ -117,8 +133,8 @@ class App:
 
     def summary(self):
         with self.lock, self.connect() as db:
-            snapshots = db.execute("SELECT at, counts FROM snapshots ORDER BY at").fetchall()
-            baseline = db.execute("SELECT at, counts FROM baseline WHERE id = 1").fetchone()
+            snapshots = db.execute("SELECT at, counts FROM snapshots_v2 ORDER BY at").fetchall()
+            baseline = db.execute("SELECT at, counts FROM baseline_v2 WHERE id = 1").fetchone()
             ours = db.execute("SELECT at, file, version, source FROM ours ORDER BY id DESC").fetchall()
             error = self.error
         result = {"observed_from": None, "updated_at": None, "error": error, "week_error": None, "github": [],
@@ -135,12 +151,16 @@ class App:
         latest = json.loads(latest_raw)
         result.update(observed_from=first_at, updated_at=latest_at)
         for version, counts in sorted(latest.items(), reverse=True):
-            own = {f: sum(1 for _, file, v, _ in ours if file == f and v == version) for f in FILES}
-            install = max(0, counts[FILES[0]] - own[FILES[0]])
-            bundle = max(0, counts[FILES[1]] - own[FILES[1]])
-            result["github"].append({"version": version, "install": counts[FILES[0]], "bundle": counts[FILES[1]],
-                                     "ours_install": own[FILES[0]], "ours_bundle": own[FILES[1]],
-                                     "others_install": install, "others_updates": max(0, bundle - install)})
+            files = []
+            for file, count in sorted(counts.items()):
+                own = sum(1 for _, f, v, _ in ours if f == file and v == version)
+                files.append({"file": file, "downloads": count, "ours": own, "others": max(0, count - own)})
+            result["github"].append({
+                "version": version, "files": files,
+                "server_downloads": sum(f["downloads"] for f in files if asset_kind(f["file"]) == "server"),
+                "cli_downloads": sum(f["downloads"] for f in files if asset_kind(f["file"]) == "cli"),
+                "others_server": sum(f["others"] for f in files if asset_kind(f["file"]) == "server"),
+                "others_cli": sum(f["others"] for f in files if asset_kind(f["file"]) == "cli")})
 
         def period(at, raw):
             baseline = json.loads(raw)
@@ -148,14 +168,15 @@ class App:
             for version, counts in sorted(latest.items(), reverse=True):
                 old = baseline.get(version, {})
                 values = {}
-                for file in FILES:
-                    downloaded = max(0, counts.get(file, 0) - old.get(file, 0))
+                for file, count in counts.items():
+                    downloaded = max(0, count - old.get(file, 0))
                     own = sum(1 for when, f, v, _ in ours if at < when and f == file and v == version)
                     values[file] = max(0, downloaded - own)
-                installs = values[FILES[0]]
-                rows.append({"version": version, "installs": installs, "updates": max(0, values[FILES[1]] - installs)})
-            return {"from": at, "to": latest_at, "installs": sum(r["installs"] for r in rows),
-                    "updates": sum(r["updates"] for r in rows), "releases": rows}
+                rows.append({"version": version,
+                             "server_installs": sum(n for f, n in values.items() if asset_kind(f) == "server"),
+                             "cli_installs": sum(n for f, n in values.items() if asset_kind(f) == "cli")})
+            return {"from": at, "to": latest_at, "server_installs": sum(r["server_installs"] for r in rows),
+                    "cli_installs": sum(r["cli_installs"] for r in rows), "releases": rows}
         sunday = (now - dt.timedelta(days=now.weekday() + 1)).date().isoformat()
         if latest_at[:10] < monday:
             result["week_error"] = "No snapshot this week."

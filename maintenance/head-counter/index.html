@@ -17,29 +17,29 @@
 <main class="a-page a-stack">
   <p id="message" class="a-note a-note--warning" hidden></p>
   <section class="a-card">
-    <div class="a-card__head"><h2 class="a-card__title">Download proxies this week, excluding ours</h2></div>
+    <div class="a-card__head"><h2 class="a-card__title">This week, excluding ours</h2></div>
     <div class="a-stats">
-      <div class="a-stat"><div class="a-stat__label">CLI installer downloads</div><div class="a-stat__value" id="installs">—</div></div>
-      <div class="a-stat"><div class="a-stat__label">Bundles minus installer</div><div class="a-stat__value" id="updates">—</div></div>
-      <div class="a-stat"><div class="a-stat__label">CLI installer downloads since start</div><div class="a-stat__value" id="total">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">Server installs</div><div class="a-stat__value" id="server">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">CLI installs</div><div class="a-stat__value" id="cli">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">Server installs since start</div><div class="a-stat__value" id="total">—</div></div>
     </div>
+    <p class="a-card__foot">Downloads, not confirmed running servers.</p>
     <p class="a-card__foot" id="window">Waiting for the first snapshot.</p>
-    <p class="a-note a-note--warning">These are not server install or update counts: install.sh installs the CLI, while normal server updates can use GHCR instead of the release bundle.</p>
   </section>
   <section class="a-card">
     <div class="a-card__head"><h2 class="a-card__title">This week by release</h2></div>
-    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">CLI installer</th><th class="a-num">Bundle minus installer</th></tr></thead><tbody id="weekly"></tbody></table></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">Server installs</th><th class="a-num">CLI installs</th></tr></thead><tbody id="weekly"></tbody></table></div>
   </section>
   <section class="a-card">
     <div class="a-card__head"><h2 class="a-card__title">GitHub totals</h2></div>
-    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">install.sh</th><th class="a-num">Bundles</th><th class="a-num">Others CLI installer</th><th class="a-num">Others bundle minus installer</th></tr></thead><tbody id="github"></tbody></table></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">Server downloads</th><th class="a-num">CLI downloads</th><th class="a-num">Others server</th><th class="a-num">Others CLI</th></tr></thead><tbody id="github"></tbody></table></div>
     <p class="a-card__foot">Totals are cumulative on GitHub. Estimates subtract our reports and cannot identify individual people.</p>
   </section>
   <section class="a-card">
     <div class="a-card__head"><h2 class="a-card__title">Record one of ours</h2></div>
     <form id="manual" class="a-form">
       <div class="a-field"><label class="a-label" for="version">Release</label><select class="a-input" id="version" required></select></div>
-      <div class="a-field"><label class="a-label" for="file">File downloaded</label><select class="a-input" id="file"><option value="install.sh">install.sh</option><option value="automaton-server.tar.gz">automaton-server.tar.gz</option></select></div>
+      <div class="a-field"><label class="a-label" for="file">File downloaded</label><select class="a-input" id="file" required></select></div>
       <button class="a-btn a-btn--primary" type="submit">+1 ours</button>
     </form>
   </section>
