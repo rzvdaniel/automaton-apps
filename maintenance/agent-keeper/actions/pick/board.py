@@ -320,8 +320,16 @@ def start(gh: GitHub, config: Config, board: dict, card: dict) -> None:
     """Starts a run for a card: dispatch first (outside the home repository), then mark it taken, so a failed dispatch never leaves
     agent:go blocking the queue."""
     if card["short"] != HOME_REPO:
-        gh.request("POST", f"/repos/{config.full(HOME_REPO)}/actions/workflows/agent-issue.yml/dispatches",
-                   {"ref": "main", "inputs": {"repo": card["repo"], "number": str(card["number"]), **config.dispatch_inputs()}})
+        path = f"/repos/{config.full(HOME_REPO)}/actions/workflows/agent-issue.yml/dispatches"
+        base = {"repo": card["repo"], "number": str(card["number"])}
+        extra = config.dispatch_inputs()
+        try:
+            gh.request("POST", path, {"ref": "main", "inputs": {**base, **extra}})
+        except BoardError as error:
+            # GitHub answers 422 for inputs the workflow does not declare yet: start the run on the repository variables instead.
+            if not extra or "HTTP 422" not in str(error):
+                raise
+            gh.request("POST", path, {"ref": "main", "inputs": base})
     gh.request("POST", f"/repos/{card['repo']}/issues/{card['number']}/labels", {"labels": ["agent:go"]})
     try:
         move(gh, board, card, RUNNING)
