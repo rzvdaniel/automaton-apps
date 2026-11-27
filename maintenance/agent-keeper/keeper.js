@@ -6,7 +6,7 @@
   var overall = document.getElementById("overall");
   var tabN = document.getElementById("tab-n");
   var TABS = ["queue", "machine", "setup"];
-  var state = null, queue = null, latest = {}, message = "", poll = null, tab = "queue", refreshTimer = null;
+  var state = null, queue = null, latest = {}, tokenProblem = null, message = "", poll = null, tab = "queue", refreshTimer = null;
   var LABELS = { setup: "Set up", status: "Refresh status", remove: "Remove", "update-tools": "Update tools" };
   var REFRESH_MS = 5 * 60 * 1000;
 
@@ -50,6 +50,10 @@
       '<a href="#setup">Go to Setup</a>.</p></div>';
   }
 
+  function tokenNote() {
+    return tokenProblem ? '<div class="a-banner a-banner--critical" role="alert"><div class="a-banner__title">Pick up cannot work</div><div>' + esc(tokenProblem) + "</div></div>" : "";
+  }
+
   function stat(label, value, hint, tone) {
     return '<div class="a-stat' + (tone ? " a-stat--" + tone : "") + '"><div class="a-stat__label">' + esc(label) + '</div><div class="a-stat__value">' + esc(value) + '</div><div class="a-stat__hint">' + esc(hint) + "</div></div>";
   }
@@ -63,7 +67,7 @@
 
   function renderQueue() {
     if (state.missing) return '<section class="a-waiting"><h2 class="a-waiting__title">Not configured</h2><p>' + esc(state.missing) + "</p></section>";
-    var html = needsSetup() ? setupNote() : "";
+    var html = tokenNote() + (needsSetup() ? setupNote() : "");
     if (!queue) return html + '<p class="a-empty">Loading the queue.</p>';
     if (!queue.ok) return html + '<div class="a-note a-note--warning" role="alert">' + esc(queue.message) + "</div>";
     var q = queue.data, failed = q.failed, ready = q.ready.filter(function (c) { return c.shaped; }), recent = q.runs.filter(function (r) { return r.endedAt; });
@@ -173,7 +177,7 @@
   function renderSetup() {
     if (state.missing) return renderQueue();
     var p = parsed(), off = state.running || !state.admin ? " disabled" : "", at = setupAt();
-    var html = "";
+    var html = tokenNote();
     if (!state.admin) html += '<div class="a-note">Only a system administrator can run these. You can read the last results.</div>';
     if (!p) return html + '<p class="a-empty">Reading the machine. ' + (state.status ? esc(state.status.message || "") : "") + '</p><button class="a-btn" type="button" id="refresh"' + off + ">Refresh status</button>";
     if (!p.registered) {
@@ -291,6 +295,7 @@
   tab = TABS.indexOf(location.hash.slice(1)) >= 0 ? location.hash.slice(1) : "queue";
   load().then(function () {
     loadQueue();
+    request("api/token").then(function (r) { if (r.ok) { tokenProblem = r.body.problem || null; render(); } });
     request("api/latest").then(function (r) { if (r.ok) { latest = r.body || {}; render(); } });
     if (state && state.admin && !state.status && !state.missing) start("status");
   });

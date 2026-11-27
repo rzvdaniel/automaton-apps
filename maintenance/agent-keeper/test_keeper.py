@@ -174,6 +174,19 @@ class Fake(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
 
+class TokenProblemTests(unittest.TestCase):
+    def test_reports_missing_scope_and_missing_token(self):
+        app = main.Keeper(dict(BASE, AGENT_GH_TOKEN="x" * 20, AUTOMATON_APP_DATA_DIR=tempfile.mkdtemp()))
+        class G:
+            last_headers = None
+            def get(self, path):
+                self.last_headers = {"X-OAuth-Scopes": "repo, workflow"}
+        app.api = G()
+        self.assertIn("no project scope", app.token_problem())
+        none = main.Keeper(dict(BASE, AUTOMATON_APP_DATA_DIR=tempfile.mkdtemp()))
+        self.assertIn("No AGENT_GH_TOKEN", none.token_problem())
+
+
 class ServerTests(unittest.TestCase):
     def setUp(self):
         Fake.calls = []

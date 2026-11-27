@@ -91,6 +91,17 @@ class Keeper:
                 return {"ok": False, "message": str(error)}
         return self.cached("queue", 30, make)
 
+    def token_problem(self) -> str | None:
+        """Why the saved token cannot pick up (a missing scope), or None. Checked once an hour; an unreachable GitHub says nothing."""
+        if not self.settings.gh_token:
+            return "No AGENT_GH_TOKEN secret is saved, so Pick up cannot work. Save a token with the project, repo and workflow scopes."
+        def make():
+            try:
+                return board.scope_problem(board.token_scopes(self.api or board.GitHub(self.settings.gh_token)))
+            except board.BoardError:
+                return None
+        return self.cached("scopes", 3600, make)
+
     def latest(self) -> dict:
         return self.cached("latest", 3600, keeper.latest_versions)
 
@@ -212,6 +223,8 @@ def make_handler(app: Keeper):
                 return self.send_body(200, b"ok", "text/plain")
             if path == "/api/queue":
                 return self.json(200, app.queue())
+            if path == "/api/token":
+                return self.json(200, {"problem": app.token_problem()})
             if path == "/api/latest":
                 return self.json(200, app.latest())
             if path == "/api/state":
