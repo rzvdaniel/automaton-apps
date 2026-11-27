@@ -236,7 +236,7 @@ class PageTests(unittest.TestCase):
         for needle in ('data-look="system"', 'class="a-topbar sk-top"', "fonts.googleapis.com/css2?family=Bricolage+Grotesque", 'href="console.css"'):
             self.assertIn(needle, page)
         script = open(os.path.join(here, "dashboard.js"), encoding="utf-8").read()
-        for needle in ('class="needs"', "Everything is healthy", 'class="tiles"', 'class="lists"', "Install updates", "Free it now", "Left by deleted apps"):
+        for needle in ('class="needs a-banner', "Everything is healthy", 'class="tiles"', 'class="lists"', "Install updates", "Free it now", "Left by deleted apps"):
             self.assertIn(needle, script)
         for tab in ("Overview", "Maintenance", "Apps on this machine"):
             self.assertIn(tab, page)
@@ -254,6 +254,14 @@ class PageTests(unittest.TestCase):
         self.assertIn(".task__row", css)
         for task in ("Cleanup", "Backup", "Upgrade Runners", "OS updates", "Restart server"):
             self.assertIn('"' + task + '"', script)
+
+    def test_overview_renders_a_tile_per_disk_and_a_needs_you_banner(self):
+        import shutil, subprocess
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        here = Path(__file__).parent
+        done = subprocess.run(["node", str(here / "test_render.js")], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
 
     def test_the_os_update_panel_is_full_width_never_floats_and_has_every_state(self):
         here = Path(__file__).parent
