@@ -83,7 +83,7 @@ def priority_pill(priority: str) -> str:
 
 def details(item: dict, ctx: dict) -> str:
     comments = "".join(f'<li><strong>{escape(c["author"])}</strong> <span class="a-hint">{ago(c["at"])}</span><br>{escape(c["text"])}</li>' for c in item["comments"]) or '<li class="a-hint">No comments yet.</li>'
-    moves = "".join(f'<form method="post" action="items/move">{ctx["hidden"]}<input type="hidden" name="id" value="{item["id"]}"><input type="hidden" name="status" value="{s}"><button class="a-btn" type="submit">{escape(s)}</button></form>'
+    moves = "".join(f'<form method="post" action="items/move">{ctx["hidden"]}<input type="hidden" name="id" value="{item["id"]}"><input type="hidden" name="status" value="{s}">{ctx["token"]}<button class="a-btn" type="submit">{escape(s)}</button></form>'
                     for s in STATUSES if s != item["status"])
     return (f'<details class="t-item"><summary>{escape(item["title"])}</summary>'
             f'<p class="a-hint">{escape(item["description"])}</p>'
@@ -105,7 +105,7 @@ def board(items: list, ctx: dict) -> str:
     for status in STATUSES:
         mine = [i for i in items if i["status"] == status]
         body = "".join(card(i, ctx) for i in mine) or '<div class="a-empty">Nothing here</div>'
-        cols.append(f'<section class="t-col"><h2 class="a-card__title">{status} <span class="a-pill">{len(mine)}</span></h2>{body}</section>')
+        cols.append(f'<section class="t-col"><h2 class="a-card__title">{escape(status)} <span class="a-pill">{len(mine)}</span></h2>{body}</section>')
     return f'<div class="t-board">{"".join(cols)}</div>'
 
 

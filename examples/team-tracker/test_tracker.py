@@ -120,6 +120,15 @@ class StandaloneTests(unittest.TestCase):
         self.assertEqual(call(self.base, "/items/add", {"title": "y"}, {"Authorization": "Bearer a-long-enough-token"})[0], 303)
         self.assertEqual(len(self.app.store.list()), 2)
 
+    def test_every_form_carries_the_token_field(self):
+        self.start("a-long-enough-token")
+        self.app.store.add({"title": "x"}, "a")
+        _, page = call(self.base, "/")
+        forms = page.split("<form")[1:]
+        for form in forms:
+            if 'method="post"' in form.split(">")[0]:
+                self.assertIn('name="admin_token"', form.split("</form>")[0])
+
     def test_short_token_never_works(self):
         self.start("short")
         self.assertEqual(call(self.base, "/items/add", {"title": "x", "admin_token": "short"})[0], 401)
