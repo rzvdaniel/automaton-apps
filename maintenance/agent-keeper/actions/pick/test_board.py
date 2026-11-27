@@ -90,6 +90,18 @@ class QueueTests(unittest.TestCase):
             gh = self.run_pick(blockers)
             self.assertFalse([c for c in gh.calls if c[0] == "move"])
 
+    def test_open_blocker_with_merged_pr_on_board_queues_with_pr_named(self):
+        self.cards.append(card(5, "Running", prs=[{"number": 1804, "state": "MERGED"}]))
+        gh = self.run_pick([blocker(5, state="open")])
+        self.assertIn(("move", "I7", "o-Ready for agents"), gh.calls)
+        self.assertIn(("POST", "/repos/rzvdaniel/automaton/issues/7/comments", {"body": "Unblocked by #5 (merged in PR #1804); queued."}), gh.calls)
+
+    def test_open_blocker_in_verify_queues_and_open_pr_does_not(self):
+        self.cards.append(card(5, "Verify"))
+        self.assertIn(("move", "I7", "o-Ready for agents"), self.run_pick([blocker(5, state="open")]).calls)
+        self.cards[-1].update(status="Inbox", prs=[{"number": 9, "state": "CLOSED"}])
+        self.assertFalse([c for c in self.run_pick([blocker(5, state="open")]).calls if c[0] == "move"])
+
     def test_not_planned_comments_once_and_stays(self):
         gh = self.run_pick([blocker(5, "not_planned")])
         self.assertFalse([c for c in gh.calls if c[0] == "move"])
