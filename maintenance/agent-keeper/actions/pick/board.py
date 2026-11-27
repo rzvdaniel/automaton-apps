@@ -191,9 +191,34 @@ def _ref(blocker: dict, repo: str) -> str:
     return f"#{blocker['number']}" if not name or name == repo else f"{name}#{blocker['number']}"
 
 
+MERGED_QUERY = ("query($o: String!, $r: String!, $n: Int!) { repository(owner: $o, name: $r) { issue(number: $n) { "
+                "closedByPullRequestsReferences(first: 10, includeClosedPrs: true) { nodes { number state } } } } }")
+
+
+def blocker_done(gh: GitHub, board: dict, blocker: dict, repo: str):
+    """None while the blocker is still open work, else the pull request number that merged for it (0 when none is needed): closed as
+    completed, a merged pull request closes it, or its card is in Verify or Done."""
+    if blocker.get("state") == "closed":
+        return None if blocker.get("state_reason") == "not_planned" else 0
+    name = (blocker.get("repository") or {}).get("full_name") or repo
+    on_board = next((c for c in board["cards"] if c["repo"] == name and c["number"] == blocker["number"]), None)
+    prs = list(on_board["prs"]) if on_board else []
+    if on_board and on_board["status"] in (REVIEW, "Done"):
+        return max((p["number"] for p in prs if p.get("state") == "MERGED"), default=0)
+    if not on_board:
+        try:
+            owner, _, short = name.partition("/")
+            data = gh.graphql(MERGED_QUERY, {"o": owner, "r": short, "n": blocker["number"]})
+            prs = (((data.get("repository") or {}).get("issue") or {}).get("closedByPullRequestsReferences") or {}).get("nodes") or []
+        except (BoardError, AttributeError):
+            prs = []
+    merged = [p["number"] for p in prs if p.get("state") == "MERGED"]
+    return max(merged) if merged else None
+
+
 def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
     """Inbox cards labelled queue-when-unblocked move to Ready for agents (bottom) once every blocker (GitHub issue dependency) is
-    closed as completed. A blocker closed as not planned gets one comment and the card stays in Inbox. Returns what moved."""
+    closed as completed, or done another way (a merged pull request closes it, or its card is in Verify or Done). A blocker closed as not planned gets one comment and the card stays in Inbox. Returns what moved."""
     moved = []
     for card in list(board["cards"]):
         if card["status"] != INBOX or QUEUE_LABEL not in card["labels"] or card["short"] not in config.repos or not card["open"]:
@@ -203,10 +228,16 @@ def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
             blockers = gh.get(base + "/dependencies/blocked_by?per_page=100") or []
         except BoardError:
             continue
-        if not blockers or any(b.get("state") != "closed" for b in blockers):
+        if not blockers:
             continue
         refs = lambda items: ", ".join(_ref(b, card["repo"]) for b in items)
-        dropped = [b for b in blockers if b.get("state_reason") == "not_planned"]
+        dropped = [b for b in blockers if b.get("state") == "closed" and b.get("state_reason") == "not_planned"]
+        merged = {}
+        if not dropped:
+            for b in blockers:
+                merged[b["number"]] = blocker_done(gh, board, b, card["repo"])
+            if any(v is None for v in merged.values()):
+                continue
         if dropped:
             text = f"Not queued: {refs(dropped)} was closed as not planned. Remove the blocker or move the card yourself."
             if not any((c.get("body") or "") == text for c in card["comments"][-1:]):
@@ -215,6 +246,8 @@ def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
                 except BoardError:
                     pass
             continue
+        describe = lambda items, m: ", ".join(
+            _ref(b, card["repo"]) + (f" (merged in PR #{m[b['number']]})" if m.get(b["number"]) and b.get("state") != "closed" else "") for b in items)
         try:
             move(gh, board, card, READY)
         except BoardError:
@@ -223,7 +256,7 @@ def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
         board["cards"].remove(card)
         board["cards"].append(card)  # the pass picks in board order, so a queued card waits behind the ones already Ready
         try:
-            gh.request("POST", base + "/comments", {"body": f"Unblocked by {refs(blockers)}; queued."})
+            gh.request("POST", base + "/comments", {"body": f"Unblocked by {describe(blockers, merged)}; queued."})
         except BoardError:
             pass
         try:
