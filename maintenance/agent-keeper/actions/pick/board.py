@@ -38,6 +38,16 @@ class Config:
     repos: list = field(default_factory=lambda: DEFAULT_REPOS.split())
     parallel: int = 1
     runner_repo: str = ""
+    agent_cli: str = ""
+    agent_model: str = ""
+    review_cli: str = ""
+    review_model: str = ""
+
+    def dispatch_inputs(self) -> dict:
+        """Only the choices that are set; agent-issue.yml falls back to its repo variables for the rest."""
+        pairs = {"agent_cli": self.agent_cli, "agent_model": self.agent_model,
+                 "review_cli": self.review_cli, "review_model": self.review_model}
+        return {k: v for k, v in pairs.items() if v}
 
     @classmethod
     def from_env(cls, env) -> "Config":
@@ -54,10 +64,25 @@ class Config:
         if raw not in ("1", "2"):
             raise BoardError("AGENT_PARALLEL must be 1 or 2.")
         runner_repo = (env.get("AGENT_REPO") or "").strip().removeprefix("https://github.com/").strip("/")
-        return cls(token, match.group(1), int(match.group(2)), repos, int(raw), runner_repo)
+        choice = {}
+        for key in ("AGENT_CLI", "AGENT_REVIEW_CLI"):
+            value = (env.get(key) or "").strip().lower()
+            if value not in ("", "claude", "agy"):
+                raise BoardError(f"{key} must be claude or agy.")
+            choice[key] = value
+        for key in ("AGENT_MODEL", "AGENT_REVIEW_MODEL"):
+            value = (env.get(key) or "").strip()
+            if value and not MODEL_NAME.match(value):
+                raise BoardError(f"{key} has characters that are not allowed.")
+            choice[key] = value
+        return cls(token, match.group(1), int(match.group(2)), repos, int(raw), runner_repo,
+                   choice["AGENT_CLI"], choice["AGENT_MODEL"], choice["AGENT_REVIEW_CLI"], choice["AGENT_REVIEW_MODEL"])
 
     def full(self, repo: str) -> str:
         return repo if "/" in repo else f"{self.owner}/{repo}"
+
+
+MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,79}$")
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -296,7 +321,7 @@ def start(gh: GitHub, config: Config, board: dict, card: dict) -> None:
     agent:go blocking the queue."""
     if card["short"] != HOME_REPO:
         gh.request("POST", f"/repos/{config.full(HOME_REPO)}/actions/workflows/agent-issue.yml/dispatches",
-                   {"ref": "main", "inputs": {"repo": card["repo"], "number": str(card["number"])}})
+                   {"ref": "main", "inputs": {"repo": card["repo"], "number": str(card["number"]), **config.dispatch_inputs()}})
     gh.request("POST", f"/repos/{card['repo']}/issues/{card['number']}/labels", {"labels": ["agent:go"]})
     try:
         move(gh, board, card, RUNNING)

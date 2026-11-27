@@ -52,6 +52,7 @@ class Settings:
         if self.parallel not in ("1", "2"):
             raise ConfigError("AGENT_PARALLEL must be 1 or 2")
         self.gh_token = env.get("AGENT_GH_TOKEN", "").strip()
+        self.agent_choice = {k: env.get(k, "").strip() for k in ("AGENT_CLI", "AGENT_MODEL", "AGENT_REVIEW_CLI", "AGENT_REVIEW_MODEL")}
         self.board = (env.get("AGENT_BOARD", "").strip() or "rzvdaniel/17")
         self.repos = (env.get("AGENT_REPOS", "").strip() or "automaton automaton-apps automaton-monster")
         for value, pattern, label in ((self.name, NAME, "AGENT_RUNNER_NAME"), (self.labels, LABELS, "AGENT_RUNNER_LABELS"), (self.user, USER, "AGENT_RUNNER_USER")):

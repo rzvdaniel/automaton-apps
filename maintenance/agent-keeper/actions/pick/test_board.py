@@ -136,6 +136,20 @@ class PickTests(unittest.TestCase):
         self.assertEqual(gh.calls[0][2]["inputs"], {"repo": "rzvdaniel/automaton-apps", "number": "5"})
         self.assertIn("labels", gh.calls[1][1])
 
+    def test_agent_choice_goes_as_dispatch_inputs(self):
+        gh = Fake([card(5, repo="rzvdaniel/automaton-apps")])
+        board.pick_up(gh, cfg(agent_cli="agy", agent_model="m-1", review_cli="claude"))
+        self.assertEqual(gh.calls[0][2]["inputs"], {"repo": "rzvdaniel/automaton-apps", "number": "5",
+                                                    "agent_cli": "agy", "agent_model": "m-1", "review_cli": "claude"})
+
+    def test_agent_choice_is_validated(self):
+        env = {"AGENT_GH_TOKEN": "t"}
+        with self.assertRaises(board.BoardError):
+            Config.from_env({**env, "AGENT_CLI": "bash"})
+        with self.assertRaises(board.BoardError):
+            Config.from_env({**env, "AGENT_MODEL": "a b;rm"})
+        self.assertEqual(Config.from_env({**env, "AGENT_CLI": "AGY"}).agent_cli, "agy")
+
     def test_nothing_while_an_agent_go_issue_is_open(self):
         gh = Fake([card(1)], taken=[("rzvdaniel/automaton", 9)])
         self.assertEqual(board.pick_up(gh, cfg())["picked"], "")

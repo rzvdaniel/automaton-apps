@@ -58,6 +58,8 @@ An administrator starts every host run on the page, because the platform require
 | `AGENT_BOARD` | setting | The project board as `owner/number`, default `rzvdaniel/17`. |
 | `AGENT_REPOS` | setting | Repositories whose Ready cards are picked, default `automaton automaton-apps automaton-monster`. |
 | `AGENT_PARALLEL` | setting | Runs at once, `1` (default) or `2`. |
+| `AGENT_CLI`, `AGENT_MODEL` | setting, optional | Agent tool (`claude` or `agy`) and model for implementation runs; passed to `agent-issue.yml` as dispatch inputs. Empty keeps the repository variables. |
+| `AGENT_REVIEW_CLI`, `AGENT_REVIEW_MODEL` | setting, optional | Same for the main review (the security pass stays on Claude). |
 | `AGENT_GH_TOKEN` | secret | GitHub token with the project, repo and workflow scopes. |
 | `AGENT_DOCKER_ACCESS` | setting | Default `false`. `true` adds the runner user to the `docker` group. **Warning: membership in the docker group is root on the host** (a container can mount `/` and run privileged), and the runner runs jobs from any branch or pull request that targets it. Leave it off unless you accept that; otherwise use rootless Docker. Turning it off later does not remove an existing membership. |
 
