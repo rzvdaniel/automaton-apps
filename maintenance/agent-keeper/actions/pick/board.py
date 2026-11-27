@@ -195,7 +195,7 @@ def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
     """Inbox cards labelled queue-when-unblocked move to Ready for agents (bottom) once every blocker (GitHub issue dependency) is
     closed as completed. A blocker closed as not planned gets one comment and the card stays in Inbox. Returns what moved."""
     moved = []
-    for card in board["cards"]:
+    for card in list(board["cards"]):
         if card["status"] != INBOX or QUEUE_LABEL not in card["labels"] or card["short"] not in config.repos or not card["open"]:
             continue
         base = f"/repos/{card['repo']}/issues/{card['number']}"
@@ -210,14 +210,22 @@ def queue_unblocked(gh: GitHub, board: dict, config: Config) -> list:
         if dropped:
             text = f"Not queued: {refs(dropped)} was closed as not planned. Remove the blocker or move the card yourself."
             if not any((c.get("body") or "") == text for c in card["comments"][-1:]):
-                gh.request("POST", base + "/comments", {"body": text})
+                try:
+                    gh.request("POST", base + "/comments", {"body": text})
+                except BoardError:
+                    pass
             continue
         try:
             move(gh, board, card, READY)
         except BoardError:
             continue
         move_to_bottom(gh, board, card)
-        gh.request("POST", base + "/comments", {"body": f"Unblocked by {refs(blockers)}; queued."})
+        board["cards"].remove(card)
+        board["cards"].append(card)  # the pass picks in board order, so a queued card waits behind the ones already Ready
+        try:
+            gh.request("POST", base + "/comments", {"body": f"Unblocked by {refs(blockers)}; queued."})
+        except BoardError:
+            pass
         try:
             gh.request("DELETE", base + f"/labels/{QUEUE_LABEL}")
         except BoardError:

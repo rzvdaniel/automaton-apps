@@ -80,6 +80,11 @@ class QueueTests(unittest.TestCase):
         self.assertIn(("POST", "/repos/rzvdaniel/automaton/issues/7/comments", {"body": "Unblocked by #5, #6; queued."}), gh.calls)
         self.assertIn(("DELETE", "/repos/rzvdaniel/automaton/issues/7/labels/queue-when-unblocked", None), gh.calls)
 
+    def test_queued_card_does_not_jump_the_ready_queue(self):
+        gh = Fake(self.cards)
+        gh.blockers = {"7": [blocker(5)]}
+        self.assertEqual(board.pick_up(gh, cfg())["picked"], "rzvdaniel/automaton#8")
+
     def test_open_blocker_or_none_stays(self):
         for blockers in ([blocker(5), blocker(6, state="open")], []):
             gh = self.run_pick(blockers)
