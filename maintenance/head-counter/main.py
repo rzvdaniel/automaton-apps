@@ -121,7 +121,7 @@ class App:
             baseline = db.execute("SELECT at, counts FROM baseline WHERE id = 1").fetchone()
             ours = db.execute("SELECT at, file, version, source FROM ours ORDER BY id DESC").fetchall()
             error = self.error
-        result = {"observed_from": None, "updated_at": None, "error": error, "github": [],
+        result = {"observed_from": None, "updated_at": None, "error": error, "week_error": None, "github": [],
                   "week": None, "since_start": None,
                   "ours": [dict(zip(("at", "file", "version", "source"), row)) for row in ours[:100]]}
         if not snapshots:
@@ -156,7 +156,14 @@ class App:
                 rows.append({"version": version, "installs": installs, "updates": max(0, values[FILES[1]] - installs)})
             return {"from": at, "to": latest_at, "installs": sum(r["installs"] for r in rows),
                     "updates": sum(r["updates"] for r in rows), "releases": rows}
-        result["week"] = period(week_at, week_raw)
+        sunday = (now - dt.timedelta(days=now.weekday() + 1)).date().isoformat()
+        if latest_at[:10] < monday:
+            result["week_error"] = "No snapshot this week."
+        elif week_at[:10] < sunday:
+            result["week_error"] = "No recent snapshot before this week; weekly counts are unavailable."
+        else:
+            result["week"] = period(week_at, week_raw)
+            result["week"]["partial"] = week_at[:10] >= monday
         result["since_start"] = period(first_at, first_raw)
         return result
 

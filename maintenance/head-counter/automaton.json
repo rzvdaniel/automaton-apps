@@ -1,10 +1,10 @@
 {
   "name": "Head Counter",
-  "summary": "Estimates Automaton installs and updates from public GitHub release downloads, excluding our own checks.",
+  "summary": "Tracks public Automaton release download proxies, excluding our own checks.",
   "application": {
     "kind": "web",
     "permissions": [],
-    "description": "Keeps daily public release download snapshots and subtracts our reported downloads to estimate installs and updates by others.",
+    "description": "Keeps daily public release download snapshots and subtracts our reported downloads; these are not counts of server installs or updates.",
     "pages": [{ "path": "/", "label": "Adoption" }],
     "build": {
       "image": "python:3.12-slim",

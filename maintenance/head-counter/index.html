@@ -11,27 +11,28 @@
 <body>
 <header class="a-topbar"><div class="a-topbar__inner">
   <div class="a-header"><svg class="a-brand" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10"/><path d="M10 15l5 4-5 4M30 15l-5 4 5 4M17 27h6"/></svg>
-    <div><h1 class="a-header__title">Head Counter</h1><p class="a-header__sub">Automaton adoption, without calling home</p></div></div>
+    <div><h1 class="a-header__title">Head Counter</h1><p class="a-header__sub">Public release downloads, without calling home</p></div></div>
   <div class="a-header__actions"><button class="a-btn a-btn--icon" type="button" data-theme-toggle aria-label="Switch light or dark theme">&#9680;</button></div>
 </div></header>
 <main class="a-page a-stack">
   <p id="message" class="a-note a-note--warning" hidden></p>
   <section class="a-card">
-    <div class="a-card__head"><h2 class="a-card__title">Others this week</h2></div>
+    <div class="a-card__head"><h2 class="a-card__title">Download proxies this week, excluding ours</h2></div>
     <div class="a-stats">
-      <div class="a-stat"><div class="a-stat__label">Installs</div><div class="a-stat__value" id="installs">—</div></div>
-      <div class="a-stat"><div class="a-stat__label">Updates</div><div class="a-stat__value" id="updates">—</div></div>
-      <div class="a-stat"><div class="a-stat__label">Installs since start</div><div class="a-stat__value" id="total">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">CLI installer downloads</div><div class="a-stat__value" id="installs">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">Bundles minus installer</div><div class="a-stat__value" id="updates">—</div></div>
+      <div class="a-stat"><div class="a-stat__label">CLI installer downloads since start</div><div class="a-stat__value" id="total">—</div></div>
     </div>
     <p class="a-card__foot" id="window">Waiting for the first snapshot.</p>
+    <p class="a-note a-note--warning">These are not server install or update counts: install.sh installs the CLI, while normal server updates can use GHCR instead of the release bundle.</p>
   </section>
   <section class="a-card">
     <div class="a-card__head"><h2 class="a-card__title">This week by release</h2></div>
-    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">Installs</th><th class="a-num">Updates</th></tr></thead><tbody id="weekly"></tbody></table></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">CLI installer</th><th class="a-num">Bundle minus installer</th></tr></thead><tbody id="weekly"></tbody></table></div>
   </section>
   <section class="a-card">
     <div class="a-card__head"><h2 class="a-card__title">GitHub totals</h2></div>
-    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">install.sh</th><th class="a-num">Bundles</th><th class="a-num">Others installs</th><th class="a-num">Others updates</th></tr></thead><tbody id="github"></tbody></table></div>
+    <div class="a-table-wrap"><table class="a-table"><thead><tr><th>Release</th><th class="a-num">install.sh</th><th class="a-num">Bundles</th><th class="a-num">Others CLI installer</th><th class="a-num">Others bundle minus installer</th></tr></thead><tbody id="github"></tbody></table></div>
     <p class="a-card__foot">Totals are cumulative on GitHub. Estimates subtract our reports and cannot identify individual people.</p>
   </section>
   <section class="a-card">

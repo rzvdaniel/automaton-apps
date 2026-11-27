@@ -59,6 +59,21 @@ class CounterTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.app.record(body)
 
+    def test_week_is_unavailable_after_a_long_snapshot_gap(self):
+        now = dt.datetime.now(dt.timezone.utc)
+        monday = (now - dt.timedelta(days=now.weekday())).date()
+        old = monday - dt.timedelta(days=8)
+        self.app.snapshot({"1": counts(2, 3)}, f"{old}T12:00:00+00:00")
+        self.app.snapshot({"1": counts(20, 30)}, main.timestamp())
+        data = self.app.summary()
+        self.assertIsNone(data["week"])
+        self.assertIn("unavailable", data["week_error"])
+        self.assertEqual(data["since_start"]["installs"], 18)
+
+    def test_first_observation_this_week_is_marked_partial(self):
+        self.app.snapshot({"1": counts(2, 3)})
+        self.assertTrue(self.app.summary()["week"]["partial"])
+
     def test_github_pagination_and_asset_filtering(self):
         class Response:
             def __init__(self, value):

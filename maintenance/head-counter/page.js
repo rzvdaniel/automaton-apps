@@ -33,8 +33,8 @@ async function refresh() {
     $('updates').textContent = data.week?.updates ?? '—';
     $('total').textContent = data.since_start?.installs ?? '—';
     $('window').textContent = data.week
-      ? `Observed from ${data.week.from} to ${data.week.to} (UTC); snapshot refreshed hourly.`
-      : 'Waiting for the first snapshot.';
+      ? `${data.week.partial ? 'Partial week. ' : ''}Observed from ${data.week.from} to ${data.week.to} (UTC); snapshot refreshed hourly.`
+      : (data.week_error || 'Waiting for the first snapshot.');
     rows('weekly', (data.week?.releases || []).map(r => [r.version, r.installs, r.updates]));
     rows('github', data.github.map(r => [r.version, r.install, r.bundle, r.others_install, r.others_updates]));
     rows('ours', data.ours.map(r => [r.at, r.version, r.file, r.source]));
