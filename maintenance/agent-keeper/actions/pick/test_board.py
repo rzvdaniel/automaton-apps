@@ -41,7 +41,8 @@ class Fake:
                 "items": {"nodes": [{"id": c["item"], "status": {"name": c["status"]}, "content": {
                     "number": c["number"], "title": c["title"], "state": "OPEN", "body": c["body"], "url": c["url"], "repository": {"nameWithOwner": c["repo"]},
                     "labels": {"nodes": [{"name": n} for n in c["labels"]]}, "comments": {"nodes": c["comments"]},
-                    "closedByPullRequestsReferences": {"nodes": c["prs"]}, "timelineItems": {"nodes": []}}} for c in self.cards]}}}}
+                    "closedByPullRequestsReferences": {"nodes": c["prs"]}, "timelineItems": {"nodes": []},
+                    "labelEvents": {"nodes": c.get("events", [])}}} for c in self.cards]}}}}
 
 
 def cfg(**kw):
@@ -182,6 +183,21 @@ class PickTests(unittest.TestCase):
         self.assertIn(("move", "I467", "o-Verify"), gh.calls)
         self.assertNotIn(("move", "I7", "o-Verify"), gh.calls)
         self.assertEqual(out["moved"], ["rzvdaniel/automaton-apps#467 to Verify"])
+
+    def test_running_card_ignores_a_pull_request_older_than_its_run(self):
+        go = [{"createdAt": "2026-11-27T20:43:00Z", "label": {"name": "agent:go"}}]
+        old = {"number": 1830, "state": "MERGED", "createdAt": "2026-11-20T10:00:00Z"}
+        gh = Fake([dict(card(1829, status="Running", prs=[old]), events=go)])
+        board.pick_up(gh, cfg())
+        self.assertFalse([c for c in gh.calls if c[0] == "move"])
+
+    def test_running_card_moves_for_a_pull_request_opened_after_its_start(self):
+        go = [{"createdAt": "2026-11-27T20:43:00Z", "label": {"name": "agent:go"}}]
+        old = {"number": 1830, "state": "MERGED", "createdAt": "2026-11-20T10:00:00Z"}
+        new = {"number": 1900, "state": "OPEN", "createdAt": "2026-11-27T21:10:00Z"}
+        gh = Fake([dict(card(1829, status="Running", prs=[old, new]), events=go)])
+        board.pick_up(gh, cfg())
+        self.assertIn(("move", "I1829", "o-Verify"), gh.calls)
 
     def test_second_run_only_in_another_area(self):
         running = card(9, status="Running", labels=["area:studio"])
