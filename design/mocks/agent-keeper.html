@@ -1,5 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agent Keeper Redesign</title>
+<title>Agent Keeper Queue</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <script>document.documentElement.dataset.look="system";</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -311,239 +310,333 @@ a { color: var(--orange-ink); text-underline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .a-meter > span { transition: none; }
 }
-/* Agent Keeper (app-specific, kit tokens only) */
+
+/* Agent Keeper mock v3. Same type and cards as Server Keeper (kit sizes: 15px body, 17px card titles, 13px hints).
+   Queue: status strip on top, then Next up | Recent runs filling the rest of the window, each scrolling inside itself.
+   Machine and Setup: card columns like Server Keeper's Overview. Kit tokens only. */
 body{background:var(--bg)}
+html.q,html.q body{height:100%}
+html.q body{display:flex;flex-direction:column}
+.a-topbar{flex:none}
 .a-topbar__inner{gap:12px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.a-page{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .tabs{display:flex;gap:4px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
-.tab{flex:none;appearance:none;background:none;border:0;border-radius:8px;padding:8px 14px;font:400 14px/1.2 var(--font);color:var(--rail-muted);cursor:pointer;min-height:36px}
-.tab:hover{color:var(--rail-text)}.tab.is-on{color:var(--rail);background:var(--rail-text);font-weight:500}
-.tab-n{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;background:var(--orange);color:var(--rail);font-size:12px;font-weight:600}
-.a-topbar .a-header__actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+.tab{flex:none;appearance:none;background:none;border:0;border-radius:8px;padding:8px 14px;font:400 14px/1.2 var(--font);color:var(--rail-muted);cursor:pointer;min-height:36px;text-decoration:none;display:inline-flex;align-items:center}
+.tab.is-on{color:var(--rail);background:var(--rail-text);font-weight:500}
+.tab-n{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--orange);color:#17181c;font:600 11px var(--mono);margin-left:6px;padding:0 5px}
+.a-topbar .a-header__actions{margin-left:auto}
 .a-topbar .a-header__sub{color:var(--rail-muted);margin:0;font-size:13px}
-.mocknote{font-size:13px;color:var(--muted);margin:0 0 14px}
-.panel{display:flex;flex-direction:column;gap:16px}
 .small{font-size:13px}.tn{font-variant-numeric:tabular-nums}
-.job{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
-.job__main{min-width:0;flex:1 1 320px}.job__title{font-weight:600;color:var(--text);text-decoration:none}
-.job__act,.row__act{display:flex;gap:8px;flex-wrap:wrap}
-.phases{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0}
-.phases li{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
-.phases li.done{background:var(--surface-2);color:var(--text)}
-.phases li.on{border-color:var(--orange);color:var(--orange-ink)}
-.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap}
-.a-card__head+.row{border-top:0}
-.row__main{flex:1 1 260px;min-width:0}
-.num{width:22px;height:22px;flex:none;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;font:500 12px var(--mono,monospace);color:var(--muted)}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none;vertical-align:middle;margin-right:4px}
+
+/* page: fills the window under the top bar; only the Queue lists scroll */
+.a-page{flex:1;min-height:0;width:100%;max-width:1280px;margin-inline:auto;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.view{display:flex;flex-direction:column;gap:16px;flex:1;min-height:0}
+
+.mock{font-size:13px;color:var(--muted);flex:none}
+
+/* Queue: strip */
+.strip{display:grid;grid-template-columns:minmax(240px,1fr) minmax(0,2.2fr) minmax(260px,1.1fr);gap:16px;flex:none}
+.strip .a-card{display:flex;flex-direction:column;gap:8px;padding:16px 18px}
+.strip .a-card__head{margin:0}
+.tile__value{font:600 30px/1.1 var(--display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.a-card--warn{border-color:color-mix(in srgb,var(--orange) 45%,var(--border))}
+.a-card--warn .tile__value{color:var(--orange-ink)}
+.run__title{font:600 16px/1.35 var(--font);color:var(--text);text-decoration:none}
+.run__title:hover{text-decoration:underline}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:13px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:6px;padding:1px 8px;font:500 12px/1.6 var(--mono);color:var(--text);background:var(--surface-2);white-space:nowrap}
+.chip::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--chip,var(--bar))}
+.chip--gemini{--chip:#3b74e0}.chip--claude{--chip:var(--bar)}
+.steps{display:flex;list-style:none;padding:0;margin:auto 0 0}
+.steps li{flex:1;font-size:12px;color:var(--muted);padding-top:7px;border-top:3px solid var(--border);margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps li.done{border-color:var(--bar);color:var(--text)}
+.steps li.on{border-color:var(--orange);color:var(--orange-ink);font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.hrow{display:flex;align-items:center;gap:8px;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none;display:inline-block}
 .dot--warn{background:var(--orange)}
-.bars{display:flex;gap:3px;align-items:flex-end}.bars i{width:6px;height:18px;border-radius:2px;background:var(--bar)}.bars i.f{background:var(--orange)}
-.a-metric{margin-bottom:14px}
-.seg{display:flex;gap:8px;flex-wrap:wrap}.seg label{display:flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer}
-details.again{border-top:1px solid var(--border);padding-top:10px}details.again summary{cursor:pointer;color:var(--orange-ink)}
-details.again{margin-top:14px;padding-top:14px}
-details.again[open]{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
-.mockstate{align-items:center}.a-steps li.ok{color:var(--muted)}.a-steps .a-pill{margin-left:6px}
-.a-form.pad{gap:16px;margin-top:12px}.a-form.pad p{margin:0}details.again>*{margin:0}details.again .a-field{align-self:stretch}
-.a-field{display:flex;flex-direction:column;gap:6px}
-.danger{border-color:color-mix(in srgb,var(--danger) 35%,var(--border));display:flex;flex-direction:column;gap:14px;align-items:flex-start}
-.danger>*{margin:0}.danger .a-card__head,.danger .a-field{align-self:stretch}
-.danger .a-field{display:flex;flex-direction:column;gap:6px}
-@media (max-width:640px){.a-topbar .a-header__sub{display:none}}
+
+/* Queue: two lists fill the rest, same height, each scrolls inside */
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;flex:1;min-height:0}
+.list{display:flex;flex-direction:column;min-height:0;padding-bottom:6px}
+.list .a-card__head{flex:none;margin-bottom:8px;flex-wrap:wrap}
+.list__body{flex:1;min-height:0;overflow-y:auto;margin-right:-8px;padding-right:8px;scrollbar-width:thin}
+.list__foot{flex:none;border-top:1px solid var(--border);padding-top:10px;font-size:13px}
+.row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.row:first-child{border-top:0;padding-top:2px}
+.num{font:500 13px var(--mono);color:var(--muted);text-align:center}
+.row__t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row__t b{font-weight:600;font-variant-numeric:tabular-nums}
+.row__s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row__r{display:flex;gap:8px;align-items:center;justify-content:flex-end;font-size:13px;color:var(--muted);white-space:nowrap}
+.res{color:var(--orange-ink);font-weight:600}
+.bars{display:flex;gap:3px;align-items:flex-end}.bars i{width:6px;height:18px;border-radius:2px;background:var(--bar)}.bars i.g{background:#3b74e0}.bars i.f{background:var(--orange)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 10px;flex:none}
+.split div{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.split b{display:block;font:600 20px/1.2 var(--display);font-variant-numeric:tabular-nums}
+.split span{font-size:13px;color:var(--muted)}
+.legend{display:flex;gap:12px;font-size:13px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}.legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* Machine / Setup */
+.grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start}
+.bar{position:relative;height:8px;border-radius:999px;background:var(--border);margin:6px 0 4px}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:999px;background:var(--bar)}
+.bar b{position:absolute;top:-4px;bottom:-4px;left:85%;width:2px;background:var(--orange)}
+.disk{padding:12px 0;border-top:1px solid var(--border)}.disk:first-of-type{border-top:0;padding-top:0}
+.disk__row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.disk__row code{font:400 12px var(--mono);color:var(--muted)}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--border)}
+.a-card__head+.mrow,.a-card__head+p+.mrow{border-top:0}
+.a-card p{margin:0 0 12px;max-width:65ch}
+.field2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+select.a-input{appearance:auto}
+details{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+details summary{cursor:pointer;color:var(--orange-ink);font-weight:500}
+details[open] summary{margin-bottom:12px}
+.a-card--danger{border-color:color-mix(in srgb,var(--danger) 35%,var(--border))}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+
+/* Machine and Setup: a row of equal tiles (like Server Keeper), then two equal columns; cards in a row share their
+   height and keep their actions on the bottom line. */
+.tiles4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.tile{display:flex;flex-direction:column;gap:6px;min-height:150px}
+.tile__head{display:flex;justify-content:space-between;gap:8px;font-size:13px;align-items:center}
+.tile__head code{font:400 12px var(--mono);color:var(--muted)}
+.tile__foot{font-size:13px;margin-top:auto}
+.tile .bar{margin:2px 0}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+.two>.a-card{display:flex;flex-direction:column}
+.card-end{margin-top:auto;padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.card-end .a-note{flex:1}
+.agent__nums{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.agent__nums b{display:block;font:600 24px/1.15 var(--display);font-variant-numeric:tabular-nums}
+.agent__nums span{font-size:13px;color:var(--muted)}
+.agents{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:16px;align-items:stretch}
+.mockbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.seg{display:flex;gap:8px}.seg label{display:flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;background:var(--surface);font-size:13px}
+@media (max-width:860px){.agents{--cols:1!important}}
+.agents>.a-card{display:flex;flex-direction:column}
+.win{margin-bottom:10px}
+.win__row{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.win .bar b{display:none}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--bar);margin-right:8px;vertical-align:1px}.sw--g{background:#3b74e0}
+#v-machine>.a-hint{margin-top:-8px}
+@media (max-width:1000px){.tiles4{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.two,.tiles4{grid-template-columns:1fr}}
+@media (max-width:1000px){.strip{grid-template-columns:1fr 1fr}.strip .run{grid-column:1/-1;order:-1}.cols{grid-template-columns:1fr}.list{min-height:320px}}
+@media (max-width:860px){body{height:auto}html{height:auto}.a-page,.view{flex:none}.list__body{max-height:420px}}
+@media (max-width:640px){.strip{grid-template-columns:1fr}.a-topbar .a-header__sub{display:none}.row__r .chip{display:none}.field2,.split{grid-template-columns:1fr}}
 </style>
+
 <header class="a-topbar">
   <div class="a-topbar__inner">
     <div class="a-header__brand">
       <svg class="a-brand" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10"/><path d="M10 15l5 4-5 4M30 15l-5 4 5 4M17 27h6"/></svg>
       <h1 class="a-header__title">Agent Keeper</h1>
     </div>
-    <div class="tabs" role="tablist" aria-label="Agent Keeper">
-      <button type="button" class="tab" role="tab" id="tab-queue" data-tab="queue">Queue <span class="tab-n">1</span></button>
-      <button type="button" class="tab" role="tab" id="tab-machine" data-tab="machine">Machine</button>
-      <button type="button" class="tab" role="tab" id="tab-setup" data-tab="setup">Setup</button>
-    </div>
+    <nav class="tabs" aria-label="Agent Keeper">
+      <a class="tab" href="#queue" data-v="queue">Queue <span class="tab-n">1</span></a>
+      <a class="tab" href="#machine" data-v="machine">Machine</a>
+      <a class="tab" href="#setup" data-v="setup">Setup</a>
+    </nav>
     <div class="a-header__actions">
-      <span class="a-header__sub">runner-01 · rzvdaniel/automaton</span>
-      <span class="a-pill a-pill--running">busy</span>
+      <span class="a-header__sub">runner-01 · board 17 · checked 1 min ago</span>
       <button class="a-btn a-btn--icon" type="button" id="theme" aria-label="Switch light or dark theme">&#9680;</button>
     </div>
   </div>
 </header>
 
 <main class="a-page">
-  <p class="mocknote">Design mock with example data. The pick-up is the app's "Pick up" Action (every 10 minutes), turned on, off or run from the Actions tab in Studio like any other Action; the page only shows its last and next run.</p>
+  <p class="mock">Design mock v7, example data. Queue fits the window: the strip says what is happening and what needs you; Next up and Recent runs fill the rest and scroll inside.</p>
 
   <!-- QUEUE -->
-  <section class="panel" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue">
-    <div class="a-banner a-banner--warning">
-      <div class="a-banner__title">1 card needs you</div>
-      <div>#1748 "Backup Warden lists restore points by app": the last run ended without a pull request. Read the run, then press <b>Run again</b>.</div>
+  <section class="view" id="v-queue" aria-label="Queue">
+    <div class="strip">
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">Pick-up</h2><span class="a-pill a-pill--ok">on</span></div>
+        <div class="tile__value">next 23:10</div>
+        <div class="hrow"><span class="dot"></span>last run 23:00 · started #1855</div>
+        <div class="hrow"><span class="dot"></span>token reads board 17 · schedule every 10 min</div>
+      </div>
+
+      <div class="a-card run">
+        <div class="a-card__head"><h2 class="a-card__title">Running now</h2><span class="a-pill a-pill--running">24 min</span></div>
+        <a class="run__title" href="#queue">#1855 The implementer proves Done when before merge; release verification only confirms</a>
+        <div class="meta"><span class="chip chip--gemini">agy · gemini-4-hydrogen-high</span><span>automaton · PR <a href="#queue">#1871</a> opened, checks running</span></div>
+        <ol class="steps" aria-label="Run steps"><li class="done">Picked</li><li class="done">Implement</li><li class="done">Pull request</li><li class="on">Reviews · claude</li><li>Merge gate</li></ol>
+      </div>
+
+      <div class="a-card a-card--warn">
+        <div class="a-card__head"><h2 class="a-card__title">Needs you</h2><span class="a-pill a-pill--warning">1 failed</span></div>
+        <div class="small"><b>#1748</b> Backup Warden lists restore points by app. Gemini and the Claude fallback both ended without a pull request.</div>
+        <div class="btns"><button class="a-btn" type="button">Read run</button><button class="a-btn a-btn--primary" type="button">Run again</button></div>
+      </div>
     </div>
 
-    <div class="a-stats">
-      <div class="a-stat"><div class="a-stat__label">Pick-up</div><div class="a-stat__value">On</div><div class="a-stat__hint">Pick up action, every 10 min · last 14:50 · next 15:00</div></div>
-      <div class="a-stat"><div class="a-stat__label">Ready for agents</div><div class="a-stat__value">3</div><div class="a-stat__hint">automaton, automaton-apps, automaton-monster</div></div>
-      <div class="a-stat"><div class="a-stat__label">Done today</div><div class="a-stat__value">7</div><div class="a-stat__hint">pull requests opened by the agent</div></div>
-      <div class="a-stat a-stat--warning"><div class="a-stat__label">Needs you</div><div class="a-stat__value">1</div><div class="a-stat__hint">failed run waiting for you</div></div>
-    </div>
-
-    <div class="a-card">
-      <div class="a-card__head"><h2 class="a-card__title">Running now</h2><span class="a-pill a-pill--running">running 24 min</span></div>
-      <div class="job">
-        <div class="job__main">
-          <a href="#queue" class="job__title">#1746 Settings is split into Account, Connect your AI, API keys and Email</a>
-          <div class="a-muted small">automaton · started 14:25 by the pick-up · pull request <a href="#queue">#1754</a> opened, waiting for checks</div>
+    <div class="cols">
+      <div class="a-card list">
+        <div class="a-card__head"><h2 class="a-card__title">Next up <span class="a-muted small">· 9 ready</span></h2><span class="a-muted small">order of Ready for agents</span></div>
+        <div class="list__body">
+          <div class="row"><span class="num">1</span><div><div class="row__t"><b>#1857</b> PRs that change the install check run it on their branch</div><div class="row__s">automaton</div></div><div class="row__r"><span class="a-pill">next</span></div></div>
+          <div class="row"><span class="num">2</span><div><div class="row__t"><b>#1859</b> A catalog update creates the default schedules</div><div class="row__s">automaton · bug</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">3</span><div><div class="row__t"><b>apps#502</b> Agent Keeper shows when Pick up cannot work</div><div class="row__s">automaton-apps</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">4</span><div><div class="row__t"><b>apps#504</b> Verify only for a PR opened by the current run</div><div class="row__s">automaton-apps · bug</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">5</span><div><div class="row__t"><b>apps#508</b> Server Keeper's Overview matches the v5 mock</div><div class="row__s">automaton-apps</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">6</span><div><div class="row__t"><b>apps#503</b> Head Counter moves to automaton-monster</div><div class="row__s">automaton-apps</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">7</span><div><div class="row__t"><b>apps#505</b> Agent Keeper chooses the agent tool and models</div><div class="row__s">automaton-apps</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">8</span><div><div class="row__t"><b>#1844</b> Catalog installs through the AI connector deploy</div><div class="row__s">automaton · changes asked</div></div><div class="row__r">queued</div></div>
+          <div class="row"><span class="num">!</span><div><div class="row__t"><b>#1856</b> The test server has what verification needs</div><div class="row__s">automaton · Before work not done</div></div><div class="row__r"><span class="a-pill a-pill--warning">waits for you</span></div></div>
         </div>
-        <div class="job__act"><button class="a-btn" type="button">Open run on GitHub</button><button class="a-btn" type="button">Stop</button></div>
+        <div class="list__foot"><a href="#queue">Open board 17 on GitHub</a></div>
       </div>
-      <ol class="phases" aria-label="Run steps">
-        <li class="done">Picked</li><li class="done">Implement</li><li class="done">Pull request</li><li class="on">Review and merge gate</li><li>In review</li>
-      </ol>
-    </div>
 
-    <div class="a-card">
-      <div class="a-card__head"><h2 class="a-card__title">Needs you</h2><span class="a-pill a-pill--warning">1 failed</span></div>
-      <div class="row">
-        <span class="dot dot--warn" aria-hidden="true"></span>
-        <div class="row__main"><div><b>#1748</b> Backup Warden lists restore points by app</div><div class="a-muted small">automaton-apps · failed 13:44 · "Agent run ended without a pull request"</div></div>
-        <div class="row__act"><button class="a-btn" type="button">Read run</button><button class="a-btn a-btn--primary" type="button">Run again</button></div>
+      <div class="a-card list">
+        <div class="a-card__head"><h2 class="a-card__title">Recent runs</h2>
+          <div class="legend"><span><i style="background:#3b74e0"></i>Gemini</span><span><i style="background:var(--bar)"></i>Claude</span><span><i style="background:var(--orange)"></i>failed</span>
+            <div class="bars" aria-label="Last 10 runs: 6 Gemini, 3 Claude, 1 failed"><i class="g"></i><i></i><i class="g"></i><i class="g"></i><i class="f"></i><i></i><i class="g"></i><i class="g"></i><i></i><i class="g"></i></div></div>
+        </div>
+        <div class="split">
+          <div><b>6 runs · 18 min</b><span>Gemini · median · 5 PRs, 1 fell back</span></div>
+          <div><b>3 runs · 14 min</b><span>Claude · median · 3 PRs</span></div>
+        </div>
+        <div class="list__body">
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1854</b> Verification splits environment gaps from failures</div><div class="row__s">PR #1869 merged · 22:48</div></div><div class="row__r"><span class="chip chip--gemini">gemini</span><span class="tn">19 min</span></div></div>
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1853</b> An issue reaches Ready only when it can be checked</div><div class="row__s">PR #1870 · fell back to Claude · 22:20</div></div><div class="row__r"><span class="chip chip--claude">claude</span><span class="tn">41 min</span></div></div>
+          <div class="row"><span class="num">!</span><div><div class="row__t"><b>#1748</b> Backup Warden lists restore points by app</div><div class="row__s">no pull request · 21:32</div></div><div class="row__r"><span class="res">failed</span><span class="tn">55 min</span></div></div>
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1838</b> The app crumb on Settings returns to the app</div><div class="row__s">PR #1862 merged · 20:31</div></div><div class="row__r"><span class="chip chip--claude">claude</span><span class="tn">11 min</span></div></div>
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1829</b> Studio, API, Store and apps send security headers</div><div class="row__s">PR #1860 merged · 20:56</div></div><div class="row__r"><span class="chip chip--claude">claude</span><span class="tn">13 min</span></div></div>
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1825</b> The website leads with "A small cloud of your own"</div><div class="row__s">PR #1858 merged · 19:52</div></div><div class="row__r"><span class="chip chip--gemini">gemini</span><span class="tn">17 min</span></div></div>
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1792</b> The install check scans the whole API signed in</div><div class="row__s">PR #1845 merged · 18:52</div></div><div class="row__r"><span class="chip chip--gemini">gemini</span><span class="tn">22 min</span></div></div>
+          <div class="row"><span class="num">✓</span><div><div class="row__t"><b>#1775</b> An app open in Studio keeps its session</div><div class="row__s">PR #1843 merged · 18:47</div></div><div class="row__r"><span class="chip chip--gemini">gemini</span><span class="tn">15 min</span></div></div>
+        </div>
+        <div class="list__foot"><a href="#queue">All runs in Studio Activity</a></div>
       </div>
-      <p class="a-hint">A failed card stays here, out of the line below, until you run it again or move it back to Inbox.</p>
-    </div>
-
-    <div class="a-card">
-      <div class="a-card__head"><h2 class="a-card__title">Next up</h2><span class="a-muted small">order of Ready for agents on board 17</span></div>
-      <div class="row"><span class="num">1</span><div class="row__main"><div><b>#1752</b> Server Keeper and Studio show the main disk and the Docker disk separately</div><div class="a-muted small">automaton · bug</div></div><span class="a-pill">next</span></div>
-      <div class="row"><span class="num">2</span><div class="row__main"><div><b>#1753</b> An agent run finishes its work before it ends, and a failed card leaves Ready for agents</div><div class="a-muted small">automaton · bug</div></div><span class="a-pill">queued</span></div>
-      <div class="row"><span class="num">3</span><div class="row__main"><div><b>#1663</b> Merge gate trusts GitHub's latest check results instead of reading every run</div><div class="a-muted small">automaton</div></div><span class="a-pill">queued</span></div>
-      <div class="row"><span class="num">!</span><div class="row__main"><div><b>apps#480</b> Gate Keeper shows the last login per user</div><div class="a-muted small">automaton-apps · no "Done when"</div></div><span class="a-pill a-pill--warning">sent to Inbox</span></div>
-    </div>
-
-    <div class="a-card">
-      <div class="a-card__head"><h2 class="a-card__title">Recent runs</h2><div class="bars" aria-label="Last 10 runs: 8 opened a pull request, 2 failed"><i></i><i></i><i class="f"></i><i></i><i></i><i></i><i></i><i class="f"></i><i></i><i></i></div></div>
-      <div class="a-table-wrap"><table class="a-table">
-        <thead><tr><th>Issue</th><th>Result</th><th class="a-num">Took</th><th>Ended</th></tr></thead>
-        <tbody>
-          <tr><td>#1744 Install Backup Warden opens its install form</td><td><span class="dot"></span> PR #1745</td><td class="a-num">8 min</td><td>11:55</td></tr>
-          <tr><td>#1737 Release recap reads the release notes</td><td><span class="dot"></span> PR #1751</td><td class="a-num">38 min</td><td>13:33</td></tr>
-          <tr><td>#1748 Backup Warden lists restore points by app</td><td><span class="dot dot--warn"></span> failed, no pull request</td><td class="a-num">10 min</td><td>13:44</td></tr>
-          <tr><td>#1740 Each release is checked on a throwaway server</td><td><span class="dot"></span> PR #1742</td><td class="a-num">16 min</td><td>10:30</td></tr>
-        </tbody>
-      </table></div>
     </div>
   </section>
 
   <!-- MACHINE -->
-  <section class="panel" id="panel-machine" role="tabpanel" aria-labelledby="tab-machine" hidden>
-    <div class="a-columns">
+  <section class="view" id="v-machine" aria-label="Machine" hidden>
+    <div class="tiles4">
+      <div class="a-card tile"><div class="tile__head"><span>GitHub runner</span><span class="a-pill a-pill--running">busy</span></div><div class="tile__value">#1855</div><div class="tile__foot a-muted">agent-keeper · service up since 23 Nov</div></div>
+      <div class="a-card tile"><div class="tile__head"><span><b>Main disk</b> <code>/</code></span><span class="a-muted">21 of 38 GB</span></div><div class="tile__value">55%</div><div class="bar"><i style="width:55%"></i><b></b></div><div class="tile__foot a-muted">17 GB free · system, work folder, swap</div></div>
+      <div class="a-card tile"><div class="tile__head"><span><b>Docker data</b> <code>/mnt/docker-data</code></span><span class="a-muted">6 of 40 GB</span></div><div class="tile__value">15%</div><div class="bar"><i style="width:15%"></i><b></b></div><div class="tile__foot a-muted">34 GB free · images and containers</div></div>
+      <div class="a-card tile"><div class="tile__head"><span>Agents</span><span class="a-pill a-pill--ok">2 ready</span></div><div class="tile__value">9 runs</div><div class="tile__foot a-muted">today · 6 Gemini, 3 Claude · 2 h 41 min of agent time</div></div>
+    </div>
+    <div class="mockbar"><span class="a-muted small">Mock only, agents on this machine:</span>
+      <div class="seg" role="radiogroup" aria-label="Number of agents">
+        <label><input type="radio" name="na" id="na1" value="1"> 1</label>
+        <label><input type="radio" name="na" id="na2" value="2" checked> 2</label>
+        <label><input type="radio" name="na" id="na3" value="3"> 3</label>
+        <label><input type="radio" name="na" id="na4" value="4"> 4</label>
+      </div></div>
+    <div class="agents" id="agents"></div>
+    <p class="a-hint">Measured from Agent Keeper's own runs; bars show busy time out of the window (5 hours, or the week's 168). One card per agent set up on this machine. The plans' own percentages are not readable from the tools; a limit shows here when a run reports it, with the time it lifts.</p>
+    <div class="two">
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">Agent tools</h2><span class="a-pill a-pill--warning">1 update</span></div>
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Tool</th><th>Installed</th><th>Used for</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Antigravity (agy)</td><td class="tn">1.5.18</td><td class="a-muted">implements</td><td><span class="dot"></span> signed in · updates itself</td></tr>
+            <tr><td>Claude Code</td><td class="tn">2.1.330</td><td class="a-muted">reviews, fallback</td><td><span class="dot dot--warn"></span> 2.1.342 available</td></tr>
+            <tr><td>gh</td><td class="tn">2.105.0</td><td class="a-muted">GitHub, 2 logins</td><td><span class="dot"></span> up to date</td></tr>
+            <tr><td>Docker</td><td class="tn">29.10.0</td><td class="a-muted">builds, tests</td><td><span class="dot"></span> up to date</td></tr>
+            <tr><td>git</td><td class="tn">2.53.0</td><td class="a-muted">worktrees</td><td><span class="dot"></span> up to date</td></tr>
+            <tr><td>Actions runner</td><td class="tn">2.338.2</td><td class="a-muted">runs the jobs</td><td><span class="dot"></span> updates itself</td></tr>
+          </tbody>
+        </table></div>
+        <div class="card-end"><span class="a-muted small">Checked 1 min ago</span><button class="a-btn" type="button">Update tools</button></div>
+      </div>
       <div class="a-card">
         <div class="a-card__head"><h2 class="a-card__title">GitHub runner</h2><span class="a-pill a-pill--running">busy</span></div>
         <dl class="a-kv">
           <dt>Name</dt><dd>agent-keeper</dd>
           <dt>Repository</dt><dd>rzvdaniel/automaton</dd>
-          <dt>Current job</dt><dd>Agent issue #1746</dd>
+          <dt>Labels</dt><dd class="a-mono">self-hosted, agent</dd>
+          <dt>Current job</dt><dd>Agent issue #1855, 24 min</dd>
           <dt>Service</dt><dd>running since 23 Nov</dd>
+          <dt>Work folder</dt><dd class="a-mono">~/agent-work · 1 worktree</dd>
         </dl>
-        <div class="a-note a-note--warning">Jobs on this machine can become root. Only the agent workflows may use it.</div>
-        <div class="a-card__foot">Read 1 min ago, refreshed every 5 minutes.</div>
-      </div>
-
-      <div class="a-card">
-        <div class="a-card__head"><h2 class="a-card__title">Disk</h2><span class="a-pill a-pill--ok">ok</span></div>
-        <div class="a-metric">
-          <div class="a-metric__row"><span><b>Main disk</b> <span class="a-muted small">/ · system, agent's work folder, swap</span></span><span class="tn">21 of 38 GB</span></div>
-          <div class="a-meter" style="--value:55%"></div>
-          <div class="a-muted small">17 GB free</div>
-        </div>
-        <div class="a-metric">
-          <div class="a-metric__row"><span><b>Docker volume</b> <span class="a-muted small">/mnt/docker-data · images and containers</span></span><span class="tn">6 of 40 GB</span></div>
-          <div class="a-meter" style="--value:15%"></div>
-          <div class="a-muted small">34 GB free</div>
-        </div>
-        <div class="a-card__foot">Each disk is measured on its own. A warning shows below 15% free.</div>
-      </div>
-
-      <div class="a-card">
-        <div class="a-card__head"><h2 class="a-card__title">Tools</h2><span class="a-pill a-pill--warning">1 update</span></div>
-        <div class="a-table-wrap"><table class="a-table">
-          <thead><tr><th>Tool</th><th>Installed</th><th>Latest</th></tr></thead>
-          <tbody>
-            <tr><td>Claude Code</td><td class="tn">2.1.330</td><td><span class="dot dot--warn"></span> 2.1.342</td></tr>
-            <tr><td>Docker</td><td class="tn">29.10.0</td><td><span class="dot"></span> up to date</td></tr>
-            <tr><td>gh</td><td class="tn">2.105.0</td><td><span class="dot"></span> up to date</td></tr>
-            <tr><td>git</td><td class="tn">2.53.0</td><td><span class="dot"></span> up to date</td></tr>
-            <tr><td>Actions runner</td><td class="tn">2.338.2</td><td><span class="dot"></span> updates itself</td></tr>
-          </tbody>
-        </table></div>
-        <div class="a-card__foot"><button class="a-btn a-btn--primary" type="button">Update tools</button></div>
+        <div class="card-end"><div class="a-note a-note--warning">Jobs on this machine can become root. Only the agent workflows may use it.</div></div>
       </div>
     </div>
   </section>
 
   <!-- SETUP -->
-  <section class="panel" id="panel-setup" role="tabpanel" aria-labelledby="tab-setup" hidden>
-    <div class="seg mockstate" role="radiogroup" aria-label="Mock state"><span class="a-muted small">Mock state:</span>
-      <label><input type="radio" name="st" id="st-done" checked> Set up</label>
-      <label><input type="radio" name="st" id="st-new"> Before set up</label>
-    </div>
-
-    <div id="setup-new" hidden>
-      <div class="a-card first">
-        <div class="a-card__head"><h2 class="a-card__title">Set up this machine</h2><span class="a-pill a-pill--warning">not set up</span></div>
-        <div class="a-waiting">
-          <p>This machine has an Automaton Runner but is not a GitHub agent machine yet. Set up installs Claude Code, gh, git, Docker and the build tools, registers the machine as a self-hosted runner with the <b>agent</b> label and starts it as a service. It takes about 5 minutes.</p>
-          <ol class="a-steps">
-            <li class="ok">Host access is on for this server <span class="a-pill a-pill--ok">done</span></li>
-            <li class="ok">An administrator approved <code>runner:host-exec</code> for runner-01 <span class="a-pill a-pill--ok">done</span></li>
-            <li>In GitHub open <b>rzvdaniel/automaton</b>, Settings, Actions, Runners, <b>New self-hosted runner</b>, and copy the registration token. It is valid for one hour.</li>
-            <li>Paste it below and press <b>Set up</b>.</li>
-          </ol>
+  <section class="view" id="v-setup" aria-label="Setup" hidden>
+    <div class="two">
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">Agents</h2><span class="a-pill a-pill--ok">trial</span></div>
+        <p class="small a-muted">Which tool writes the code and which reviews it. Applies to the next run.</p>
+        <div class="a-form">
+          <div class="field2">
+            <div class="a-field"><label class="a-label" for="cli">Implement with</label><select class="a-input" id="cli"><option selected>Antigravity (agy)</option><option>Claude Code</option></select></div>
+            <div class="a-field"><label class="a-label" for="model">Model</label><select class="a-input" id="model"><option selected>gemini-4-hydrogen-high</option><option>gemini-4-hydrogen-low</option><option>gemini-4-neon-high</option></select></div>
+            <div class="a-field"><label class="a-label" for="rcli">Main review with</label><select class="a-input" id="rcli"><option selected>Claude Code</option><option>Antigravity (agy)</option></select></div>
+            <div class="a-field"><label class="a-label" for="rmodel">Model</label><select class="a-input" id="rmodel"><option selected>sonnet</option><option>opus</option></select></div>
+          </div>
         </div>
-        <div class="a-form pad">
-          <div class="a-field"><label class="a-label" for="reg-new">Registration token</label><input class="a-input" id="reg-new" type="password" autocomplete="off" placeholder="paste the token from GitHub"><span class="a-hint">Used once and never saved.</span></div>
-          <div><button class="a-btn a-btn--primary" type="button">Set up</button></div>
-        </div>
+        <div class="card-end"><span class="a-hint">The security pass always runs on Claude. If Gemini fails or opens no pull request, the issue runs once more on Claude.</span><button class="a-btn a-btn--primary" type="button">Save</button></div>
       </div>
-      <p class="a-muted small">Before set up, Queue and Machine show the same "Set up this machine" note with a link here; the Pick up Action skips its runs until the runner exists.</p>
-    </div>
-
-    <div class="a-columns" id="setup-done">
+      <div class="a-card">
+        <div class="a-card__head"><h2 class="a-card__title">Board and pick-up</h2><span class="a-pill a-pill--ok">ok</span></div>
+        <div class="mrow"><div><b>Board</b><div class="a-muted small">rzvdaniel/17 · Agent work</div></div><span class="small"><span class="dot"></span> readable</span></div>
+        <div class="mrow"><div><b>Repositories</b><div class="a-muted small">automaton, automaton-apps, automaton-monster</div></div><span class="small">3</span></div>
+        <div class="mrow"><div><b>GitHub token</b><div class="a-muted small">rzvdaniel-bot · repo, project, workflow</div></div><span class="small"><span class="dot"></span> scopes ok</span></div>
+        <div class="mrow"><div><b>Pick up</b><div class="a-muted small">every 10 min · 1 run at a time</div></div><span class="small"><span class="dot"></span> scheduled</span></div>
+        <div class="card-end"><span class="a-hint">Board, repositories and parallel runs: Studio, Settings. Pick up on or off: Studio, Actions.</span></div>
+      </div>
       <div class="a-card">
         <div class="a-card__head"><h2 class="a-card__title">This machine</h2><span class="a-pill a-pill--ok">set up</span></div>
-        <p>Set up on 23 Nov 2026, 12:03. Tools installed, runner registered as <b>agent-keeper</b> and running as a service.</p>
-        <details class="again">
-          <summary>Set up again or register with a new token</summary>
-          <div class="a-form pad">
-          <p class="a-hint">Running it again is safe: it only adds what is missing. A token is needed only when the runner is not registered any more.</p>
-          <div class="a-field"><label class="a-label" for="reg">Registration token (optional)</label><input class="a-input" id="reg" type="password" autocomplete="off" placeholder="from Settings, Actions, Runners, New self-hosted runner"></div>
-          <div><button class="a-btn" type="button">Run set up again</button></div>
-          </div>
-        </details>
-        <div class="a-card__foot">Last run: set up, succeeded, 23 Nov 12:03 · <a href="#setup">show log</a></div>
-      </div>
-
-      <div class="a-card danger">
-        <div class="a-card__head"><h2 class="a-card__title">Remove from GitHub</h2></div>
-        <div class="a-form pad">
-        <p class="a-hint">Stops the service and unregisters the runner. The tools and the work folder stay; Set up brings it back.</p>
-        <div class="a-field"><label class="a-label" for="rm">Removal token</label><input class="a-input" id="rm" type="password" autocomplete="off" placeholder="from the runner's page on GitHub"></div>
-        <div><button class="a-btn a-btn--danger" type="button">Remove runner</button></div>
+        <p class="small">Set up on 23 Nov 2026, 12:03: tools installed, runner registered as <b>agent-keeper</b> and running as a service.</p>
+        <div class="a-form">
+          <div class="a-field"><label class="a-label" for="reg">Registration token (only to register again)</label><input class="a-input" id="reg" type="password" autocomplete="off" placeholder="from Settings, Actions, Runners, New self-hosted runner"><span class="a-hint">Used once and never saved. Running set up again only adds what is missing.</span></div>
         </div>
+        <div class="card-end"><span class="a-muted small">Last run: set up, succeeded · <a href="#setup">show log</a></span><button class="a-btn" type="button">Run set up again</button></div>
+      </div>
+      <div class="a-card a-card--danger">
+        <div class="a-card__head"><h2 class="a-card__title">Remove from GitHub</h2></div>
+        <p class="small">Stops the service and unregisters the runner. Tools and the work folder stay; Set up brings it back.</p>
+        <div class="a-form">
+          <div class="a-field"><label class="a-label" for="rm">Removal token</label><input class="a-input" id="rm" type="password" autocomplete="off" placeholder="from the runner's page on GitHub"></div>
+        </div>
+        <div class="card-end"><span></span><button class="a-btn a-btn--danger" type="button">Remove runner</button></div>
       </div>
     </div>
   </section>
 </main>
 <script>
 (function(){
-  var tabs=[].slice.call(document.querySelectorAll('.tab'));
-  function show(n){if(!document.getElementById('panel-'+n))n='queue';
-    tabs.forEach(function(t){var on=t.dataset.tab===n;t.classList.toggle('is-on',on);t.setAttribute('aria-selected',on);document.getElementById('panel-'+t.dataset.tab).hidden=!on;});}
-  tabs.forEach(function(t){t.addEventListener('click',function(){location.hash=t.dataset.tab;show(t.dataset.tab);});});
-  window.addEventListener('hashchange',function(){show(location.hash.slice(1));});
-  show(location.hash.slice(1));
-  function st(){var n=document.getElementById('st-new').checked;document.getElementById('setup-new').hidden=!n;document.getElementById('setup-done').hidden=n;}
-  if(location.hash==='#setup-new'){show('setup');document.getElementById('st-new').checked=true;st();}
-  document.getElementById('st-new').addEventListener('change',st);document.getElementById('st-done').addEventListener('change',st);
+  var views=['queue','machine','setup'];
+  function show(){
+    var v=location.hash.slice(1); if(views.indexOf(v)<0) v='queue';
+    views.forEach(function(n){document.getElementById('v-'+n).hidden=n!==v;});document.documentElement.classList.toggle('q',v==='queue');
+    [].forEach.call(document.querySelectorAll('.tab'),function(t){var on=t.dataset.v===v;t.classList.toggle('is-on',on);if(on)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current');});
+  }
+
+  // Agent cards: 1, 2 or 3 fill one row; 4 makes two rows of two (5 and 6: rows of three).
+  var A=[
+    {n:"Gemini",plan:"Antigravity Pro",c:"#3b74e0",st:"available",nums:[["6","runs today"],["1 h 52","agent time today"],["5 of 6","opened a PR"]],h:[24,"1 h 12 min busy"],w:[6,"31 runs · 9 h 40 min"],f:"implements · gemini-4-hydrogen-high · no limit hit today"},
+    {n:"Claude",plan:"Claude Pro",c:"",st:"available",nums:[["3","runs today"],["49 min","agent time today"],["11","reviews today"]],h:[42,"2 h 05 min busy"],w:[13,"58 runs · 21 h 15 min · 4 limits hit"],f:"reviews, security pass, fallback · limit hit 16:26, back at 16:40"},
+    {n:"Claude, second account",plan:"Claude Pro",c:"#8a5cd6",st:"limited until 03:40",warn:1,nums:[["4","runs today"],["1 h 20","agent time today"],["4","reviews today"]],h:[96,"4 h 48 min busy"],w:[10,"22 runs · 16 h 30 min · 2 limits hit"],f:"security pass · limit hit 22:40"},
+    {n:"GPT-OSS 120B",plan:"Antigravity Pro",c:"#2f9e6f",st:"idle",nums:[["0","runs today"],["0 min","agent time today"],["–","opened a PR"]],h:[0,"idle"],w:[1,"3 runs · 1 h 05 min"],f:"not chosen for any step"}
+  ];
+  function esc(x){return String(x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+  function agents(n){
+    var el=document.getElementById('agents'); el.style.setProperty('--cols', n===4?2:Math.min(n,3));
+    el.innerHTML=A.slice(0,n).map(function(a){
+      var bar=function(v,col){return '<div class="bar"><i style="width:'+v+'%'+(col?';background:'+col:'')+'"></i></div>';};
+      return '<div class="a-card agent"><div class="a-card__head"><h2 class="a-card__title"><span class="sw" style="'+(a.c?'background:'+a.c:'')+'"></span>'+esc(a.n)+' <span class="a-muted small">· '+esc(a.plan)+'</span></h2><span class="a-pill '+(a.warn?'a-pill--warning':'a-pill--ok')+'">'+esc(a.st)+'</span></div>'+
+        '<div class="agent__nums">'+a.nums.map(function(x){return '<div><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div>';}).join('')+'</div>'+
+        '<div class="win"><div class="win__row"><span>Last 5 hours</span><span class="tn">'+esc(a.h[1])+'</span></div>'+bar(a.h[0],a.c)+'</div>'+
+        '<div class="win"><div class="win__row"><span>This week <span class="a-muted">(since Mon)</span></span><span class="tn">'+esc(a.w[1])+'</span></div>'+bar(a.w[0],a.c)+'</div>'+
+        '<div class="card-end"><span class="a-muted small">'+esc(a.f)+'</span></div></div>';
+    }).join('');
+  }
+  [1,2,3,4].forEach(function(i){document.getElementById('na'+i).addEventListener('change',function(){agents(i);});});
+  agents(2);
+  window.addEventListener('hashchange',show); show();
   document.getElementById('theme').addEventListener('click',function(){var r=document.documentElement,d=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=d==='dark'?'light':'dark';});
 })();
 </script>
