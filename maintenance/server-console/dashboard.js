@@ -70,32 +70,35 @@
   }
   var UPDATE_NEEDS = 10 * 1024 * 1024 * 1024;
 
-  function diskRow(d, only, data, warnAt) {
+  // Mock v5: every disk is a tile like CPU and Memory. Over the warning mark it turns orange and says so.
+  var DISK_NAME = { "/": "System disk" };
+  function diskTileOne(d, only, data, warnAt, first) {
     var main = d.mountPoint === "/";
     var used = d.totalBytes > 0 ? pct(100 - 100 * d.availableBytes / d.totalBytes) : null;
-    var level = used === null ? "" : used > 100 - data.settings.diskFreePercent / 2 ? "critical" : used >= warnAt ? "warning" : "";
-    var what = only ? "" : main ? " · OS, Automaton, backups" : " · apps, images, app data";
-    var sub = bytes(d.totalBytes - d.availableBytes) + " of " + bytes(d.totalBytes) + " · " + bytes(d.availableBytes) + " free" + what + (main && !only ? " · updates need " + bytes(UPDATE_NEEDS) + " free" : "");
-    var name = only ? "Disk" : main ? "System disk" : "Docker data";
-    return '<div class="diskrow"><div class="tile__row"><span><b>' + esc(name) + '</b> <code>' + esc(d.mountPoint) + "</code></span>" +
-      '<span class="tile__value">' + (used === null ? "-" : esc(String(used)) + "%") + "</span></div>" +
-      '<div class="bar' + barClass(level || "ok") + '" style="--value:' + (used === null ? 0 : Math.min(100, used)) + "%;--mark:" + warnAt + '%"><span></span></div>' +
-      '<div class="tile__sub">' + esc(sub) + "</div></div>";
+    var over = used !== null && used >= warnAt;
+    var crit = used !== null && used > 100 - data.settings.diskFreePercent / 2;
+    var holds = only ? "OS, Automaton, apps and backups" : main ? "OS, Automaton, backups" : "apps, images, app data";
+    if (main) holds += " · updates need " + bytes(UPDATE_NEEDS) + " free";
+    var name = only ? "Disk" : DISK_NAME[d.mountPoint] || (/docker/i.test(d.mountPoint) ? "Docker data" : "Disk");
+    var level = crit ? "critical" : over ? "warning" : "";
+    var details = "";
+    if (first) {
+      var rc = data.reclaim || {};
+      details = ' <button type="button" class="link" data-act="disk-toggle" aria-expanded="' + diskOpen + '">' + (diskOpen ? "Hide details" : "Details") + "</button>";
+      if (diskOpen) details += '<div class="dk">' + (rc.total ? "<span>Docker images</span><span>" + esc(bytes(rc.images)) + "</span><span>Docker volumes (app data)</span><span>" + esc(bytes(rc.volumes)) + "</span><span>Build cache</span><span>" + esc(bytes(rc.buildCache)) + "</span>" : '<span class="muted">Docker disk use is not reported for this machine.</span>') + '</div><button type="button" class="link" data-tab="apps">Disk by app, in Apps</button>';
+    }
+    return '<div class="tile tile--disk' + (crit ? " tile--bad" : over ? " tile--attn" : "") + '"' + (first ? ' id="disk"' : "") + '><div class="tile__row"><span><b>' + esc(name) + "</b> <code>" + esc(d.mountPoint) + "</code></span>" +
+      (over ? '<span class="s-pill s-pill--attn">over ' + warnAt + "%</span>" : "") + "</div>" +
+      '<div class="tile__value">' + (used === null ? "-" : esc(String(used)) + "%") + "</div>" +
+      '<div class="bar' + barClass(level || "ok") + '" role="img" aria-label="' + (used === null ? "no figure" : Math.round(used) + "% used" + (over ? ", over the " + warnAt + "% warning" : "")) + '" style="--value:' + (used === null ? 0 : Math.min(100, used)) + "%;--mark:" + warnAt + '%"><span></span></div>' +
+      '<div class="tile__foot">' + esc(bytes(d.totalBytes - d.availableBytes) + " of " + bytes(d.totalBytes) + " · " + bytes(d.availableBytes) + " free") + '<br><span class="tile__sub">' + esc(holds) + "</span>" + details + "</div></div>";
   }
 
-  function diskTile(h, a, history, data) {
-    var host = h.host || {};
-    var disks = hostDisks(host);
+  function diskTiles(h, a, history, data) {
+    var disks = hostDisks(h.host || {});
     var warnAt = 100 - data.settings.diskFreePercent;
-    var rc = data.reclaim || {};
-    var note = "Warning at " + warnAt + "%" + (disks.length > 1 ? " on any disk" : "") + (typeof rc.freeable === "number" && rc.freeable > 0 ? " · up to " + bytes(rc.freeable) + " can be freed" : "");
-    var details = "";
-    if (diskOpen) {
-      details = '<div class="dk">' + (rc.total ? "<span>Docker images</span><span>" + esc(bytes(rc.images)) + "</span><span>Docker volumes (app data)</span><span>" + esc(bytes(rc.volumes)) + "</span><span>Build cache</span><span>" + esc(bytes(rc.buildCache)) + "</span>" : '<span class="muted">Docker disk use is not reported for this machine.</span>') + '</div><button type="button" class="link" data-tab="apps">Disk by app, in Apps</button>';
-    }
-    return '<div class="tile' + (a.disk === "warning" ? " tile--attn" : a.disk === "critical" ? " tile--bad" : "") + '" id="disk"><div class="tile__row"><span>' + (disks.length > 1 ? "Disks" : "Disk") + '</span><button type="button" class="link" data-act="disk-toggle" aria-expanded="' + diskOpen + '">' + (diskOpen ? "Hide details" : "Details") + "</button></div>" +
-      (disks.length ? disks.map(function (d) { return diskRow(d, disks.length === 1, data, warnAt); }).join("") : '<div class="tile__value">-</div><div class="tile__sub">No disk figures</div>') +
-      '<div class="tile__sub">' + esc(note) + "</div>" + details + "</div>";
+    if (!disks.length) return '<div class="tile tile--disk" id="disk"><div class="tile__row"><span>Disk</span></div><div class="tile__value">-</div><div class="tile__sub">No disk figures</div></div>';
+    return disks.map(function (d, i) { return diskTileOne(d, disks.length === 1, data, warnAt, i === 0); }).join("");
   }
 
   function tiles(h, a, history, data) {
@@ -105,7 +108,7 @@
     var cores = host.cpuCount ? " · " + plural(host.cpuCount, "core") : "";
     var memName = typeof host.memoryTotalBytes === "number" ? "Memory · " + bytes(host.memoryTotalBytes) : "Memory";
     return '<section class="tiles" aria-label="Resources">' + sparkTile("CPU" + cores, load, host.cpuPercent, a.cpu, history, "cpu") +
-      sparkTile(memName, "last 24 h", memoryUsed, a.memory, history, "mem") + diskTile(h, a, history, data) + "</section>";
+      sparkTile(memName, "last 24 h", memoryUsed, a.memory, history, "mem") + diskTiles(h, a, history, data) + "</section>";
   }
 
   // --- Needs you: one card per item, one action each. ----------------------------------------------------------------
@@ -136,14 +139,16 @@
     ok: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l3 3 5-6"></path></svg>'
   };
 
+  // "N things need you": one banner above the tiles; every item that is over its limit is a row with its action.
   function needs(data) {
     var items = needItems(data);
     if (!items.length) return "";
-    return '<section class="needs" aria-label="Needs you">' + items.map(function (i) {
+    var worst = items.some(function (i) { return i.level === "critical"; });
+    return '<section class="needs a-banner a-banner--' + (worst ? "critical" : "warning") + '" aria-label="Needs you"><div class="a-banner__title">' + esc(items.length === 1 ? "1 thing needs you" : items.length + " things need you") + "</div>" + items.map(function (i) {
       var action = needAction(i, data);
-      var button = !action || (action.href === null) ? "" : action.href ? '<a class="a-btn a-btn--lg a-btn--ghost" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
-        : '<button type="button" class="a-btn a-btn--lg' + (action.primary ? " a-btn--primary" : " a-btn--ghost") + '" data-act="' + esc(action.act) + '">' + esc(action.label) + "</button>";
-      return '<div class="need' + (i.level === "critical" ? " need--critical" : "") + '">' + (ICON[i.icon] || ICON.warn) + '<div class="need__text"><strong>' + esc(i.title) + "</strong><span>" + esc(i.detail || "") +
+      var button = !action || (action.href === null) ? "" : action.href ? '<a class="a-btn" target="_blank" rel="noopener" href="' + esc(action.href) + '">' + esc(action.label) + "</a>"
+        : '<button type="button" class="a-btn' + (action.primary ? " a-btn--primary" : "") + '" data-act="' + esc(action.act) + '">' + esc(action.label) + "</button>";
+      return '<div class="need' + (i.level === "critical" ? " need--critical" : "") + '"><div class="need__text"><strong>' + esc(i.title) + ".</strong> <span>" + esc(i.detail || "") +
         (i.command ? ' <code class="a-mono">' + esc(i.command) + "</code>" : "") + "</span></div>" + button + "</div>";
     }).join("") + "</section>";
   }
@@ -1210,4 +1215,5 @@
   setInterval(loadCleanup, 30000);
   setInterval(load, 30000);
   setInterval(function () { UI.updateRelativeTimes(document); }, 30000);
+  if (window.__serverKeeperTest) window.__serverKeeperTest({ diskTiles: diskTiles, needs: needs, headline: headline, healthList: healthList, maintenanceList: maintenanceList });
 })();
