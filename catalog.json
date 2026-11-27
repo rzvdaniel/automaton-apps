@@ -111,6 +111,19 @@
       }
     },
     {
+      "id": "head-counter",
+      "name": "Head Counter",
+      "summary": "Tracks server and CLI installer downloads from public Automaton releases, excluding our own checks.",
+      "category": "Monitoring",
+      "folder": "maintenance/head-counter",
+      "commit": "dc5232fe9efeae50a800ed1208302cd04b7025f9",
+      "minServerVersion": "0.2.168",
+      "permissions": [],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
       "id": "agent-keeper",
       "name": "Agent Keeper",
       "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
