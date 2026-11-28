@@ -128,13 +128,33 @@
     return html + '</div><div class="list__foot"><a href="https://github.com/' + esc(q.homeRepo || "rzvdaniel/automaton") + '/actions/workflows/agent-issue.yml" target="_blank" rel="noopener">All runs on GitHub Actions</a></div></div>';
   }
 
+  function verifyCard(q) {
+    var v = q.verify || { enabled: true, waiting: null, run: null };
+    var run = v.run;
+    var pillCls = !v.enabled ? "" : v.waiting === "pick" || (run && run.status === "running") ? "a-pill--running" : v.waiting === "verify" ? "a-pill--warn" : run && run.status === "done" ? "a-pill--ok" : run && run.status === "failed" ? "a-pill--danger" : "";
+    var pillText = !v.enabled ? "Verification off" : v.waiting === "verify" ? "Verify waiting" : v.waiting === "pick" ? "Pick up waiting" : run ? run.status : "idle";
+    var body = "";
+    if (!v.enabled) body += '<p class="a-muted small">Verification off</p>';
+    if (v.waiting === "verify") body += '<p class="a-muted small">Verify is waiting for the running agent issue.</p>';
+    if (v.waiting === "pick") body += '<p class="a-muted small">Pick up is waiting for release verification.</p>';
+    if (run) {
+      var rel = run.url ? '<a href="' + esc(run.url) + '" target="_blank" rel="noopener">' + esc(run.release || "verify-release") + "</a>" : esc(run.release || "verify-release");
+      body += '<div class="row"><span class="row__name">' + rel + '</span><span class="a-muted small tn">' + esc(run.status) + (run.startedAt ? " · " + esc(ago(run.startedAt)) : "") + "</span></div>";
+    } else if (v.enabled && !v.waiting) {
+      body += '<p class="a-muted small">No verification runs yet.</p>';
+    }
+    var btn = state.admin ? '<button class="a-btn a-btn--secondary" id="verify-now" type="button">Verify now</button>' : "";
+    return '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Release verification</h2><div class="row">' +
+      '<span class="a-pill ' + pillCls + '">' + esc(pillText) + "</span>" + btn + "</div></div>" + body + "</div>";
+  }
+
   function renderQueue() {
     if (state.missing) return '<section class="a-waiting"><h2 class="a-waiting__title">Not configured</h2><p>' + esc(state.missing) + "</p></section>";
     var html = tokenNote() + (needsSetup() ? setupNote() : "");
     if (!queue) return html + '<p class="a-empty">Loading the queue.</p>';
     if (!queue.ok) return html + '<div class="a-note a-note--warning" role="alert">' + esc(queue.message) + "</div>";
     var q = queue.data;
-    return html + '<div class="strip">' + pickupCard(q) + runningCard(q) + needsCard(q) + '</div><div class="cols">' + nextCard(q) + runsCard(q) + "</div>";
+    return html + '<div class="strip">' + pickupCard(q) + runningCard(q) + needsCard(q) + "</div>" + verifyCard(q) + '<div class="cols">' + nextCard(q) + runsCard(q) + "</div>";
   }
 
   function diskTile(name, where, used, total) {
@@ -294,6 +314,16 @@
     if (update) update.addEventListener("click", function () { start("update-tools"); });
     var log = document.getElementById("show-log");
     if (log) log.addEventListener("click", function (e) { e.preventDefault(); var l = document.getElementById("log"); l.hidden = !l.hidden; });
+    var verifyBtn = document.getElementById("verify-now");
+    if (verifyBtn) {
+      verifyBtn.addEventListener("click", function () {
+        verifyBtn.disabled = true;
+        post("api/verify", {}).then(function (r) {
+          message = r.body && r.body.message ? (r.ok ? "" : r.body.message) : r.ok ? "" : "Verification did not start.";
+          loadQueue(true);
+        });
+      });
+    }
     Array.prototype.forEach.call(view.querySelectorAll("[data-again]"), function (b) {
       b.addEventListener("click", function () {
         var parts = b.getAttribute("data-again").split("#");

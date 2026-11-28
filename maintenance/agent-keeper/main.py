@@ -120,6 +120,17 @@ class Keeper:
         log(f"run again {repo}#{number}")
         return 200, {"status": "ok", "message": message}
 
+    def verify_now(self) -> tuple[int, dict]:
+        try:
+            config = self.config()
+            result = board.verify(self.api or board.GitHub(config.token), config, force=True)
+        except board.BoardError as error:
+            return 400, {"status": "invalid", "message": str(error)}
+        with self.lock:
+            self.cache.pop("queue", None)
+        log(f"verify now: {result.get('message', '')}")
+        return 200, {"status": "ok", "message": result.get("message", "")}
+
     def start(self, action: str, token: str | None, viewer: str | None) -> tuple[int, dict]:
         """Validates and starts one run. Status runs in the request; the others in a thread (they take minutes)."""
         if action not in keeper.ACTIONS:
@@ -213,6 +224,10 @@ def make_handler(app: Keeper):
                     return self.json(403, {"status": "forbidden", "message": "Only a system administrator can run a card again."})
                 body = body if isinstance(body, dict) else {}
                 return self.json(*app.run_again(body.get("repo"), body.get("number")))
+            if path == "/api/verify":
+                if not self.admin():
+                    return self.json(403, {"status": "forbidden", "message": "Only a system administrator can start verification."})
+                return self.json(*app.verify_now())
             if not path.startswith("/api/run/"):
                 return self.json(404, {"error": "Not found"})
             token = body.get("token") if isinstance(body, dict) and isinstance(body.get("token"), str) else None

@@ -20,7 +20,7 @@
         "executable": "sh",
         "arguments": [
           "-c",
-          "python -m py_compile main.py keeper.py actions/pick/board.py actions/pick/main.py && mkdir -p dist/ui dist/scripts && cp main.py keeper.py actions/pick/board.py index.html keeper.js keeper.css dist/ && cp scripts/*.sh dist/scripts/ && cp ui/app.css ui/app.js dist/ui/"
+          "python -m py_compile main.py keeper.py actions/pick/board.py actions/pick/main.py actions/verify/main.py && mkdir -p dist/ui dist/scripts && cp main.py keeper.py actions/pick/board.py index.html keeper.js keeper.css dist/ && cp scripts/*.sh dist/scripts/ && cp ui/app.css ui/app.js dist/ui/"
         ],
         "workingDirectory": "."
       },
@@ -112,6 +112,11 @@
         "name": "AGENT_PARALLEL",
         "description": "Runs at once: 1 or 2. With 2, Set up registers a second runner service and Pick up starts a second card only in another area",
         "default": "1"
+      },
+      {
+        "name": "VERIFY_ENABLED",
+        "description": "Default on (true). Set to false to stop scheduled release verification and show Verification off in the Queue",
+        "default": "true"
       }
     ],
     "secrets": [
@@ -125,6 +130,14 @@
         "name": "Pick up",
         "action": "pick",
         "description": "Start the next agent issue and move cards whose run opened a pull request to Verify",
+        "cron": "*/10 * * * *",
+        "timeZone": "Etc/UTC",
+        "input": {}
+      },
+      {
+        "name": "Verify",
+        "action": "verify",
+        "description": "Start release verification on the test server when a new version is installed and cards wait in Verify",
         "cron": "*/10 * * * *",
         "timeZone": "Etc/UTC",
         "input": {}
