@@ -16,6 +16,7 @@ class AdminerPackage(unittest.TestCase):
     def test_private_and_no_stored_credentials(self):
         self.assertNotIn("publicAccess", self.app)
         self.assertNotIn("secrets", self.app)
+        self.assertFalse(self.app.get("settings"))
         self.assertEqual(self.app["permissions"], [])
 
     def test_run_script_listens_on_the_declared_port(self):

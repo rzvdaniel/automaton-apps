@@ -14,6 +14,8 @@ Install it from Catalog → Maintenance and open it. Automaton's own sign-in is 
 
 It reaches databases its own container can reach (for example a PostgreSQL server on your network). Reaching the database inside another Automaton app is not part of this package.
 
+Upstream's optional `ADMINER_PLUGINS` and `ADMINER_DESIGN` settings are not set up in this package.
+
 ## Run it on its own
 
 ```yaml
