@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "repo": "rzvdaniel/automaton-apps",
+  "apps": [
+    {
+      "id": "offsite-backup",
+      "name": "Backup Warden",
+      "summary": "Copies your server's backups to another place, every night.",
+      "category": "Maintenance",
+      "folder": "maintenance/offsite-backup",
+      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "minServerVersion": "0.2.126",
+      "permissions": [
+        "backups:read",
+        "backups:run",
+        "notify:email"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "website-monitor",
+      "name": "Website Monitor",
+      "summary": "Checks your websites on a schedule and alerts you by email or webhook when one is down or its certificate is about to expire.",
+      "category": "Monitoring",
+      "folder": "maintenance/website-monitor",
+      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "minServerVersion": "0.2.31",
+      "permissions": [
+        "notify:email"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "server-console",
+      "name": "Server Keeper",
+      "summary": "Live stats, alerts and one-click maintenance for this server.",
+      "category": "Monitoring",
+      "folder": "maintenance/server-console",
+      "commit": "07e98ce5c40d1b6ac4803ffffd0fe0374aa96343",
+      "minServerVersion": "0.2.173",
+      "permissions": [
+        "server:read",
+        "notify:email",
+        "backups:read",
+        "apps:read-status",
+        "server:cleanup",
+        "runner:maintain",
+        "backups:run",
+        "server:update-os",
+        "server:restart",
+        "security:read"
+      ],
+      "icon": "icon.svg",
+      "publisher": {
+        "name": "Automaton"
+      },
+      "recommended": true,
+      "recommendedOrder": 1
+    },
+    {
+      "id": "victorialogs",
+      "name": "VictoriaLogs",
+      "summary": "Search your server's and apps' logs in the browser, with live tail, history and a cap on disk use.",
+      "category": "Monitoring",
+      "folder": "maintenance/victorialogs",
+      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "minServerVersion": "0.2.168",
+      "permissions": [
+        "logs:receive"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      },
+      "recommended": true,
+      "recommendedOrder": 2
+    },
+    {
+      "id": "gate-keeper",
+      "name": "Gate Keeper",
+      "summary": "Shows who fail2ban has banned on this server, and why, on its own page and a Home card.",
+      "category": "Monitoring",
+      "folder": "maintenance/gate-keeper",
+      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "minServerVersion": "0.2.167",
+      "permissions": [
+        "security:read"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      },
+      "recommended": true,
+      "recommendedOrder": 3
+    },
+    {
+      "id": "heartbeat",
+      "name": "Heartbeat",
+      "summary": "Gives each of your jobs a check-in URL and alerts you by email or webhook when a check-in is missed.",
+      "category": "Monitoring",
+      "folder": "maintenance/heartbeat",
+      "commit": "2da8f764a145673b53f51535eda8a1103494061c",
+      "minServerVersion": "0.2.31",
+      "permissions": [
+        "notify:email"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "agent-keeper",
+      "name": "Agent Keeper",
+      "summary": "Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH.",
+      "category": "Maintenance",
+      "folder": "maintenance/agent-keeper",
+      "commit": "fc7007fe490aface4bf6419550bb09eb59f9a4ed",
+      "minServerVersion": "0.2.180",
+      "permissions": [
+        "runner:host-exec"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "file-browser",
+      "name": "File Browser",
+      "summary": "Upload, download and look at files in a storage folder on your server from the browser.",
+      "category": "Maintenance",
+      "folder": "maintenance/file-browser",
+      "commit": "508834bdcbf981bc830ceb12be262d4b7cbc4a45",
+      "minServerVersion": "0.2.180",
+      "permissions": [],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "adminer",
+      "name": "Adminer",
+      "summary": "Browse and edit a database from the browser, like phpMyAdmin in a hosting panel.",
+      "category": "Maintenance",
+      "folder": "maintenance/adminer",
+      "commit": "2c173605c98f56f215279b18e91f0f8ae377c6e5",
+      "minServerVersion": "0.2.180",
+      "permissions": [],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
+      "id": "ghost",
+      "name": "Ghost",
+      "summary": "Publish a blog and send a newsletter from your own server.",
+      "category": "Publishing",
+      "folder": "publishing/ghost",
+      "commit": "6d33f9f7bf2dee77f1baf323848fd8d8eea6cd22",
+      "minServerVersion": "0.2.149",
+      "permissions": [],
+      "icon": "icon.svg",
+      "screenshots": [
+        "screenshots/01-blog.png"
+      ],
+      "publisher": {
+        "name": "Automaton"
+      }
+    }
+  ]
+}
