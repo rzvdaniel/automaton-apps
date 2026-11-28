@@ -321,5 +321,45 @@ class ScopeTests(unittest.TestCase):
         self.assertIsNone(board.scope_problem(board.token_scopes(self.gh(None))))  # fine-grained token: no header
 
 
+class NeedsChangesTests(unittest.TestCase):
+    def _pr(self, number=10, branch="fix/10", reviews=(), comments=(), state="OPEN"):
+        return {"number": number, "url": f"u/{number}", "state": state, "headRefName": branch,
+                "reviews": {"nodes": list(reviews)}, "comments": {"nodes": list(comments)}}
+
+    def test_picks_pr_needing_changes_before_ready_card(self):
+        pr = self._pr(1878, "fix/1876", comments=[{"body": "CHANGES NEEDED, Important: 1", "createdAt": "2026-11-28T10:00:00Z"}])
+        gh = Fake([
+            card(1, status="Ready for agents"),
+            card(1876, status="Verify", repo="rzvdaniel/automaton-apps", prs=[pr]),
+        ])
+        out = board.pick_up(gh, cfg())
+        self.assertEqual(out["picked"], "rzvdaniel/automaton-apps#1876")
+        dispatches = [c for c in gh.calls if c[0] == "POST" and "dispatches" in c[1]]
+        self.assertEqual(dispatches[0][2]["inputs"]["branch"], "fix/1876")
+
+    def test_ignores_pr_when_newer_review_approved(self):
+        pr = self._pr(10, "fix/10", reviews=[
+            {"state": "CHANGES_REQUESTED", "body": "CHANGES NEEDED", "createdAt": "2026-11-28T10:00:00Z"},
+            {"state": "APPROVED", "body": "LGTM", "createdAt": "2026-11-28T11:00:00Z"},
+        ])
+        gh = Fake([card(1, status="Ready for agents"), card(2, status="Verify", prs=[pr])])
+        out = board.pick_up(gh, cfg())
+        self.assertEqual(out["picked"], "rzvdaniel/automaton#1")
+
+    def test_moves_to_inbox_after_two_fix_rounds(self):
+        pr = self._pr(10, "fix/10", reviews=[
+            {"state": "CHANGES_REQUESTED", "body": "CHANGES NEEDED", "createdAt": "2026-11-28T09:00:00Z"},
+            {"state": "CHANGES_REQUESTED", "body": "CHANGES NEEDED", "createdAt": "2026-11-28T10:00:00Z"},
+            {"state": "CHANGES_REQUESTED", "body": "CHANGES NEEDED", "createdAt": "2026-11-28T11:00:00Z"},
+        ])
+        gh = Fake([card(2, status="Verify", prs=[pr])])
+        out = board.pick_up(gh, cfg())
+        self.assertEqual(out["picked"], "")
+        self.assertIn("rzvdaniel/automaton#2 to Inbox", out["moved"])
+        self.assertIn(("move", "I2", "o-Inbox"), gh.calls)
+        self.assertTrue(any(c[0] == "POST" and "/labels" in c[1] and c[2] == {"labels": ["agent:human-review"]} for c in gh.calls))
+        self.assertTrue(any(c[0] == "POST" and "/comments" in c[1] and "2 fix rounds" in c[2]["body"] for c in gh.calls))
+
+
 if __name__ == "__main__":
     unittest.main()
