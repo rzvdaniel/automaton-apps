@@ -134,8 +134,8 @@ items(first: 100) { nodes {
     number title state body url repository { nameWithOwner }
     labels(first: 30) { nodes { name } }
     comments(last: 30) { nodes { author { login } body createdAt url } }
-    closedByPullRequestsReferences(first: 5, includeClosedPrs: true) { nodes { number url state createdAt } }
-    timelineItems(last: 20, itemTypes: [CROSS_REFERENCED_EVENT]) { nodes { ... on CrossReferencedEvent { source { ... on PullRequest { number url state createdAt } } } } }
+    closedByPullRequestsReferences(first: 5, includeClosedPrs: true) { nodes { number url state createdAt headRefName reviews(last: 10) { nodes { state body createdAt } } comments(last: 20) { nodes { body createdAt } } } }
+    timelineItems(last: 20, itemTypes: [CROSS_REFERENCED_EVENT]) { nodes { ... on CrossReferencedEvent { source { ... on PullRequest { number url state createdAt headRefName reviews(last: 10) { nodes { state body createdAt } } comments(last: 20) { nodes { body createdAt } } } } } } }
     labelEvents: timelineItems(last: 50, itemTypes: [LABELED_EVENT]) { nodes { ... on LabeledEvent { createdAt label { name } } } }
   } }
 } }
@@ -181,6 +181,26 @@ def run_prs(card: dict) -> list:
     work that mentions the issue) are ignored. When the start or a PR's creation time is unknown, the PR counts."""
     started = card.get("started")
     return [p for p in card["prs"] if not started or not _ts(p.get("createdAt")) or _ts(p["createdAt"]) >= started]
+
+
+def _is_changes_needed(item: dict) -> bool:
+    return item.get("state") == "CHANGES_REQUESTED" or "CHANGES NEEDED" in (item.get("body") or "")
+
+
+def _is_review_event(item: dict) -> bool:
+    return item.get("state") in ("CHANGES_REQUESTED", "APPROVED") or "CHANGES NEEDED" in (item.get("body") or "") or "APPROVED" in (item.get("body") or "")
+
+
+def needs_changes_pr(card: dict) -> tuple[dict, int] | None:
+    """Return (pr, changes_needed_count) for the first open PR whose latest review asks for changes, or None."""
+    for pr in card["prs"]:
+        if pr.get("state") not in (None, "OPEN"):
+            continue
+        events = [e for e in ((pr.get("reviews") or {}).get("nodes") or []) + ((pr.get("comments") or {}).get("nodes") or []) if e and _is_review_event(e)]
+        events.sort(key=lambda e: _ts(e.get("createdAt")) or 0)
+        if events and _is_changes_needed(events[-1]):
+            return pr, sum(1 for e in events if _is_changes_needed(e))
+    return None
 
 
 def shaped(card: dict) -> bool:
@@ -387,13 +407,15 @@ def running_issues(gh: GitHub, config: Config) -> list:
     return found
 
 
-def start(gh: GitHub, config: Config, board: dict, card: dict) -> None:
+def start(gh: GitHub, config: Config, board: dict, card: dict, branch: str = "") -> None:
     """Starts a run for a card: dispatch first (outside the home repository), then mark it taken, so a failed dispatch never leaves
     agent:go blocking the queue."""
     if card["short"] != HOME_REPO:
         path = f"/repos/{config.full(HOME_REPO)}/actions/workflows/agent-issue.yml/dispatches"
         base = {"repo": card["repo"], "number": str(card["number"])}
         extra = config.dispatch_inputs()
+        if branch:
+            extra["branch"] = branch
         try:
             gh.request("POST", path, {"ref": "main", "inputs": {**base, **extra}})
         except BoardError as error:
@@ -449,6 +471,31 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
         result["message"] = "An agent:go issue is open; nothing to pick."
         return result
     running_areas = {a for a in (area(c) for c in board["cards"] if (c["repo"], c["number"]) in taken) if a}
+    for card in board["cards"]:
+        if card["status"] not in (REVIEW, READY) or card["short"] not in config.repos or not card["open"]:
+            continue
+        if any(lbl in card["labels"] for lbl in ("agent:human-review", "agent:failed", "agent:go")):
+            continue
+        nc = needs_changes_pr(card)
+        if not nc:
+            continue
+        pr, rounds = nc
+        if rounds > 2:
+            try:
+                move(gh, board, card, INBOX)
+            except BoardError:
+                continue
+            gh.request("POST", f"/repos/{card['repo']}/issues/{card['number']}/labels", {"labels": ["agent:human-review"]})
+            gh.request("POST", f"/repos/{card['repo']}/issues/{card['number']}/comments",
+                       {"body": f"Moved to Inbox: PR #{pr['number']} still needs changes after 2 fix rounds."})
+            result["moved"].append(f"{card['repo']}#{card['number']} to {INBOX}")
+            continue
+        if taken and (not area(card) or area(card) in running_areas):
+            continue
+        start(gh, config, board, card, branch=pr.get("headRefName") or "")
+        result["picked"] = f"{card['repo']}#{card['number']}"
+        result["message"] = f"Picked {result['picked']} (PR #{pr['number']} needs changes)."
+        return result
     for card in board["cards"]:
         if card["status"] != READY or card["short"] not in config.repos or not card["open"]:
             continue
