@@ -16,6 +16,7 @@ The official app catalog for [Automaton](https://automaton.monster), a platform 
 | Agent Keeper — turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH (needs host access) | [maintenance/agent-keeper](maintenance/agent-keeper/) |
 | Ghost — a blog with newsletters, packaged from the upstream image (MIT) | [publishing/ghost](publishing/ghost/) |
 | VictoriaLogs — search server and app logs in the browser, packaged from the upstream image (Apache-2.0) | [maintenance/victorialogs](maintenance/victorialogs/) |
+| File Browser — upload, download and look at files in a storage folder from the browser, behind Automaton sign-in (Apache-2.0; upstream archived) | [maintenance/file-browser](maintenance/file-browser/) |
 
 Each app has its own source, dependencies, and `automaton.json`. Some apps use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 
