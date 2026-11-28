@@ -312,5 +312,53 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(r.status, 200, path)
 
 
+class PickNowTests(ServerTests):
+    def make(self):
+        self.app.wrong_delay = 0
+        code, body = self.post("/api/pick-token", {}, {"X-Automaton-Viewer-Role": "administrator"})
+        self.assertEqual(code, 200)
+        return body["token"]
+
+    def pick(self, auth):
+        h = {"Authorization": auth} if auth else {}
+        try:
+            with urlopen(Request(self.url + "/api/pick-now", data=b"{}", headers=h, method="POST")) as r:
+                return r.status, json.loads(r.read())
+        except HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_token_needs_an_administrator_and_is_stored_hashed(self):
+        self.app.wrong_delay = 0
+        self.assertEqual(self.post("/api/pick-token")[0], 403)
+        token = self.make()
+        with open(self.app.path, encoding="utf-8") as handle:
+            saved = handle.read()
+        self.assertNotIn(token, saved)
+        self.assertIn("pickTokenHash", saved)
+
+    def test_wrong_or_missing_token_is_401_and_picks_nothing(self):
+        self.assertEqual(self.pick("Bearer nope")[0], 401)  # no token made yet
+        self.make()
+        self.assertEqual(self.pick("Bearer nope")[0], 401)
+        self.assertEqual(self.pick(None)[0], 401)
+
+    def test_right_token_runs_pick_up(self):
+        token = self.make()
+        self.app.settings.gh_token = "x" * 20
+        called = []
+        original = main.board.pick_up
+        main.board.pick_up = lambda gh, config: called.append(1) or {"picked": "a/b#1", "message": "Picked a/b#1.", "moved": []}
+        self.app.api = object()
+        try:
+            code, body = self.pick("Bearer " + token)
+        finally:
+            main.board.pick_up = original
+        self.assertEqual((code, body["picked"], called), (200, "a/b#1", [1]))
+
+    def test_new_token_replaces_the_old(self):
+        old = self.make()
+        self.make()
+        self.assertEqual(self.pick("Bearer " + old)[0], 401)
+
 if __name__ == "__main__":
     unittest.main()
