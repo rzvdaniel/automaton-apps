@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-look="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Release Keeper</title>
+<link rel="stylesheet" href="/ui/app.css">
+<link rel="stylesheet" href="/ui/page.css">
+</head>
+<body>
+<header class="rk-head">
+  <div class="rk-head__in">
+    <a class="rk-brand" href="#/now">
+      <span class="rk-mark" aria-hidden="true">&gt;_&lt;</span>
+      <span>Release Keeper</span>
+    </a>
+    <nav class="rk-tabs" aria-label="Sections">
+      <a class="rk-tab" href="#/now">Now</a>
+      <a class="rk-tab" href="#/releases">Releases</a>
+      <a class="rk-tab" href="#/reports">Reports</a>
+      <a class="rk-tab" href="#/lessons">Lessons</a>
+    </nav>
+    <div class="rk-head__actions">
+      <button class="a-btn" id="btn-sync" type="button">Sync</button>
+    </div>
+  </div>
+</header>
+
+<main class="rk-main" id="view">
+  <div class="a-empty"><div class="a-empty__title">Loading…</div></div>
+</main>
+
+<div class="rk-scrim" id="scrim"></div>
+<aside class="rk-drawer" id="drawer" aria-hidden="true" role="dialog" aria-labelledby="dtitle">
+  <div class="rk-drawer__head">
+    <h2 class="rk-drawer__title" id="dtitle"></h2>
+    <button class="a-btn" id="dclose" type="button" aria-label="Close panel">✕</button>
+  </div>
+  <div class="rk-drawer__body" id="dbody"></div>
+</aside>
+
+<script src="/ui/app.js"></script>
+<script src="/ui/page.js"></script>
+</body>
+</html>

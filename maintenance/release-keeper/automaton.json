@@ -1,0 +1,109 @@
+{
+  "name": "Release Keeper",
+  "summary": "Shows the current release, past releases with notes and verification, daily reports and lessons, and emails the daily report.",
+  "description": "Keeps one place for releases, verification state, daily reports (Morning and End of day) and lessons learned. Syncs from GitHub and server health endpoints every 15 minutes, saves reports and verification history in its own SQLite database, and emails the daily report to the owner.",
+  "application": {
+    "kind": "web",
+    "permissions": ["notify:email"],
+    "description": "Shows releases, daily reports and lessons, and emails the daily report.",
+    "pages": [{ "path": "/", "label": "Releases" }],
+    "build": {
+      "image": "python:3.12-slim",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "-c",
+          "python -m py_compile main.py store.py github_sync.py report.py && mkdir -p dist/ui && cp main.py store.py github_sync.py report.py dist/ && cp ui/app.css ui/app.js ui/page.css ui/page.js ui/index.html dist/ui/"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "runtime": {
+      "image": "python:3.12-slim",
+      "user": "1000:1000",
+      "command": {
+        "executable": "python",
+        "arguments": [
+          "main.py"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    },
+    "settings": [
+      {
+        "name": "RK_REPOS",
+        "description": "Comma-separated GitHub repositories to track (owner/repo)",
+        "default": "rzvdaniel/automaton,rzvdaniel/automaton-apps"
+      },
+      {
+        "name": "RK_BOARD_NUMBER",
+        "description": "GitHub Project board number for pipeline and Verify column",
+        "default": "17"
+      },
+      {
+        "name": "RK_BOARD_OWNER",
+        "description": "GitHub user or org that owns the Project board",
+        "default": "rzvdaniel"
+      },
+      {
+        "name": "RK_PROD_API_URL",
+        "description": "Production Automaton server API URL (for health/version check)",
+        "default": "https://api.automaton.monster"
+      },
+      {
+        "name": "RK_TEST_API_URL",
+        "description": "Test Automaton server API URL (for health/version check)",
+        "default": "https://api.runner-01.automaton.monster"
+      },
+      {
+        "name": "EMAIL_TO",
+        "description": "Who gets daily report emails (needs notify:email): owner, administrators, project or an allowed address",
+        "default": "owner"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "RK_GH_TOKEN",
+        "optional": true,
+        "description": "Read-only GitHub token (repo, project scopes) used to sync releases, board 17, PRs, runs and lessons"
+      }
+    ],
+    "schedules": [
+      {
+        "name": "Sync",
+        "action": "sync",
+        "description": "Sync releases, Verify column, lessons and server versions from GitHub and health endpoints",
+        "cron": "*/15 * * * *",
+        "timeZone": "Etc/UTC",
+        "input": {}
+      },
+      {
+        "name": "Daily report (Morning)",
+        "action": "daily-report",
+        "description": "Generate and email the Morning daily report",
+        "cron": "0 7 * * *",
+        "timeZone": "Etc/UTC",
+        "input": { "kind": "morning" }
+      },
+      {
+        "name": "Daily report (End of day)",
+        "action": "daily-report",
+        "description": "Generate and email the End of day report",
+        "cron": "0 18 * * *",
+        "timeZone": "Etc/UTC",
+        "input": { "kind": "eod" }
+      }
+    ]
+  }
+}

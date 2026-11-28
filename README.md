@@ -14,6 +14,7 @@ The official app catalog for [Automaton](https://automaton.monster), a platform 
 | Website Monitor — checks your websites and alerts a webhook when one is down or its certificate is about to expire | [maintenance/website-monitor](maintenance/website-monitor/) |
 | Heartbeat — a check-in URL per job and an alert when a check-in is missed | [maintenance/heartbeat](maintenance/heartbeat/) |
 | Agent Keeper — turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH (needs host access) | [maintenance/agent-keeper](maintenance/agent-keeper/) |
+| Release Keeper — shows the current release, past releases with notes and verification, daily reports and lessons, and emails the daily report | [maintenance/release-keeper](maintenance/release-keeper/) |
 | Ghost — a blog with newsletters, packaged from the upstream image (MIT) | [publishing/ghost](publishing/ghost/) |
 | VictoriaLogs — search server and app logs in the browser, packaged from the upstream image (Apache-2.0) | [maintenance/victorialogs](maintenance/victorialogs/) |
 | File Browser — upload, download and look at files in a storage folder from the browser, behind Automaton sign-in (Apache-2.0; upstream archived) | [maintenance/file-browser](maintenance/file-browser/) |
