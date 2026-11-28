@@ -1,0 +1,23 @@
+apiVersion: automaton.dev/v1
+kind: Action
+metadata:
+  name: Verify
+  key: verify
+  description: Start release verification on the test server when a new version is installed and cards wait in Verify.
+spec:
+  runtime: python
+  entrypoint: main.py
+  timeoutSeconds: 300
+  schedulable: true
+  allowedExecutionScopes:
+    - AppRunner
+  defaultConcurrencyPolicy: SkipIfRunning
+  output:
+    type: object
+    properties:
+      started:
+        type: boolean
+      version:
+        type: string
+      message:
+        type: string

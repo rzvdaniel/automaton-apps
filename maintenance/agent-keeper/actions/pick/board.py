@@ -42,11 +42,18 @@ class Config:
     agent_model: str = ""
     review_cli: str = ""
     review_model: str = ""
+    verify_enabled: bool = True
+    api_base_url: str = ""
 
     def dispatch_inputs(self) -> dict:
         """Only the choices that are set; agent-issue.yml falls back to its repo variables for the rest."""
         pairs = {"agent_cli": self.agent_cli, "agent_model": self.agent_model,
                  "review_cli": self.review_cli, "review_model": self.review_model}
+        return {k: v for k, v in pairs.items() if v}
+
+    def verify_dispatch_inputs(self, version: str = "") -> dict:
+        """Inputs for verify-release.yml: version plus the verification tool/model from apps#532."""
+        pairs = {"version": version, "agent_cli": self.review_cli, "agent_model": self.review_model}
         return {k: v for k, v in pairs.items() if v}
 
     @classmethod
@@ -75,8 +82,17 @@ class Config:
             if value and not MODEL_NAME.match(value):
                 raise BoardError(f"{key} has characters that are not allowed.")
             choice[key] = value
+        verify_raw = (env.get("VERIFY_ENABLED") or "true").strip().lower()
+        if verify_raw in ("true", "on", "1"):
+            verify_enabled = True
+        elif verify_raw in ("false", "off", "0"):
+            verify_enabled = False
+        else:
+            raise BoardError("VERIFY_ENABLED must be true or false.")
+        api_base_url = (env.get("API_BASE_URL") or "").strip().rstrip("/")
         return cls(token, match.group(1), int(match.group(2)), repos, int(raw), runner_repo,
-                   choice["AGENT_CLI"], choice["AGENT_MODEL"], choice["AGENT_REVIEW_CLI"], choice["AGENT_REVIEW_MODEL"])
+                   choice["AGENT_CLI"], choice["AGENT_MODEL"], choice["AGENT_REVIEW_CLI"], choice["AGENT_REVIEW_MODEL"],
+                   verify_enabled, api_base_url)
 
     def full(self, repo: str) -> str:
         return repo if "/" in repo else f"{self.owner}/{repo}"
@@ -444,6 +460,9 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
     if not runner_ok(gh, config):
         result["message"] = "The runner is not set up yet; nothing picked."
         return result
+    if verify_running(verify_runs(gh, config)):
+        result["message"] = "Release verification is running; Pick up is waiting."
+        return result
     taken = running_issues(gh, config)
     if len(taken) >= config.parallel:
         result["message"] = "An agent:go issue is open; nothing to pick."
@@ -472,6 +491,62 @@ def pick_up(gh: GitHub, config: Config, runner_ok=None) -> dict:
         return result
     result["message"] = result["message"] or "No Ready card."
     return result
+
+
+def server_version(api_base_url: str) -> str:
+    """Installed version reported by the Automaton server's /health endpoint, or empty string."""
+    if not api_base_url:
+        return ""
+    try:
+        req = Request(f"{api_base_url.rstrip('/')}/health", headers={"User-Agent": USER_AGENT})
+        with build_opener(_NoRedirect()).open(req, timeout=10) as response:
+            data = json.loads(response.read(65536).decode("utf-8"))
+            return str(data.get("version") or "").strip() if isinstance(data, dict) else ""
+    except (HTTPError, URLError, OSError, ValueError):
+        return ""
+
+
+def verify_runs(gh: GitHub, config: Config) -> list:
+    """Recent runs of verify-release.yml on HOME_REPO."""
+    try:
+        listing = gh.get(f"/repos/{config.full(HOME_REPO)}/actions/workflows/verify-release.yml/runs?per_page=20") or {}
+        return listing.get("workflow_runs") or []
+    except BoardError:
+        return []
+
+
+def verify_running(runs: list) -> dict | None:
+    """The active (queued or in-progress) verify-release.yml run, if any."""
+    return next((r for r in runs if r.get("status") != "completed"), None)
+
+
+def verify(gh: GitHub, config: Config, force: bool = False, get_version=None) -> dict:
+    """One pass of release verification: dispatch verify-release.yml when enabled, no agent:go runs, cards wait in Verify, and the installed version is not yet verified."""
+    if not config.verify_enabled and not force:
+        return {"started": False, "version": "", "message": "Verification off."}
+    if running_issues(gh, config):
+        return {"started": False, "version": "", "message": "An agent:go issue is open; Verify is waiting."}
+    runs = verify_runs(gh, config)
+    if verify_running(runs):
+        return {"started": False, "version": "", "message": "Release verification is already running."}
+    version = (get_version or (lambda: server_version(config.api_base_url)))()
+    if not force:
+        board = load_board(gh, config)
+        if not any(c["status"] == REVIEW and c["short"] in config.repos and c["open"] for c in board["cards"]):
+            return {"started": False, "version": "", "message": "No cards waiting in Verify."}
+        if not version:
+            return {"started": False, "version": "", "message": "Test server version is unknown."}
+        if any(r.get("status") == "completed" and version in (r.get("display_title") or "") for r in runs):
+            return {"started": False, "version": version, "message": f"Version {version} is already verified."}
+    path = f"/repos/{config.full(HOME_REPO)}/actions/workflows/verify-release.yml/dispatches"
+    inputs = config.verify_dispatch_inputs(version)
+    try:
+        gh.request("POST", path, {"ref": "main", "inputs": inputs})
+    except BoardError as error:
+        if "HTTP 422" not in str(error) or not inputs:
+            raise
+        gh.request("POST", path, {"ref": "main", "inputs": {"version": version} if version else {}})
+    return {"started": True, "version": version, "message": f"Started verification for {version}." if version else "Started verification."}
 
 
 def token_scopes(gh: GitHub):
@@ -532,6 +607,21 @@ def snapshot(gh: GitHub, config: Config, now: float | None = None) -> dict:
             failed.append(brief(card, reason=(comment.get("body") or "")[:200], readUrl=comment.get("url") or card["url"],
                                 at=_ts(comment.get("createdAt"))))
     records = agent_records([c for c in board["cards"] if c["short"] in config.repos])
+    v_runs = verify_runs(gh, config)
+    v_active = verify_running(v_runs)
+    last_v = v_active or (v_runs[0] if v_runs else None)
+    verify_row = None
+    if last_v:
+        v_status = "running" if last_v.get("status") != "completed" else ("done" if last_v.get("conclusion") == "success" else "failed")
+        verify_row = {
+            "release": last_v.get("display_title") or last_v.get("name") or "",
+            "status": v_status,
+            "startedAt": _ts(last_v.get("run_started_at") or last_v.get("created_at")),
+            "endedAt": _ts(last_v.get("updated_at")) if last_v.get("status") == "completed" else None,
+            "url": last_v.get("html_url") or "",
+        }
+    has_verify_cards = any(c["status"] == REVIEW and c["short"] in config.repos and c["open"] for c in mine)
+    waiting = "pick" if v_active else ("verify" if (taken and config.verify_enabled and has_verify_cards) else None)
     return {
         "records": records[:40],
         "tools": tool_summary(records[:40]),
@@ -545,6 +635,7 @@ def snapshot(gh: GitHub, config: Config, now: float | None = None) -> dict:
         "runs": runs,
         "doneToday": sum(1 for r in runs if r["result"] == "success" and (r["endedAt"] or 0) >= midnight),
         "parallel": config.parallel,
+        "verify": {"enabled": config.verify_enabled, "waiting": waiting, "run": verify_row},
     }
 
 

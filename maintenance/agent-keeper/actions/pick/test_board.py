@@ -321,5 +321,101 @@ class ScopeTests(unittest.TestCase):
         self.assertIsNone(board.scope_problem(board.token_scopes(self.gh(None))))  # fine-grained token: no header
 
 
+class VerifyTests(unittest.TestCase):
+    def _gh(self, cards=None, running=None, v_runs=None):
+        cards = cards or []
+        running = running or []
+        v_runs = v_runs or []
+        calls = []
+
+        class Fake:
+            def graphql(self, q, v):
+                return {"repositoryOwner": {"projectV2": {
+                    "id": "P", "field": {"id": "F", "options": [{"id": "O1", "name": "Verify"}]},
+                    "items": {"nodes": cards},
+                }}}
+
+            def get(self, path):
+                if "labels=agent:go" in path:
+                    return running if "rzvdaniel/automaton/" in path else []
+                if "verify-release.yml/runs" in path:
+                    return {"workflow_runs": v_runs}
+                if "agent-issue.yml/runs" in path:
+                    return {"workflow_runs": []}
+                return []
+
+            def request(self, method, path, body=None):
+                calls.append((method, path, body))
+                return {}
+
+        return Fake(), calls
+
+    def test_verify_enabled_setting(self):
+        c = board.Config.from_env({"AGENT_GH_TOKEN": "t", "VERIFY_ENABLED": "false"})
+        self.assertFalse(c.verify_enabled)
+        with self.assertRaises(board.BoardError):
+            board.Config.from_env({"AGENT_GH_TOKEN": "t", "VERIFY_ENABLED": "maybe"})
+
+    def test_verify_off_starts_nothing(self):
+        gh, calls = self._gh()
+        c = board.Config.from_env({"AGENT_GH_TOKEN": "t", "VERIFY_ENABLED": "off"})
+        res = board.verify(gh, c, get_version=lambda: "1.2.3")
+        self.assertFalse(res["started"])
+        self.assertIn("off", res["message"].lower())
+        self.assertEqual(calls, [])
+
+    def test_verify_waits_for_running_issue(self):
+        gh, calls = self._gh(running=[{"number": 10}])
+        res = board.verify(gh, cfg(), get_version=lambda: "1.2.3")
+        self.assertFalse(res["started"])
+        self.assertIn("waiting", res["message"].lower())
+        self.assertEqual(calls, [])
+
+    def test_verify_dispatches_for_new_version_with_review_tool_and_model(self):
+        card = {"id": "I1", "status": {"name": "Verify"}, "content": {
+            "number": 5, "title": "T", "state": "OPEN", "body": "Done when ok", "url": "u",
+            "repository": {"nameWithOwner": "rzvdaniel/automaton"},
+            "labels": {"nodes": []}, "comments": {"nodes": []},
+            "closedByPullRequestsReferences": {"nodes": []}, "timelineItems": {"nodes": []}, "labelEvents": {"nodes": []},
+        }}
+        gh, calls = self._gh(cards=[card], v_runs=[{"status": "completed", "conclusion": "success", "display_title": "1.2.2"}])
+        c = board.Config.from_env({"AGENT_GH_TOKEN": "t", "AGENT_REVIEW_CLI": "agy", "AGENT_REVIEW_MODEL": "sonnet"})
+        res = board.verify(gh, c, get_version=lambda: "1.2.3")
+        self.assertTrue(res["started"])
+        self.assertEqual(res["version"], "1.2.3")
+        self.assertEqual(calls[0][1], "/repos/rzvdaniel/automaton/actions/workflows/verify-release.yml/dispatches")
+        self.assertEqual(calls[0][2]["inputs"], {"version": "1.2.3", "agent_cli": "agy", "agent_model": "sonnet"})
+
+    def test_verify_skips_already_verified_unless_forced(self):
+        card = {"id": "I1", "status": {"name": "Verify"}, "content": {
+            "number": 5, "title": "T", "state": "OPEN", "body": "Done when ok", "url": "u",
+            "repository": {"nameWithOwner": "rzvdaniel/automaton"},
+            "labels": {"nodes": []}, "comments": {"nodes": []},
+            "closedByPullRequestsReferences": {"nodes": []}, "timelineItems": {"nodes": []}, "labelEvents": {"nodes": []},
+        }}
+        gh, calls = self._gh(cards=[card], v_runs=[{"status": "completed", "conclusion": "success", "display_title": "1.2.3"}])
+        res = board.verify(gh, cfg(), get_version=lambda: "1.2.3")
+        self.assertFalse(res["started"])
+        self.assertEqual(calls, [])
+        res_forced = board.verify(gh, cfg(), force=True, get_version=lambda: "1.2.3")
+        self.assertTrue(res_forced["started"])
+        self.assertEqual(len(calls), 1)
+
+    def test_pickup_waits_while_verify_runs(self):
+        gh, calls = self._gh(v_runs=[{"status": "in_progress", "display_title": "1.2.3"}])
+        res = board.pick_up(gh, cfg(), runner_ok=lambda g, c: True)
+        self.assertEqual(res["picked"], "")
+        self.assertIn("waiting", res["message"].lower())
+        self.assertEqual(calls, [])
+
+    def test_snapshot_includes_verify_state(self):
+        gh, _ = self._gh(v_runs=[{"status": "completed", "conclusion": "success", "display_title": "1.2.3",
+                                   "html_url": "https://gh/run/1", "run_started_at": "2026-11-28T10:00:00Z", "updated_at": "2026-11-28T10:05:00Z"}])
+        snap = board.snapshot(gh, cfg(), board._ts("2026-11-28T12:00:00Z"))
+        self.assertTrue(snap["verify"]["enabled"])
+        self.assertEqual(snap["verify"]["run"]["status"], "done")
+        self.assertEqual(snap["verify"]["run"]["release"], "1.2.3")
+
+
 if __name__ == "__main__":
     unittest.main()
