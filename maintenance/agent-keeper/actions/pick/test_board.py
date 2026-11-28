@@ -259,6 +259,51 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual([c["number"] for c in snap["ready"]], [3, 4])
 
 
+class AgentRunTests(unittest.TestCase):
+    def test_parses_the_record_line(self):
+        run = board.parse_agent_run("Agent run: tool agy, model gemini-4-hydrogen-high, 19 min, fallback: no, exit 0.")
+        self.assertEqual(run, {"tool": "agy", "model": "gemini-4-hydrogen-high", "minutes": 19.0, "fallback": False, "exit": 0})
+        run = board.parse_agent_run("text before\nAgent run: tool claude, model sonnet, 41.5 min, fallback: yes, exit 1.\n")
+        self.assertEqual((run["tool"], run["fallback"], run["exit"], run["minutes"]), ("claude", True, 1, 41.5))
+
+    def test_ignores_other_comments(self):
+        for text in ("Agent run ended without a pull request", "Agent run: it went well", "", None, "Agent run: tool claude, 3 min, fallback: maybe, exit 0."):
+            self.assertIsNone(board.parse_agent_run(text))
+        self.assertEqual(board.parse_agent_run("Agent run: tool claude, 3 min, fallback: no, exit 0.")["model"], "")
+
+    def records(self):
+        def comment(text, at):
+            return {"author": {"login": "bot"}, "body": text, "createdAt": at, "url": "c"}
+        pr = {"number": 7, "url": "https://github.com/o/r/pull/7", "state": "MERGED", "createdAt": "2026-11-28T10:30:00Z"}
+        return [
+            card(1, comments=[comment("Agent run: tool agy, model m, 20 min, fallback: no, exit 0.", "2026-11-28T11:00:00Z")], prs=[pr]),
+            card(2, comments=[comment("Agent run: tool claude, model sonnet, 40 min, fallback: yes, exit 0.", "2026-11-28T09:00:00Z")], prs=[pr]),
+            card(3, comments=[comment("Agent run: tool claude, model sonnet, 10 min, fallback: no, exit 1.", "2026-11-26T09:00:00Z")]),
+        ]
+
+    def test_records_summary_and_usage(self):
+        records = board.agent_records(self.records())
+        self.assertEqual([r["number"] for r in records], [1, 2, 3])
+        self.assertEqual([r["result"] for r in records], ["success", "success", "failed"])
+        summary = board.tool_summary(records)
+        self.assertEqual(summary["claude"], {"runs": 2, "median": 25.0, "prs": 1, "fallbacks": 1})
+        self.assertEqual(summary["agy"]["prs"], 1)
+        now = board._ts("2026-11-28T12:00:00Z")  # a Saturday
+        usage = board.tool_usage(records, now)
+        self.assertEqual(usage["agy"]["today"], {"runs": 1, "busyMinutes": 20.0, "prs": 1})
+        self.assertEqual(usage["agy"]["hours5"]["runs"], 1)
+        self.assertEqual(usage["claude"]["today"]["runs"], 1)
+        self.assertEqual(usage["claude"]["hours5"]["busyMinutes"], 40.0)
+        self.assertEqual(usage["claude"]["week"]["runs"], 2)  # the 26th is after Monday the 23rd
+        self.assertEqual(usage["claude"]["week"]["busyMinutes"], 50.0)
+
+    def test_snapshot_carries_the_records(self):
+        snap = board.snapshot(Fake(self.records()), cfg(), board._ts("2026-11-28T12:00:00Z"))
+        self.assertEqual(len(snap["records"]), 3)
+        self.assertEqual(snap["tools"]["agy"]["runs"], 1)
+        self.assertEqual(snap["agent"]["tool"], "claude")
+
+
 class ScopeTests(unittest.TestCase):
     def gh(self, header):
         class G(board.GitHub):
