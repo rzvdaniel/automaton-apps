@@ -12,6 +12,8 @@ The page has three tabs, built from the v3 mock (`design/mocks/agent-keeper.html
 
 **Runs at once** (`AGENT_PARALLEL`, 1 or 2, default 1): with 2, Set up also registers a second runner service (`actions-runner-2`, its own work folder) and Pick up starts a second card only when the running one is in another area (an `area:<name>` label; cards in other repositories are their own area; a card with no known area never runs beside another). The test-server lock between runs and re-requesting reviews on PRs the merge gate blocks are workflow-side and not part of this app.
 
+**Pick now.** `POST /api/pick-now` with `Authorization: Bearer <token>` runs the same pass as the Pick up Action, so the end of an agent run can start the next card at once (a workflow step with `if: always()` that only warns when the call fails). On Setup an administrator presses **Create token**; the token is shown once, only its SHA-256 is saved, it is never logged, and a new one replaces the old. A wrong or missing token gets 401 after a 2-second delay; a pass already running gets 409. The 10-minute schedule stays as the safety net. Under Automaton the call must reach the app past Automaton's login (an API key or public path for `/api/pick-now`); standalone, expose that one path and keep the rest behind your login.
+
 Turns a machine that only has an Automaton Runner into a GitHub Actions agent machine, with no SSH. From one page it installs Claude Code, gh, git, Docker and the build tools, registers the machine as a self-hosted GitHub Actions runner with the `agent` label and runs it as a service.
 
 **It runs commands as root on the machine.** It does that through the platform permission `runner:host-exec` (its only permission), which works only when a system administrator has:
@@ -66,6 +68,7 @@ An administrator starts every host run on the page, because the platform require
 | `AGENT_PARALLEL` | setting | Runs at once, `1` (default) or `2`. |
 | `AGENT_CLI`, `AGENT_MODEL` | setting, optional | Agent tool (`claude` or `agy`) and model for implementation runs; passed to `agent-issue.yml` as dispatch inputs. Empty keeps the repository variables. |
 | `AGENT_REVIEW_CLI`, `AGENT_REVIEW_MODEL` | setting, optional | Same for the main review (the security pass stays on Claude; needs automaton#1867). If `agent-issue.yml` does not declare these inputs yet, GitHub refuses them and Pick up starts the run again without them, on the repository variables. |
+| pick-now token | generated on Setup | Bearer token for `/api/pick-now`; only its hash is kept in `data/state.json`. |
 | `AGENT_GH_TOKEN` | secret | GitHub token with the project, repo and workflow scopes. |
 | `AGENT_DOCKER_ACCESS` | setting | Default `false`. `true` adds the runner user to the `docker` group. **Warning: membership in the docker group is root on the host** (a container can mount `/` and run privileged), and the runner runs jobs from any branch or pull request that targets it. Leave it off unless you accept that; otherwise use rootless Docker. Turning it off later does not remove an existing membership. |
 

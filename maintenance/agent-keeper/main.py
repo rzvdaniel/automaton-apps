@@ -4,8 +4,11 @@ An administrator starts each run on the page; the platform checks that person an
 no token: a registration or removal token goes to the script once, on standard input.
 """
 
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import sys
 import threading
 import time
@@ -42,6 +45,8 @@ class Keeper:
         self.state = self.load()
         self.cache = {}  # name -> (time, value): the queue for 30 seconds, the newest tool versions for an hour
         self.api = None  # replaced in tests
+        self.pick_lock = threading.Lock()  # one pick-up pass at a time, whoever asks
+        self.wrong_delay = 2.0  # seconds a wrong pick-now token waits for its answer
 
     def load(self) -> dict:
         try:
@@ -65,7 +70,7 @@ class Keeper:
             last = {k: v for k, v in (self.state.get("last") or {}).items() if k in keeper.ACTIONS}
             return {"admin": admin, "missing": self.settings.missing(), "running": self.running, "last": last,
                     "status": self.state.get("status"), "parallel": int(self.settings.parallel), "board": self.settings.board,
-                    "agents": self.settings.agent_choice, "repos": self.settings.repos.replace(",", " ").split(), "hasToken": bool(self.settings.gh_token),
+                    "agents": self.settings.agent_choice, "repos": self.settings.repos.replace(",", " ").split(), "hasToken": bool(self.settings.gh_token), "inAutomaton": self.settings.in_automaton, "pickToken": bool(self.state.get("pickTokenHash")),
                     "config": {"repo": self.settings.repo, "name": self.settings.name, "labels": self.settings.labels, "user": self.settings.user, "docker": self.settings.docker}}
 
     def config(self):
@@ -119,6 +124,40 @@ class Keeper:
             self.cache.pop("queue", None)
         log(f"run again {repo}#{number}")
         return 200, {"status": "ok", "message": message}
+
+    def new_pick_token(self) -> str:
+        """Makes the token for pick-now, keeps only its hash and returns the token once. A new one replaces the old."""
+        token = secrets.token_urlsafe(32)
+        with self.lock:
+            self.state["pickTokenHash"] = hashlib.sha256(token.encode()).hexdigest()
+        self.save()
+        log("pick-now token created")
+        return token
+
+    def pick_now(self, header: str | None) -> tuple[int, dict]:
+        """The same pass as the Pick up Action, for a caller holding the pick-now token (the end of an agent run)."""
+        with self.lock:
+            saved = self.state.get("pickTokenHash")
+        given = header[7:].strip() if header and header[:7].lower() == "bearer " else ""
+        ok = bool(saved) and hmac.compare_digest(hashlib.sha256(given.encode()).hexdigest(), saved)
+        if not ok:
+            time.sleep(self.wrong_delay)  # a delay after each wrong try
+            return 401, {"status": "unauthorized", "message": "Wrong or missing token."}
+        if not self.settings.gh_token:
+            return 400, {"status": "invalid", "message": "No AGENT_GH_TOKEN secret is saved."}
+        if not self.pick_lock.acquire(blocking=False):
+            return 409, {"status": "conflict", "message": "A pick up is already running."}
+        try:
+            config = self.config()
+            result = board.pick_up(self.api or board.GitHub(config.token), config)
+        except board.BoardError as error:
+            return 502, {"status": "error", "message": str(error)}
+        finally:
+            self.pick_lock.release()
+        with self.lock:
+            self.cache.pop("queue", None)
+        log(f"pick-now: {result.get('picked') or 'nothing picked'}")
+        return 200, {"status": "ok", **result}
 
     def start(self, action: str, token: str | None, viewer: str | None) -> tuple[int, dict]:
         """Validates and starts one run. Status runs in the request; the others in a thread (they take minutes)."""
@@ -201,6 +240,8 @@ def make_handler(app: Keeper):
 
         def do_POST(self):  # noqa: N802
             path = urlsplit(self.path).path
+            if path == "/api/pick-now":  # called by CI, so no page header; the bearer token is the proof
+                return self.json(*app.pick_now(self.headers.get("Authorization")))
             if not path.startswith("/api/") or self.headers.get("X-Agent-Keeper") != "1":
                 return self.json(404, {"error": "Not found"})
             try:
@@ -208,6 +249,10 @@ def make_handler(app: Keeper):
                 body = json.loads(self.rfile.read(max(0, min(length, 4000))).decode("utf-8") or "{}")
             except (ValueError, UnicodeDecodeError):
                 body = {}
+            if path == "/api/pick-token":  # shown once; under Automaton only an administrator, standalone the app's own login decides
+                if app.settings.in_automaton and not self.admin():
+                    return self.json(403, {"status": "forbidden", "message": "Only a system administrator can create the token."})
+                return self.json(200, {"status": "ok", "token": app.new_pick_token()})
             if path == "/api/retry":  # the GitHub token acts here, so the platform's administrator role is required
                 if not self.admin():
                     return self.json(403, {"status": "forbidden", "message": "Only a system administrator can run a card again."})

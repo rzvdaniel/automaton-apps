@@ -243,7 +243,7 @@
     var p = parsed(), off = state.running || !state.admin ? " disabled" : "", at = setupAt();
     var html = tokenNote();
     if (!state.admin) html += '<div class="a-note">Only a system administrator can run these. You can read the last results.</div>';
-    html += '<div class="two">' + agentsCard() + boardCard();
+    html += '<div class="two">' + agentsCard() + boardCard() + pickNowCard();
     if (!p) return html + '</div><p class="a-empty">Reading the machine. ' + (state.status ? esc(state.status.message || "") : "") + '</p><button class="a-btn" type="button" id="refresh"' + off + ">Refresh status</button>";
     if (!p.registered) {
       return html + '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">This machine</h2><span class="a-pill a-pill--warning">not set up</span></div>' +
@@ -261,6 +261,13 @@
     html += '<div class="a-card a-card--danger"><div class="a-card__head"><h2 class="a-card__title">Remove from GitHub</h2></div><p class="small">Stops the service and unregisters the runner. Tools and the work folder stay; Set up brings it back.</p><form class="a-form" data-action="remove">' +
       tokenField("t-remove", "Removal token", "From the runner's page on GitHub. Used once and never saved.") + '<div class="card-end"><span></span><button class="a-btn a-btn--danger" type="submit"' + off + ">Remove runner</button></div></form></div></div>";
     return html;
+  }
+
+  function pickNowCard() {
+    var off = state.admin || !state.inAutomaton ? "" : " disabled";
+    return '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Pick now</h2><span class="a-pill ' + (state.pickToken ? "a-pill--ok" : "a-pill--warning") + '">' + (state.pickToken ? "token set" : "no token") + "</span></div>" +
+      '<p class="small">Lets the end of an agent run start the next card at once: <code>POST /api/pick-now</code> with <code>Authorization: Bearer &lt;token&gt;</code> runs the same pass as Pick up. The 10-minute schedule stays as the safety net. The token is shown once and a new one replaces the old.</p>' +
+      '<div id="pick-token"></div><div class="card-end"><span></span><button class="a-btn" type="button" id="make-pick-token"' + off + ">" + (state.pickToken ? "Create a new token" : "Create token") + "</button></div></div>";
   }
 
   function lastRun() {
@@ -290,6 +297,15 @@
   function bind() {
     var refresh = document.getElementById("refresh");
     if (refresh) refresh.addEventListener("click", function () { start("status"); });
+    var make = document.getElementById("make-pick-token");
+    if (make) make.addEventListener("click", function () {
+      make.disabled = true;
+      post("api/pick-token", {}).then(function (r) {
+        var box = document.getElementById("pick-token");
+        if (r.ok && r.body && r.body.token) box.innerHTML = '<p class="small">Copy it now; it is not shown again:</p><pre class="log">' + esc(r.body.token) + "</pre>";
+        else { box.innerHTML = '<p class="small">' + esc((r.body && r.body.message) || "That did not work.") + "</p>"; make.disabled = false; }
+      });
+    });
     var update = document.getElementById("update");
     if (update) update.addEventListener("click", function () { start("update-tools"); });
     var log = document.getElementById("show-log");
