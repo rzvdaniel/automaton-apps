@@ -1,0 +1,51 @@
+{
+  "name": "File Browser",
+  "summary": "Upload, download and look at files in a storage folder on your server from the browser.",
+  "description": "The Apache-2.0 File Browser by the filebrowser project, packaged from a pinned upstream release. It opens behind Automaton sign-in with no second login and keeps its files in its own data volume. Private only. The upstream project is archived (2026-09-01) and gets no more security fixes.",
+  "category": "Maintenance",
+  "application": {
+    "kind": "web",
+    "permissions": [],
+    "description": "Upload, download and look at files in a storage folder on your server from the browser.",
+    "pages": [
+      {
+        "path": "/",
+        "label": "Files"
+      }
+    ],
+    "build": {
+      "image": "python:3.12-slim-bookworm",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "build.sh"
+        ],
+        "workingDirectory": "."
+      },
+      "outputDirectory": "dist",
+      "timeoutSeconds": 300
+    },
+    "settings": [],
+    "runtime": {
+      "image": "debian:12.13-slim",
+      "user": "1000:1000",
+      "update": "stop-first",
+      "command": {
+        "executable": "sh",
+        "arguments": [
+          "run.sh"
+        ],
+        "workingDirectory": "dist"
+      },
+      "port": 8080
+    },
+    "health": {
+      "path": "/health",
+      "startupTimeoutSeconds": 60
+    },
+    "storage": {
+      "dataDirectory": "data",
+      "mounts": []
+    }
+  }
+}
