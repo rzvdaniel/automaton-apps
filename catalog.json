@@ -126,6 +126,19 @@
       }
     },
     {
+      "id": "file-browser",
+      "name": "File Browser",
+      "summary": "Upload, download and look at files in a storage folder on your server from the browser.",
+      "category": "Maintenance",
+      "folder": "maintenance/file-browser",
+      "commit": "508834bdcbf981bc830ceb12be262d4b7cbc4a45",
+      "minServerVersion": "0.2.180",
+      "permissions": [],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
       "id": "ghost",
       "name": "Ghost",
       "summary": "Publish a blog and send a newsletter from your own server.",
