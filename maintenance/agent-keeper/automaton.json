@@ -109,6 +109,22 @@
         "description": "Model for the main review. Empty keeps the repository variable"
       },
       {
+        "name": "AGENT_FALLBACK_CLI",
+        "description": "Agent tool for fallback after a failed agy run: claude or agy. Empty keeps the repository default"
+      },
+      {
+        "name": "AGENT_FALLBACK_MODEL",
+        "description": "Model for fallback runs. Empty keeps the repository default"
+      },
+      {
+        "name": "AGENT_VERIFY_CLI",
+        "description": "Agent tool for release verification: claude or agy. Empty keeps the repository default"
+      },
+      {
+        "name": "AGENT_VERIFY_MODEL",
+        "description": "Model for release verification. Empty keeps the repository default"
+      },
+      {
         "name": "AGENT_PARALLEL",
         "description": "Runs at once: 1 or 2. With 2, Set up registers a second runner service and Pick up starts a second card only in another area",
         "default": "1"

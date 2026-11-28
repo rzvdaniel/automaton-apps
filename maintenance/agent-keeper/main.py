@@ -107,6 +107,31 @@ class Keeper:
     def latest(self) -> dict:
         return self.cached("latest", 3600, keeper.latest_versions)
 
+    def sync_repo_variables(self) -> None:
+        if not self.settings.gh_token or "/" not in self.settings.repo:
+            return
+        try:
+            errors = keeper.sync_repo_variables(board.GitHub(self.settings.gh_token, timeout=15), self.settings.repo, self.settings.agent_choice)
+            if errors:
+                log("Could not sync some repo variables: " + "; ".join(errors))
+            else:
+                with self.lock:
+                    self.cache.pop("repo_variables", None)
+        except Exception as error:
+            log(f"Could not sync repo variables: {type(error).__name__}")
+
+    def repo_variables(self) -> dict:
+        """Agent role variables read back from AGENT_REPO, kept for 30 seconds."""
+        def make():
+            if not self.settings.gh_token or "/" not in self.settings.repo:
+                return {"ok": False, "variables": {}}
+            try:
+                variables = keeper.read_repo_variables(board.GitHub(self.settings.gh_token, timeout=15), self.settings.repo)
+                return {"ok": True, "variables": variables}
+            except board.BoardError as error:
+                return {"ok": False, "error": str(error), "variables": {}}
+        return self.cached("repo_variables", 30, make)
+
     def run_again(self, repo: str, number) -> tuple[int, dict]:
         if not isinstance(number, int) or not isinstance(repo, str):
             return 400, {"status": "invalid", "message": "Say which card."}
@@ -229,6 +254,8 @@ def make_handler(app: Keeper):
                 return self.json(200, {"problem": app.token_problem()})
             if path == "/api/latest":
                 return self.json(200, app.latest())
+            if path == "/api/repo-variables":
+                return self.json(200, app.repo_variables())
             if path == "/api/state":
                 return self.json(200, app.view(self.admin()))
             entry = STATIC.get(path)
@@ -250,6 +277,7 @@ def main() -> int:
         print(f"Invalid setting: {error}", file=sys.stderr)
         return 2
     port = int(os.environ.get("AUTOMATON_PORT", "8080"))
+    threading.Thread(target=app.sync_repo_variables, daemon=True).start()
     log(f"Agent Keeper listening on port {port}")
     ThreadingHTTPServer(("0.0.0.0", port), make_handler(app)).serve_forever()
     return 0

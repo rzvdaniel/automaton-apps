@@ -52,6 +52,39 @@ class SettingsTests(unittest.TestCase):
             with self.assertRaises(keeper.ConfigError, msg=key):
                 settings(**{key: value})
 
+    def test_agent_role_validation(self):
+        s = settings(AGENT_CLI="claude", AGENT_MODEL="sonnet", AGENT_REVIEW_CLI="agy", AGENT_REVIEW_MODEL="gemini-4-hydrogen-low",
+                     AGENT_FALLBACK_CLI="claude", AGENT_FALLBACK_MODEL="opus", AGENT_VERIFY_CLI="agy", AGENT_VERIFY_MODEL="gemini-4-neon-high")
+        self.assertEqual(s.agent_choice["AGENT_VERIFY_MODEL"], "gemini-4-neon-high")
+        with self.assertRaises(keeper.ConfigError):
+            settings(AGENT_REVIEW_CLI="claude", AGENT_REVIEW_MODEL="gemini-4-hydrogen-low")
+        with self.assertRaises(keeper.ConfigError):
+            settings(AGENT_VERIFY_CLI="agy", AGENT_VERIFY_MODEL="sonnet")
+        with self.assertRaises(keeper.ConfigError):
+            settings(AGENT_FALLBACK_CLI="bash")
+
+
+class RepoVariablesTests(unittest.TestCase):
+    def test_sync_and_read_repo_variables(self):
+        calls = []
+        class FakeGH:
+            def request(self, method, path, body=None):
+                calls.append((method, path, body))
+                if method == "PATCH" and path.endswith("/AGENT_VERIFY_CLI"):
+                    raise RuntimeError("GitHub answered HTTP 404 for PATCH")
+                if method == "DELETE" and path.endswith("/AGENT_MODEL"):
+                    raise RuntimeError("GitHub answered HTTP 404 for DELETE")
+                if method == "GET":
+                    return {"variables": [{"name": "AGENT_CLI", "value": "claude"}, {"name": "OTHER", "value": "x"}]}
+                return None
+
+        errors = keeper.sync_repo_variables(FakeGH(), "acme/widgets", {"AGENT_CLI": "claude", "AGENT_VERIFY_CLI": "agy"})
+        self.assertEqual(errors, [])
+        self.assertIn(("PATCH", "/repos/acme/widgets/actions/variables/AGENT_CLI", {"name": "AGENT_CLI", "value": "claude"}), calls)
+        self.assertIn(("POST", "/repos/acme/widgets/actions/variables", {"name": "AGENT_VERIFY_CLI", "value": "agy"}), calls)
+        self.assertIn(("DELETE", "/repos/acme/widgets/actions/variables/AGENT_MODEL", None), calls)
+        self.assertEqual(keeper.read_repo_variables(FakeGH(), "acme/widgets"), {"AGENT_CLI": "claude"})
+
 
 class BuildTests(unittest.TestCase):
     def test_token_goes_only_to_stdin(self):
