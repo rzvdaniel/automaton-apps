@@ -193,6 +193,77 @@ def failure_comment(card: dict) -> dict | None:
     return found[-1] if found else None
 
 
+AGENT_RUN = re.compile(r"^Agent run:\s*tool\s+(?P<tool>[A-Za-z0-9_.\-]+)(?:,\s*model\s+(?P<model>[A-Za-z0-9][A-Za-z0-9._:/\-]*))?,\s*(?P<min>[0-9]+(?:\.[0-9]+)?)\s*min,\s*"
+                       r"fallback:\s*(?P<fallback>yes|no),\s*exit\s+(?P<exit>-?[0-9]+)\.?\s*$", re.I)
+
+
+def parse_agent_run(body: str) -> dict | None:
+    """The record line the implementer step comments on an issue (automaton#1866):
+    "Agent run: tool claude, model sonnet, 12 min, fallback: yes, exit 0." Anything else, a failure note included, is None."""
+    for line in (body or "").splitlines():
+        match = AGENT_RUN.match(line.strip())
+        if match:
+            return {"tool": match["tool"].lower(), "model": match["model"] or "", "minutes": float(match["min"]),
+                    "fallback": match["fallback"].lower() == "yes", "exit": int(match["exit"])}
+    return None
+
+
+def agent_records(cards: list) -> list:
+    """Every record line found in the cards' recent comments, newest first, with the card and its pull request."""
+    found = []
+    for card in cards:
+        prs = run_prs(card)
+        pr = prs[-1] if prs else None
+        for comment in card["comments"]:
+            record = parse_agent_run(comment.get("body") or "")
+            at = _ts(comment.get("createdAt"))
+            if not record or not at:
+                continue
+            record.update(repo=card["repo"], short=card["short"], number=card["number"], title=card["title"], url=card["url"], at=at,
+                          pr={"number": pr["number"], "url": pr.get("url") or "", "state": pr.get("state") or ""} if pr else None)
+            record["result"] = "success" if record["exit"] == 0 and pr else "failed"
+            found.append(record)
+    return sorted(found, key=lambda r: -r["at"])
+
+
+def _median(values: list):
+    ordered = sorted(values)
+    if not ordered:
+        return None
+    mid = len(ordered) // 2
+    return ordered[mid] if len(ordered) % 2 else (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def tool_summary(records: list) -> dict:
+    """Per tool: runs, median minutes, runs that opened a pull request, runs that ran as the fallback."""
+    out = {}
+    for record in records:
+        item = out.setdefault(record["tool"], {"runs": 0, "minutes": [], "prs": 0, "fallbacks": 0})
+        item["runs"] += 1
+        item["minutes"].append(record["minutes"])
+        item["prs"] += 1 if record["pr"] else 0
+        item["fallbacks"] += 1 if record["fallback"] else 0
+    return {tool: {"runs": v["runs"], "median": _median(v["minutes"]), "prs": v["prs"], "fallbacks": v["fallbacks"]} for tool, v in out.items()}
+
+
+def tool_usage(records: list, now: float) -> dict:
+    """Per tool, from the records alone: today (since 00:00 UTC), the last 5 hours and this week (since Monday 00:00 UTC), as runs and busy
+    minutes. A run's busy time is the part of [end - minutes, end] inside the window."""
+    from datetime import datetime, timezone
+    day = datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    windows = {"today": day.timestamp(), "hours5": now - 5 * 3600, "week": day.timestamp() - day.weekday() * 86400}
+    out = {}
+    for record in records:
+        item = out.setdefault(record["tool"], {name: {"runs": 0, "busy": 0.0, "prs": 0} for name in windows})
+        end, start = record["at"], record["at"] - record["minutes"] * 60
+        for name, since in windows.items():
+            if end >= since:
+                item[name]["runs"] += 1
+                item[name]["prs"] += 1 if record["pr"] else 0
+            item[name]["busy"] += max(0.0, min(end, now) - max(start, since)) / 60
+    return {tool: {name: {"runs": w["runs"], "busyMinutes": round(w["busy"], 1), "prs": w["prs"]} for name, w in item.items()} for tool, item in out.items()}
+
+
 def area(card: dict) -> str | None:
     """Which part of the product a card touches (a label area:<name>); other repositories are their own area. None when unknown."""
     for label in card["labels"]:
@@ -460,7 +531,13 @@ def snapshot(gh: GitHub, config: Config, now: float | None = None) -> dict:
             comment = failure_comment(card) or {}
             failed.append(brief(card, reason=(comment.get("body") or "")[:200], readUrl=comment.get("url") or card["url"],
                                 at=_ts(comment.get("createdAt"))))
+    records = agent_records([c for c in board["cards"] if c["short"] in config.repos])
     return {
+        "records": records[:40],
+        "tools": tool_summary(records[:40]),
+        "usage": tool_usage(records, now),
+        "agent": {"tool": config.agent_cli or "claude", "model": config.agent_model},
+        "now": now,
         "running": [brief(c, status=c["status"], started=_ts(next((r for r in runs if r["endedAt"] is None), {}).get("startedAt")))
                     for c in mine if (c["repo"], c["number"]) in taken],
         "failed": failed,

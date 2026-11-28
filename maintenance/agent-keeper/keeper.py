@@ -167,7 +167,7 @@ def parse_status(output: str) -> dict:
         "tools": {key[5:]: values[key] for key in sorted(values) if key.startswith("tool_") and values[key]},
         "diskTotal": number("disk_total"), "diskUsed": number("disk_used"),
         "dockerPath": values.get("docker_path") or None, "dockerTotal": number("docker_total"), "dockerUsed": number("docker_used"),
-        "runners": number("runner_count"),
+        "runners": number("runner_count"), "since": number("since"), "worktrees": number("worktrees"),
     }
 
 

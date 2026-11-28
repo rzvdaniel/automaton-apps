@@ -139,6 +139,10 @@ class DiskAndLatestTests(unittest.TestCase):
         self.assertEqual((p["diskTotal"], p["diskUsed"], p["dockerPath"], p["dockerTotal"], p["dockerUsed"], p["runners"]), (100, 40, "/mnt/d", 400, 60, 2))
         self.assertIsNone(keeper.parse_status("registered=yes\ndisk_total=1")["dockerTotal"])
 
+    def test_status_reads_agy_since_and_worktrees(self):
+        p = keeper.parse_status("registered=yes\nservice=active\nsince=1700000000\ntool_agy=1.5.18\ntool_claude=2.1.3 (Claude Code)\nworktrees=2")
+        self.assertEqual((p["since"], p["worktrees"], p["tools"]["agy"]), (1700000000, 2, "1.5.18"))
+
     def test_latest_versions_ignore_junk_and_failures(self):
         class Opener:
             def open(self, request, timeout):

@@ -11,6 +11,7 @@ fi
 svc="$(service_name)"
 if [ -n "$svc" ]; then
   echo "service=$(systemctl is-active "$svc" 2>/dev/null || true)"
+  echo "since=$(systemctl show "$svc" -p ActiveEnterTimestamp --value 2>/dev/null | head -1 | xargs -I{} date -d "{}" +%s 2>/dev/null || true)"
   recent="$(journalctl -u "$svc" -n 1000 --no-pager 2>/dev/null || true)"
   echo "listening=$(printf '%s' "$recent" | grep -c -E 'Listening for Jobs|Running job' || true)"
   echo "job=$(printf '%s' "$recent" | grep -E 'Running job:' | tail -1 | sed 's/.*Running job: //' | cut -c1-120)"
@@ -19,6 +20,7 @@ else
 fi
 echo "busy=$(pgrep -x Runner.Worker >/dev/null 2>&1 && echo yes || echo no)"
 echo "tool_claude=$(as_user 'claude --version' 2>/dev/null | head -1 || true)"
+echo "tool_agy=$(as_user 'agy --version' 2>/dev/null | head -1 || true)"
 echo "tool_gh=$(gh --version 2>/dev/null | head -1 | cut -d' ' -f3 || true)"
 echo "tool_git=$(git --version 2>/dev/null | cut -d' ' -f3 || true)"
 echo "tool_docker=$(docker --version 2>/dev/null | sed 's/Docker version //; s/,.*//' || true)"
@@ -30,4 +32,5 @@ if [ -n "$droot" ] && [ -d "$droot" ] && [ "$(stat -c %d "$droot" 2>/dev/null)" 
   echo "docker_path=$droot"
   df -P "$droot" | awk 'NR==2 {print "docker_total=" $2*1024; print "docker_used=" $3*1024}'
 fi
+echo "worktrees=$(ls -d "$AK_HOME"/agent-work/*/ 2>/dev/null | wc -l | tr -d ' ')"
 echo "runner_count=$(ls -d "$AK_HOME"/actions-runner*/.runner 2>/dev/null | wc -l | tr -d ' ')"
