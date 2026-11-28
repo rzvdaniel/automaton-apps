@@ -25,6 +25,15 @@ ACTIONS = ("setup", "status", "remove", "update-tools")
 NEEDS_TOKEN = ("remove",)  # setup needs one only while the machine is not registered; the script says so
 TIMEOUTS = {"setup": 1800, "status": 60, "remove": 300, "update-tools": 1200}
 OUTPUT_LIMIT = 20000
+AGENT_ROLES = (
+    ("AGENT_CLI", "AGENT_MODEL"),
+    ("AGENT_REVIEW_CLI", "AGENT_REVIEW_MODEL"),
+    ("AGENT_FALLBACK_CLI", "AGENT_FALLBACK_MODEL"),
+    ("AGENT_VERIFY_CLI", "AGENT_VERIFY_MODEL"),
+)
+AGENT_ROLE_KEYS = tuple(k for pair in AGENT_ROLES for k in pair)
+CLAUDE_ALIASES = ("sonnet", "opus", "haiku")
+MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,79}$")
 
 
 class ConfigError(ValueError):
@@ -52,7 +61,20 @@ class Settings:
         if self.parallel not in ("1", "2"):
             raise ConfigError("AGENT_PARALLEL must be 1 or 2")
         self.gh_token = env.get("AGENT_GH_TOKEN", "").strip()
-        self.agent_choice = {k: env.get(k, "").strip() for k in ("AGENT_CLI", "AGENT_MODEL", "AGENT_REVIEW_CLI", "AGENT_REVIEW_MODEL")}
+        self.agent_choice = {}
+        for cli_key, model_key in AGENT_ROLES:
+            cli = env.get(cli_key, "").strip().lower()
+            if cli not in ("", "claude", "agy"):
+                raise ConfigError(f"{cli_key} must be claude or agy")
+            model = env.get(model_key, "").strip()
+            if model and not MODEL_NAME.match(model):
+                raise ConfigError(f"{model_key} has characters that are not allowed")
+            if cli == "claude" and model and model not in CLAUDE_ALIASES and not model.startswith("claude-"):
+                raise ConfigError(f"{model_key} ({model}) is not a Claude model")
+            if cli == "agy" and model and model in CLAUDE_ALIASES:
+                raise ConfigError(f"{model_key} ({model}) is a Claude alias, not an agy model")
+            self.agent_choice[cli_key] = cli
+            self.agent_choice[model_key] = model
         self.board = (env.get("AGENT_BOARD", "").strip() or "rzvdaniel/17")
         self.repos = (env.get("AGENT_REPOS", "").strip() or "automaton automaton-apps automaton-monster")
         for value, pattern, label in ((self.name, NAME, "AGENT_RUNNER_NAME"), (self.labels, LABELS, "AGENT_RUNNER_LABELS"), (self.user, USER, "AGENT_RUNNER_USER")):
@@ -196,3 +218,44 @@ def latest_versions(opener=None) -> dict:
 def version_of(text: str) -> str:
     match = re.search(r"[0-9]+(\.[0-9]+)+", text or "")
     return match.group(0) if match else ""
+
+
+def sync_repo_variables(gh, repo: str, choices: dict[str, str]) -> list[str]:
+    """Write or delete the eight agent role variables on AGENT_REPO; returns any error messages."""
+    if not repo or "/" not in repo:
+        return []
+    errors = []
+    base = f"/repos/{repo}/actions/variables"
+    for key in AGENT_ROLE_KEYS:
+        value = (choices.get(key) or "").strip()
+        try:
+            if value:
+                try:
+                    gh.request("PATCH", f"{base}/{key}", {"name": key, "value": value})
+                except Exception as error:
+                    if "HTTP 404" in str(error):
+                        gh.request("POST", base, {"name": key, "value": value})
+                    else:
+                        raise
+            else:
+                try:
+                    gh.request("DELETE", f"{base}/{key}")
+                except Exception as error:
+                    if "HTTP 404" not in str(error):
+                        raise
+        except Exception as error:
+            errors.append(f"{key}: {error}")
+    return errors
+
+
+def read_repo_variables(gh, repo: str) -> dict[str, str]:
+    """Read the agent role variables back from AGENT_REPO."""
+    if not repo or "/" not in repo:
+        return {}
+    data = gh.request("GET", f"/repos/{repo}/actions/variables?per_page=100") or {}
+    found = {}
+    for item in data.get("variables") or []:
+        name = item.get("name")
+        if name in AGENT_ROLE_KEYS:
+            found[name] = (item.get("value") or "").strip()
+    return found

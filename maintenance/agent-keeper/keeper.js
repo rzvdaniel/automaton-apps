@@ -5,7 +5,7 @@
   var subtitle = document.getElementById("subtitle");
   var tabN = document.getElementById("tab-n");
   var TABS = ["queue", "machine", "setup"];
-  var state = null, queue = null, latest = {}, tokenProblem = null, message = "", poll = null, tab = "queue", refreshTimer = null;
+  var state = null, queue = null, latest = {}, tokenProblem = null, repoVars = null, message = "", poll = null, tab = "queue", refreshTimer = null;
   var LABELS = { setup: "Set up", status: "Refresh status", remove: "Remove", "update-tools": "Update tools" };
   var REFRESH_MS = 5 * 60 * 1000;
 
@@ -222,10 +222,26 @@
 
   function agentsCard() {
     var a = state.agents || {};
-    var name = function (v) { return v === "agy" ? "Antigravity (agy)" : v === "claude" ? "Claude Code" : ""; };
-    return '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Agents</h2></div><p class="small a-muted">Which tool writes the code and which reviews it. Applies to the next run.</p>' +
-      choice("Implement with", name(a.AGENT_CLI), "repository default") + choice("Model", a.AGENT_MODEL, "tool default") + choice("Main review with", name(a.AGENT_REVIEW_CLI), "repository default") + choice("Model", a.AGENT_REVIEW_MODEL, "tool default") +
-      '<div class="card-end"><span class="a-hint">Change these in Studio, this app\'s Settings (AGENT_CLI, AGENT_MODEL, AGENT_REVIEW_CLI, AGENT_REVIEW_MODEL). The security pass always runs on Claude. If Gemini fails or opens no pull request, the issue runs once more on Claude.</span></div></div>';
+    var rv = repoVars && repoVars.ok ? (repoVars.variables || {}) : null;
+    var roles = [
+      ["Implementation", "AGENT_CLI", "AGENT_MODEL"],
+      ["Review and security pass", "AGENT_REVIEW_CLI", "AGENT_REVIEW_MODEL"],
+      ["Fallback after a failed agy run", "AGENT_FALLBACK_CLI", "AGENT_FALLBACK_MODEL"],
+      ["Release verification", "AGENT_VERIFY_CLI", "AGENT_VERIFY_MODEL"]
+    ];
+    var mismatch = false;
+    var rows = roles.map(function (r) {
+      var label = r[0], ck = r[1], mk = r[2];
+      var cli = rv ? (rv[ck] || "") : (a[ck] || "");
+      var model = rv ? (rv[mk] || "") : (a[mk] || "");
+      if (rv && ((rv[ck] || "") !== (a[ck] || "") || (rv[mk] || "") !== (a[mk] || ""))) mismatch = true;
+      var text = (cli ? toolName(cli) : "workflow default") + (model ? " \u00b7 " + model : "");
+      return choice(label, text, "workflow default");
+    }).join("");
+    var warn = mismatch ? '<div class="a-note a-note--warning">Repository variables on GitHub differ from Agent Keeper\'s settings (someone changed them on GitHub).</div>' : "";
+    return '<div class="a-card"><div class="a-card__head"><h2 class="a-card__title">Who does what</h2></div><p class="small a-muted">Role \u2192 tool \u00b7 model, read back from the repository variables. Applies to the next run.</p>' +
+      rows + warn +
+      '<div class="card-end"><span class="a-hint">Change these in Studio, this app\'s Settings (AGENT_CLI, AGENT_MODEL, AGENT_REVIEW_CLI, AGENT_REVIEW_MODEL, AGENT_FALLBACK_CLI, AGENT_FALLBACK_MODEL, AGENT_VERIFY_CLI, AGENT_VERIFY_MODEL).</span></div></div>';
   }
 
   function boardCard() {
@@ -360,6 +376,7 @@
     loadQueue();
     request("api/token").then(function (r) { if (r.ok) { tokenProblem = r.body.problem || null; render(); } });
     request("api/latest").then(function (r) { if (r.ok) { latest = r.body || {}; render(); } });
+    request("api/repo-variables").then(function (r) { if (r.ok) { repoVars = r.body || null; render(); } });
     if (state && state.admin && !state.status && !state.missing) start("status");
   });
   setInterval(loadQueue, 60000);
