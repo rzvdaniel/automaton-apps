@@ -17,6 +17,7 @@ The official app catalog for [Automaton](https://automaton.monster), a platform 
 | Ghost — a blog with newsletters, packaged from the upstream image (MIT) | [publishing/ghost](publishing/ghost/) |
 | VictoriaLogs — search server and app logs in the browser, packaged from the upstream image (Apache-2.0) | [maintenance/victorialogs](maintenance/victorialogs/) |
 | File Browser — upload, download and look at files in a storage folder from the browser, behind Automaton sign-in (Apache-2.0; upstream archived) | [maintenance/file-browser](maintenance/file-browser/) |
+| Adminer — browse and edit a database from the browser, packaged from the upstream image (Apache-2.0 or GPL-2.0), behind Automaton sign-in | [maintenance/adminer](maintenance/adminer/) |
 
 Each app has its own source, dependencies, and `automaton.json`. Some apps use older deployment contracts; check the current [app documentation](https://automaton.monster/docs/) before deploying them. Inclusion here does not mean an app is currently published or running.
 
