@@ -312,10 +312,6 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(r.status, 200, path)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PickNowTests(ServerTests):
     def make(self):
         self.app.wrong_delay = 0
@@ -363,3 +359,6 @@ class PickNowTests(ServerTests):
         old = self.make()
         self.make()
         self.assertEqual(self.pick("Bearer " + old)[0], 401)
+
+if __name__ == "__main__":
+    unittest.main()
