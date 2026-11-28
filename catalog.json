@@ -139,6 +139,19 @@
       }
     },
     {
+      "id": "adminer",
+      "name": "Adminer",
+      "summary": "Browse and edit a database from the browser, like phpMyAdmin in a hosting panel.",
+      "category": "Maintenance",
+      "folder": "maintenance/adminer",
+      "commit": "2c173605c98f56f215279b18e91f0f8ae377c6e5",
+      "minServerVersion": "0.2.180",
+      "permissions": [],
+      "publisher": {
+        "name": "Automaton"
+      }
+    },
+    {
       "id": "ghost",
       "name": "Ghost",
       "summary": "Publish a blog and send a newsletter from your own server.",
