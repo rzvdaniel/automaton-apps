@@ -1,0 +1,27 @@
+{
+  "name": "Adminer",
+  "summary": "Browse and edit a database from the browser, like phpMyAdmin in a hosting panel.",
+  "description": "The Apache-2.0 / GPL-2.0 Adminer database manager by Jakub Vrana, packaged from its pinned upstream container image (5.5.1). It opens behind Automaton sign-in, then asks for a database host, user and password, so no credentials are stored in the package. Private only. It reaches databases its own container can reach.",
+  "category": "Maintenance",
+  "application": {
+    "kind": "web",
+    "permissions": [],
+    "description": "Browse and edit a database from the browser, like phpMyAdmin in a hosting panel.",
+    "pages": [{ "path": "/", "label": "Database" }],
+    "build": {
+      "command": {
+        "executable": "sh",
+        "arguments": ["-ec", "test -f automaton.json && test -f LICENSE.upstream.txt"],
+        "workingDirectory": "."
+      }
+    },
+    "runtime": {
+      "image": "adminer@sha256:4612622919c7026538bb4cc87a10254f96d5a8c254dfcc4d8896064af06c5517",
+      "user": "1000:1000",
+      "command": { "executable": "sh", "arguments": ["run.sh"], "workingDirectory": "." },
+      "port": 8080
+    },
+    "health": { "path": "/", "startupTimeoutSeconds": 60 },
+    "storage": { "dataDirectory": "data", "mounts": [] }
+  }
+}
